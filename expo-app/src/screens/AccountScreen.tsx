@@ -120,7 +120,7 @@ export default function AccountScreen() {
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Sell' } as any)}
+            onPress={() => navigation.navigate('MySellRequests')}
           >
             <View style={styles.menuIconCircle}>
               <Ionicons name="cash-outline" size={18} color="#374151" />
