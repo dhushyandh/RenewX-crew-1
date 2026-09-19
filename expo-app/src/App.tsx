@@ -13,6 +13,7 @@ import { ToastProvider } from '@/context/ToastContext';
 import HomeScreen from '@/screens/HomeScreen';
 import ShopScreen from '@/screens/ShopScreen';
 import SellScreen from '@/screens/SellScreen';
+import MySellRequestsScreen from '@/screens/MySellRequestsScreen';
 import TrackScreen from '@/screens/TrackScreen';
 import AccountScreen from '@/screens/AccountScreen';
 import CartScreen from '@/screens/CartScreen';
@@ -39,6 +40,7 @@ export type RootStackParamList = {
       pincode: string;
     };
   };
+  MySellRequests: undefined;
   Payment: {
     customerInfo: {
       name: string;
@@ -95,6 +97,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Checkout: 'checkout',
       OrderConfirm: 'confirm',
       Payment: 'payment',
+      MySellRequests: 'sell-requests',
       AdminDashboard: 'admin/dashboard',
       AdminProducts: 'admin/products',
       AdminAddProduct: 'admin/add/product/:id?',
@@ -258,6 +261,7 @@ function MainAppNavigation() {
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
           <Stack.Screen name="OrderConfirm" component={OrderConfirmScreen} />
           <Stack.Screen name="Payment" component={PaymentScreen} />
+          <Stack.Screen name="MySellRequests" component={MySellRequestsScreen} />
 
           {/* Dedicated Admin Direct Routes */}
           <Stack.Screen name="AdminDashboard" component={AdminPanel} />
