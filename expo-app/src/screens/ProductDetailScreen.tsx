@@ -19,6 +19,7 @@ export default function ProductDetailScreen() {
   const [product, setProduct] = useState<Product | null>(params?.product ? mapProductRow(params.product) : null);
   const [loading, setLoading] = useState(!params?.product);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const { addToCart } = useCart();
 
   useEffect(() => {
@@ -46,7 +47,13 @@ export default function ProductDetailScreen() {
         });
       })
       .catch((err: any) => {
-        if (mounted) setError(err?.message || 'Unable to load product');
+        if (!mounted) return;
+        if (err?.status === 404 || err?.code === 'NOT_FOUND') {
+          setNotFound(true);
+          setError(null);
+        } else {
+          setError(err?.message || 'Unable to load product');
+        }
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -63,7 +70,11 @@ export default function ProductDetailScreen() {
   if (!product) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>{error || 'Product not found'}</Text>
+        <Ionicons name={notFound ? 'cube-outline' : 'cloud-offline-outline'} size={48} color="#94a3b8" />
+        <Text style={styles.errorText}>{notFound ? 'Product not found' : (error || 'Unable to load product')}</Text>
+        <Text style={styles.errorSubtext}>
+          {notFound ? 'This product may have been removed or is no longer available.' : 'Check your connection and try again.'}
+        </Text>
         <TouchableOpacity style={styles.backErrorButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backErrorText}>Go Back</Text>
         </TouchableOpacity>
@@ -201,6 +212,13 @@ const styles = StyleSheet.create({
   backErrorText: {
     color: colors.primary,
     fontWeight: fontWeight.bold,
+  },
+  errorSubtext: {
+    color: colors.textMuted,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: spacing.md,
   },
   container: {
     flex: 1,
