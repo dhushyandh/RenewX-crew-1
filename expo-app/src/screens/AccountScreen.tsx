@@ -182,6 +182,21 @@ export default function AccountScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Notifications */}
+        <View style={styles.menuSection}>
+          <Text style={styles.menuHeader}>Updates</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Notifications')}>
+            <View style={styles.menuIconCircle}>
+              <Ionicons name="notifications-outline" size={18} color="#374151" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuTitle}>Notifications</Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Order and sell-request updates</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+        </View>
+
         {/* Settings */}
         <View style={styles.menuSection}>
           <Text style={styles.menuHeader}>Preferences</Text>
