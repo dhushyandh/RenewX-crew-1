@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { uploadFile, uploadBase64 } from '../controllers/uploadController';
+import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -41,9 +42,9 @@ function handleSingleUpload(req: Request, res: Response, next: NextFunction) {
 }
 
 // 1. Multipart Form File Upload Endpoint
-router.post('/', handleSingleUpload, uploadFile);
+router.post('/', authenticateToken, requireAdmin, handleSingleUpload, uploadFile);
 
 // 2. Base64 JSON Payload Upload Endpoint (for Expo/mobile)
-router.post('/base64', uploadBase64);
+router.post('/base64', authenticateToken, requireAdmin, uploadBase64);
 
 export default router;
