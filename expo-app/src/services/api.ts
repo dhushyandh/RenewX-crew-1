@@ -7,6 +7,10 @@ const DEFAULT_HOST = PRODUCTION_API_BASE_URL;
 const configuredApiUrl =
   typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
 const API_BASE_URL = configuredApiUrl || DEFAULT_HOST;
+
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
