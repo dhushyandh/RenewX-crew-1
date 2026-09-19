@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { env } from '../config/env';
+import { uploadImageToStorage, shouldUsePersistentStorage } from '../services/storage';
 
 // Ensure public/uploads directory exists on disk
 const UPLOAD_DIR = path.resolve(process.cwd(), 'public', 'uploads');
@@ -47,19 +48,22 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
       return;
     }
 
-    const result = saveImageBuffer(
-      file.buffer,
-      file.originalname || 'upload.jpg',
-      file.mimetype || 'image/jpeg',
-      req
-    );
+    const originalName = file.originalname || 'upload.jpg';
+    const mimeType = file.mimetype || 'image/jpeg';
 
+    if (shouldUsePersistentStorage()) {
+      const url = await uploadImageToStorage(file.buffer, originalName, mimeType);
+      res.status(201).json({
+        success: true,
+        data: { url, fileName: originalName, size: file.size, mimeType },
+      });
+      return;
+    }
+
+    const result = saveImageBuffer(file.buffer, originalName, mimeType, req);
     res.status(201).json({
       success: true,
-      data: {
-        ...result,
-        mimeType: file.mimetype,
-      },
+      data: { ...result, mimeType },
     });
   } catch (err) {
     next(err);
@@ -87,14 +91,19 @@ export async function uploadBase64(req: Request, res: Response, next: NextFuncti
     const mime = contentType || 'image/jpeg';
     const name = fileName || 'device-image.jpg';
 
-    const result = saveImageBuffer(buffer, name, mime, req);
+    if (shouldUsePersistentStorage()) {
+      const url = await uploadImageToStorage(buffer, name, mime);
+      res.status(201).json({
+        success: true,
+        data: { url, fileName: name, size: buffer.length, mimeType: mime },
+      });
+      return;
+    }
 
+    const result = saveImageBuffer(buffer, name, mime, req);
     res.status(201).json({
       success: true,
-      data: {
-        ...result,
-        mimeType: mime,
-      },
+      data: { ...result, mimeType: mime },
     });
   } catch (err) {
     next(err);
