@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 export interface Brand {
   id: string;
@@ -9,7 +9,7 @@ export interface Brand {
   created_at?: string;
 }
 
-export interface IBrand extends Document {
+export interface IBrand {
   id: string;
   name: string;
   logo_url?: string;
