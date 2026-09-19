@@ -34,6 +34,7 @@ export interface TradeInPickupRequest {
   address: string;
   status?: string;
   condition?: Record<string, unknown>;
+  admin_note?: string;
 }
 
 export interface ITradeInRequest {
@@ -128,6 +129,7 @@ const TradeInRequestSchema = new Schema<ITradeInRequest>(
     address: { type: String, required: true },
     status: { type: String, default: 'pending', index: true },
     condition: { type: Schema.Types.Mixed, default: {} },
+    admin_note: { type: String, default: '' },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
