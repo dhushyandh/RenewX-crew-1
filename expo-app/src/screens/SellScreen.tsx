@@ -105,37 +105,60 @@ export default function SellScreen() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState('');
 
-  // Calculate dynamic quote
-  const calculatedQuote = () => {
-    let base = 52000;
-    if (selectedCat.id === 'macbooks') base = 85000;
-    if (selectedCat.id === 'laptops') base = 42000;
-    if (selectedCat.id === 'tablets') base = 31000;
-    if (selectedCat.id === 'smartwatches') base = 16000;
+  const [quoteAmount, setQuoteAmount] = useState(0);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
 
-    // Adjust for storage
-    if (selectedStorage === '512 GB') base += 5000;
-    if (selectedStorage === '1 TB') base += 9000;
-    if (selectedStorage === '64 GB') base -= 4000;
+  useEffect(() => {
+    let active = true;
+    setQuoteLoading(true);
+    setQuoteError(null);
 
-    // Adjust for screen condition
-    if (screenCond === 'good') base -= 4500;
-    if (screenCond === 'cracked') base -= 11000;
+    api.tradeIn.getQuote({
+      category: selectedCat.name,
+      brand: selectedBrand,
+      model: selectedModel,
+      storage: selectedStorage,
+      screenCondition: screenCond,
+      bodyCondition: bodyCond,
+      functionalChecks: {
+        switchesOn,
+        touchWorking,
+        cameraClear,
+        batteryHealthy,
+      },
+      accessories: {
+        hasBox,
+        hasCharger,
+        hasBill,
+      },
+    }).then((result: any) => {
+      if (!active) return;
+      setQuoteAmount(Number(result?.valuation || 0));
+    }).catch((err: any) => {
+      if (!active) return;
+      setQuoteAmount(0);
+      setQuoteError(err?.message || 'Unable to calculate the current estimate.');
+    }).finally(() => {
+      if (active) setQuoteLoading(false);
+    });
 
-    // Adjust for body condition
-    if (bodyCond === 'fair') base -= 2500;
-    if (bodyCond === 'dented') base -= 6000;
-
-    // Accessories bonus
-    if (hasBox) base += 800;
-    if (hasCharger) base += 1000;
-    if (hasBill) base += 500;
-
-    if (!switchesOn) base = Math.round(base * 0.35);
-    if (!touchWorking) base -= 4000;
-
-    return Math.max(base, 2500);
-  };
+    return () => { active = false; };
+  }, [
+    selectedCat.name,
+    selectedBrand,
+    selectedModel,
+    selectedStorage,
+    screenCond,
+    bodyCond,
+    switchesOn,
+    touchWorking,
+    cameraClear,
+    batteryHealthy,
+    hasBox,
+    hasCharger,
+    hasBill,
+  ]);
 
   const handleBookPickup = async () => {
     if (!userName.trim() || !userPhone.trim() || !userPincode.trim()) {
@@ -143,7 +166,10 @@ export default function SellScreen() {
       return;
     }
 
-    const quoteAmount = calculatedQuote();
+    if (quoteLoading || !quoteAmount) {
+      toast.warning('Please wait for the latest device valuation.', 'Valuation unavailable');
+      return;
+    }
     if (!user) {
       toast.error('Please sign in before submitting a sell request.', 'Sign in required');
       return;
@@ -580,7 +606,11 @@ export default function SellScreen() {
 
                   <View style={styles.cashAmountRow}>
                     <Text style={styles.cashSymbol}>₹</Text>
-                    <Text style={styles.cashAmount}>{calculatedQuote().toLocaleString('en-IN')}</Text>
+                    {quoteLoading ? (
+                      <Text style={styles.cashAmount}>Calculating…</Text>
+                    ) : (
+                      <Text style={styles.cashAmount}>₹{quoteAmount.toLocaleString('en-IN')}</Text>
+                    )}
                   </View>
 
                   <Text style={styles.deviceSpecSummary}>
@@ -651,7 +681,7 @@ export default function SellScreen() {
                   >
                     <Ionicons name="checkmark-circle" size={20} color="#000000" />
                     <Text style={styles.confirmPickupText}>
-                      Submit Sell Request & Get ₹{calculatedQuote().toLocaleString('en-IN')}
+                      Submit Sell Request & Get ₹{quoteAmount.toLocaleString('en-IN')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -679,7 +709,7 @@ export default function SellScreen() {
                   <View style={styles.bookingRow}>
                     <Text style={styles.bookingLabel}>Valuation Offer:</Text>
                     <Text style={[styles.bookingVal, { color: '#059669', fontWeight: '800' }]}>
-                      ₹{calculatedQuote().toLocaleString('en-IN')}
+                      ₹{quoteAmount.toLocaleString('en-IN')}
                     </Text>
                   </View>
                   <View style={styles.bookingRow}>
