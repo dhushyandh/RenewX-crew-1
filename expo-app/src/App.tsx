@@ -135,7 +135,7 @@ function CustomSellTabButton({ children, onPress, accessibilityState }: any) {
       activeOpacity={0.88}
     >
       <View style={[styles.customSellCircle, focused && styles.customSellCircleActive]}>
-        <Text style={styles.sellCurrencySign}>$</Text>
+        <Ionicons name="cash-outline" size={25} color="#0a0a0a" />
       </View>
       <Text style={[styles.sellLabel, focused && styles.sellLabelActive]}>Sell</Text>
     </TouchableOpacity>
