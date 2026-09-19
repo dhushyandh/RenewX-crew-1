@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: renewx-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build:server
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
