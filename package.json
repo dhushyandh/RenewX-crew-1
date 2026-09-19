@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "server": "tsx watch server.ts",
+    "server": "tsx watch server/local.ts",
     "seed": "tsx server/seed.ts"
   },
   "dependencies": {
