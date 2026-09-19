@@ -1,8 +1,12 @@
 import { Router } from 'express';
-import { getUsers, updateUserRole, deleteUser } from '../controllers/userController';
+import { getUsers, updateUserRole, deleteUser, getMyNotificationPreferences, updateMyNotificationPreferences } from '../controllers/userController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
+
+// Current-user preferences
+router.get('/me/notification-preferences', authenticateToken, getMyNotificationPreferences);
+router.patch('/me/notification-preferences', authenticateToken, updateMyNotificationPreferences);
 
 // Admin-only user management
 router.get('/', authenticateToken, requireAdmin, getUsers);
