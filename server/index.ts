@@ -59,7 +59,7 @@ app.use((req: Request, res: Response, next) => {
 app.get('/', (_req, res) => {
   res.json({
     success: true,
-    message: 'RenewX API is running',
+    message: 'server is live',
     health: '/api/health',
   });
 });
