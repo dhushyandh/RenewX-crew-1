@@ -5,14 +5,14 @@ import {
   createOrder,
   updateOrderStatus,
 } from '../controllers/orderController';
-import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { authenticateToken, requireAuthenticated, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
 // Order creation & lookup
-router.post('/', authenticateToken, createOrder);
+router.post('/', authenticateToken, requireAuthenticated, createOrder);
 router.get('/', authenticateToken, getOrders);
-router.get('/:id', getOrderById);
+router.get('/:id', authenticateToken, requireAuthenticated, getOrderById);
 
 // Admin-only order status progression
 router.patch('/:id/status', authenticateToken, requireAdmin, updateOrderStatus);
