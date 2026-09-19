@@ -58,7 +58,7 @@ export default function CartScreen() {
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <View style={styles.cartItem}>
-            <Image source={{ uri: item.image }} style={styles.itemImage} />
+            <Image source={item.image ? { uri: item.image } : null} style={styles.itemImage} resizeMode="cover" />
             <View style={styles.itemContent}>
               <Text style={styles.itemName} numberOfLines={2}>
                 {item.name}
@@ -195,7 +195,6 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: radius.md,
-    resizeMode: 'cover',
     backgroundColor: '#f7f5ec',
   },
   itemContent: { flex: 1 },

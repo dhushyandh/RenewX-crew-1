@@ -116,15 +116,17 @@ export const api = {
       payload: {
         items: { product_id: string; quantity: number }[];
         customer_info: { name: string; phone: string; address: string; pincode: string };
+        payment_method?: 'razorpay' | 'cod';
       },
       idempotencyKey: string,
     ) => {
       return await request<{
         order: any;
-        razorpay_key_id: string;
-        razorpay_order_id: string;
-        amount: number;
-        currency: 'INR';
+        razorpay_key_id?: string;
+        razorpay_order_id?: string;
+        amount?: number;
+        currency?: 'INR';
+        is_cod?: boolean;
       }>('/orders/checkout', {
         method: 'POST',
         headers: { 'Idempotency-Key': idempotencyKey },
@@ -158,6 +160,8 @@ export const api = {
     getAll: async () => request<any[]>('/users'),
     updateRole: async (id: string, role: 'admin' | 'customer') =>
       request<any>(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+    delete: async (id: string) =>
+      request<any>(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
 
   tradeIn: {

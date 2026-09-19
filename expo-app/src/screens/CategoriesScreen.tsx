@@ -121,7 +121,7 @@ export default function CategoriesScreen() {
               onPress={() => navigation.navigate('ProductDetail', { product: item })}
               activeOpacity={0.85}
             >
-              <Image source={{ uri: item.image }} style={styles.miniImage} />
+              <Image source={item.image ? { uri: item.image } : null} style={styles.miniImage} resizeMode="cover" />
               <View style={styles.miniContent}>
                 <Text style={styles.miniBrand}>{item.brand}</Text>
                 <Text style={styles.miniName} numberOfLines={2}>
@@ -215,7 +215,6 @@ const styles = StyleSheet.create({
   miniImage: {
     width: '100%',
     aspectRatio: 1,
-    resizeMode: 'cover',
     backgroundColor: '#f7f5ec',
   },
   miniContent: {

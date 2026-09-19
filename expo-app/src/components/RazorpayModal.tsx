@@ -252,6 +252,15 @@ export default function RazorpayModal({
           )}
         </View>
 
+        {String(options.key || '').startsWith('rzp_test_') && (
+          <View style={styles.testModeBanner}>
+            <Ionicons name="information-circle-outline" size={15} color="#b45309" />
+            <Text style={styles.testModeText}>
+              <Text style={styles.testModeHighlight}>Test Mode:</Text> Select UPI (enter <Text style={styles.testModeHighlight}>success@razorpay</Text>) or Netbanking (click Success).
+            </Text>
+          </View>
+        )}
+
         <View style={styles.webviewContainer}>
           <WebView
             ref={webViewRef}
@@ -350,5 +359,24 @@ const styles = StyleSheet.create({
   loaderText: {
     color: '#94a3b8',
     fontSize: fontSize.sm,
+  },
+  testModeBanner: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fde68a',
+  },
+  testModeText: {
+    fontSize: 11,
+    color: '#92400e',
+    flex: 1,
+    lineHeight: 16,
+  },
+  testModeHighlight: {
+    fontWeight: fontWeight.bold,
   },
 });

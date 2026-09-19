@@ -87,6 +87,7 @@ export interface CreateOrderDTO {
     address: string;
     pincode: string;
   };
+  payment_method?: 'razorpay' | 'cod';
 }
 
 const OrderItemSchema = new Schema<OrderItem>(

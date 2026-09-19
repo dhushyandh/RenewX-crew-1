@@ -6,6 +6,7 @@ import type { RootStackParamList } from '@/App';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { api } from '@/services/api';
+import { mapProductRow } from '@/lib/productMapper';
 import { useEffect, useState } from 'react';
 import { colors, fontSize, fontWeight, radius, spacing, conditionColors } from '@/theme';
 
@@ -15,7 +16,7 @@ export default function ProductDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const params = route.params as { product?: Product; id?: string } | undefined;
-  const [product, setProduct] = useState<Product | null>(params?.product || null);
+  const [product, setProduct] = useState<Product | null>(params?.product ? mapProductRow(params.product) : null);
   const [loading, setLoading] = useState(!params?.product);
   const [error, setError] = useState<string | null>(null);
   const { addToCart } = useCart();
@@ -84,7 +85,7 @@ export default function ProductDetailScreen() {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: product.image }} style={styles.image} />
+          <Image source={product.image ? { uri: product.image } : null} style={styles.image} resizeMode="cover" />
           {discount > 0 && (
             <View style={styles.discountBadge}>
               <Text style={styles.discountText}>-{discount}%</Text>
@@ -127,7 +128,7 @@ export default function ProductDetailScreen() {
 
           <Text style={styles.sectionLabel}>Key Specifications</Text>
           <View style={styles.specsContainer}>
-            {product.specs.map((spec, i) => (
+            {(product.specs || []).map((spec, i) => (
               <View key={i} style={styles.specRow}>
                 <Ionicons name="checkmark-circle" size={16} color="#10b981" />
                 <Text style={styles.specText}>{spec}</Text>
@@ -213,7 +214,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   discountBadge: {
     position: 'absolute',

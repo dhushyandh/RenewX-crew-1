@@ -206,6 +206,17 @@ export async function createCheckoutOrder(
     }).select('+checkout_key');
 
     if (existing) {
+      if (existing.payment_method === 'cod') {
+        res.status(200).json({
+          success: true,
+          data: {
+            order: existing,
+            is_cod: true,
+          },
+        });
+        return;
+      }
+
       res.status(200).json({
         success: true,
         data: {
@@ -229,6 +240,66 @@ export async function createCheckoutOrder(
 
     const { subtotal, savings, orderItems } = buildOrderItems(products, requested);
     if (subtotal < 100) throw httpError('Minimum payable amount is ₹1', 400, 'INVALID_AMOUNT');
+
+    const isCod = (req.body as CreateOrderDTO)?.payment_method === 'cod';
+
+    if (isCod) {
+      const reserved: { id: string; quantity: number }[] = [];
+      try {
+        for (const item of orderItems) {
+          const product = await ProductModel.findOneAndUpdate(
+            { _id: item.product_id, stock: { $gte: item.quantity } },
+            { $inc: { stock: -item.quantity } },
+            { new: true }
+          );
+
+          if (!product) {
+            throw httpError('Product became unavailable: ' + item.product_name, 409, 'INSUFFICIENT_STOCK');
+          }
+
+          reserved.push({ id: item.product_id, quantity: item.quantity });
+        }
+
+        const codOrder = await OrderModel.create({
+          user_id: req.user.id,
+          subtotal,
+          savings,
+          status: 'verified',
+          payment_status: 'created',
+          payment_method: 'cod',
+          currency: 'INR',
+          checkout_key: checkoutKey,
+          courier: 'BlueDart Express',
+          tracking_number: 'RNX' + Date.now().toString().slice(-9),
+          estimated_delivery: '3-5 Business Days',
+          customer_info: {
+            name: customer.name.trim(),
+            phone: customer.phone,
+            address: customer.address.trim(),
+            pincode: customer.pincode,
+          },
+          order_items: orderItems,
+        });
+
+        res.status(201).json({
+          success: true,
+          data: {
+            order: codOrder,
+            is_cod: true,
+          },
+        });
+        return;
+      } catch (stockError) {
+        if (reserved.length) {
+          await Promise.all(
+            reserved.map(({ id, quantity }) =>
+              ProductModel.updateOne({ _id: id }, { $inc: { stock: quantity } }).exec()
+            )
+          );
+        }
+        throw stockError;
+      }
+    }
 
     const draft = await OrderModel.create({
       user_id: req.user.id,
@@ -281,6 +352,16 @@ export async function createCheckoutOrder(
       const checkoutKey = String(req.header('Idempotency-Key') || '');
       const existing = await OrderModel.findOne({ user_id: req.user?.id, checkout_key: checkoutKey }).select('+checkout_key');
       if (existing) {
+        if (existing.payment_method === 'cod') {
+          res.json({
+            success: true,
+            data: {
+              order: existing,
+              is_cod: true,
+            },
+          });
+          return;
+        }
         res.json({
           success: true,
           data: {

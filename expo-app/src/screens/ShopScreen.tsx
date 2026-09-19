@@ -196,7 +196,7 @@ export default function ShopScreen() {
 
         {/* Product Image */}
         <View style={styles.imageBox}>
-          <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="contain" />
+          <Image source={product.image ? { uri: product.image } : null} style={styles.productImage} resizeMode="contain" />
         </View>
 
         {/* Product Details */}

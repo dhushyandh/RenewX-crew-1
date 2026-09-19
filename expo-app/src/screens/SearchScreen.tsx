@@ -101,7 +101,7 @@ export default function SearchScreen() {
                 onPress={() => navigation.navigate('ProductDetail', { id: String(item.id) })}
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: item.image }} style={styles.resultImage} />
+                <Image source={item.image ? { uri: item.image } : null} style={styles.resultImage} resizeMode="cover" />
                 <View style={styles.resultContent}>
                   <Text style={styles.resultBrand}>{item.brand}</Text>
                   <Text style={styles.resultName} numberOfLines={2}>
@@ -213,7 +213,6 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: radius.md,
-    resizeMode: 'cover',
     backgroundColor: '#f7f5ec',
   },
   resultContent: {

@@ -21,6 +21,7 @@ import {
   initialModels,
 } from '@/data/brandsData';
 import { api } from '@/services/api';
+import { confirmAction } from '@/lib/confirmAction';
 import ImagePickerButton from '@/components/ImagePickerButton';
 
 interface BrandsViewProps {
@@ -122,29 +123,22 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
     setBrandModalVisible(true);
   };
 
-  const handleDeleteBrand = (brandId: string) => {
-    Alert.alert(
+  const handleDeleteBrand = (brandId: string, brandName?: string) => {
+    confirmAction(
       'Delete Brand',
-      'Are you sure you want to delete this brand and all its device models?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setBrands((prev) => prev.filter((b) => b.id !== brandId));
-            setModels((prev) => prev.filter((m) => m.brandId !== brandId));
-            if (selectedBrandForModels?.id === brandId) {
-              setSelectedBrandForModels(null);
-            }
-            try {
-              await api.brands.delete(brandId);
-            } catch (err) {
-              console.warn('[BrandsView] Error deleting brand on API:', err);
-            }
-          },
-        },
-      ]
+      `Are you sure you want to delete ${brandName ? `"${brandName}"` : 'this brand'} and all associated device models?`,
+      async () => {
+        setBrands((prev) => prev.filter((b) => b.id !== brandId && (b as any)._id !== brandId));
+        setModels((prev) => prev.filter((m) => m.brandId !== brandId && (m as any).brand_id !== brandId));
+        if (selectedBrandForModels?.id === brandId || (selectedBrandForModels as any)?._id === brandId) {
+          setSelectedBrandForModels(null);
+        }
+        try {
+          await api.brands.delete(brandId);
+        } catch (err) {
+          console.warn('[BrandsView] Error deleting brand on API:', err);
+        }
+      }
     );
   };
 
@@ -193,22 +187,19 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
     setModelModalVisible(true);
   };
 
-  const handleDeleteModel = (modelId: string) => {
-    Alert.alert('Delete Model', 'Are you sure you want to remove this model from catalog?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          setModels((prev) => prev.filter((m) => m.id !== modelId));
-          try {
-            await api.models.delete(modelId);
-          } catch (err) {
-            console.warn('[BrandsView] API delete model failed:', err);
-          }
-        },
-      },
-    ]);
+  const handleDeleteModel = (modelId: string, modelName?: string) => {
+    confirmAction(
+      'Delete Model',
+      `Are you sure you want to remove ${modelName ? `"${modelName}"` : 'this model'} from the catalog?`,
+      async () => {
+        setModels((prev) => prev.filter((m) => m.id !== modelId && (m as any)._id !== modelId));
+        try {
+          await api.models.delete(modelId);
+        } catch (err) {
+          console.warn('[BrandsView] API delete model failed:', err);
+        }
+      }
+    );
   };
 
   const handleSaveModel = async (m: DeviceModelItem) => {
@@ -312,7 +303,7 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
               <View style={styles.brandCardTop}>
                 <View style={styles.logoBox}>
                   {brand.logo ? (
-                    <Image source={{ uri: brand.logo }} style={styles.brandLogo} resizeMode="contain" />
+                    <Image source={brand.logo ? { uri: brand.logo } : null} style={styles.brandLogo} resizeMode="contain" />
                   ) : (
                     <Text style={styles.brandInitial}>{brand.name.charAt(0)}</Text>
                   )}
@@ -361,7 +352,7 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
 
                 <TouchableOpacity
                   style={styles.iconCircleBtn}
-                  onPress={() => handleDeleteBrand(brand.id)}
+                  onPress={() => handleDeleteBrand(brand.id, brand.name)}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="trash-outline" size={16} color="#ef4444" />
@@ -395,6 +386,7 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
             setEditingBrand(null);
           }}
           onSave={handleSaveBrand}
+          onDelete={handleDeleteBrand}
         />
       )}
 
@@ -410,6 +402,7 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
             setEditingModel(null);
           }}
           onSave={handleSaveModel}
+          onDelete={handleDeleteModel}
         />
       )}
     </ScrollView>
@@ -434,7 +427,7 @@ function ManageModelsModal({
   onClose: () => void;
   onAddModel: () => void;
   onEditModel: (model: DeviceModelItem) => void;
-  onDeleteModel: (modelId: string) => void;
+  onDeleteModel: (modelId: string, modelName?: string) => void;
 }) {
   const [search, setSearch] = useState('');
 
@@ -543,10 +536,10 @@ function ManageModelsModal({
 
                     <TouchableOpacity
                       style={modalStyles.trashBtn}
-                      onPress={() => onDeleteModel(model.id)}
+                      onPress={() => onDeleteModel(model.id, model.name)}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="trash-outline" size={15} color="#9ca3af" />
+                      <Ionicons name="trash-outline" size={15} color="#dc2626" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -568,11 +561,13 @@ function BrandFormModal({
   brand,
   onClose,
   onSave,
+  onDelete,
 }: {
   visible: boolean;
   brand: BrandItem | null;
   onClose: () => void;
   onSave: (b: BrandItem) => void;
+  onDelete?: (brandId: string, brandName?: string) => void;
 }) {
   const [name, setName] = useState(brand?.name || '');
   const [category, setCategory] = useState(brand?.category || 'SMARTPHONES');
@@ -643,7 +638,7 @@ function BrandFormModal({
           {logo ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <Image
-                source={{ uri: logo }}
+                source={logo ? { uri: logo } : null}
                 style={{ width: 32, height: 32, borderRadius: 6, backgroundColor: '#f1f5f9' }}
               />
               <Text style={{ fontSize: 11, color: '#10b981', fontWeight: '600' }}>✓ Logo linked</Text>
@@ -661,6 +656,25 @@ function BrandFormModal({
           />
 
           <View style={formStyles.btnRow}>
+            {brand && onDelete ? (
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: 10,
+                  backgroundColor: '#fee2e2',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 'auto',
+                }}
+                onPress={() => {
+                  onClose();
+                  onDelete(brand.id, brand.name);
+                }}
+              >
+                <Ionicons name="trash-outline" size={16} color="#dc2626" />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity style={formStyles.cancelBtn} onPress={onClose}>
               <Text style={formStyles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
@@ -684,6 +698,7 @@ function ModelFormModal({
   preselectedBrandId,
   onClose,
   onSave,
+  onDelete,
 }: {
   visible: boolean;
   model: DeviceModelItem | null;
@@ -691,6 +706,7 @@ function ModelFormModal({
   preselectedBrandId: string;
   onClose: () => void;
   onSave: (m: DeviceModelItem) => void;
+  onDelete?: (modelId: string, modelName?: string) => void;
 }) {
   const [brandId, setBrandId] = useState(model?.brandId || preselectedBrandId || brands[0]?.id);
   const [name, setName] = useState(model?.name || '');
@@ -799,6 +815,25 @@ function ModelFormModal({
             </TouchableOpacity>
 
             <View style={formStyles.btnRow}>
+              {model && onDelete ? (
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    backgroundColor: '#fee2e2',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 'auto',
+                  }}
+                  onPress={() => {
+                    onClose();
+                    onDelete(model.id, model.name);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity style={formStyles.cancelBtn} onPress={onClose}>
                 <Text style={formStyles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
@@ -1205,10 +1240,11 @@ const modalStyles = StyleSheet.create({
     color: '#374151',
   },
   trashBtn: {
-    padding: 6,
+    padding: 7,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#fee2e2',
+    backgroundColor: '#fef2f2',
   },
 });
 

@@ -113,11 +113,17 @@ export async function deleteModel(req: Request, res: Response, next: NextFunctio
   try {
     const { id } = req.params;
 
+    let deleted = null;
     if (mongoose.Types.ObjectId.isValid(id)) {
-      await DeviceModelModel.findByIdAndDelete(id);
+      deleted = await DeviceModelModel.findByIdAndDelete(id);
+    }
+    if (!deleted) {
+      deleted = await DeviceModelModel.findOneAndDelete({
+        $or: [{ name: new RegExp(`^${id}$`, 'i') }, { name: id }],
+      });
     }
 
-    res.json({ success: true, message: 'Device model deleted successfully' });
+    res.json({ success: true, message: 'Device model deleted successfully', data: deleted ? { id: deleted.id } : null });
   } catch (err) {
     next(err);
   }

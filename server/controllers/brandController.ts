@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { BrandModel, CreateBrandDTO, UpdateBrandDTO } from '../models/Brand';
+import { DeviceModelModel } from '../models/DeviceModel';
 
 export async function getBrands(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -100,10 +101,22 @@ export async function deleteBrand(req: Request, res: Response, next: NextFunctio
   try {
     const { id } = req.params;
 
+    let deleted = null;
     if (mongoose.Types.ObjectId.isValid(id)) {
-      await BrandModel.findByIdAndDelete(id);
-    } else {
-      await BrandModel.findOneAndDelete({ name: id });
+      deleted = await BrandModel.findByIdAndDelete(id);
+    }
+    if (!deleted) {
+      deleted = await BrandModel.findOneAndDelete({ name: new RegExp(`^${id}$`, 'i') });
+    }
+
+    if (deleted) {
+      await DeviceModelModel.deleteMany({
+        $or: [
+          { brand_id: id },
+          { brand_id: deleted._id.toString() },
+          { brand_name: new RegExp(`^${deleted.name}$`, 'i') },
+        ],
+      });
     }
 
     res.json({ success: true, message: 'Brand deleted successfully' });

@@ -17,6 +17,8 @@ import TrackScreen from '@/screens/TrackScreen';
 import AccountScreen from '@/screens/AccountScreen';
 import CartScreen from '@/screens/CartScreen';
 import CheckoutScreen from '@/screens/CheckoutScreen';
+import OrderConfirmScreen from '@/screens/OrderConfirmScreen';
+import PaymentScreen from '@/screens/PaymentScreen';
 import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
@@ -29,6 +31,22 @@ export type RootStackParamList = {
   Search: undefined;
   Cart: undefined;
   Checkout: undefined;
+  OrderConfirm: {
+    customerInfo: {
+      name: string;
+      phone: string;
+      address: string;
+      pincode: string;
+    };
+  };
+  Payment: {
+    customerInfo: {
+      name: string;
+      phone: string;
+      address: string;
+      pincode: string;
+    };
+  };
 
   // Dedicated Admin Routes with direct URLs
   AdminDashboard: undefined;
@@ -75,6 +93,8 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Search: 'search',
       Cart: 'cart',
       Checkout: 'checkout',
+      OrderConfirm: 'confirm',
+      Payment: 'payment',
       AdminDashboard: 'admin/dashboard',
       AdminProducts: 'admin/products',
       AdminAddProduct: 'admin/add/product/:id?',
@@ -236,6 +256,8 @@ function MainAppNavigation() {
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
+          <Stack.Screen name="OrderConfirm" component={OrderConfirmScreen} />
+          <Stack.Screen name="Payment" component={PaymentScreen} />
 
           {/* Dedicated Admin Direct Routes */}
           <Stack.Screen name="AdminDashboard" component={AdminPanel} />

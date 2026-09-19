@@ -62,3 +62,33 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     next(err);
   }
 }
+
+export async function deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    let targetUser = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      targetUser = await User.findById(id);
+    }
+
+    if (!targetUser) {
+      res.status(404).json({ success: false, error: { message: 'User not found' } });
+      return;
+    }
+
+    // Safety check: protect primary admin from deletion
+    if (targetUser.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Primary administrator account cannot be deleted.', code: 'PROTECTED_USER' },
+      });
+      return;
+    }
+
+    await User.findByIdAndDelete(targetUser._id);
+    res.json({ success: true, message: 'User deleted successfully', data: { id: targetUser._id } });
+  } catch (err) {
+    next(err);
+  }
+}

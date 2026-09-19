@@ -20,7 +20,7 @@ export default function ProductCard({ product, onPress, onAddToCart }: ProductCa
   return (
     <TouchableOpacity onPress={onPress} style={styles.card} activeOpacity={0.88}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
+        <Image source={product.image ? { uri: product.image } : null} style={styles.image} resizeMode="cover" />
         {discount > 0 && (
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>-{discount}%</Text>
