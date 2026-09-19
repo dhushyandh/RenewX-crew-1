@@ -46,10 +46,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const contentType = res.headers.get('content-type') || '';
   const json = contentType.includes('application/json') ? await res.json() : null;
-  if (!res.ok || json.success === false) {
-    const errorMsg = json.error?.message || `HTTP Error ${res.status}`;
+  if (!res.ok || json?.success === false) {
+    const errorMsg = json?.error?.message || `HTTP Error ${res.status}`;
     const error = new Error(errorMsg) as Error & { code?: string; status?: number };
-    error.code = json.error?.code;
+    error.code = json?.error?.code;
     error.status = res.status;
     throw error;
   }
