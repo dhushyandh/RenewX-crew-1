@@ -59,7 +59,7 @@ export async function createPickupRequest(req: AuthenticatedRequest, res: Respon
 
     res.status(201).json({
       success: true,
-      message: 'Pickup request scheduled successfully',
+      message: 'Sell request submitted successfully and is awaiting admin approval',
       data: newRequest,
     });
   } catch (err) {
