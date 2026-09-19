@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -421,15 +421,16 @@ export default function SellScreen() {
 
             {/* Brand Pills */}
             <Text style={styles.fieldLabel}>Brand</Text>
+            {catalogLoading && <Text style={styles.catalogHint}>Loading live catalog…</Text>}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsScroll}>
-              {(brandList[selectedCat.id] || ['Apple', 'Samsung', 'Dell']).map((b) => (
+              {brands.map((brand) => (
                 <TouchableOpacity
-                  key={b}
-                  style={[styles.chipPill, selectedBrand === b.name && styles.chipPillActive]}
-                  onPress={() => setSelectedBrand(b.name)}
+                  key={brand.id || brand.name}
+                  style={[styles.chipPill, selectedBrand === brand.name && styles.chipPillActive]}
+                  onPress={() => setSelectedBrand(brand.name)}
                 >
-                  <Text style={[styles.chipText, selectedBrand === b && styles.chipTextActive]}>
-                    {b}
+                  <Text style={[styles.chipText, selectedBrand === brand.name && styles.chipTextActive]}>
+                    {brand.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -977,6 +978,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  catalogHint: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
+  nextButtonDisabled: { opacity: 0.5 },
   catalogHint: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
   nextButtonDisabled: { opacity: 0.5 },
   nextButtonText: {
