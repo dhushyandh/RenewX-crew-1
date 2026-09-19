@@ -8,6 +8,10 @@ import { handleRazorpayWebhook } from './controllers/orderController';
 
 const app = express();
 
+if (env.NODE_ENV === 'production' && env.CORS_ORIGINS.includes('*')) {
+  throw new Error('CORS_ORIGIN must be explicitly configured in production');
+}
+
 const allowedOrigins = new Set(env.CORS_ORIGINS.filter((origin) => origin !== '*'));
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
