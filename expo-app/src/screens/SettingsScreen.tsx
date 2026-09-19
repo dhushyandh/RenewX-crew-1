@@ -156,7 +156,7 @@ export default function SettingsScreen() {
             icon="document-text-outline"
             title="Privacy & Terms"
             description="Review the policies before using RenewX"
-            onPress={() => Linking.openURL('https://renewx.in')}
+            onPress={() => Alert.alert('Privacy & Terms', 'Privacy and terms pages will be linked here once the official RenewX policy URLs are configured.')}
             last
           />
         </View>
@@ -291,7 +291,6 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   rowTitle: { fontSize: 13, fontWeight: '800', color: '#1f2937' },
-  rowDescription: { fontSize: 10, color: '#6b7280', marginTop: 3, lineHeight: 14 },
   rowDescription: { fontSize: 10, color: '#6b7280', marginTop: 3, lineHeight: 14 },
   signOutButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
