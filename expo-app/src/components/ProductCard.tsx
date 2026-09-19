@@ -10,15 +10,17 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onPress, onAddToCart }: ProductCardProps) {
+  const price = Number(product.price) || 0;
+  const originalPrice = Number(product.originalPrice) || price;
   const discount = Math.round(
-    ((product.originalPrice - product.price) / product.originalPrice) * 100
+    originalPrice > 0 ? ((originalPrice - price) / originalPrice) * 100 : 0
   );
   const cond = conditionColors[product.condition] || conditionColors.Good;
 
   return (
     <TouchableOpacity onPress={onPress} style={styles.card} activeOpacity={0.88}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: product.image }} style={styles.image} />
+        <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
         {discount > 0 && (
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>-{discount}%</Text>
@@ -51,8 +53,8 @@ export default function ProductCard({ product, onPress, onAddToCart }: ProductCa
 
         <View style={styles.bottomRow}>
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>₹{product.price.toLocaleString('en-IN')}</Text>
-            <Text style={styles.originalPrice}>₹{product.originalPrice.toLocaleString('en-IN')}</Text>
+            <Text style={styles.price}>₹{price.toLocaleString('en-IN')}</Text>
+            <Text style={styles.originalPrice}>₹{originalPrice.toLocaleString('en-IN')}</Text>
           </View>
           <TouchableOpacity onPress={onAddToCart} style={styles.addButton} activeOpacity={0.7}>
             <Ionicons name="add" size={14} color="#000000" />
@@ -82,7 +84,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   discountBadge: {
     position: 'absolute',

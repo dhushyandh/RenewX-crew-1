@@ -14,28 +14,9 @@ import HomeHeader from '@/components/HomeHeader';
 import HeroBanner from '@/components/HeroBanner';
 import CategoryPills from '@/components/CategoryPills';
 import ProductCard from '@/components/ProductCard';
+import { mapProductRow } from '@/lib/productMapper';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-function mapRow(row: any): Product {
-  return {
-    id: row.id,
-    _uuid: row.id,
-    name: row.name,
-    brand: row.brand,
-    category: row.category as Product['category'],
-    originalPrice: row.original_price,
-    price: row.price,
-    condition: row.condition as Product['condition'],
-    warrantyMonths: row.warranty_months,
-    image: row.image_url,
-    rating: row.rating ?? 0,
-    reviews: row.reviews ?? 0,
-    stock: row.stock,
-    description: row.description ?? '',
-    specs: Array.isArray(row.specs) ? row.specs : [],
-  };
-}
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -50,7 +31,7 @@ export default function HomeScreen() {
     try {
       setLoadError(null);
       const data = await api.products.getAll({ limit: 100 });
-      setProductList((data as any[]).map(mapRow));
+      setProductList((data as any[]).map(mapProductRow));
     } catch (err: any) {
       setProductList([]);
       setLoadError(err?.message || 'Unable to load products');

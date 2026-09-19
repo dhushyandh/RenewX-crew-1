@@ -55,15 +55,19 @@ export async function getProducts(req: Request, res: Response, next: NextFunctio
       ProductModel.find(filter).sort(sortBy).skip((page - 1) * limit).limit(limit).lean(),
       ProductModel.countDocuments(filter),
     ]);
+    const normalizedProducts = products.map(({ _id, ...product }) => ({
+      ...product,
+      id: _id.toString(),
+    }));
 
     res.json({
       success: true,
-      count: products.length,
+      count: normalizedProducts.length,
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      data: products,
+      data: normalizedProducts,
     });
   } catch (err) {
     next(err);

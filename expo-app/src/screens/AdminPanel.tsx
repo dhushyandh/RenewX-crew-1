@@ -35,6 +35,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
   const routeName = route?.name;
   const paramScreen = route?.params?.screen;
   const targetId = route?.params?.id || route?.params?.productId;
+  const hasValidTargetId = typeof targetId === 'string' && /^[a-f\d]{24}$/i.test(targetId);
 
   const determineInitialView = (): AdminView => {
     if (routeName === 'AdminBrands' || routeName === 'AdminAddBrand' || routeName === 'AdminAddModel') return 'brands';
@@ -62,7 +63,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
   const topInset = insets.top > 0 ? insets.top + 6 : 44;
 
   const getActiveRoutePath = (): string => {
-    if (routeName === 'AdminEditProduct' || (paramScreen === 'editProduct' && targetId)) {
+    if ((routeName === 'AdminEditProduct' || paramScreen === 'editProduct') && hasValidTargetId) {
       return `/admin/edit/product/${targetId || ':id'}`;
     }
     if (routeName === 'AdminAddProduct' || paramScreen === 'addProduct') {
@@ -81,7 +82,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
     const nextView = determineInitialView();
     setView(nextView);
 
-    if (routeName === 'AdminEditProduct' || (paramScreen === 'editProduct' && targetId)) {
+    if ((routeName === 'AdminEditProduct' || paramScreen === 'editProduct') && hasValidTargetId) {
       (async () => {
         try {
           const p = await api.products.getById(targetId);
@@ -97,7 +98,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
       setEditingProduct(null);
       setModalVisible(true);
     }
-  }, [routeName, paramScreen, targetId]);
+  }, [routeName, paramScreen, targetId, hasValidTargetId]);
 
   const handleBack = () => {
     if (modalVisible) {
@@ -129,6 +130,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
   };
 
   const handleEditProduct = (p: ProductRow) => {
+    if (!p.id) return;
     setEditingProduct(p);
     setModalVisible(true);
     navigation.navigate('AdminEditProduct', { id: p.id });

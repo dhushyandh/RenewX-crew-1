@@ -22,6 +22,7 @@ import { api } from '@/services/api';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { mapProductRow } from '@/lib/productMapper';
 import { Ionicons } from '@expo/vector-icons';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -46,26 +47,6 @@ const sortOptions = [
   { label: 'Highest Rated', value: 'rating' },
 ];
 
-function mapRow(row: any): Product {
-  return {
-    id: row.id,
-    _uuid: row.id,
-    name: row.name,
-    brand: row.brand,
-    category: row.category as Product['category'],
-    originalPrice: row.original_price,
-    price: row.price,
-    condition: row.condition as Product['condition'],
-    warrantyMonths: row.warranty_months,
-    image: row.image_url,
-    rating: row.rating ?? 0,
-    reviews: row.reviews ?? 0,
-    stock: row.stock,
-    description: row.description ?? '',
-    specs: Array.isArray(row.specs) ? row.specs : [],
-  };
-}
-
 export default function ShopScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
@@ -74,12 +55,19 @@ export default function ShopScreen() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('All Devices');
+  const [selectedBrand, setSelectedBrand] = useState('All Brands');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('featured');
+  const [showFilters, setShowFilters] = useState(false);
+  const [favorites, setFavorites] = useState<Record<string | number, boolean>>({});
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchLiveProducts = async () => {
     try {
       setLoadError(null);
       const data = await api.products.getAll({ limit: 100 });
-      setProducts((data as any[]).map(mapRow));
+      setProducts((data as any[]).map(mapProductRow));
     } catch (err: any) {
       setProducts([]);
       setLoadError(err?.message || 'Unable to load products');
@@ -96,7 +84,7 @@ export default function ShopScreen() {
     setRefreshing(false);
   };
 
-  const toggleFavorite = (productId: number, productName?: string) => {
+  const toggleFavorite = (productId: string | number, productName?: string) => {
     setFavorites((prev) => {
       const willFav = !prev[productId];
       if (willFav) {

@@ -50,10 +50,7 @@ const styles = StyleSheet.create({
     borderColor: '#e7e2d6',
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.05)',
     elevation: 2,
   },
   decorCircle: {

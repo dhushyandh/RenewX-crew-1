@@ -129,10 +129,7 @@ function TabNavigator() {
           paddingBottom: Platform.OS === 'ios' ? 24 : 10,
           paddingTop: 8,
           elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
+          boxShadow: '0px -2px 8px rgba(0, 0, 0, 0.05)',
         },
         tabBarLabelStyle: {
           fontSize: 10,
@@ -290,10 +287,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3.5,
     borderColor: '#ffffff',
-    shadowColor: '#ffc400',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
+    boxShadow: '0px 4px 8px rgba(255, 196, 0, 0.5)',
     elevation: 8,
   },
   customSellCircleActive: {

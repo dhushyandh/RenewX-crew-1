@@ -15,7 +15,7 @@ export default function FloatingContactButtons() {
   };
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={styles.container}>
       <TouchableOpacity
         style={[styles.floatingBtn, styles.whatsappBtn]}
         onPress={openWhatsApp}
@@ -49,6 +49,7 @@ export default function FloatingContactButtons() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
+    pointerEvents: 'box-none',
     right: 12,
     bottom: 85,
     gap: 10,
@@ -61,10 +62,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
+    boxShadow: '0px 3px 5px rgba(0, 0, 0, 0.25)',
     elevation: 6,
   },
   whatsappBtn: {

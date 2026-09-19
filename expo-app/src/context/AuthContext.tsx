@@ -3,7 +3,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 const DEFAULT_API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
-const API_BASE = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL?.trim()) || DEFAULT_API_BASE;
+const configuredApiUrl =
+  typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
+const API_BASE =
+  Platform.OS === 'web' && configuredApiUrl?.includes('10.0.2.2')
+    ? configuredApiUrl.replace('10.0.2.2', 'localhost')
+    : configuredApiUrl || DEFAULT_API_BASE;
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 const USER_STORAGE_KEY = '@renewx_auth_user';
 

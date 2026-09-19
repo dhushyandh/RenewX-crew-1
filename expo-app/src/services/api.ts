@@ -4,9 +4,12 @@ import { initialBrands, initialModels } from '@/data/brandsData';
 
 const DEFAULT_HOST =
   Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
+const configuredApiUrl =
+  typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
 const API_BASE_URL =
-  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL?.trim()) ||
-  DEFAULT_HOST;
+  Platform.OS === 'web' && configuredApiUrl?.includes('10.0.2.2')
+    ? configuredApiUrl.replace('10.0.2.2', 'localhost')
+    : configuredApiUrl || DEFAULT_HOST;
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
