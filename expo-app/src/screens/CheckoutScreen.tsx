@@ -13,7 +13,10 @@ import { openRazorpay } from '@/lib/razorpay';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 function createCheckoutKey(): string {
-  return `rnx_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+  // Stable across retries of the same checkout attempt so the server's
+  // idempotency protection can safely return the same Razorpay order.
+  const random = Math.random().toString(36).slice(2, 14);
+  return `rnx_${Date.now()}_${random}`;
 }
 
 export default function CheckoutScreen() {
@@ -74,6 +77,12 @@ export default function CheckoutScreen() {
         checkoutKey,
       );
 
+      if (!checkout.razorpay_key_id || !checkout.razorpay_order_id || !checkout.amount) {
+        throw Object.assign(new Error('Payment session could not be created. Please try again.'), {
+          code: 'PAYMENT_SESSION_INVALID',
+        });
+      }
+
       const paymentResult = await openRazorpay({
         description: `RenewX order ${checkout.order.id}`,
         currency: checkout.currency,
@@ -93,6 +102,16 @@ export default function CheckoutScreen() {
 
       // Never trust the client callback as proof of payment.
       // The backend verifies the Razorpay signature and fetches the payment.
+      if (
+        !paymentResult?.razorpay_order_id ||
+        !paymentResult?.razorpay_payment_id ||
+        !paymentResult?.razorpay_signature
+      ) {
+        throw Object.assign(new Error('Razorpay returned an incomplete payment response.'), {
+          code: 'PAYMENT_RESPONSE_INVALID',
+        });
+      }
+
       const verifiedOrder = await api.orders.verifyPayment({
         order_id: String(checkout.order.id),
         razorpay_order_id: paymentResult.razorpay_order_id,
@@ -125,6 +144,14 @@ export default function CheckoutScreen() {
         Alert.alert(
           'Use the mobile app',
           'Razorpay checkout is available in the Android and iOS app. Your cart is still available.'
+        );
+      } else if (
+        code === 'PAYMENT_SESSION_INVALID' ||
+        code === 'PAYMENT_RESPONSE_INVALID'
+      ) {
+        Alert.alert(
+          'Payment could not start',
+          error?.message || 'The secure payment session could not be created. Please try again.'
         );
       } else if (error?.code === 2 || error?.description) {
         Alert.alert(
