@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
-import { User } from '../models/User';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -52,6 +51,21 @@ export async function authenticateToken(
   } catch (err: any) {
     res.status(401).json({ success: false, error: { message: 'Authentication failed or token expired', details: err?.message } });
   }
+}
+
+export function requireAuthenticated(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      error: { message: 'Authentication required', code: 'UNAUTHORIZED' },
+    });
+    return;
+  }
+  next();
 }
 
 export function requireAdmin(
