@@ -12,6 +12,8 @@ import {
   refundRazorpayPayment,
 } from '../services/razorpay';
 import { env } from '../config/env';
+import { User } from '../models/User';
+import { NotificationModel } from '../models/Notification';
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 20;
@@ -626,6 +628,22 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
     if (estimated_delivery !== undefined) order.estimated_delivery = String(estimated_delivery).trim();
 
     await order.save();
+
+    if (status && order.user_id) {
+      const targetUser = await User.findById(order.user_id).select('notification_preferences');
+      const shouldNotify = targetUser?.notification_preferences?.order_updates ?? true;
+      if (shouldNotify) {
+        await NotificationModel.create({
+          user_id: order.user_id,
+          type: 'order',
+          title: 'Order status updated',
+          body: `Your order is now ${String(status).replace(/_/g, ' ')}.`,
+          reference_id: order.id,
+          reference_type: 'order',
+        });
+      }
+    }
+
     res.json({ success: true, data: order });
   } catch (err) {
     next(err);
