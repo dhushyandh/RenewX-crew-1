@@ -33,6 +33,7 @@ export interface TradeInPickupRequest {
   pincode: string;
   address: string;
   status?: string;
+  condition?: Record<string, unknown>;
 }
 
 export interface ITradeInRequest {
@@ -50,6 +51,7 @@ export interface ITradeInRequest {
   status: string;
   created_at: Date;
   updated_at: Date;
+  condition?: Record<string, unknown>;
 }
 
 export function calculateInstantQuote(req: TradeInValuationRequest): {
@@ -124,7 +126,8 @@ const TradeInRequestSchema = new Schema<ITradeInRequest>(
     customer_phone: { type: String, required: true },
     pincode: { type: String, required: true },
     address: { type: String, required: true },
-    status: { type: String, default: 'scheduled', index: true },
+    status: { type: String, default: 'pending', index: true },
+    condition: { type: Schema.Types.Mixed, default: {} },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
