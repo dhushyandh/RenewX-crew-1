@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+import { User } from '../models/User';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -37,19 +38,24 @@ export async function authenticateToken(
       return;
     }
 
-    // Determine role (check admin email override or token/db role)
-    const isAdminEmail = decoded.email?.toLowerCase() === env.ADMIN_EMAIL.toLowerCase();
-    const role: 'admin' | 'customer' = (decoded.role === 'admin' || isAdminEmail) ? 'admin' : 'customer';
+    // Resolve the current role from MongoDB so a revoked/demoted admin
+    // cannot keep elevated access until the JWT expires.
+    const user = await User.findById(decoded.id).select('email role full_name');
+    if (!user) {
+      res.status(401).json({ success: false, error: { message: 'Account no longer exists', code: 'UNAUTHORIZED' } });
+      return;
+    }
 
     req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      role,
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
     };
 
     next();
   } catch (err: any) {
-    res.status(401).json({ success: false, error: { message: 'Authentication failed or token expired', details: err?.message } });
+    res.status(401).json({ success: false, error: { message: 'Authentication failed or token expired', code: 'UNAUTHORIZED' } });
   }
 }
 
