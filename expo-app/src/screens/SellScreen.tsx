@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radius } from '@/theme';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface CategoryItem {
   id: string;
@@ -74,6 +75,7 @@ const storageOptions = ['64 GB', '128 GB', '256 GB', '512 GB', '1 TB'];
 export default function SellScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Step 1: Category
@@ -142,7 +144,10 @@ export default function SellScreen() {
     }
 
     const quoteAmount = calculatedQuote();
-    const fallbackId = 'RNW-SELL-' + Math.floor(100000 + Math.random() * 900000);
+    if (!user) {
+      toast.error('Please sign in before submitting a sell request.', 'Sign in required');
+      return;
+    }
 
     try {
       const res = await api.tradeIn.createPickup({
@@ -150,7 +155,7 @@ export default function SellScreen() {
         brand: selectedBrand,
         model: selectedModel,
         storage: selectedStorage,
-        quotedAmount: quoteAmount,
+        valuationAmount: quoteAmount,
         customerName: userName.trim(),
         customerPhone: userPhone.trim(),
         pincode: userPincode.trim(),
@@ -168,13 +173,13 @@ export default function SellScreen() {
         },
       });
 
-      setBookingId(res?.pickupId || res?.trackingNumber || fallbackId);
-    } catch (err) {
-      console.warn('[SellScreen] Pickup API offline, using local tracking ID:', err);
-      setBookingId(fallbackId);
+      setBookingId(res?.id || res?.pickupId || res?.trackingNumber || 'Submitted');
+      setIsSubmitted(true);
+      toast.success(`Sell request submitted for ₹${quoteAmount.toLocaleString('en-IN')}. Awaiting admin approval.`, 'Request Submitted');
+    } catch (err: any) {
+      console.warn('[SellScreen] Pickup submission failed:', err);
+      toast.error(err?.message || 'Unable to submit your sell request. Please try again.', 'Submission Failed');
     }
-    setIsSubmitted(true);
-    toast.success(`Doorstep pickup confirmed for ₹${quoteAmount.toLocaleString('en-IN')}`, 'Pickup Scheduled');
   };
 
   const handleReset = () => {
