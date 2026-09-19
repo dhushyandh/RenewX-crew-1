@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const PRODUCTION_API_BASE_URL = 'https://renewx-crew-server.onrender.com/api';
 const DEFAULT_HOST = PRODUCTION_API_BASE_URL;
