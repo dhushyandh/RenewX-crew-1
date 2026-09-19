@@ -160,10 +160,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const isAdmin = Boolean(
-    user?.role === 'admin' ||
-    (user?.email && user.email.toLowerCase() === 'dhushyandhneduncheziyan4896@gmail.com')
-  );
+  // Admin access is determined exclusively by the role returned by the backend.
+  // Never grant admin privileges from a client-side email check.
+  const isAdmin = user?.role === 'admin';
 
   const session = token && user ? { access_token: token, user } : null;
 
