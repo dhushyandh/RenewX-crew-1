@@ -7,6 +7,7 @@ import orderRoutes from './orderRoutes';
 import userRoutes from './userRoutes';
 import tradeInRoutes from './tradeInRoutes';
 import uploadRoutes from './uploadRoutes';
+import notificationRoutes from './notificationRoutes';
 import { checkDatabaseHealth } from '../config/db';
 
 const apiRouter = Router();
@@ -37,5 +38,6 @@ apiRouter.use('/orders', orderRoutes);
 apiRouter.use('/users', userRoutes);
 apiRouter.use('/trade-in', tradeInRoutes);
 apiRouter.use('/upload', uploadRoutes);
+apiRouter.use('/notifications', notificationRoutes);
 
 export default apiRouter;
