@@ -22,7 +22,6 @@ interface CategoryItem {
   name: string;
   maxPrice: string;
   icon: keyof typeof Ionicons.glyphMap;
-  popularModels: string[];
 }
 
 const categories: CategoryItem[] = [
@@ -31,47 +30,32 @@ const categories: CategoryItem[] = [
     name: 'Smartphones',
     maxPrice: '₹75,000',
     icon: 'phone-portrait-outline',
-    popularModels: ['iPhone 15 Pro', 'iPhone 14 Pro Max', 'Samsung Galaxy S24 Ultra', 'OnePlus 12'],
   },
   {
     id: 'macbooks',
     name: 'MacBooks',
     maxPrice: '₹1,25,000',
     icon: 'laptop-outline',
-    popularModels: ['MacBook Pro 16 M2 Max', 'MacBook Air M2', 'MacBook Pro 14 M1 Pro'],
   },
   {
     id: 'laptops',
     name: 'Windows Laptops',
     maxPrice: '₹65,000',
     icon: 'desktop-outline',
-    popularModels: ['Dell XPS 15', 'Lenovo ThinkPad X1', 'HP Spectre x360', 'Asus ROG Zephyrus'],
   },
   {
     id: 'tablets',
     name: 'Tablets & iPads',
     maxPrice: '₹48,000',
     icon: 'tablet-portrait-outline',
-    popularModels: ['iPad Pro 12.9 M2', 'iPad Air 5th Gen', 'Samsung Galaxy Tab S9'],
   },
   {
     id: 'smartwatches',
     name: 'Smartwatches & Audio',
     maxPrice: '₹24,000',
     icon: 'watch-outline',
-    popularModels: ['Apple Watch Ultra 2', 'Galaxy Watch 6', 'AirPods Pro 2', 'Sony WH-1000XM5'],
   },
 ];
-
-const brandList: Record<string, string[]> = {
-  phones: ['Apple', 'Samsung', 'OnePlus', 'Google Pixel', 'Xiaomi'],
-  macbooks: ['Apple'],
-  laptops: ['Dell', 'Lenovo', 'HP', 'Asus', 'Acer'],
-  tablets: ['Apple iPad', 'Samsung Tab', 'Lenovo Tab'],
-  smartwatches: ['Apple Watch', 'Samsung Galaxy Watch', 'Garmin', 'Sony Audio'],
-};
-
-const storageOptions = ['64 GB', '128 GB', '256 GB', '512 GB', '1 TB'];
 
 export default function SellScreen() {
   const insets = useSafeAreaInsets();
@@ -83,9 +67,13 @@ export default function SellScreen() {
   const [selectedCat, setSelectedCat] = useState<CategoryItem>(categories[0]);
 
   // Step 2: Brand, Model, Storage
-  const [selectedBrand, setSelectedBrand] = useState('Apple');
-  const [selectedModel, setSelectedModel] = useState('iPhone 14 Pro Max');
-  const [selectedStorage, setSelectedStorage] = useState('256 GB');
+  const [selectedBrand, setSelectedBrand] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedStorage, setSelectedStorage] = useState('');
+  const [brands, setBrands] = useState<any[]>([]);
+  const [models, setModels] = useState<any[]>([]);
+  const [storageOptions, setStorageOptions] = useState<string[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
 
   // Step 3: Condition
   const [screenCond, setScreenCond] = useState<'flawless' | 'good' | 'cracked'>('flawless');
@@ -105,6 +93,68 @@ export default function SellScreen() {
   const [userAddress, setUserAddress] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setCatalogLoading(true);
+    setBrands([]);
+    setModels([]);
+    setStorageOptions([]);
+    setSelectedBrand('');
+    setSelectedModel('');
+    setSelectedStorage('');
+
+    api.brands.getAll({ category: selectedCat.name }).then((rows: any[]) => {
+      if (!active) return;
+      const next = Array.isArray(rows) ? rows : [];
+      setBrands(next);
+      setSelectedBrand(next[0]?.name || '');
+    }).catch((err: any) => {
+      if (active) Alert.alert('Catalog unavailable', err?.message || 'Unable to load brands. Please try again.');
+    }).finally(() => {
+      if (active) setCatalogLoading(false);
+    });
+
+    return () => { active = false; };
+  }, [selectedCat.name]);
+
+  useEffect(() => {
+    if (!selectedBrand) return;
+    let active = true;
+    setCatalogLoading(true);
+    setModels([]);
+    setStorageOptions([]);
+    setSelectedModel('');
+    setSelectedStorage('');
+
+    const brand = brands.find((item) => item.name === selectedBrand);
+    api.models.getAll({
+      category: selectedCat.name,
+      brand_id: brand?.id || 'all',
+    }).then((rows: any[]) => {
+      if (!active) return;
+      const next = Array.isArray(rows) ? rows : [];
+      setModels(next);
+      const first = next[0];
+      setSelectedModel(first?.name || '');
+      const options = Array.isArray(first?.storage_options) ? first.storage_options : [];
+      setStorageOptions(options);
+      setSelectedStorage(options[0] || '');
+    }).catch((err: any) => {
+      if (active) Alert.alert('Model catalog unavailable', err?.message || 'Unable to load device models.');
+    }).finally(() => {
+      if (active) setCatalogLoading(false);
+    });
+
+    return () => { active = false; };
+  }, [selectedCat.name, selectedBrand, brands]);
+
+  useEffect(() => {
+    const selected = models.find((item) => item.name === selectedModel);
+    const options = Array.isArray(selected?.storage_options) ? selected.storage_options : [];
+    setStorageOptions(options);
+    if (!options.includes(selectedStorage)) setSelectedStorage(options[0] || '');
+  }, [models, selectedModel]);
 
   const [quoteAmount, setQuoteAmount] = useState(0);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -360,7 +410,7 @@ export default function SellScreen() {
         {step === 2 && (
           <View style={styles.stepSection}>
             <Text style={styles.sectionHeading}>Select Brand & Model</Text>
-            <Text style={styles.sectionSub}>Pick the exact device and storage capacity</Text>
+            <Text style={styles.sectionSub}>Choose a device from the live RenewX catalog</Text>
 
             {/* Brand Pills */}
             <Text style={styles.fieldLabel}>Brand</Text>
@@ -368,8 +418,8 @@ export default function SellScreen() {
               {(brandList[selectedCat.id] || ['Apple', 'Samsung', 'Dell']).map((b) => (
                 <TouchableOpacity
                   key={b}
-                  style={[styles.chipPill, selectedBrand === b && styles.chipPillActive]}
-                  onPress={() => setSelectedBrand(b)}
+                  style={[styles.chipPill, selectedBrand === b.name && styles.chipPillActive]}
+                  onPress={() => setSelectedBrand(b.name)}
                 >
                   <Text style={[styles.chipText, selectedBrand === b && styles.chipTextActive]}>
                     {b}
@@ -381,7 +431,8 @@ export default function SellScreen() {
             {/* Popular Models */}
             <Text style={styles.fieldLabel}>Select Model</Text>
             <View style={styles.modelList}>
-              {selectedCat.popularModels.map((m) => {
+              {models.map((model) => {
+                const m = model.name;
                 const isSel = selectedModel === m;
                 return (
                   <TouchableOpacity
@@ -919,6 +970,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  catalogHint: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
+  nextButtonDisabled: { opacity: 0.5 },
   nextButtonText: {
     fontSize: 14,
     fontWeight: '800',
