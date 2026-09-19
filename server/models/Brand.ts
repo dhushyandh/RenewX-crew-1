@@ -69,4 +69,4 @@ const BrandSchema = new Schema<IBrand>(
   }
 );
 
-export const BrandModel = mongoose.models.Brand || mongoose.model<IBrand>('Brand', BrandSchema);
+export const BrandModel = (mongoose.models.Brand as mongoose.Model<IBrand>) || mongoose.model<IBrand>('Brand', BrandSchema);
