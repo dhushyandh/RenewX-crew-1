@@ -117,10 +117,10 @@ const OrderSchema = new Schema<IOrder>(
       index: true,
     },
     payment_method: { type: String, default: 'razorpay' },
-    razorpay_order_id: { type: String, default: '', index: true, sparse: true },
-    razorpay_payment_id: { type: String, default: '', index: true, sparse: true },
+    razorpay_order_id: { type: String, index: true },
+    razorpay_payment_id: { type: String, index: true },
     payment_verified_at: { type: Date },
-    checkout_key: { type: String, default: '', select: false },
+    checkout_key: { type: String, select: false },
     currency: { type: String, enum: ['INR'], default: 'INR' },
     courier: { type: String, default: 'BlueDart Express' },
     tracking_number: { type: String, default: '' },
@@ -148,6 +148,8 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
+// Only checkout requests carry this key. The unique compound index makes
+// duplicate submissions for the same user/key resolve to the same draft.
 OrderSchema.index({ user_id: 1, checkout_key: 1 }, { unique: true, sparse: true });
 
 export const OrderModel = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
