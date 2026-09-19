@@ -120,21 +120,24 @@ export const api = {
 
   // Products API
   products: {
-    getAll: async (params?: { category?: string; brand?: string; condition?: string; search?: string; sort?: string }) => {
-      try {
-        const q = new URLSearchParams(params as any).toString();
-        return await request<any[]>(`/products${q ? `?${q}` : ''}`);
-      } catch (e) {
-        console.warn('[API Client Mobile] Falling back to initial products:', e);
-        return fallbackProducts as any[];
-      }
+    getAll: async (params?: {
+      category?: string;
+      brand?: string;
+      condition?: string;
+      search?: string;
+      sort?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      const queryParams = Object.entries(params || {}).reduce<Record<string, string>>((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = String(value);
+        return acc;
+      }, {});
+      const q = new URLSearchParams(queryParams).toString();
+      return await request<any[]>(`/products${q ? `?${q}` : ''}`);
     },
     getById: async (id: string) => {
-      try {
-        return await request<any>(`/products/${id}`);
-      } catch {
-        return fallbackProducts.find((p) => p.id === id);
-      }
+      return await request<any>(`/products/${encodeURIComponent(id)}`);
     },
     create: async (payload: any) => {
       return await request<any>('/products', {
@@ -143,13 +146,13 @@ export const api = {
       });
     },
     update: async (id: string, payload: any) => {
-      return await request<any>(`/products/${id}`, {
+      return await request<any>(`/products/${encodeURIComponent(id)}`, {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
     },
     delete: async (id: string) => {
-      return await request<any>(`/products/${id}`, { method: 'DELETE' });
+      return await request<any>(`/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
     },
     getLowStockAlerts: async (threshold = 3) => {
       return await request<any[]>(`/products/alerts/low-stock?threshold=${threshold}`);
