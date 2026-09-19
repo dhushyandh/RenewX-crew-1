@@ -29,6 +29,18 @@ const corsOptions: cors.CorsOptions = {
 app.disable('x-powered-by');
 app.use(cors(corsOptions));
 
+// Establish MongoDB lazily for Vercel requests and reuse Mongoose's
+// connection pool across warm function invocations.
+app.use(async (_req, _res, next) => {
+  try {
+    const { connectDB } = await import('./config/db');
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 /*
  * Razorpay signs the exact raw request body.
  * This route MUST stay before express.json().
