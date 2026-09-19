@@ -22,8 +22,8 @@ export default function CheckoutScreen() {
   const [processing, setProcessing] = useState(false);
 
   const placeOrder = async () => {
-    const cleanPhone = phone.replace(/D/g, '');
-    if (!name.trim() || !address.trim() || !/^d{10}$/.test(cleanPhone) || !/^d{6}$/.test(pincode.trim())) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!name.trim() || !address.trim() || !/^\d{10}$/.test(cleanPhone) || !/^\d{6}$/.test(pincode.trim())) {
       Alert.alert('Complete delivery details', 'Enter your name, valid 10-digit phone, full address and 6-digit pincode.');
       return;
     }
