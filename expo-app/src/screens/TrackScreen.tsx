@@ -1,3 +1,70 @@
+import { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Linking,
+  Platform,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { api } from '@/services/api';
+
+interface OrderTracking {
+  id: string;
+  item: string;
+  price: string;
+  status: 'In Transit' | 'Out for Delivery' | 'Delivered' | 'Processing';
+  estimatedDelivery: string;
+  courier: string;
+  trackingNumber: string;
+  steps: {
+    title: string;
+    description: string;
+    time: string;
+    completed: boolean;
+    current?: boolean;
+  }[];
+}
+
+const sampleOrders: OrderTracking[] = [
+  {
+    id: 'RNW-98421',
+    item: 'iPhone 14 Pro Max 256GB - Deep Purple (Grade A+)',
+    price: '₹74,999',
+    status: 'Out for Delivery',
+    estimatedDelivery: 'Today by 4:00 PM',
+    courier: 'BlueDart Express',
+    trackingNumber: 'BLR982736154',
+    steps: [
+      { title: 'Order Confirmed', description: 'Payment verified & order booked', time: 'Sep 17, 10:30 AM', completed: true },
+      { title: 'Quality Diagnostic Passed', description: '52-point hardware, battery & display check passed', time: 'Sep 17, 02:15 PM', completed: true },
+      { title: 'Shipped from Hub', description: 'Dispatched via BlueDart Air Express', time: 'Sep 18, 08:45 AM', completed: true },
+      { title: 'Out for Delivery', description: 'Delivery agent is en route to your address', time: 'Sep 19, 09:20 AM', completed: true, current: true },
+      { title: 'Delivered', description: 'Package delivered & signature collected', time: 'Estimated today', completed: false },
+    ],
+  },
+  {
+    id: 'RNW-88120',
+    item: 'MacBook Pro 14 M1 Pro 16GB 512GB (Grade A)',
+    price: '₹89,999',
+    status: 'Delivered',
+    estimatedDelivery: 'Delivered on Sep 15',
+    courier: 'Delhivery Surface',
+    trackingNumber: 'DLV881920394',
+    steps: [
+      { title: 'Order Confirmed', description: 'Payment verified', time: 'Sep 12', completed: true },
+      { title: 'Quality Diagnostic Passed', description: 'Battery 96% health verified', time: 'Sep 12', completed: true },
+      { title: 'Shipped from Hub', description: 'Package handed to Delhivery', time: 'Sep 13', completed: true },
+      { title: 'Out for Delivery', description: 'Agent assigned', time: 'Sep 15', completed: true },
+      { title: 'Delivered', description: 'Delivered with 1-Year Warranty Certificate', time: 'Sep 15', completed: true },
+    ],
+  },
+];
+
 export default function TrackScreen() {
   const insets = useSafeAreaInsets();
   const [searchId, setSearchId] = useState('');

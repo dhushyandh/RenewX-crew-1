@@ -6,11 +6,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-// @ts-ignore react-native-razorpay currently ships without TypeScript declarations.
-import RazorpayCheckout from 'react-native-razorpay';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
+import { openRazorpay } from '@/lib/razorpay';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 function createCheckoutKey(): string {
@@ -75,7 +74,7 @@ export default function CheckoutScreen() {
         checkoutKey,
       );
 
-      const paymentResult = await RazorpayCheckout.open({
+      const paymentResult = await openRazorpay({
         description: `RenewX order ${checkout.order.id}`,
         currency: checkout.currency,
         key: checkout.razorpay_key_id,
@@ -121,6 +120,11 @@ export default function CheckoutScreen() {
         Alert.alert(
           'Payments unavailable',
           'Razorpay is not configured on the RenewX server yet. Your cart is safe.'
+        );
+      } else if (code === 'PAYMENT_NOT_AVAILABLE_ON_WEB') {
+        Alert.alert(
+          'Use the mobile app',
+          'Razorpay checkout is available in the Android and iOS app. Your cart is still available.'
         );
       } else if (error?.code === 2 || error?.description) {
         Alert.alert(

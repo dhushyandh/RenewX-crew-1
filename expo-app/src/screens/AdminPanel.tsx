@@ -1591,8 +1591,8 @@ function OrdersView() {
             )}
           </View>
           <View style={styles.orderItemsList}>
-            {(o.order_items || []).map((item: any) => (
-              <View key={item.id} style={styles.itemRow}>
+            {(o.order_items || []).map((item: any, index: number) => (
+              <View key={`${o.id}-${item.id || index}`} style={styles.itemRow}>
                 <Text style={styles.itemTitle}>
                   {item.product_name} × {item.quantity}
                 </Text>
