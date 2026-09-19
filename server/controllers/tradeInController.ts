@@ -7,6 +7,7 @@ import {
 } from '../models/TradeIn';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { NotificationModel } from '../models/Notification';
+import { User } from '../models/User';
 
 export async function getValuationQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -140,6 +141,12 @@ export async function updateTradeInStatus(
     await request.save();
 
     if (request.user_id && previousStatus !== status) {
+      const targetUser = await User.findById(request.user_id).select('notification_preferences');
+      const shouldNotify = targetUser?.notification_preferences?.sell_request_updates ?? true;
+      if (!shouldNotify) {
+        res.json({ success: true, message: 'Trade-in status updated', data: request });
+        return;
+      }
       const title =
         status === 'approved' ? 'Sell request approved' :
         status === 'rejected' ? 'Sell request rejected' :
