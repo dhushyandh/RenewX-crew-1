@@ -436,7 +436,7 @@ export default function SellScreen() {
               ))}
             </ScrollView>
 
-            {/* Popular Models */}
+            {/* Available Models */}
             <Text style={styles.fieldLabel}>Select Model</Text>
             <View style={styles.modelList}>
               {models.map((model) => {
@@ -444,7 +444,7 @@ export default function SellScreen() {
                 const isSel = selectedModel === m;
                 return (
                   <TouchableOpacity
-                    key={m}
+                    key={model.id || m}
                     style={[styles.modelItem, isSel && styles.modelItemActive]}
                     onPress={() => setSelectedModel(m)}
                   >
@@ -486,8 +486,14 @@ export default function SellScreen() {
                 <Text style={styles.backButtonText}>Back</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.nextButton, { flex: 1 }]}
-                onPress={() => setStep(3)}
+                style={[styles.nextButton, { flex: 1 }, (!selectedBrand || !selectedModel || !selectedStorage) && styles.nextButtonDisabled]}
+                onPress={() => {
+                  if (!selectedBrand || !selectedModel || !selectedStorage) {
+                    Alert.alert('Complete device details', 'Select a brand, model and storage option from the live catalog.');
+                    return;
+                  }
+                  setStep(3);
+                }}
               >
                 <Text style={styles.nextButtonText}>Check Condition</Text>
                 <Ionicons name="arrow-forward" size={18} color="#000000" />
@@ -978,8 +984,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  catalogHint: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
-  nextButtonDisabled: { opacity: 0.5 },
   catalogHint: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
   nextButtonDisabled: { opacity: 0.5 },
   nextButtonText: {
