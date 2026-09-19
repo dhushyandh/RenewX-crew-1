@@ -60,6 +60,7 @@ export type RootStackParamList = {
   AdminAddModel: { brandId?: string } | undefined;
   AdminOrders: undefined;
   AdminUsers: undefined;
+  AdminTradeIns: undefined;
 
   // Container fallback
   Admin: {
@@ -107,6 +108,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       AdminAddModel: 'admin/add/models',
       AdminOrders: 'admin/orders',
       AdminUsers: 'admin/users',
+      AdminTradeIns: 'admin/trade-ins',
       Admin: 'admin',
     },
   },
@@ -273,6 +275,7 @@ function MainAppNavigation() {
           <Stack.Screen name="AdminAddModel" component={AdminPanel} />
           <Stack.Screen name="AdminOrders" component={AdminPanel} />
           <Stack.Screen name="AdminUsers" component={AdminPanel} />
+          <Stack.Screen name="AdminTradeIns" component={AdminPanel} />
           <Stack.Screen name="Admin" component={AdminPanel} />
         </Stack.Navigator>
       </NavigationContainer>
