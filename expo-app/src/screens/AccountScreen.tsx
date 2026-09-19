@@ -9,7 +9,9 @@ import { useEffect, useState } from 'react';
 import { api } from '@/services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-const SUPPORT_PHONE = typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_SUPPORT_PHONE?.trim() : '';
+const SUPPORT_PHONE = '+919080168778';
+const WHATSAPP_COMMUNITY_URL =
+  'https://chat.whatsapp.com/FyyALPUCzl2KvmRHnz2aaA?mode=gi_t';
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
@@ -112,10 +114,6 @@ export default function AccountScreen() {
             <Text style={styles.statNumber}>₹{tradeInValue.toLocaleString('en-IN')}</Text>
             <Text style={styles.statLabel}>Estimated Value</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>—</Text>
-            <Text style={styles.statLabel}>Warranty</Text>
-          </View>
         </View>
 
         {/* Account Menu Items */}
@@ -144,16 +142,6 @@ export default function AccountScreen() {
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => Alert.alert('Warranty', 'All your purchases come with 12 months comprehensive warranty.')}
-          >
-            <View style={styles.menuIconCircle}>
-              <Ionicons name="shield-checkmark-outline" size={18} color="#374151" />
-            </View>
-            <Text style={styles.menuTitle}>Warranty Certificates</Text>
-            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-          </TouchableOpacity>
         </View>
 
         {/* Support & Concierge */}
@@ -162,23 +150,37 @@ export default function AccountScreen() {
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => SUPPORT_PHONE ? Linking.openURL(`https://wa.me/${SUPPORT_PHONE.replace(/[^0-9]/g, '')}?text=Hello%20RenewX%20Support`) : Alert.alert('Support', 'WhatsApp support is not configured yet.')}
+            onPress={async () => {
+              try {
+                await Linking.openURL(WHATSAPP_COMMUNITY_URL);
+              } catch {
+                Alert.alert('WhatsApp Community', 'Unable to open the WhatsApp community link.');
+              }
+            }}
           >
             <View style={[styles.menuIconCircle, { backgroundColor: '#dcfce7' }]}>
               <Ionicons name="logo-whatsapp" size={18} color="#15803d" />
             </View>
-            <Text style={styles.menuTitle}>WhatsApp VIP Concierge</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuTitle}>WhatsApp Community</Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Join the RenewX community on WhatsApp</Text>
+            </View>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => SUPPORT_PHONE ? Linking.openURL(`tel:${SUPPORT_PHONE}`) : Alert.alert('Support', 'Customer helpline is not configured yet.')}
+            onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE}`).catch(() =>
+              Alert.alert('Customer Helpline', 'Unable to open the phone dialer.')
+            )}
           >
             <View style={[styles.menuIconCircle, { backgroundColor: '#f1f5f9' }]}>
               <Ionicons name="call-outline" size={18} color="#0f172a" />
             </View>
-            <Text style={styles.menuTitle}>Customer Helpline (Toll-free)</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuTitle}>Customer Helpline</Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>+91 90801 68778</Text>
+            </View>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </TouchableOpacity>
         </View>

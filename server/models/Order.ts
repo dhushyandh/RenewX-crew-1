@@ -119,7 +119,7 @@ const OrderSchema = new Schema<IOrder>(
     },
     payment_method: { type: String, default: 'razorpay' },
     razorpay_order_id: { type: String, index: true },
-    razorpay_payment_id: { type: String, index: true },
+    razorpay_payment_id: { type: String },
     payment_verified_at: { type: Date },
     checkout_key: { type: String, select: false },
     currency: { type: String, enum: ['INR'], default: 'INR' },
@@ -135,6 +135,7 @@ const OrderSchema = new Schema<IOrder>(
     order_items: { type: [OrderItemSchema], default: [] },
   },
   {
+    autoIndex: false,
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {
       virtuals: true,

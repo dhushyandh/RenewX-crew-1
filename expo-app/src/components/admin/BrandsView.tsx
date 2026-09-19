@@ -17,8 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   type BrandItem,
   type DeviceModelItem,
-  initialBrands,
-  initialModels,
 } from '@/data/brandsData';
 import { api } from '@/services/api';
 import { confirmAction } from '@/lib/confirmAction';
@@ -30,8 +28,8 @@ interface BrandsViewProps {
 }
 
 export default function BrandsView({ initialAction, preselectedBrandId: propBrandId }: BrandsViewProps = {}) {
-  const [brands, setBrands] = useState<BrandItem[]>(initialBrands);
-  const [models, setModels] = useState<DeviceModelItem[]>(initialModels);
+  const [brands, setBrands] = useState<BrandItem[]>([]);
+  const [models, setModels] = useState<DeviceModelItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [brandSearch, setBrandSearch] = useState('');
@@ -52,34 +50,37 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
         api.brands.getAll(),
         api.models.getAll(),
       ]);
-      if (fetchedBrands && fetchedBrands.length > 0) {
-        setBrands(
-          fetchedBrands.map((b: any) => ({
-            id: b.id,
-            name: b.name,
-            category: b.category,
-            logo: b.logo_url || b.logo || '',
-            description: b.description || '',
-          }))
-        );
-      }
-      if (fetchedModels && fetchedModels.length > 0) {
-        setModels(
-          fetchedModels.map((m: any) => ({
-            id: m.id,
-            brandId: m.brand_id || m.brandId,
-            brandName: m.brand_name || m.brandName || 'Brand',
-            name: m.name,
-            category: m.category,
-            releaseYear: m.release_year || m.releaseYear || 2024,
-            basePrice: m.base_price || m.basePrice || 50000,
-            storageOptions: Array.isArray(m.storage_options) ? m.storage_options : ['128GB', '256GB'],
-            isFeatured: m.is_featured ?? m.isFeatured ?? true,
-          }))
-        );
-      }
+      setBrands(
+        Array.isArray(fetchedBrands)
+          ? fetchedBrands.map((b: any) => ({
+              id: b.id,
+              name: b.name,
+              category: b.category,
+              logo: b.logo_url || b.logo || '',
+              description: b.description || '',
+            }))
+          : []
+      );
+
+      setModels(
+        Array.isArray(fetchedModels)
+          ? fetchedModels.map((m: any) => ({
+              id: m.id,
+              brandId: m.brand_id || m.brandId,
+              brandName: m.brand_name || m.brandName || 'Brand',
+              name: m.name,
+              category: m.category,
+              releaseYear: m.release_year || m.releaseYear || 2024,
+              basePrice: m.base_price || m.basePrice || 50000,
+              storageOptions: Array.isArray(m.storage_options) ? m.storage_options : ['128GB', '256GB'],
+              isFeatured: m.is_featured ?? m.isFeatured ?? true,
+            }))
+          : []
+      );
     } catch (err) {
-      console.warn('[BrandsView] Using local cache for brands & models:', err);
+      console.warn('[BrandsView] Could not load brands & models from API:', err);
+      setBrands([]);
+      setModels([]);
     } finally {
       setLoading(false);
     }
@@ -142,7 +143,9 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
     );
   };
 
-  const handleSaveBrand = async (b: BrandItem) => {
+  const BRAND_CATEGORY_OPTIONS = ['SMARTPHONES', 'LAPTOPS', 'TABLETS', 'AUDIO', 'WEARABLES', 'CAMERAS'];
+
+const handleSaveBrand = async (b: BrandItem) => {
     const isEdit = !!editingBrand;
     if (isEdit) {
       setBrands((prev) => prev.map((item) => (item.id === b.id ? b : item)));
@@ -569,8 +572,10 @@ function BrandFormModal({
   onSave: (b: BrandItem) => void;
   onDelete?: (brandId: string, brandName?: string) => void;
 }) {
+  const BRAND_CATEGORY_OPTIONS = ['SMARTPHONES', 'LAPTOPS', 'TABLETS', 'AUDIO', 'WEARABLES', 'CAMERAS'];
   const [name, setName] = useState(brand?.name || '');
   const [category, setCategory] = useState(brand?.category || 'SMARTPHONES');
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [logo, setLogo] = useState(brand?.logo || '');
   const [description, setDescription] = useState(brand?.description || '');
 
@@ -611,12 +616,44 @@ function BrandFormModal({
           />
 
           <Text style={formStyles.label}>Category</Text>
-          <TextInput
-            placeholder="e.g. SMARTPHONES, LAPTOPS, TABLETS"
-            value={category}
-            onChangeText={setCategory}
-            style={formStyles.input}
-          />
+          <TouchableOpacity
+            onPress={() => setCategoryPickerOpen(true)}
+            activeOpacity={0.8}
+            style={[formStyles.input, { justifyContent: 'center' }]}
+          >
+            <Text style={{ color: '#0f172a', fontSize: 14, fontWeight: '500' }}>{category}</Text>
+          </TouchableOpacity>
+
+          <Modal visible={categoryPickerOpen} transparent animationType="fade" onRequestClose={() => setCategoryPickerOpen(false)}>
+            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.35)', justifyContent: 'center', padding: 24 }} activeOpacity={1} onPress={() => setCategoryPickerOpen(false)}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' }}>
+                <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>Select Category</Text>
+                </View>
+                {BRAND_CATEGORY_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => {
+                      setCategory(option);
+                      setCategoryPickerOpen(false);
+                    }}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderBottomWidth: option === BRAND_CATEGORY_OPTIONS[BRAND_CATEGORY_OPTIONS.length - 1] ? 0 : 1,
+                      borderBottomColor: '#f1f5f9',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, color: '#0f172a', fontWeight: category === option ? '700' : '500' }}>{option}</Text>
+                    {category === option && <Ionicons name="checkmark" size={16} color="#2563eb" />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
           <Text style={formStyles.label}>Brand Logo</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -708,9 +745,11 @@ function ModelFormModal({
   onSave: (m: DeviceModelItem) => void;
   onDelete?: (modelId: string, modelName?: string) => void;
 }) {
+  const MODEL_CATEGORY_OPTIONS = ['smartphones', 'laptops', 'tablets', 'audio', 'wearables', 'cameras'];
   const [brandId, setBrandId] = useState(model?.brandId || preselectedBrandId || brands[0]?.id);
   const [name, setName] = useState(model?.name || '');
   const [category, setCategory] = useState(model?.category || 'smartphones');
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [releaseYear, setReleaseYear] = useState((model?.releaseYear || 2024).toString());
   const [basePrice, setBasePrice] = useState((model?.basePrice || 50000).toString());
   const [isFeatured, setIsFeatured] = useState(model?.isFeatured ?? true);
@@ -734,7 +773,7 @@ function ModelFormModal({
       brandId,
       brandName: currentBrand?.name || 'Brand',
       name: name.trim(),
-      category,
+      category: category.trim().toLowerCase(),
       releaseYear: Number(releaseYear) || 2024,
       basePrice: Number(basePrice) || 50000,
       storageOptions: storageOptions.length > 0 ? storageOptions : ['Standard'],
@@ -766,12 +805,44 @@ function ModelFormModal({
             />
 
             <Text style={formStyles.label}>Category</Text>
-            <TextInput
-              placeholder="e.g. smartphones, laptops, tablets"
-              value={category}
-              onChangeText={setCategory}
-              style={formStyles.input}
-            />
+            <TouchableOpacity
+              onPress={() => setCategoryPickerOpen(true)}
+              activeOpacity={0.8}
+              style={[formStyles.input, { justifyContent: 'center' }]}
+            >
+              <Text style={{ color: '#0f172a', fontSize: 14, fontWeight: '500' }}>{category}</Text>
+            </TouchableOpacity>
+
+            <Modal visible={categoryPickerOpen} transparent animationType="fade" onRequestClose={() => setCategoryPickerOpen(false)}>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.35)', justifyContent: 'center', padding: 24 }} activeOpacity={1} onPress={() => setCategoryPickerOpen(false)}>
+                <View style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>Select Category</Text>
+                  </View>
+                  {MODEL_CATEGORY_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      onPress={() => {
+                        setCategory(option);
+                        setCategoryPickerOpen(false);
+                      }}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderBottomWidth: option === MODEL_CATEGORY_OPTIONS[MODEL_CATEGORY_OPTIONS.length - 1] ? 0 : 1,
+                        borderBottomColor: '#f1f5f9',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, color: '#0f172a', fontWeight: category === option ? '700' : '500' }}>{option}</Text>
+                      {category === option && <Ionicons name="checkmark" size={16} color="#2563eb" />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </Modal>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>

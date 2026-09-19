@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -14,180 +14,342 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
+type AuthMode = 'login' | 'signup';
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function getFriendlyAuthError(message: string) {
+  const error = message.toLowerCase();
+
+  if (
+    error.includes('weak_password') ||
+    error.includes('pwned') ||
+    error.includes('password') && error.includes('common')
+  ) {
+    return 'That password is too common. Please choose a stronger password.';
+  }
+
+  if (
+    error.includes('invalid login') ||
+    error.includes('invalid credentials') ||
+    error.includes('invalid email or password')
+  ) {
+    return 'The email or password is incorrect. Please check and try again.';
+  }
+
+  if (
+    error.includes('already registered') ||
+    error.includes('user already registered') ||
+    error.includes('already exists')
+  ) {
+    return 'An account with this email already exists. Try signing in instead.';
+  }
+
+  if (error.includes('email') && error.includes('confirm')) {
+    return 'Please confirm your email before signing in.';
+  }
+
+  return message || 'Something went wrong. Please try again.';
+}
+
 export default function AuthScreen() {
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  // signInWithGoogle is intentionally read as an optional method so this
+  // screen remains compatible with an AuthContext that is being upgraded.
+  const auth = useAuth() as any;
+  const { signIn, signUp } = auth;
+  const signInWithGoogle = auth.signInWithGoogle;
+
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const isLogin = mode === 'login';
+  const canSubmit = useMemo(
+    () => email.trim().length > 0 && password.length > 0,
+    [email, password],
+  );
 
   const handleSubmit = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter your email and password.');
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setError('Enter your email address to continue.');
       return;
     }
+
+    if (!isValidEmail(cleanEmail)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password) {
+      setError('Enter your password to continue.');
+      return;
+    }
+
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+      setError('Your password must be at least 8 characters.');
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const fn = mode === 'login' ? signIn : signUp;
-    const { error: err } = await fn(email.trim(), password);
+    try {
+      const fn = isLogin ? signIn : signUp;
 
-    if (err) {
-      if (err.includes('weak_password') || err.includes('pwned')) {
-        setError('That password is too common. Please use a stronger password.');
-      } else if (err.includes('Invalid login credentials')) {
-        setError('Incorrect email or password. Please try again.');
-      } else if (err.includes('already registered') || err.includes('User already registered')) {
-        setError('An account with this email already exists. Try logging in.');
-      } else {
-        setError(err || 'Something went wrong. Please try again.');
+      if (typeof fn !== 'function') {
+        setError('Authentication is not configured correctly. Please try again later.');
+        return;
       }
+
+      const result = await fn(cleanEmail, password);
+
+      if (result?.error) {
+        setError(getFriendlyAuthError(String(result.error)));
+      }
+    } catch (err: any) {
+      setError(getFriendlyAuthError(err?.message || 'Unable to complete authentication.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (typeof signInWithGoogle !== 'function') {
+      setError('Google sign-in is not available right now. Please use email and password.');
+      return;
     }
 
-    setLoading(false);
+    setGoogleLoading(true);
+    setError(null);
+
+    try {
+      const result = await signInWithGoogle();
+
+      if (result?.error) {
+        setError(getFriendlyAuthError(String(result.error)));
+      }
+    } catch (err: any) {
+      setError(getFriendlyAuthError(err?.message || 'Unable to continue with Google.'));
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
-  const fillDemo = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
+  const switchMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
     setError(null);
+    setPassword('');
+    setShowPassword(false);
   };
+
+  const busy = loading || googleLoading;
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Logo and Header */}
-        <View style={styles.header}>
-          <View style={styles.logoRow}>
-            <View style={styles.logoBox}>
-              <Ionicons name="phone-portrait-outline" size={24} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={styles.logoTitle}>
-                Renew<Text style={styles.logoAccent}>X</Text>
-              </Text>
-              <Text style={styles.logoSub}>CREW MOBILE</Text>
-            </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Brand */}
+        <View style={styles.brandSection}>
+          <View style={styles.logoMark}>
+            <Text style={styles.logoMarkText}>R</Text>
           </View>
-          <Text style={styles.tagline}>Buy. Sell. Upgrade. The Smart Way.</Text>
+
+          <View>
+            <Text style={styles.brandName}>
+              Renew<Text style={styles.brandAccent}>X</Text>
+            </Text>
+            <Text style={styles.brandCaption}>CREW MOBILE</Text>
+          </View>
         </View>
 
-        {/* Title */}
+        {/* Simple welcome */}
         <View style={styles.welcomeSection}>
           <Text style={styles.title}>
-            {mode === 'login' ? 'Welcome back' : 'Create your account'}
+            {isLogin ? 'Welcome back 👋' : 'Create your account'}
           </Text>
           <Text style={styles.subtitle}>
-            {mode === 'login'
-              ? 'Sign in to shop verified refurbished electronics.'
-              : 'Join RenewX Crew to shop premium tech with warranty.'}
+            {isLogin
+              ? 'Sign in to continue shopping and manage your orders.'
+              : 'Create an account to shop, sell devices and track orders.'}
           </Text>
         </View>
 
-        {/* Form Inputs */}
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={18} color="#94a3b8" />
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor="#64748b"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={18} color="#94a3b8" />
-              <TextInput
-                style={styles.input}
-                placeholder="Min. 8 characters"
-                placeholderTextColor="#64748b"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
-          </View>
-
-          {error && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={16} color="#ef4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
+        {/* Login / Sign up switch */}
+        <View style={styles.modeSwitch}>
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.disabledButton]}
-            onPress={handleSubmit}
-            disabled={loading}
+            style={[styles.modeButton, isLogin && styles.modeButtonActive]}
+            onPress={() => switchMode('login')}
+            disabled={busy}
+            activeOpacity={0.8}
           >
-            {loading ? (
-              <ActivityIndicator color={colors.black} />
-            ) : (
-              <View style={styles.btnRow}>
-                <Text style={styles.submitButtonText}>
-                  {mode === 'login' ? 'Sign In' : 'Create Account'}
-                </Text>
-                <Ionicons name="arrow-forward" size={18} color={colors.black} />
-              </View>
-            )}
+            <Text style={[styles.modeText, isLogin && styles.modeTextActive]}>
+              Sign In
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.switchMode}
-            onPress={() => {
-              setMode(mode === 'login' ? 'signup' : 'login');
-              setError(null);
-            }}
+            style={[styles.modeButton, !isLogin && styles.modeButtonActive]}
+            onPress={() => switchMode('signup')}
+            disabled={busy}
+            activeOpacity={0.8}
           >
-            <Text style={styles.switchModeText}>
-              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-              <Text style={styles.switchModeHighlight}>
-                {mode === 'login' ? 'Sign up' : 'Sign in'}
-              </Text>
+            <Text style={[styles.modeText, !isLogin && styles.modeTextActive]}>
+              Create Account
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Demo Accounts Quick Login */}
-        <View style={styles.demoSection}>
-          <Text style={styles.demoTitle}>QUICK FILL DEMO ACCOUNTS</Text>
-          <View style={styles.demoRow}>
-            <TouchableOpacity
-              style={styles.demoBtn}
-              onPress={() => fillDemo('admin@renewx.com', 'Admin123!')}
-            >
-              <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
-              <Text style={styles.demoBtnText}>Admin Account</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.demoBtn}
-              onPress={() => fillDemo('customer@example.com', 'Customer123!')}
-            >
-              <Ionicons name="person" size={14} color="#94a3b8" />
-              <Text style={styles.demoBtnText}>Customer</Text>
-            </TouchableOpacity>
+        {/* Form */}
+        <View style={styles.formCard}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email address</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={18} color={colors.textMuted} />
+              <TextInput
+                style={styles.input}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.textMuted}
+                value={email}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  if (error) setError(null);
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="emailAddress"
+                editable={!busy}
+                returnKeyType="next"
+              />
+            </View>
           </View>
+
+          <View style={styles.inputGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Password</Text>
+              <Text style={styles.passwordHint}>8+ characters</Text>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.textMuted}
+                value={password}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  if (error) setError(null);
+                }}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete={isLogin ? 'password' : 'new-password'}
+                textContentType={isLogin ? 'password' : 'newPassword'}
+                editable={!busy}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+              />
+
+              <TouchableOpacity
+                onPress={() => setShowPassword((value) => !value)}
+                disabled={busy}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={19}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={17} color="#dc2626" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {/* Primary action */}
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              (!canSubmit || busy) && styles.primaryButtonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={!canSubmit || busy}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.black} />
+            ) : (
+              <>
+                <Text style={styles.primaryButtonText}>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                </Text>
+                <Ionicons name="arrow-forward" size={18} color={colors.black} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.divider} />
+          </View>
+
+          {/* Google */}
+          <TouchableOpacity
+            style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={busy}
+            activeOpacity={0.85}
+          >
+            {googleLoading ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <>
+                <View style={styles.googleIcon}>
+                  <Text style={styles.googleIconText}>G</Text>
+                </View>
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
+
+        {/* Helpful footer */}
+        <View style={styles.footer}>
+          <Ionicons name="shield-checkmark-outline" size={15} color="#059669" />
+          <Text style={styles.footerText}>
+            Your account is protected with secure authentication.
+          </Text>
+        </View>
+
+        <Text style={styles.modeHelp}>
+          {isLogin
+            ? 'New to RenewX? Tap “Create Account” above.'
+            : 'Already have an account? Tap “Sign In” above.'}
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -196,177 +358,280 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8f7f2',
   },
+
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: 56,
-    paddingBottom: 40,
+    paddingTop: 44,
+    paddingBottom: 36,
   },
-  header: {
-    marginBottom: spacing.xl,
-  },
-  logoRow: {
+
+  brandSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: spacing.xs,
+    marginBottom: 34,
   },
-  logoBox: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: '#000000',
+
+  logoMark: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: colors.black,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
+    marginRight: 11,
   },
-  logoTitle: {
-    fontSize: 22,
-    fontWeight: fontWeight.black,
-    color: '#ffffff',
-    letterSpacing: -0.5,
-  },
-  logoAccent: {
+
+  logoMarkText: {
     color: colors.primary,
-  },
-  logoSub: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
-    letterSpacing: 2,
-    marginTop: 1,
-  },
-  tagline: {
-    fontSize: fontSize.xs,
-    color: '#94a3b8',
-    marginTop: 4,
-  },
-  welcomeSection: {
-    marginBottom: spacing.lg,
-  },
-  title: {
     fontSize: 24,
+    fontWeight: fontWeight.black,
+  },
+
+  brandName: {
+    fontSize: 23,
+    lineHeight: 26,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+    letterSpacing: -0.7,
+  },
+
+  brandAccent: {
+    color: colors.primary,
+  },
+
+  brandCaption: {
+    fontSize: 8,
+    lineHeight: 11,
+    color: colors.textMuted,
     fontWeight: fontWeight.bold,
-    color: '#ffffff',
-    marginBottom: 6,
+    letterSpacing: 1.8,
   },
+
+  welcomeSection: {
+    marginBottom: 20,
+  },
+
+  title: {
+    fontSize: 27,
+    lineHeight: 33,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+    letterSpacing: -0.7,
+  },
+
   subtitle: {
+    marginTop: 7,
     fontSize: fontSize.sm,
-    color: '#94a3b8',
     lineHeight: 20,
+    color: colors.textMuted,
+    maxWidth: 340,
   },
-  form: {
-    marginBottom: spacing.xl,
+
+  modeSwitch: {
+    flexDirection: 'row',
+    backgroundColor: '#eeeae0',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 14,
   },
+
+  modeButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+
+  modeButtonActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+
+  modeText: {
+    fontSize: fontSize.sm,
+    color: '#6b7280',
+    fontWeight: fontWeight.semibold,
+  },
+
+  modeTextActive: {
+    color: colors.text,
+    fontWeight: fontWeight.bold,
+  },
+
+  formCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e8e3d8',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+
   inputGroup: {
-    marginBottom: spacing.md,
+    marginBottom: 15,
   },
+
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 7,
+  },
+
   label: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: '#cbd5e1',
-    marginBottom: 6,
+    color: colors.text,
+    fontWeight: fontWeight.bold,
+    marginBottom: 7,
   },
+
+  passwordHint: {
+    fontSize: 10,
+    color: colors.textMuted,
+    fontWeight: fontWeight.medium,
+  },
+
   inputContainer: {
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: radius.md,
+    backgroundColor: '#faf9f5',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: spacing.md,
-    height: 50,
+    borderColor: '#ded9ce',
+    borderRadius: radius.md,
+    paddingHorizontal: 13,
+    gap: 9,
   },
+
   input: {
     flex: 1,
-    color: '#ffffff',
+    color: colors.text,
     fontSize: fontSize.sm,
+    paddingVertical: 0,
   },
+
   errorBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    alignItems: 'flex-start',
+    backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: '#fecaca',
     borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
+    padding: 10,
+    gap: 7,
+    marginBottom: 12,
   },
+
   errorText: {
-    color: '#fca5a5',
-    fontSize: fontSize.xs,
     flex: 1,
+    color: '#b91c1c',
+    fontSize: fontSize.xs,
+    lineHeight: 17,
   },
-  submitButton: {
-    backgroundColor: colors.primary,
+
+  primaryButton: {
+    minHeight: 50,
     borderRadius: radius.md,
-    height: 50,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
-    marginTop: spacing.xs,
-  },
-  btnRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  disabledButton: {
-    opacity: 0.6,
+
+  primaryButtonDisabled: {
+    opacity: 0.5,
   },
-  submitButtonText: {
+
+  primaryButtonText: {
     color: colors.black,
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
   },
-  switchMode: {
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  switchModeText: {
-    fontSize: fontSize.sm,
-    color: '#94a3b8',
-  },
-  switchModeHighlight: {
-    color: colors.primary,
-    fontWeight: fontWeight.bold,
-  },
-  demoSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  demoTitle: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#64748b',
-    letterSpacing: 1.2,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  demoRow: {
+
+  dividerRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center',
+    marginVertical: 17,
+    gap: 10,
   },
-  demoBtn: {
+
+  divider: {
     flex: 1,
+    height: 1,
+    backgroundColor: '#e8e3d8',
+  },
+
+  dividerText: {
+    fontSize: 10,
+    color: '#9ca3af',
+    fontWeight: fontWeight.bold,
+  },
+
+  googleButton: {
+    minHeight: 50,
+    borderRadius: radius.md,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d9d5cb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+
+  googleIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+
+  googleIconText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#4285F4',
+  },
+
+  googleButtonText: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+  },
+
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: radius.sm,
-    paddingVertical: 10,
+    marginTop: 22,
+    paddingHorizontal: 8,
   },
-  demoBtnText: {
-    fontSize: fontSize.xs,
-    color: '#e2e8f0',
-    fontWeight: fontWeight.semibold,
+
+  footerText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    textAlign: 'center',
+  },
+
+  modeHelp: {
+    marginTop: 12,
+    color: '#9ca3af',
+    fontSize: 10,
+    textAlign: 'center',
   },
 });

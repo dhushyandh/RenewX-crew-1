@@ -29,6 +29,7 @@ import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
 import AdminPanel from '@/screens/AdminPanel';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 function mapRow(row: ProductRow): Product {
   return {
@@ -192,25 +193,21 @@ function AppRoutes({
             element={<ProductDetailRoute products={products} />}
           />
 
-          {/* Clean Admin Sub-Routes */}
+          {/* Clean Admin Sub-Routes (Protected) */}
           <Route
             path="/admin"
             element={
-              isAdmin ? (
+              <ProtectedRoute adminOnly>
                 <Navigate to="/admin/dashboard" replace />
-              ) : (
-                <Navigate to="/" replace />
-              )
+              </ProtectedRoute>
             }
           />
           <Route
             path="/admin/*"
             element={
-              isAdmin ? (
+              <ProtectedRoute adminOnly>
                 <AdminPanel onExit={() => navigate('/account')} />
-              ) : (
-                <Navigate to="/" replace />
-              )
+              </ProtectedRoute>
             }
           />
 

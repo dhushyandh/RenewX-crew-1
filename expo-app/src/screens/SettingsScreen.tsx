@@ -2,13 +2,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
+import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const SETTINGS_KEY = '@renewx_settings';
 
 type Settings = {
@@ -23,147 +35,366 @@ const defaults: Settings = {
   marketing: false,
 };
 
+type PreferenceKey = keyof Settings;
+
+const preferenceMeta: Record<
+  PreferenceKey,
+  {
+    icon: keyof typeof Ionicons.glyphMap;
+    title: string;
+    description: string;
+  }
+> = {
+  orderUpdates: {
+    icon: 'cube-outline',
+    title: 'Order Updates',
+    description: 'Payment, packing and delivery status',
+  },
+  sellRequestUpdates: {
+    icon: 'cash-outline',
+    title: 'Sell Request Updates',
+    description: 'Approval, rejection and pickup status',
+  },
+  marketing: {
+    icon: 'megaphone-outline',
+    title: 'Offers & Promotions',
+    description: 'Optional marketing messages from RenewX',
+  },
+};
+
 export default function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, signOut } = useAuth();
+
   const [settings, setSettings] = useState<Settings>(defaults);
-  const [savingKey, setSavingKey] = useState<keyof Settings | null>(null);
+  const [savingKey, setSavingKey] = useState<PreferenceKey | null>(null);
   const [loadingPreferences, setLoadingPreferences] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [preferenceError, setPreferenceError] = useState<string | null>(null);
+
+  const displayName =
+    user?.full_name ||
+    user?.email?.split('@')[0] ||
+    'RenewX Member';
+
+  const email = user?.email || 'Signed in account';
+
+  const initials = useMemo(() => {
+    const source = displayName.trim();
+    if (!source) return 'U';
+
+    const parts = source.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+
+    return source.slice(0, 2).toUpperCase();
+  }, [displayName]);
+
+  const loadPreferences = async (showLoader = true) => {
+    if (showLoader) setLoadingPreferences(true);
+    setPreferenceError(null);
+
+    try {
+      const value = await api.users.getNotificationPreferences();
+
+      const next: Settings = {
+        orderUpdates: value?.order_updates ?? defaults.orderUpdates,
+        sellRequestUpdates:
+          value?.sell_request_updates ?? defaults.sellRequestUpdates,
+        marketing: value?.marketing ?? defaults.marketing,
+      };
+
+      setSettings(next);
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    } catch (error: any) {
+      try {
+        const cached = await AsyncStorage.getItem(SETTINGS_KEY);
+
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setSettings({ ...defaults, ...parsed });
+        } else {
+          setPreferenceError(
+            error?.message || 'Could not load your notification preferences.'
+          );
+        }
+      } catch {
+        setPreferenceError(
+          error?.message || 'Could not load your notification preferences.'
+        );
+      }
+    } finally {
+      if (showLoader) setLoadingPreferences(false);
+    }
+  };
 
   useEffect(() => {
-    let active = true;
-    api.users.getNotificationPreferences()
-      .then((value) => {
-        if (!active) return;
-        const next = {
-          orderUpdates: value.order_updates ?? true,
-          sellRequestUpdates: value.sell_request_updates ?? true,
-          marketing: value.marketing ?? false,
-        };
-        setSettings(next);
-        return AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
-      })
-      .catch(async () => {
-        const value = await AsyncStorage.getItem(SETTINGS_KEY);
-        if (!active || !value) return;
-        try { setSettings({ ...defaults, ...JSON.parse(value) }); } catch { /* use defaults */ }
-      })
-      .finally(() => { if (active) setLoadingPreferences(false); });
-    return () => { active = false; };
+    loadPreferences(true);
   }, []);
 
-  const updateSetting = async (key: keyof Settings, value: boolean) => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadPreferences(false);
+    setRefreshing(false);
+  };
+
+  const updateSetting = async (
+    key: PreferenceKey,
+    value: boolean
+  ) => {
+    if (savingKey) return;
+
     const previous = settings[key];
     const next = { ...settings, [key]: value };
+
+    // Optimistic UI keeps the switch responsive.
     setSettings(next);
     setSavingKey(key);
-    const payload = key === 'orderUpdates'
-      ? { order_updates: value }
-      : key === 'sellRequestUpdates'
-      ? { sell_request_updates: value }
-      : { marketing: value };
+    setPreferenceError(null);
+
+    const payload =
+      key === 'orderUpdates'
+        ? { order_updates: value }
+        : key === 'sellRequestUpdates'
+          ? { sell_request_updates: value }
+          : { marketing: value };
+
     try {
       await api.users.updateNotificationPreferences(payload);
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch (error: any) {
       setSettings({ ...next, [key]: previous });
-      Alert.alert('Could not save setting', error?.message || 'Please try again when you are online.');
+
+      Alert.alert(
+        'Could not save setting',
+        error?.message || 'Please try again when you are online.'
+      );
     } finally {
       setSavingKey(null);
     }
   };
 
   const resetSettings = () => {
-    Alert.alert('Reset Settings', 'Restore all notification preferences to their defaults?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: async () => {
-          setSettings(defaults);
-          try {
-            await api.users.updateNotificationPreferences({
-              order_updates: true,
-              sell_request_updates: true,
-              marketing: false,
-            });
-            await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(defaults));
-          } catch (error: any) {
-            Alert.alert('Could not reset settings', error?.message || 'Please try again when you are online.');
-          }
+    Alert.alert(
+      'Reset notification settings',
+      'Restore all notification preferences to their default values?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            const previous = settings;
+            setSettings(defaults);
+            setSavingKey(null);
+            setPreferenceError(null);
+
+            try {
+              await api.users.updateNotificationPreferences({
+                order_updates: defaults.orderUpdates,
+                sell_request_updates: defaults.sellRequestUpdates,
+                marketing: defaults.marketing,
+              });
+
+              await AsyncStorage.setItem(
+                SETTINGS_KEY,
+                JSON.stringify(defaults)
+              );
+            } catch (error: any) {
+              setSettings(previous);
+
+              Alert.alert(
+                'Could not reset settings',
+                error?.message ||
+                  'Please try again when you are online.'
+              );
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Sign out of this RenewX account?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
-    ]);
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of this RenewX account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: signOut,
+        },
+      ]
+    );
+  };
+
+  const openSupport = () => {
+    Alert.alert(
+      'RenewX Support',
+      'Please use the support contact shown in the app or your RenewX website support channel.'
+    );
+  };
+
+  const openPrivacyTerms = () => {
+    Alert.alert(
+      'Privacy & Terms',
+      'Privacy and terms pages will be linked here once the official RenewX policy URLs are configured.'
+    );
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={21} color="#0f172a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons
+            name="arrow-back"
+            size={21}
+            color={colors.text}
+          />
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
+
+        <View style={styles.headerText}>
           <Text style={styles.title}>Settings</Text>
-          <Text style={styles.subtitle}>Manage your RenewX app preferences</Text>
+          <Text style={styles.subtitle}>
+            Manage your RenewX preferences
+          </Text>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {loadingPreferences && <Text style={styles.syncText}>Syncing preferences…</Text>}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {loadingPreferences ? (
+          <View style={styles.syncCard}>
+            <ActivityIndicator
+              size="small"
+              color={colors.primary}
+            />
+            <Text style={styles.syncText}>
+              Syncing your preferences…
+            </Text>
+          </View>
+        ) : null}
+
+        {preferenceError ? (
+          <View style={styles.errorCard}>
+            <View style={styles.errorIcon}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={18}
+                color={colors.primary}
+              />
+            </View>
+
+            <View style={styles.errorTextWrap}>
+              <Text style={styles.errorTitle}>
+                Preferences could not be synced
+              </Text>
+              <Text style={styles.errorDescription}>
+                Your saved settings are still available on this device.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => loadPreferences(false)}
+              style={styles.retryButton}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <View style={styles.accountCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.email?.charAt(0).toUpperCase() || 'U'}</Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.accountName} numberOfLines={1}>
-              {user?.full_name || user?.email?.split('@')[0] || 'RenewX Member'}
+
+          <View style={styles.accountInfo}>
+            <Text
+              style={styles.accountName}
+              numberOfLines={1}
+            >
+              {displayName}
             </Text>
-            <Text style={styles.accountEmail} numberOfLines={1}>{user?.email || 'Signed in account'}</Text>
+
+            <Text
+              style={styles.accountEmail}
+              numberOfLines={1}
+            >
+              {email}
+            </Text>
+
+            <View style={styles.accountStatus}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>ACCOUNT ACTIVE</Text>
+            </View>
           </View>
-          <View style={styles.activePill}>
-            <View style={styles.dot} />
-            <Text style={styles.activeText}>ACTIVE</Text>
-          </View>
+
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={23}
+            color={colors.primary}
+          />
         </View>
 
-        <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+        <SectionHeader
+          title="Notifications"
+          description="Choose which updates RenewX can send you."
+        />
+
         <View style={styles.card}>
-          <SettingRow
-            icon="cube-outline"
-            title="Order Updates"
-            description="Payment, packing and delivery status"
-            value={settings.orderUpdates}
-            onValueChange={(value) => updateSetting('orderUpdates', value)}
-            disabled={savingKey === 'orderUpdates'}
-          />
-          <SettingRow
-            icon="cash-outline"
-            title="Sell Request Updates"
-            description="Approval, rejection and pickup status"
-            value={settings.sellRequestUpdates}
-            onValueChange={(value) => updateSetting('sellRequestUpdates', value)}
-            disabled={savingKey === 'sellRequestUpdates'}
-            last
-          />
-          <SettingRow
-            icon="megaphone-outline"
-            title="Offers & Promotions"
-            description="Optional marketing messages from RenewX"
-            value={settings.marketing}
-            onValueChange={(value) => updateSetting('marketing', value)}
-            disabled={savingKey === 'marketing'}
-            last
-          />
+          {(Object.keys(preferenceMeta) as PreferenceKey[]).map(
+            (key, index) => {
+              const item = preferenceMeta[key];
+
+              return (
+                <SettingRow
+                  key={key}
+                  icon={item.icon}
+                  title={item.title}
+                  description={item.description}
+                  value={settings[key]}
+                  disabled={
+                    loadingPreferences ||
+                    savingKey !== null
+                  }
+                  saving={savingKey === key}
+                  onValueChange={(value) =>
+                    updateSetting(key, value)
+                  }
+                  last={
+                    index ===
+                    Object.keys(preferenceMeta).length - 1
+                  }
+                />
+              );
+            }
+          )}
         </View>
 
-        <Text style={styles.sectionLabel}>ACCOUNT</Text>
+        <SectionHeader
+          title="Account"
+          description="Manage account access and preferences."
+        />
+
         <View style={styles.card}>
           <ActionRow
             icon="person-circle-outline"
@@ -171,12 +402,19 @@ export default function SettingsScreen() {
             description="View your account details"
             onPress={() => navigation.goBack()}
           />
+
           <ActionRow
             icon="lock-closed-outline"
             title="Security"
             description="Password and sign-in are managed by your account"
-            onPress={() => Alert.alert('Security', 'Use the sign-in flow to manage your account password. Password changes are not handled locally by the app.')}
+            onPress={() =>
+              Alert.alert(
+                'Security',
+                'Use the sign-in flow to manage your account password. Password changes are not handled locally by the app.'
+              )
+            }
           />
+
           <ActionRow
             icon="refresh-outline"
             title="Reset Preferences"
@@ -186,30 +424,64 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text style={styles.sectionLabel}>SUPPORT & LEGAL</Text>
+        <SectionHeader
+          title="Support & Legal"
+          description="Get help and review important information."
+        />
+
         <View style={styles.card}>
           <ActionRow
             icon="help-circle-outline"
             title="Help & Support"
             description="Get help with orders or sell requests"
-            onPress={() => Alert.alert('RenewX Support', 'Please use the support contact shown in the app or your RenewX website support channel.')}
+            onPress={openSupport}
           />
+
           <ActionRow
             icon="document-text-outline"
             title="Privacy & Terms"
             description="Review the policies before using RenewX"
-            onPress={() => Alert.alert('Privacy & Terms', 'Privacy and terms pages will be linked here once the official RenewX policy URLs are configured.')}
+            onPress={openPrivacyTerms}
             last
           />
         </View>
 
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={19} color="#b91c1c" />
+        <TouchableOpacity
+          style={styles.signOutButton}
+          onPress={handleSignOut}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={19}
+            color="#b91c1c"
+          />
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
-        <Text style={styles.footer}>RenewX • Settings • v2.4.0</Text>
+        <Text style={styles.footer}>
+          RenewX • Settings
+        </Text>
       </ScrollView>
+    </View>
+  );
+}
+
+function SectionHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionDescription}>
+        {description}
+      </Text>
     </View>
   );
 }
@@ -221,6 +493,7 @@ function SettingRow({
   value,
   onValueChange,
   disabled,
+  saving,
   last,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
@@ -229,22 +502,45 @@ function SettingRow({
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
+  saving?: boolean;
   last?: boolean;
 }) {
   return (
     <View style={[styles.row, !last && styles.rowBorder]}>
-      <View style={styles.iconBox}><Ionicons name={icon} size={19} color="#111827" /></View>
+      <View style={styles.iconBox}>
+        <Ionicons
+          name={icon}
+          size={19}
+          color={colors.text}
+        />
+      </View>
+
       <View style={styles.rowText}>
         <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowDescription}>{description}</Text>
+        <Text style={styles.rowDescription}>
+          {description}
+        </Text>
       </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        disabled={disabled}
-        trackColor={{ false: '#d1d5db', true: '#fde68a' }}
-        thumbColor={value ? '#f59e0b' : '#f8fafc'}
-      />
+
+      {saving ? (
+        <ActivityIndicator
+          size="small"
+          color={colors.primary}
+          style={styles.switchLoader}
+        />
+      ) : (
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          disabled={disabled}
+          trackColor={{
+            false: '#d1d5db',
+            true: colors.primary,
+          }}
+          thumbColor="#ffffff"
+          ios_backgroundColor="#d1d5db"
+        />
+      )}
     </View>
   );
 }
@@ -263,85 +559,311 @@ function ActionRow({
   last?: boolean;
 }) {
   return (
-    <TouchableOpacity style={[styles.row, !last && styles.rowBorder]} onPress={onPress} activeOpacity={0.75}>
-      <View style={styles.iconBox}><Ionicons name={icon} size={19} color="#111827" /></View>
+    <TouchableOpacity
+      style={[styles.row, !last && styles.rowBorder]}
+      onPress={onPress}
+      activeOpacity={0.72}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <View style={styles.iconBox}>
+        <Ionicons
+          name={icon}
+          size={19}
+          color={colors.text}
+        />
+      </View>
+
       <View style={styles.rowText}>
         <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowDescription}>{description}</Text>
+        <Text style={styles.rowDescription}>
+          {description}
+        </Text>
       </View>
-      <Ionicons name="chevron-forward" size={17} color="#9ca3af" />
+
+      <Ionicons
+        name="chevron-forward"
+        size={17}
+        color={colors.textMuted}
+      />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f7f2' },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm + 2,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: '#ebe7dd',
-    backgroundColor: '#ffffff',
   },
+
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 22, fontWeight: '900', color: '#0f172a' },
-  subtitle: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  content: { padding: 16, paddingBottom: 120 },
+
+  headerText: {
+    flex: 1,
+  },
+
+  title: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+  },
+
+  subtitle: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+
+  content: {
+    padding: spacing.md,
+    paddingBottom: 110,
+  },
+
+  syncCard: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: '#e8e4da',
+  },
+
+  syncText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+  },
+
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm + 2,
+    marginBottom: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+
+  errorIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fef3c7',
+  },
+
+  errorTextWrap: {
+    flex: 1,
+  },
+
+  errorTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+
+  errorDescription: {
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+
+  retryButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary,
+  },
+
+  retryText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+
   accountCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#0f172a',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 22,
+    gap: spacing.sm + 2,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.text,
   },
+
   avatar: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: '#ffc400',
-    alignItems: 'center', justifyContent: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
   },
-  avatarText: { fontSize: 18, fontWeight: '900', color: '#000000' },
-  accountName: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
-  accountEmail: { color: '#cbd5e1', fontSize: 11, marginTop: 2 },
-  activePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#dcfce7', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5,
+
+  avatarText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.black,
+    color: '#000000',
   },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16a34a' },
-  activeText: { fontSize: 8, fontWeight: '900', color: '#166534' },
-  sectionLabel: {
-    fontSize: 10, fontWeight: '900', color: '#9ca3af',
-    letterSpacing: 1, marginBottom: 8, marginLeft: 4,
+
+  accountInfo: {
+    flex: 1,
   },
+
+  accountName: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#ffffff',
+  },
+
+  accountEmail: {
+    fontSize: 10,
+    color: '#cbd5e1',
+    marginTop: 2,
+  },
+
+  accountStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 7,
+  },
+
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#22c55e',
+  },
+
+  statusText: {
+    fontSize: 8,
+    fontWeight: fontWeight.black,
+    letterSpacing: 0.7,
+    color: '#86efac',
+  },
+
+  sectionHeader: {
+    marginBottom: spacing.xs,
+    marginLeft: 3,
+  },
+
+  sectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+  },
+
+  sectionDescription: {
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.textMuted,
+    marginTop: 2,
+    marginBottom: spacing.xs,
+  },
+
   card: {
-    backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1,
-    borderColor: '#e8e4da', paddingHorizontal: 12, marginBottom: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: '#e8e4da',
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 14 },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+
+  row: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+  },
+
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+
   iconBox: {
-    width: 36, height: 36, borderRadius: 11, backgroundColor: '#f3f4f6',
-    alignItems: 'center', justifyContent: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f3f4f6',
   },
-  rowText: { flex: 1 },
-  rowTitle: { fontSize: 13, fontWeight: '800', color: '#1f2937' },
-  rowDescription: { fontSize: 10, color: '#6b7280', marginTop: 3, lineHeight: 14 },
+
+  rowText: {
+    flex: 1,
+  },
+
+  rowTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+
+  rowDescription: {
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.textMuted,
+    marginTop: 3,
+  },
+
+  switchLoader: {
+    width: 36,
+  },
+
   signOutButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: '#fee2e2', paddingVertical: 13, borderRadius: 13, marginTop: 2,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    paddingVertical: 13,
+    borderRadius: radius.md,
   },
-  signOutText: { color: '#b91c1c', fontSize: 13, fontWeight: '800' },
-  syncText: { fontSize: 10, color: '#6b7280', textAlign: 'center', marginBottom: 10 },
-  footer: { textAlign: 'center', color: '#9ca3af', fontSize: 10, marginTop: 18 },
+
+  signOutText: {
+    color: '#b91c1c',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+
+  footer: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 10,
+    marginTop: spacing.lg,
+  },
 });

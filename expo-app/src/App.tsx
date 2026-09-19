@@ -26,6 +26,7 @@ import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
 import AdminPanel from '@/screens/AdminPanel';
+import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
 import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
 
@@ -244,6 +245,35 @@ function TabNavigator() {
   );
 }
 
+// Protected screen wrappers for secure customer & administrative routes
+const ProtectedAdminPanel = withProtectedRoute(AdminPanel, {
+  adminOnly: true,
+});
+
+const ProtectedSettingsScreen = withProtectedRoute(SettingsScreen, {
+  requireAuth: true,
+});
+
+const ProtectedNotificationsScreen = withProtectedRoute(NotificationsScreen, {
+  requireAuth: true,
+});
+
+const ProtectedMySellRequestsScreen = withProtectedRoute(MySellRequestsScreen, {
+  requireAuth: true,
+});
+
+const ProtectedCheckoutScreen = withProtectedRoute(CheckoutScreen, {
+  requireAuth: true,
+});
+
+const ProtectedPaymentScreen = withProtectedRoute(PaymentScreen, {
+  requireAuth: true,
+});
+
+const ProtectedOrderConfirmScreen = withProtectedRoute(OrderConfirmScreen, {
+  requireAuth: true,
+});
+
 function MainAppNavigation() {
   const { user, loading } = useAuth();
 
@@ -267,25 +297,25 @@ function MainAppNavigation() {
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
-          <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          <Stack.Screen name="OrderConfirm" component={OrderConfirmScreen} />
-          <Stack.Screen name="Payment" component={PaymentScreen} />
-          <Stack.Screen name="MySellRequests" component={MySellRequestsScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
-          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Checkout" component={ProtectedCheckoutScreen} />
+          <Stack.Screen name="OrderConfirm" component={ProtectedOrderConfirmScreen} />
+          <Stack.Screen name="Payment" component={ProtectedPaymentScreen} />
+          <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
+          <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
+          <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
 
-          {/* Dedicated Admin Direct Routes */}
-          <Stack.Screen name="AdminDashboard" component={AdminPanel} />
-          <Stack.Screen name="AdminProducts" component={AdminPanel} />
-          <Stack.Screen name="AdminAddProduct" component={AdminPanel} />
-          <Stack.Screen name="AdminEditProduct" component={AdminPanel} />
-          <Stack.Screen name="AdminBrands" component={AdminPanel} />
-          <Stack.Screen name="AdminAddBrand" component={AdminPanel} />
-          <Stack.Screen name="AdminAddModel" component={AdminPanel} />
-          <Stack.Screen name="AdminOrders" component={AdminPanel} />
-          <Stack.Screen name="AdminUsers" component={AdminPanel} />
-          <Stack.Screen name="AdminTradeIns" component={AdminPanel} />
-          <Stack.Screen name="Admin" component={AdminPanel} />
+          {/* Dedicated Protected Admin Direct Routes */}
+          <Stack.Screen name="AdminDashboard" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminProducts" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminAddProduct" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminEditProduct" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminBrands" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminAddBrand" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminAddModel" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminOrders" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminUsers" component={ProtectedAdminPanel} />
+          <Stack.Screen name="AdminTradeIns" component={ProtectedAdminPanel} />
+          <Stack.Screen name="Admin" component={ProtectedAdminPanel} />
         </Stack.Navigator>
       </NavigationContainer>
       <FloatingContactButtons />

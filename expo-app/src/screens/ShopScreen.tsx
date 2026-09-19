@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   Image,
   TextInput,
   Share,
-  Alert,
   ScrollView,
   RefreshControl,
+  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +21,6 @@ import type { Product } from '@/types';
 import { api } from '@/services/api';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { mapProductRow } from '@/lib/productMapper';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -38,14 +37,73 @@ const categories = [
   'Accessories',
 ];
 
-const brands = ['All Brands', 'Apple', 'Samsung', 'Dell', 'Lenovo', 'HP', 'Sony', 'OnePlus', 'Google'];
-
 const sortOptions = [
   { label: 'Featured', value: 'featured' },
   { label: 'Price: Low to High', value: 'price_asc' },
   { label: 'Price: High to Low', value: 'price_desc' },
   { label: 'Highest Rated', value: 'rating' },
 ];
+
+type ProductListResponse = unknown;
+
+function unwrapProductRows(response: ProductListResponse): any[] {
+  if (Array.isArray(response)) return response;
+
+  const value = response as any;
+  if (!value || typeof value !== 'object') return [];
+
+  const candidates = [
+    value.data,
+    value.products,
+    value.rows,
+    value.items,
+    value.results,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+
+    if (candidate && typeof candidate === 'object') {
+      const nested = [
+        candidate.data,
+        candidate.products,
+        candidate.rows,
+        candidate.items,
+        candidate.results,
+      ];
+      const nestedArray = nested.find(Array.isArray);
+      if (nestedArray) return nestedArray;
+    }
+  }
+
+  return [];
+}
+
+function getProductBrand(product: Product): string {
+  return String((product as any).brand ?? '').trim();
+}
+
+function getProductCategory(product: Product): string {
+  return String((product as any).category ?? '').trim();
+}
+
+function getSafeOriginalPrice(product: Product): number {
+  const original = Number((product as any).originalPrice);
+  const price = Number(product.price);
+  return Number.isFinite(original) && original > price ? original : 0;
+}
+
+function getDiscountPercent(product: Product): number {
+  const original = getSafeOriginalPrice(product);
+  const price = Number(product.price);
+  if (!original || !Number.isFinite(price) || price <= 0) return 0;
+  return Math.max(0, Math.round(((original - price) / original) * 100));
+}
+
+function getProductImage(product: Product): { uri: string } | null {
+  const image = String((product as any).image ?? '').trim();
+  return image ? { uri: image } : null;
+}
 
 export default function ShopScreen() {
   const insets = useSafeAreaInsets();
@@ -55,6 +113,7 @@ export default function ShopScreen() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All Devices');
   const [selectedBrand, setSelectedBrand] = useState('All Brands');
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,35 +122,75 @@ export default function ShopScreen() {
   const [favorites, setFavorites] = useState<Record<string | number, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchLiveProducts = async () => {
-    try {
-      setLoadError(null);
-      const data = await api.products.getAll({ limit: 100 });
-      setProducts((data as any[]).map(mapProductRow));
-    } catch (err: any) {
-      setProducts([]);
-      setLoadError(err?.message || 'Unable to load products');
-    }
-  };
+  const fetchLiveProducts = useCallback(async (options?: { initial?: boolean }) => {
+    const initial = options?.initial ?? false;
 
-  useEffect(() => {
-    fetchLiveProducts();
+    try {
+      if (initial) setIsInitialLoading(true);
+      setLoadError(null);
+
+      const response = await api.products.getAll({ limit: 100 });
+      const rows = unwrapProductRows(response);
+      const mapped = rows
+        .map((row) => {
+          try {
+            return mapProductRow(row);
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean) as Product[];
+
+      setProducts(mapped);
+    } catch (err: any) {
+      // Keep already-loaded products visible if a background refresh fails.
+      setLoadError(err?.message || 'Unable to load products. Please try again.');
+    } finally {
+      if (initial) setIsInitialLoading(false);
+    }
   }, []);
 
-  const onRefresh = async () => {
+  useEffect(() => {
+    fetchLiveProducts({ initial: true });
+  }, [fetchLiveProducts]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchLiveProducts();
     setRefreshing(false);
-  };
+  }, [fetchLiveProducts]);
+
+  // Brands come from the live product data instead of a hard-coded catalog.
+  const brands = useMemo(() => {
+    const values = new Set<string>();
+
+    products.forEach((product) => {
+      const brand = getProductBrand(product);
+      if (brand) values.add(brand);
+    });
+
+    return ['All Brands', ...Array.from(values).sort((a, b) => a.localeCompare(b))];
+  }, [products]);
+
+  useEffect(() => {
+    if (selectedBrand !== 'All Brands' && !brands.includes(selectedBrand)) {
+      setSelectedBrand('All Brands');
+    }
+  }, [brands, selectedBrand]);
 
   const toggleFavorite = (productId: string | number, productName?: string) => {
     setFavorites((prev) => {
       const willFav = !prev[productId];
+
       if (willFav) {
-        toast.info(productName ? `"${productName}" saved to wishlist` : 'Saved to wishlist', 'Added to Wishlist');
+        toast.info(
+          productName ? `"${productName}" saved to wishlist` : 'Saved to wishlist',
+          'Added to Wishlist',
+        );
       } else {
         toast.info('Item removed from wishlist', 'Wishlist Updated');
       }
+
       return {
         ...prev,
         [productId]: willFav,
@@ -103,62 +202,101 @@ export default function ShopScreen() {
     try {
       await Share.share({
         title: product.name,
-        message: `Check out this refurbished ${product.name} with 1-Year Warranty on RenewX for just ₹${product.price.toLocaleString('en-IN')}!`,
+        message: `Check out ${product.name} on RenewX for ₹${Number(product.price || 0).toLocaleString('en-IN')}.`,
       });
     } catch (error) {
+      // Share cancellation/errors should not interrupt shopping.
       console.warn('Share error:', error);
     }
   };
 
-  // Filter and sort products
   const filteredProducts = useMemo(() => {
     return products
-      .filter((p) => {
-        // Category filter
+      .filter((product) => {
         if (selectedCategory !== 'All Devices') {
-          const catStr = (p.category as string).toLowerCase();
+          const catStr = getProductCategory(product).toLowerCase();
+          const nameStr = String(product.name || '').toLowerCase();
           const selStr = selectedCategory.toLowerCase();
+
           const matchCat =
-            (selectedCategory === 'Smartphones' && (catStr.includes('phone') || catStr.includes('smart'))) ||
-            (selectedCategory === 'MacBooks' && (p.name.toLowerCase().includes('macbook') || catStr.includes('laptop'))) ||
+            (selectedCategory === 'Smartphones' &&
+              (catStr.includes('phone') || catStr.includes('smart'))) ||
+            (selectedCategory === 'MacBooks' &&
+              (nameStr.includes('macbook') || catStr.includes('mac'))) ||
             (selectedCategory === 'Laptops' && catStr.includes('laptop')) ||
-            (selectedCategory === 'Tablets' && (catStr.includes('tablet') || catStr.includes('pad'))) ||
-            (selectedCategory === 'Smartwatches' && (catStr.includes('wear') || catStr.includes('watch'))) ||
-            (selectedCategory === 'Audio' && (catStr.includes('audio') || catStr.includes('headphone'))) ||
+            (selectedCategory === 'Tablets' &&
+              (catStr.includes('tablet') || catStr.includes('pad'))) ||
+            (selectedCategory === 'Smartwatches' &&
+              (catStr.includes('wear') || catStr.includes('watch'))) ||
+            (selectedCategory === 'Audio' &&
+              (catStr.includes('audio') ||
+                catStr.includes('headphone') ||
+                catStr.includes('earbud'))) ||
+            (selectedCategory === 'Accessories' &&
+              (catStr.includes('accessor') ||
+                catStr.includes('charger') ||
+                catStr.includes('cable') ||
+                catStr.includes('case'))) ||
             catStr.includes(selStr);
+
           if (!matchCat) return false;
         }
 
-        // Brand filter
         if (selectedBrand !== 'All Brands') {
-          if (p.brand?.toLowerCase() !== selectedBrand.toLowerCase() && !p.name.toLowerCase().includes(selectedBrand.toLowerCase())) {
+          const brand = getProductBrand(product).toLowerCase();
+          const name = String(product.name || '').toLowerCase();
+
+          if (!brand.includes(selectedBrand.toLowerCase()) &&
+              !name.includes(selectedBrand.toLowerCase())) {
             return false;
           }
         }
 
-        // Search query
         if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          const matchName = p.name.toLowerCase().includes(query);
-          const matchBrand = p.brand?.toLowerCase().includes(query);
-          const matchDesc = p.description?.toLowerCase().includes(query);
-          if (!matchName && !matchBrand && !matchDesc) return false;
+          const query = searchQuery.trim().toLowerCase();
+          const name = String(product.name || '').toLowerCase();
+          const brand = getProductBrand(product).toLowerCase();
+          const description = String((product as any).description ?? '').toLowerCase();
+          const category = getProductCategory(product).toLowerCase();
+
+          if (
+            !name.includes(query) &&
+            !brand.includes(query) &&
+            !description.includes(query) &&
+            !category.includes(query)
+          ) {
+            return false;
+          }
         }
 
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'price_asc') return a.price - b.price;
-        if (sortBy === 'price_desc') return b.price - a.price;
-        if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+        if (sortBy === 'price_asc') return Number(a.price || 0) - Number(b.price || 0);
+        if (sortBy === 'price_desc') return Number(b.price || 0) - Number(a.price || 0);
+        if (sortBy === 'rating') return Number((b as any).rating || 0) - Number((a as any).rating || 0);
         return 0;
       });
   }, [products, selectedCategory, selectedBrand, searchQuery, sortBy]);
 
+  const hasActiveFilters =
+    selectedCategory !== 'All Devices' ||
+    selectedBrand !== 'All Brands' ||
+    searchQuery.trim().length > 0;
+
+  const clearFilters = () => {
+    setSelectedCategory('All Devices');
+    setSelectedBrand('All Brands');
+    setSearchQuery('');
+  };
+
   const renderProductItem = ({ item: product }: { item: Product }) => {
     const isFav = !!favorites[product.id];
-    const isAdded = items.some((i) => i.id === product.id);
-    const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+    const isAdded = items.some((item) => item.id === product.id);
+    const discount = getDiscountPercent(product);
+    const originalPrice = getSafeOriginalPrice(product);
+    const brand = getProductBrand(product);
+    const category = getProductCategory(product);
 
     return (
       <TouchableOpacity
@@ -166,16 +304,18 @@ export default function ShopScreen() {
         activeOpacity={0.9}
         onPress={() => navigation.navigate('ProductDetail', { id: String(product.id) })}
       >
-        {/* Top Badges & Actions */}
         <View style={styles.cardTopBar}>
-          <View style={styles.gradeBadge}>
-            <Ionicons name="sparkles" size={10} color="#059669" />
-            <Text style={styles.gradeText}>Grade A+</Text>
+          <View style={styles.productMetaBadge}>
+            <Ionicons name="phone-portrait-outline" size={10} color="#64748b" />
+            <Text style={styles.productMetaText} numberOfLines={1}>
+              {brand || category || 'Device'}
+            </Text>
           </View>
+
           <View style={styles.topActionsRow}>
             <TouchableOpacity
               style={styles.circleIconButton}
-              onPress={() => toggleFavorite(product.id)}
+              onPress={() => toggleFavorite(product.id, product.name)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons
@@ -184,6 +324,7 @@ export default function ShopScreen() {
                 color={isFav ? '#ef4444' : '#6b7280'}
               />
             </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.circleIconButton}
               onPress={() => handleShare(product)}
@@ -194,47 +335,55 @@ export default function ShopScreen() {
           </View>
         </View>
 
-        {/* Product Image */}
         <View style={styles.imageBox}>
-          <Image source={product.image ? { uri: product.image } : null} style={styles.productImage} resizeMode="contain" />
+          {getProductImage(product) ? (
+            <Image
+              source={getProductImage(product)}
+              style={styles.productImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={34} color="#c7c0b4" />
+              <Text style={styles.imagePlaceholderText}>No image</Text>
+            </View>
+          )}
         </View>
 
-        {/* Product Details */}
         <View style={styles.cardBody}>
           <Text style={styles.productTitle} numberOfLines={2}>
             {product.name}
           </Text>
 
-          {/* Quick Specs Badges */}
-          <View style={styles.specsRow}>
-            <View style={styles.specPill}>
-              <Ionicons name="battery-charging" size={11} color="#059669" />
-              <Text style={styles.specPillText}>94% Health</Text>
-            </View>
-            <View style={styles.specPill}>
-              <Ionicons name="shield-checkmark" size={11} color="#0284c7" />
-              <Text style={styles.specPillText}>{product.warrantyMonths}M Warranty</Text>
-            </View>
+          <View style={styles.productInfoRow}>
+            <Text style={styles.productInfoText} numberOfLines={1}>
+              {category || 'Device'}
+            </Text>
           </View>
 
-          {/* Price & Action Row */}
           <View style={styles.pricingSection}>
             <View>
               <View style={styles.priceRow}>
                 <Text style={styles.currencySymbol}>₹</Text>
-                <Text style={styles.mainPrice}>{product.price.toLocaleString('en-IN')}</Text>
+                <Text style={styles.mainPrice}>
+                  {Number(product.price || 0).toLocaleString('en-IN')}
+                </Text>
               </View>
-              <View style={styles.subPriceRow}>
-                <Text style={styles.originalPrice}>₹{product.originalPrice.toLocaleString('en-IN')}</Text>
-                {discount > 0 && (
-                  <View style={styles.discountTag}>
-                    <Text style={styles.discountTagText}>{discount}% OFF</Text>
-                  </View>
-                )}
-              </View>
+
+              {originalPrice > 0 && (
+                <View style={styles.subPriceRow}>
+                  <Text style={styles.originalPrice}>
+                    ₹{originalPrice.toLocaleString('en-IN')}
+                  </Text>
+                  {discount > 0 && (
+                    <View style={styles.discountTag}>
+                      <Text style={styles.discountTagText}>{discount}% OFF</Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
-            {/* Add to Cart Button */}
             <TouchableOpacity
               style={[styles.addBtn, isAdded && styles.addBtnDone]}
               onPress={() => {
@@ -263,9 +412,66 @@ export default function ShopScreen() {
     );
   };
 
+  const renderSkeletonItem = ({ index }: { index: number }) => (
+    <View style={styles.card} key={`skeleton-${index}`}>
+      <View style={styles.cardTopBar}>
+        <View style={[styles.skeletonBlock, styles.skeletonMeta]} />
+        <View style={styles.topActionsRow}>
+          <View style={[styles.skeletonBlock, styles.skeletonCircle]} />
+          <View style={[styles.skeletonBlock, styles.skeletonCircle]} />
+        </View>
+      </View>
+
+      <View style={styles.imageBox}>
+        <View style={[styles.skeletonBlock, styles.skeletonImage]} />
+      </View>
+
+      <View style={styles.cardBody}>
+        <View style={[styles.skeletonBlock, styles.skeletonTitle]} />
+        <View style={[styles.skeletonBlock, styles.skeletonSubtitle]} />
+
+        <View style={styles.pricingSection}>
+          <View>
+            <View style={[styles.skeletonBlock, styles.skeletonPrice]} />
+            <View style={[styles.skeletonBlock, styles.skeletonOriginalPrice]} />
+          </View>
+          <View style={[styles.skeletonBlock, styles.skeletonButton]} />
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderListHeader = () => (
+    <View>
+      {loadError && products.length > 0 && (
+        <View style={styles.refreshErrorBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color="#92400e" />
+          <View style={styles.refreshErrorContent}>
+            <Text style={styles.refreshErrorTitle}>Couldn’t refresh the shop</Text>
+            <Text style={styles.refreshErrorText} numberOfLines={2}>
+              {loadError}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => fetchLiveProducts()} style={styles.retrySmallButton}>
+            <Text style={styles.retrySmallButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <View style={styles.guaranteeRibbon}>
+        <Text style={styles.deviceCountText}>
+          {filteredProducts.length} {filteredProducts.length === 1 ? 'device' : 'devices'}
+        </Text>
+        <View style={styles.livePill}>
+          <Ionicons name="cloud-done-outline" size={13} color="#475569" />
+          <Text style={styles.livePillText}>Live inventory</Text>
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
-      {/* Top Header Bar */}
       <View style={styles.header}>
         <View>
           <View style={styles.brandRow}>
@@ -273,24 +479,21 @@ export default function ShopScreen() {
             <Text style={styles.brandAccent}>X</Text>
             <View style={styles.liveDot} />
             <Text style={styles.shopBadge}>SHOP</Text>
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              backgroundColor: '#f1f5f9',
-              paddingHorizontal: 7,
-              paddingVertical: 2,
-              borderRadius: 6,
-              marginLeft: 8,
-            }}>
+            <View style={styles.routeBadge}>
               <Ionicons name="link-outline" size={11} color="#64748b" />
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#475569', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
+              <Text
+                style={[
+                  styles.routeBadgeText,
+                  { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+                ]}
+              >
                 /shop
               </Text>
             </View>
           </View>
-          <Text style={styles.headerSub}>Certified Refurbished • Instant Delivery</Text>
+          <Text style={styles.headerSub}>Shop devices from live inventory</Text>
         </View>
+
         <View style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconBtn}
@@ -298,6 +501,7 @@ export default function ShopScreen() {
           >
             <Ionicons name="search-outline" size={20} color="#111827" />
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.headerIconBtn}
             onPress={() => navigation.navigate('Cart' as any)}
@@ -312,7 +516,6 @@ export default function ShopScreen() {
         </View>
       </View>
 
-      {/* Horizontal Category Filter Pills */}
       <View style={styles.categoryScrollContainer}>
         <ScrollView
           horizontal
@@ -321,6 +524,7 @@ export default function ShopScreen() {
         >
           {categories.map((cat) => {
             const isActive = selectedCategory === cat;
+
             return (
               <TouchableOpacity
                 key={cat}
@@ -328,7 +532,12 @@ export default function ShopScreen() {
                 onPress={() => setSelectedCategory(cat)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.categoryPillText, isActive && styles.categoryPillTextActive]}>
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    isActive && styles.categoryPillTextActive,
+                  ]}
+                >
                   {cat}
                 </Text>
               </TouchableOpacity>
@@ -337,7 +546,6 @@ export default function ShopScreen() {
         </ScrollView>
       </View>
 
-      {/* Search and Filters Strip */}
       <View style={styles.filterStrip}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={16} color="#9ca3af" />
@@ -347,9 +555,11 @@ export default function ShopScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchInput}
+            returnKeyType="search"
+            clearButtonMode="never"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
               <Ionicons name="close-circle" size={16} color="#9ca3af" />
             </TouchableOpacity>
           )}
@@ -357,45 +567,73 @@ export default function ShopScreen() {
 
         <TouchableOpacity
           style={[styles.filterToggleBtn, showFilters && styles.filterToggleBtnActive]}
-          onPress={() => setShowFilters(!showFilters)}
+          onPress={() => setShowFilters((value) => !value)}
         >
-          <Ionicons name="options-outline" size={16} color={showFilters ? '#ffffff' : '#111827'} />
-          <Text style={[styles.filterToggleText, showFilters && styles.filterToggleTextActive]}>
+          <Ionicons
+            name="options-outline"
+            size={16}
+            color={showFilters ? '#ffffff' : '#111827'}
+          />
+          <Text
+            style={[
+              styles.filterToggleText,
+              showFilters && styles.filterToggleTextActive,
+            ]}
+          >
             Filters
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Expandable Filter Drawer (Brand & Sort) */}
       {showFilters && (
         <View style={styles.expandedFiltersBox}>
-          {/* Brand Pills */}
           <Text style={styles.filterGroupTitle}>Brand</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.brandRowScroll}>
-            {brands.map((b) => (
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.brandRowScroll}
+          >
+            {brands.map((brand) => (
               <TouchableOpacity
-                key={b}
-                style={[styles.brandChip, selectedBrand === b && styles.brandChipActive]}
-                onPress={() => setSelectedBrand(b)}
+                key={brand}
+                style={[
+                  styles.brandChip,
+                  selectedBrand === brand && styles.brandChipActive,
+                ]}
+                onPress={() => setSelectedBrand(brand)}
               >
-                <Text style={[styles.brandChipText, selectedBrand === b && styles.brandChipTextActive]}>
-                  {b}
+                <Text
+                  style={[
+                    styles.brandChipText,
+                    selectedBrand === brand && styles.brandChipTextActive,
+                  ]}
+                >
+                  {brand}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          {/* Sort Options */}
           <Text style={[styles.filterGroupTitle, { marginTop: 8 }]}>Sort By</Text>
+
           <View style={styles.sortRow}>
-            {sortOptions.map((opt) => (
+            {sortOptions.map((option) => (
               <TouchableOpacity
-                key={opt.value}
-                style={[styles.sortChip, sortBy === opt.value && styles.sortChipActive]}
-                onPress={() => setSortBy(opt.value)}
+                key={option.value}
+                style={[
+                  styles.sortChip,
+                  sortBy === option.value && styles.sortChipActive,
+                ]}
+                onPress={() => setSortBy(option.value)}
               >
-                <Text style={[styles.sortChipText, sortBy === opt.value && styles.sortChipTextActive]}>
-                  {opt.label}
+                <Text
+                  style={[
+                    styles.sortChipText,
+                    sortBy === option.value && styles.sortChipTextActive,
+                  ]}
+                >
+                  {option.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -403,50 +641,95 @@ export default function ShopScreen() {
         </View>
       )}
 
-      {/* Device Count & Quality Guarantee Ribbon */}
-      <View style={styles.guaranteeRibbon}>
-        <Text style={styles.deviceCountText}>
-          {filteredProducts.length} verified {filteredProducts.length === 1 ? 'device' : 'devices'}
-        </Text>
-        <View style={styles.guaranteePill}>
-          <Ionicons name="checkmark-circle" size={13} color="#059669" />
-          <Text style={styles.guaranteeText}>100% Tested • 1-Yr Warranty</Text>
-        </View>
-      </View>
-
-      {/* Products Grid */}
-      <FlatList
-        data={filteredProducts}
-        renderItem={renderProductItem}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
-        contentContainerStyle={[styles.gridContainer, { paddingBottom: 100 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#ffc400']} />}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="hardware-chip-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>No Devices Found</Text>
-            <Text style={styles.emptySub}>
-              Try adjusting your category, brand filters or search term.
-            </Text>
-            <TouchableOpacity
-              style={styles.resetBtn}
-              onPress={() => {
-                setSelectedCategory('All Devices');
-                setSelectedBrand('All Brands');
-                setSearchQuery('');
-              }}
-            >
-              <Text style={styles.resetBtnText}>Clear All Filters</Text>
-            </TouchableOpacity>
+      {isInitialLoading ? (
+        <FlatList
+          data={Array.from({ length: 6 }, (_, index) => index)}
+          renderItem={renderSkeletonItem}
+          keyExtractor={(item) => `skeleton-${item}`}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          contentContainerStyle={[styles.gridContainer, { paddingBottom: 100 }]}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.skeletonHeader}>
+              <View style={[styles.skeletonBlock, styles.skeletonCount]} />
+              <View style={[styles.skeletonBlock, styles.skeletonLivePill]} />
+            </View>
+          }
+        />
+      ) : loadError && products.length === 0 ? (
+        <View style={styles.stateContainer}>
+          <View style={styles.stateIconCircle}>
+            <Ionicons name="cloud-offline-outline" size={28} color="#64748b" />
           </View>
-        }
-      />
+          <Text style={styles.stateTitle}>Couldn’t load the shop</Text>
+          <Text style={styles.stateSub}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => fetchLiveProducts({ initial: true })}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="refresh-outline" size={16} color="#000000" />
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          renderItem={renderProductItem}
+          keyExtractor={(item) => String(item.id)}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          contentContainerStyle={[
+            styles.gridContainer,
+            { paddingBottom: 100 },
+            filteredProducts.length === 0 && styles.emptyListContainer,
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#ffc400']}
+              tintColor="#ffc400"
+            />
+          }
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <View style={styles.stateIconCircle}>
+                <Ionicons name="search-outline" size={28} color="#64748b" />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {hasActiveFilters ? 'No matching devices' : 'No devices available'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {hasActiveFilters
+                  ? 'Try another category, brand, or search term.'
+                  : 'There are no products available right now. Pull down to refresh.'}
+              </Text>
+              {hasActiveFilters ? (
+                <TouchableOpacity style={styles.resetBtn} onPress={clearFilters}>
+                  <Text style={styles.resetBtnText}>Clear All Filters</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.resetBtn}
+                  onPress={() => fetchLiveProducts()}
+                >
+                  <Text style={styles.resetBtnText}>Refresh Shop</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -684,21 +967,218 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#4b5563',
   },
-  guaranteePill: {
+  livePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#e2e8f0',
   },
-  guaranteeText: {
+  livePillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#065f46',
+    color: '#475569',
+  },
+  routeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  routeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  productMetaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    maxWidth: '62%',
+  },
+  productMetaText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  productInfoRow: {
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  productInfoText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'capitalize',
+  },
+  imagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  imagePlaceholderText: {
+    fontSize: 9,
+    color: '#a8a095',
+    fontWeight: '600',
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingBottom: 80,
+  },
+  stateIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  stateTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#1f2937',
+    textAlign: 'center',
+  },
+  stateSub: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: 6,
+    maxWidth: 320,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ffc400',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 18,
+  },
+  retryButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  refreshErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    gap: 8,
+  },
+  refreshErrorContent: {
+    flex: 1,
+  },
+  refreshErrorTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  refreshErrorText: {
+    fontSize: 10,
+    color: '#a16207',
+    marginTop: 1,
+  },
+  retrySmallButton: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 7,
+    backgroundColor: '#ffc400',
+  },
+  retrySmallButtonText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  emptyListContainer: {
+    flexGrow: 1,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  skeletonBlock: {
+    backgroundColor: '#ebe7dd',
+    borderRadius: 6,
+  },
+  skeletonCount: {
+    width: 92,
+    height: 14,
+  },
+  skeletonLivePill: {
+    width: 92,
+    height: 18,
+    borderRadius: 10,
+  },
+  skeletonMeta: {
+    width: 54,
+    height: 16,
+    borderRadius: 10,
+  },
+  skeletonCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  skeletonImage: {
+    width: '72%',
+    height: '72%',
+    borderRadius: 12,
+  },
+  skeletonTitle: {
+    width: '88%',
+    height: 13,
+    marginBottom: 5,
+  },
+  skeletonSubtitle: {
+    width: '54%',
+    height: 10,
+    marginBottom: 8,
+  },
+  skeletonPrice: {
+    width: 76,
+    height: 16,
+  },
+  skeletonOriginalPrice: {
+    width: 48,
+    height: 9,
+    marginTop: 4,
+  },
+  skeletonButton: {
+    width: 58,
+    height: 30,
+    borderRadius: 8,
   },
   gridContainer: {
     paddingHorizontal: 12,
@@ -711,7 +1191,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     maxWidth: '48.5%',
-    backgroundColor: '#fdfbf7', // Warm cream card
+    backgroundColor: '#fdfbf7',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ebe5d8',
@@ -729,22 +1209,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 10,
     zIndex: 1,
-  },
-  gradeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-  },
-  gradeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#065f46',
   },
   topActionsRow: {
     flexDirection: 'row',
@@ -784,26 +1248,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     lineHeight: 16,
     minHeight: 32,
-  },
-  specsRow: {
-    flexDirection: 'row',
-    gap: 4,
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  specPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#f3efe6',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  specPillText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#4b5563',
   },
   pricingSection: {
     flexDirection: 'row',

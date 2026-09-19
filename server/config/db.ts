@@ -5,15 +5,25 @@ import { OrderModel } from '../models/Order';
 let connectPromise: Promise<typeof mongoose> | null = null;
 
 async function reconcileOrderIndexes(): Promise<void> {
-  const indexes = await OrderModel.collection.indexes();
-  const legacyOrderNumberIndex = indexes.find((index) => index.name === 'orderNumber_1');
+  try {
+    const indexes = await OrderModel.collection.indexes();
+    const legacyOrderNumberIndex = indexes.find((index) => index.name === 'orderNumber_1');
 
-  if (legacyOrderNumberIndex) {
-    await OrderModel.collection.dropIndex('orderNumber_1');
-    console.log('[MongoDB] Removed obsolete orderNumber index');
+    if (legacyOrderNumberIndex) {
+      await OrderModel.collection.dropIndex('orderNumber_1');
+      console.log('[MongoDB] Removed obsolete orderNumber index');
+    }
+
+    const legacyPaymentIndex = indexes.find((index) => index.name === 'razorpay_payment_id_1');
+    if (legacyPaymentIndex && (!legacyPaymentIndex.unique || !legacyPaymentIndex.partialFilterExpression)) {
+      await OrderModel.collection.dropIndex('razorpay_payment_id_1');
+      console.log('[MongoDB] Dropped obsolete non-unique razorpay_payment_id_1 index');
+    }
+
+    await OrderModel.syncIndexes();
+  } catch (err: any) {
+    console.warn('[MongoDB] Notice during order index reconciliation:', err?.message || err);
   }
-
-  await OrderModel.syncIndexes();
 }
 
 export async function connectDB(): Promise<typeof mongoose> {

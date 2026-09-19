@@ -50,7 +50,7 @@ export function validateBrandInput(data: any): { valid: boolean; errors: string[
 
 const BrandSchema = new Schema<IBrand>(
   {
-    name: { type: String, required: true, unique: true, trim: true, index: true },
+    name: { type: String, required: true, unique: true, trim: true },
     logo_url: { type: String, default: '' },
     category: { type: String, default: 'SMARTPHONES' },
     description: { type: String, default: '' },
