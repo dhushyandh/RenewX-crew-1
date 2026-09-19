@@ -8,6 +8,11 @@ export interface IUser {
   role: 'admin' | 'customer';
   full_name?: string;
   avatar_url?: string;
+  notification_preferences?: {
+    order_updates: boolean;
+    sell_request_updates: boolean;
+    marketing: boolean;
+  };
   created_at: Date;
   updated_at: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -54,6 +59,11 @@ const UserSchema = new Schema<IUser>(
     avatar_url: {
       type: String,
       default: '',
+    },
+    notification_preferences: {
+      order_updates: { type: Boolean, default: true },
+      sell_request_updates: { type: Boolean, default: true },
+      marketing: { type: Boolean, default: false },
     },
   },
   {
