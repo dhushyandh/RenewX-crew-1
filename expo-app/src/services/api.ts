@@ -75,7 +75,7 @@ export const api = {
         return await request<any[]>(`/models${q ? `?${q}` : ''}`);
       } catch (e) {
         console.warn('[API Client Mobile] Falling back to initial models cache:', e);
-        if (params?.brand_id && params.brand_id !== 'all') return initialModels.filter((m) => m.brand_id === params.brand_id);
+        if (params?.brand_id && params.brand_id !== 'all') return initialModels.filter((m: any) => (m.brand_id || m.brandId) === params.brand_id);
         return initialModels;
       }
     },

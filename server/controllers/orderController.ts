@@ -7,6 +7,7 @@ import { AuthenticatedRequest } from '../middleware/auth';
 import {
   createRazorpayOrder,
   fetchRazorpayPayment,
+  captureRazorpayPayment,
   getRazorpayKeyId,
   refundRazorpayPayment,
 } from '../services/razorpay';
@@ -360,6 +361,17 @@ export async function verifyPayment(
       payment.currency !== 'INR'
     ) {
       throw httpError('Payment amount or order could not be verified', 400, 'PAYMENT_MISMATCH');
+    }
+
+    if (payment.status === 'authorized') {
+      try {
+        const captured: any = await captureRazorpayPayment(razorpay_payment_id, order.subtotal * 100);
+        if (captured && captured.status) {
+          payment.status = captured.status;
+        }
+      } catch (captureErr) {
+        console.warn('Auto-capture on authorized payment encountered error:', captureErr);
+      }
     }
 
     if (payment.status !== 'captured') {

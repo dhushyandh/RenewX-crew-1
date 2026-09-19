@@ -35,17 +35,23 @@ export async function createRazorpayOrder(input: {
   amount: number;
   receipt: string;
   notes: Record<string, string>;
-}) {
-  return getClient().orders.create({
+}): Promise<any> {
+  const result = await (getClient().orders as any).create({
     amount: input.amount,
     currency: 'INR',
     receipt: input.receipt,
     notes: input.notes,
+    payment_capture: true,
   });
+  return result;
 }
 
 export async function fetchRazorpayPayment(paymentId: string) {
   return getClient().payments.fetch(paymentId);
+}
+
+export async function captureRazorpayPayment(paymentId: string, amount: number, currency = 'INR') {
+  return (getClient().payments as any).capture(paymentId, amount, currency);
 }
 
 export async function refundRazorpayPayment(paymentId: string, amount: number) {

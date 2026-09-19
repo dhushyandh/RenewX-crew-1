@@ -9,7 +9,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
-import { openRazorpay } from '@/lib/razorpay';
+import {
+  openRazorpay,
+  isNativeRazorpayAvailable,
+  RazorpayCheckoutOptions,
+  RazorpayCheckoutResult,
+} from '@/lib/razorpay';
+import RazorpayModal from '@/components/RazorpayModal';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 function createCheckoutKey(): string {
@@ -30,7 +36,79 @@ export default function CheckoutScreen() {
   const [pincode, setPincode] = useState('');
   const [processing, setProcessing] = useState(false);
 
+  // In-app Razorpay modal state (used when native module is unavailable, e.g. Expo Go)
+  const [modalVisible, setModalVisible] = useState(false);
+  const [checkoutOptions, setCheckoutOptions] = useState<RazorpayCheckoutOptions | null>(null);
+  const [activeOrder, setActiveOrder] = useState<any>(null);
+
   const itemCount = useMemo(() => items.reduce((n, item) => n + item.quantity, 0), [items]);
+
+  const completePaymentVerification = async (
+    orderId: string,
+    paymentResult: RazorpayCheckoutResult,
+  ) => {
+    try {
+      setProcessing(true);
+
+      if (
+        !paymentResult?.razorpay_order_id ||
+        !paymentResult?.razorpay_payment_id ||
+        !paymentResult?.razorpay_signature
+      ) {
+        throw Object.assign(new Error('Razorpay returned an incomplete payment response.'), {
+          code: 'PAYMENT_RESPONSE_INVALID',
+        });
+      }
+
+      const verifiedOrder = await api.orders.verifyPayment({
+        order_id: String(orderId),
+        razorpay_order_id: paymentResult.razorpay_order_id,
+        razorpay_payment_id: paymentResult.razorpay_payment_id,
+        razorpay_signature: paymentResult.razorpay_signature,
+      });
+
+      clearCart();
+
+      Alert.alert(
+        'Payment successful',
+        `Order #${verifiedOrder.id || orderId} is confirmed.`,
+        [
+          {
+            text: 'Track Order',
+            onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
+          },
+        ],
+        { cancelable: false },
+      );
+    } catch (error: any) {
+      const code = error?.code;
+      if (code === 'PAYMENT_NOT_CAPTURED') {
+        Alert.alert(
+          'Payment Authorized',
+          'Your payment was authorized and is being processed by the bank. You can track its status in orders.',
+          [
+            {
+              text: 'View Orders',
+              onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
+            },
+          ],
+        );
+      } else {
+        Alert.alert(
+          'Verification issue',
+          error?.message || 'Payment received but could not be verified automatically. Contact support if debited.',
+          [
+            {
+              text: 'Check Order Status',
+              onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
+            },
+          ],
+        );
+      }
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const startPayment = async () => {
     const cleanPhone = phone.replace(/\D/g, '');
@@ -44,7 +122,7 @@ export default function CheckoutScreen() {
     ) {
       Alert.alert(
         'Complete delivery details',
-        'Enter your name, valid 10-digit phone, full address and 6-digit pincode.'
+        'Enter your name, valid 10-digit phone, full address and 6-digit pincode.',
       );
       return;
     }
@@ -59,8 +137,7 @@ export default function CheckoutScreen() {
     try {
       const checkoutKey = createCheckoutKey();
 
-      // The server calculates the amount from the current product records.
-      // The mobile app never sends a price or trusts its local subtotal.
+      // The server calculates the amount from current product records.
       const checkout = await api.orders.createCheckout(
         {
           items: items.map((item) => ({
@@ -83,11 +160,11 @@ export default function CheckoutScreen() {
         });
       }
 
-      const paymentResult = await openRazorpay({
+      const options: RazorpayCheckoutOptions = {
         description: `RenewX order ${checkout.order.id}`,
         currency: checkout.currency,
         key: checkout.razorpay_key_id,
-        amount: String(checkout.amount),
+        amount: checkout.amount,
         order_id: checkout.razorpay_order_id,
         name: 'RenewX',
         prefill: {
@@ -98,52 +175,29 @@ export default function CheckoutScreen() {
         theme: {
           color: '#ffc400',
         },
-      });
+      };
 
-      // Never trust the client callback as proof of payment.
-      // The backend verifies the Razorpay signature and fetches the payment.
-      if (
-        !paymentResult?.razorpay_order_id ||
-        !paymentResult?.razorpay_payment_id ||
-        !paymentResult?.razorpay_signature
-      ) {
-        throw Object.assign(new Error('Razorpay returned an incomplete payment response.'), {
-          code: 'PAYMENT_RESPONSE_INVALID',
-        });
+      // Determine platform flow:
+      // 1. Web: uses official Razorpay web checkout script popup
+      // 2. Standalone mobile with native module: uses native SDK
+      // 3. Expo Go / unlinked environment: uses in-app RazorpayModal
+      if (Platform.OS === 'web' || isNativeRazorpayAvailable()) {
+        const paymentResult = await openRazorpay(options);
+        await completePaymentVerification(checkout.order.id, paymentResult);
+      } else {
+        // In Expo Go or when native module is absent, open the in-app Razorpay modal
+        setActiveOrder(checkout.order);
+        setCheckoutOptions(options);
+        setModalVisible(true);
+        setProcessing(false);
       }
-
-      const verifiedOrder = await api.orders.verifyPayment({
-        order_id: String(checkout.order.id),
-        razorpay_order_id: paymentResult.razorpay_order_id,
-        razorpay_payment_id: paymentResult.razorpay_payment_id,
-        razorpay_signature: paymentResult.razorpay_signature,
-      });
-
-      clearCart();
-
-      Alert.alert(
-        'Payment successful',
-        `Order #${verifiedOrder.id} is confirmed.`,
-        [
-          {
-            text: 'Track Order',
-            onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
-          },
-        ],
-        { cancelable: false }
-      );
     } catch (error: any) {
       const code = error?.code;
 
       if (code === 'PAYMENT_NOT_CONFIGURED') {
         Alert.alert(
           'Payments unavailable',
-          'Razorpay is not configured on the RenewX server yet. Your cart is safe.'
-        );
-      } else if (code === 'PAYMENT_NOT_AVAILABLE_ON_WEB') {
-        Alert.alert(
-          'Use the mobile app',
-          'Razorpay checkout is available in the Android and iOS app. Your cart is still available.'
+          'Razorpay is not configured on the RenewX server yet. Your cart is safe.',
         );
       } else if (
         code === 'PAYMENT_SESSION_INVALID' ||
@@ -151,22 +205,46 @@ export default function CheckoutScreen() {
       ) {
         Alert.alert(
           'Payment could not start',
-          error?.message || 'The secure payment session could not be created. Please try again.'
+          error?.message || 'The secure payment session could not be created. Please try again.',
         );
-      } else if (error?.code === 2 || error?.description) {
+      } else if (error?.code === 2 || error?.description === 'Payment cancelled') {
         Alert.alert(
           'Payment cancelled',
-          'No order was confirmed. Your cart is still available so you can try again.'
+          'No order was confirmed. Your cart is still available so you can try again.',
         );
       } else {
         Alert.alert(
           'Checkout failed',
-          error?.message || 'The payment could not be verified. Your cart was not cleared.'
+          error?.message || 'The payment could not be processed. Your cart was not cleared.',
         );
       }
-    } finally {
       setProcessing(false);
     }
+  };
+
+  const handleModalSuccess = (result: RazorpayCheckoutResult) => {
+    setModalVisible(false);
+    if (activeOrder?.id) {
+      completePaymentVerification(activeOrder.id, result);
+    }
+  };
+
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setProcessing(false);
+    Alert.alert(
+      'Payment cancelled',
+      'No order was confirmed. Your cart is still available so you can try again.',
+    );
+  };
+
+  const handleModalError = (error: Error) => {
+    setModalVisible(false);
+    setProcessing(false);
+    Alert.alert(
+      'Payment issue',
+      error?.message || 'Payment could not be completed. Please try again.',
+    );
   };
 
   if (!hydrated) {
@@ -270,7 +348,7 @@ export default function CheckoutScreen() {
             <Ionicons name="shield-checkmark-outline" size={18} color="#64748b" />
             <Text style={styles.noticeText}>
               Final price, stock and payment are verified by the RenewX server.
-              Card/UPI details are handled by Razorpay.
+              Card/UPI details are handled securely by Razorpay.
             </Text>
           </View>
         </ScrollView>
@@ -297,6 +375,15 @@ export default function CheckoutScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* In-app Razorpay modal for Expo Go / web fallback */}
+      <RazorpayModal
+        visible={modalVisible}
+        options={checkoutOptions}
+        onSuccess={handleModalSuccess}
+        onError={handleModalError}
+        onClose={handleModalClose}
+      />
     </SafeAreaView>
   );
 }

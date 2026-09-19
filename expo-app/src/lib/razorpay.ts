@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
-import RazorpayCheckout from 'react-native-razorpay';
+import * as WebRazorpay from './razorpay.web';
+import * as NativeRazorpay from './razorpay.native';
 
 export type RazorpayCheckoutResult = {
   razorpay_order_id: string;
@@ -7,14 +8,39 @@ export type RazorpayCheckoutResult = {
   razorpay_signature: string;
 };
 
+export type RazorpayCheckoutOptions = {
+  key: string;
+  amount: string | number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  prefill?: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  theme?: {
+    color?: string;
+  };
+  notes?: Record<string, string>;
+  [key: string]: unknown;
+};
+
+export function isNativeRazorpayAvailable(): boolean {
+  if (Platform.OS === 'web') {
+    return false;
+  }
+  return NativeRazorpay.isNativeRazorpayAvailable();
+}
+
 export async function openRazorpay(
   options: Record<string, unknown>,
 ): Promise<RazorpayCheckoutResult> {
   if (Platform.OS === 'web') {
-    const error = new Error('Razorpay checkout is available in the Android and iOS app.');
-    (error as Error & { code?: string }).code = 'PAYMENT_NOT_AVAILABLE_ON_WEB';
-    throw error;
+    return WebRazorpay.openRazorpay(options);
   }
 
-  return RazorpayCheckout.open(options as Record<string, any>);
+  return NativeRazorpay.openRazorpay(options);
 }

@@ -148,9 +148,13 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
-// Only checkout requests carry this key. The unique compound index makes
-// duplicate submissions for the same user/key resolve to the same draft.
-OrderSchema.index({ user_id: 1, checkout_key: 1 }, { unique: true, sparse: true });
+// Only checkout requests carry this key. The partial index makes duplicate
+// submissions for the same user/key resolve to the same draft without
+// indexing legacy orders that do not have an idempotency key.
+OrderSchema.index(
+  { user_id: 1, checkout_key: 1 },
+  { unique: true, partialFilterExpression: { checkout_key: { $type: 'string' } } }
+);
 
 export const OrderModel =
   (mongoose.models.Order as mongoose.Model<IOrder>) || mongoose.model<IOrder>('Order', OrderSchema);

@@ -1,7 +1,20 @@
 import mongoose from 'mongoose';
 import { env } from './env';
+import { OrderModel } from '../models/Order';
 
 let connectPromise: Promise<typeof mongoose> | null = null;
+
+async function reconcileOrderIndexes(): Promise<void> {
+  const indexes = await OrderModel.collection.indexes();
+  const legacyOrderNumberIndex = indexes.find((index) => index.name === 'orderNumber_1');
+
+  if (legacyOrderNumberIndex) {
+    await OrderModel.collection.dropIndex('orderNumber_1');
+    console.log('[MongoDB] Removed obsolete orderNumber index');
+  }
+
+  await OrderModel.syncIndexes();
+}
 
 export async function connectDB(): Promise<typeof mongoose> {
   if (mongoose.connection.readyState === 1) return mongoose;
@@ -16,7 +29,8 @@ export async function connectDB(): Promise<typeof mongoose> {
       maxPoolSize: 20,
       minPoolSize: env.NODE_ENV === 'production' ? 2 : 0,
     })
-    .then((connection) => {
+    .then(async (connection) => {
+      await reconcileOrderIndexes();
       console.log(`🌿 [MongoDB] Connected to ${connection.connection.name} at ${connection.connection.host}`);
       return connection;
     })

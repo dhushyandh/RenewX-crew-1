@@ -48,7 +48,7 @@ export default function AccountScreen() {
           <View style={{ flex: 1 }}>
             <View style={styles.nameRow}>
               <Text style={styles.userName} numberOfLines={1}>
-                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'RenewX Member'}
+                {user?.full_name || (user as any)?.user_metadata?.full_name || user?.email?.split('@')[0] || 'RenewX Member'}
               </Text>
               {isAdmin && (
                 <View style={styles.adminBadge}>
