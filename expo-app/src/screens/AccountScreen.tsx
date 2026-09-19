@@ -182,6 +182,24 @@ export default function AccountScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Settings */}
+        <View style={styles.menuSection}>
+          <Text style={styles.menuHeader}>Preferences</Text>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <View style={styles.menuIconCircle}>
+              <Ionicons name="settings-outline" size={18} color="#374151" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuTitle}>Settings</Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Notifications, security & app preferences</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+        </View>
+
         {/* Sign Out Button */}
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={18} color="#ef4444" />
