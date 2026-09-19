@@ -24,7 +24,7 @@ import { useToast } from '@/context/ToastContext';
 import { confirmAction } from '@/lib/confirmAction';
 import BrandsView from '@/components/admin/BrandsView';
 
-type AdminView = 'dashboard' | 'products' | 'brands' | 'orders' | 'users';
+type AdminView = 'dashboard' | 'products' | 'brands' | 'orders' | 'users' | 'tradeIns';
 
 const CATEGORIES = ['All', 'Smartphones', 'Laptops', 'Tablets', 'Audio', 'Wearables', 'Cameras'];
 
@@ -51,12 +51,14 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
     if (routeName === 'AdminProducts' || routeName === 'AdminAddProduct' || routeName === 'AdminEditProduct') return 'products';
     if (routeName === 'AdminOrders') return 'orders';
     if (routeName === 'AdminUsers') return 'users';
+    if (routeName === 'AdminTradeIns') return 'tradeIns';
     if (routeName === 'AdminDashboard') return 'dashboard';
 
     if (paramScreen === 'brands' || paramScreen === 'addBrand' || paramScreen === 'addModel') return 'brands';
     if (paramScreen === 'products' || paramScreen === 'addProduct' || paramScreen === 'editProduct') return 'products';
     if (paramScreen === 'orders') return 'orders';
     if (paramScreen === 'users') return 'users';
+    if (paramScreen === 'tradeIns') return 'tradeIns';
     return 'dashboard';
   };
 
@@ -112,6 +114,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
     else if (v === 'brands') navigation.navigate('AdminBrands');
     else if (v === 'orders') navigation.navigate('AdminOrders');
     else if (v === 'users') navigation.navigate('AdminUsers');
+    else if (v === 'tradeIns') navigation.navigate('AdminTradeIns');
   };
 
   const handleAddProduct = () => {
@@ -159,6 +162,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
             { id: 'brands', label: 'Brands', icon: 'pricetag-outline' },
             { id: 'orders', label: 'Orders', icon: 'receipt-outline' },
             { id: 'users', label: 'Users', icon: 'people-outline' },
+            { id: 'tradeIns', label: 'Sell Requests', icon: 'pricetag-outline' },
           ].map((item) => {
             const isActive = view === item.id;
             return (
@@ -212,6 +216,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
         )}
         {view === 'orders' && <OrdersView />}
         {view === 'users' && <UsersView />}
+        {view === 'tradeIns' && <TradeInsView />}
       </View>
 
       {/* Add / Edit Product Modal */}
@@ -231,6 +236,119 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
         />
       )}
     </SafeAreaView>
+  );
+}
+
+
+
+function TradeInsView() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await api.tradeIn.getAll(statusFilter === 'all' ? undefined : statusFilter);
+      setItems(Array.isArray(data) ? data : []);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const update = async (id: string, status: string) => {
+    try {
+      setBusyId(id);
+      await api.tradeIn.updateStatus(id, status);
+      await load();
+    } catch (err: any) {
+      Alert.alert('Update failed', err?.message || 'Unable to update this sell request.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (loading) return <View style={styles.centerBox}><ActivityIndicator size="large" color={colors.primary} /></View>;
+
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.cardContainer}>
+        <View style={styles.cardTopRow}>
+          <View>
+            <Text style={styles.cardHeaderTitle}>Sell Requests</Text>
+            <Text style={styles.cardHeaderSub}>Review customer devices and approve or reject requests.</Text>
+          </View>
+          <TouchableOpacity onPress={load} style={styles.viewAllBtn}>
+            <Ionicons name="refresh-outline" size={14} color="#2563eb" />
+            <Text style={styles.viewAllText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+          {['all', 'pending', 'approved', 'rejected', 'scheduled', 'picked_up', 'inspected', 'completed'].map((status) => (
+            <TouchableOpacity
+              key={status}
+              onPress={() => setStatusFilter(status)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 7,
+                borderRadius: 10,
+                backgroundColor: statusFilter === status ? '#0f172a' : '#f1f5f9',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '800', color: statusFilter === status ? '#ffc400' : '#475569' }}>
+                {status === 'all' ? 'All' : status.replace(/_/g, ' ')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {items.length === 0 ? (
+          <Text style={styles.emptyNote}>No sell requests found.</Text>
+        ) : items.map((item) => {
+          const isBusy = busyId === item.id;
+          return (
+            <View key={item.id} style={{ borderTopWidth: 1, borderTopColor: '#eef2f7', paddingVertical: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: '#f8fafc', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="phone-portrait-outline" size={21} color="#0f172a" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#0f172a' }}>{item.brand} {item.model}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{item.category} • {item.storage}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{item.customer_name} • {item.customer_phone}</Text>
+                  <Text style={{ fontSize: 11, color: '#047857', fontWeight: '800', marginTop: 4 }}>₹{Number(item.valuation_amount || 0).toLocaleString('en-IN')}</Text>
+                </View>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748b' }}>{String(item.status || 'pending').replace(/_/g, ' ')}</Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                {item.status === 'pending' && (
+                  <>
+                    <TouchableOpacity disabled={isBusy} onPress={() => update(item.id, 'approved')} style={{ flex: 1, backgroundColor: '#059669', paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}>
+                      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{isBusy ? 'Updating…' : 'Approve'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity disabled={isBusy} onPress={() => update(item.id, 'rejected')} style={{ flex: 1, backgroundColor: '#fee2e2', paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}>
+                      <Text style={{ color: '#b91c1c', fontSize: 11, fontWeight: '900' }}>Reject</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {item.status === 'approved' && (
+                  <TouchableOpacity disabled={isBusy} onPress={() => update(item.id, 'scheduled')} style={{ flex: 1, backgroundColor: '#2563eb', paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>Schedule Pickup</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </ScrollView>
   );
 }
 
