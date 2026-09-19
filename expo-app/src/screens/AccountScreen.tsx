@@ -5,6 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import { api } from '@/services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -12,6 +14,18 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const { user, isAdmin, signOut } = useAuth();
+  const [sellCount, setSellCount] = useState(0);
+  const [tradeInValue, setTradeInValue] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    api.tradeIn.getMyRequests().then((requests) => {
+      if (!active) return;
+      setSellCount(requests.length);
+      setTradeInValue(requests.reduce((sum: number, item: any) => sum + Number(item.approved_amount ?? item.valuation_amount ?? 0), 0));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -62,7 +76,7 @@ export default function AccountScreen() {
             </Text>
             <View style={styles.verifiedRow}>
               <Ionicons name="checkmark-circle" size={12} color="#059669" />
-              <Text style={styles.verifiedText}>Verified Member • Premium 1-Yr Warranty</Text>
+              <Text style={styles.verifiedText}>Verified Member</Text>
             </View>
           </View>
         </View>
@@ -90,16 +104,16 @@ export default function AccountScreen() {
         {/* Quick Stats Grid */}
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>3</Text>
-            <Text style={styles.statLabel}>Orders Placed</Text>
+            <Text style={styles.statNumber}>{sellCount}</Text>
+            <Text style={styles.statLabel}>Sell Requests</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>₹38,500</Text>
-            <Text style={styles.statLabel}>Trade-in Value</Text>
+            <Text style={styles.statNumber}>₹{tradeInValue.toLocaleString('en-IN')}</Text>
+            <Text style={styles.statLabel}>Estimated Value</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>12 Mo</Text>
-            <Text style={styles.statLabel}>Warranty Active</Text>
+            <Text style={styles.statNumber}>—</Text>
+            <Text style={styles.statLabel}>Warranty</Text>
           </View>
         </View>
 
