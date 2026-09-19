@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { User } from '../models/User';
 import { env } from '../config/env';
+import { AuthenticatedRequest } from '../middleware/auth';
 
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -88,6 +89,90 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
 
     await User.findByIdAndDelete(targetUser._id);
     res.json({ success: true, message: 'User deleted successfully', data: { id: targetUser._id } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+export async function getMyNotificationPreferences(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        order_updates: user.notification_preferences?.order_updates ?? true,
+        sell_request_updates: user.notification_preferences?.sell_request_updates ?? true,
+        marketing: user.notification_preferences?.marketing ?? false,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateMyNotificationPreferences(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const allowed = ['order_updates', 'sell_request_updates', 'marketing'] as const;
+    const updates: Record<string, boolean> = {};
+
+    for (const key of allowed) {
+      if (req.body?.[key] !== undefined) {
+        if (typeof req.body[key] !== 'boolean') {
+          res.status(400).json({ success: false, error: { message: `${key} must be a boolean`, code: 'VALIDATION_ERROR' } });
+          return;
+        }
+        updates[`notification_preferences.${key}`] = req.body[key];
+      }
+    }
+
+    if (!Object.keys(updates).length) {
+      res.status(400).json({ success: false, error: { message: 'At least one preference is required', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updates },
+      { new: true }
+    );
+
+    if (!user) {
+      res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        order_updates: user.notification_preferences?.order_updates ?? true,
+        sell_request_updates: user.notification_preferences?.sell_request_updates ?? true,
+        marketing: user.notification_preferences?.marketing ?? false,
+      },
+    });
   } catch (err) {
     next(err);
   }
