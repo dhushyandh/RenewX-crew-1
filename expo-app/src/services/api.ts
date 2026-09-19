@@ -168,6 +168,15 @@ export const api = {
     getQuote: async (payload: any) => request<any>('/trade-in/quote', { method: 'POST', body: JSON.stringify(payload) }),
     createPickup: async (payload: any) => request<any>('/trade-in/pickup', { method: 'POST', body: JSON.stringify(payload) }),
     getMyRequests: async () => request<any[]>('/trade-in/my-requests'),
+    getAll: async (status?: string) => {
+      const q = status ? `?status=${encodeURIComponent(status)}` : '';
+      return request<any[]>(`/trade-in/pickup${q}`);
+    },
+    updateStatus: async (id: string, status: string, approvedAmount?: number, adminNote?: string) =>
+      request<any>(`/trade-in/pickup/${encodeURIComponent(id)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, approvedAmount, adminNote }),
+      }),
   },
 
   notifications: {
