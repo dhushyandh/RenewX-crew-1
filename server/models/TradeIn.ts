@@ -141,4 +141,4 @@ const TradeInRequestSchema = new Schema<ITradeInRequest>(
 );
 
 export const TradeInModel =
-  mongoose.models.TradeInRequest || mongoose.model<ITradeInRequest>('TradeInRequest', TradeInRequestSchema);
+  (mongoose.models.TradeInRequest as mongoose.Model<ITradeInRequest>) || mongoose.model<ITradeInRequest>('TradeInRequest', TradeInRequestSchema);
