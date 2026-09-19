@@ -13,17 +13,16 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/App';
-import { products as fallbackProducts } from '@/data/products';
-import { supabase, type ProductRow } from '@/lib/supabase';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { api } from '@/services/api';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-function mapRow(row: ProductRow, index: number): Product {
+function mapRow(row: any): Product {
   return {
-    id: index + 1,
+    id: row.id,
     _uuid: row.id,
     name: row.name,
     brand: row.brand,
@@ -33,10 +32,10 @@ function mapRow(row: ProductRow, index: number): Product {
     condition: row.condition as Product['condition'],
     warrantyMonths: row.warranty_months,
     image: row.image_url,
-    rating: row.rating || 4.8,
-    reviews: row.reviews || 12,
+    rating: row.rating ?? 0,
+    reviews: row.reviews ?? 0,
     stock: row.stock,
-    description: row.description,
+    description: row.description ?? '',
     specs: Array.isArray(row.specs) ? row.specs : [],
   };
 }
@@ -45,20 +44,18 @@ export default function SearchScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart } = useCart();
   const [query, setQuery] = useState('');
-  const [allProducts, setAllProducts] = useState<Product[]>(fallbackProducts);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: true });
-        if (!error && data && data.length > 0) {
-          setAllProducts((data as ProductRow[]).map(mapRow));
-        }
-      } catch (err) {
-        console.warn('Fallback products active:', err);
+        setLoadError(null);
+        const data = await api.products.getAll({ limit: 100 });
+        setAllProducts((data as any[]).map(mapRow));
+      } catch (err: any) {
+        setAllProducts([]);
+        setLoadError(err?.message || 'Unable to load products');
       }
     })();
   }, []);
