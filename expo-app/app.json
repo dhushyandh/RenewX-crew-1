@@ -23,7 +23,8 @@
       }
     },
     "android": {
-      "package": "com.renewx.mobile"
+      "package": "com.renewx.mobile",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro"
