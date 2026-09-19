@@ -12,7 +12,8 @@
     "server": "tsx watch server/local.ts",
     "seed": "tsx server/seed.ts",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=cjs --packages=external --outfile=server-build.cjs && esbuild server/production.ts --bundle --platform=node --format=cjs --packages=external --outfile=server-runtime.cjs",
-    "start": "node server-runtime.cjs"
+    "start": "node server-runtime.cjs",
+    "typecheck:server": "tsc -p tsconfig.server.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -50,7 +51,8 @@
     "tsx": "^4.23.13",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "esbuild": "^0.25.9"
+    "esbuild": "^0.25.9",
+    "@types/node": "^22.18.0"
   },
   "engines": {
     "node": ">=22"
