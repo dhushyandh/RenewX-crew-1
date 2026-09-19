@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
-import { products as initialFallbackProducts, categories } from '@/data/products';
+import { categories } from '@/data/products';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { api } from '@/services/api';
