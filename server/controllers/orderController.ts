@@ -138,7 +138,7 @@ function parseOrderPayload(payload: CreateOrderDTO) {
 export async function getOrders(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const { status, limit, user_id } = req.query;
-    const filter: Record<string, any> = {};
+    const filter: mongoose.FilterQuery<IOrder> = {};
 
     if (status && typeof status === 'string') filter.status = status;
 
@@ -165,7 +165,7 @@ export async function getOrderById(req: AuthenticatedRequest, res: Response, nex
       return;
     }
 
-    const { id } = req.params;
+    const id = String(req.params.id ?? '');
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ success: false, error: { message: 'Invalid order ID', code: 'INVALID_ID' } });
       return;
