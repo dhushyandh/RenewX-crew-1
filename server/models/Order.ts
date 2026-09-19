@@ -152,4 +152,5 @@ const OrderSchema = new Schema<IOrder>(
 // duplicate submissions for the same user/key resolve to the same draft.
 OrderSchema.index({ user_id: 1, checkout_key: 1 }, { unique: true, sparse: true });
 
-export const OrderModel = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
+export const OrderModel =
+  (mongoose.models.Order as mongoose.Model<IOrder>) || mongoose.model<IOrder>('Order', OrderSchema);
