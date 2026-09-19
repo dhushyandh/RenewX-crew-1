@@ -12,6 +12,8 @@ const required = (name: string): string => {
   return value;
 };
 
+const optional = (name: string): string => process.env[name]?.trim() || '';
+
 const parsePort = (value: string | undefined): number => {
   const port = Number(value || 5000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -28,11 +30,14 @@ const parseCorsOrigins = (value: string | undefined): string[] => {
 export const env = {
   NODE_ENV: process.env.NODE_ENV?.trim() || 'development',
   PORT: parsePort(process.env.PORT),
-  CORS_ORIGINS: parseCorsOrigins(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN),
+  CORS_ORIGINS: parseCorsOrigins(process.env.CORS_ORIGIN || process.env.CORS_ORIGINS),
   MONGODB_URI: required('MONGODB_URI'),
   JWT_SECRET: required('JWT_SECRET'),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN?.trim() || '7d',
   ADMIN_EMAIL: process.env.ADMIN_EMAIL?.trim() || '',
+  RAZORPAY_KEY_ID: optional('RAZORPAY_KEY_ID'),
+  RAZORPAY_KEY_SECRET: optional('RAZORPAY_KEY_SECRET'),
+  RAZORPAY_WEBHOOK_SECRET: optional('RAZORPAY_WEBHOOK_SECRET'),
 };
 
 export const isProduction = env.NODE_ENV === 'production';
