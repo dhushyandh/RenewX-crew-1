@@ -5,6 +5,8 @@ import {
   calculateInstantQuote,
   TradeInModel,
 } from '../models/TradeIn';
+import { AuthenticatedRequest } from '../middleware/auth';
+import { NotificationModel } from '../models/Notification';
 
 export async function getValuationQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
