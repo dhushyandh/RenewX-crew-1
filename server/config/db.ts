@@ -42,7 +42,10 @@ export async function checkDatabaseHealth(): Promise<{ ok: boolean; latencyMs: n
   }
 }
 
-mongoose.connection.on('disconnected', () => console.warn('⚠️ [MongoDB] Disconnected'));
+mongoose.connection.on('disconnected', () => {
+  connectPromise = null;
+  console.warn('⚠️ [MongoDB] Disconnected');
+});
 mongoose.connection.on('error', (error) => console.error('❌ [MongoDB] Runtime error:', error.message));
 
 export default connectDB;
