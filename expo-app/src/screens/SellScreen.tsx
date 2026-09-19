@@ -217,7 +217,7 @@ export default function SellScreen() {
             </Text>
           </View>
         </View>
-        <Text style={styles.headerSubtitle}>Free Doorstep Pickup • Best Price Guarantee</Text>
+        <Text style={styles.headerSubtitle}>Submit your device • Get reviewed • Receive your approved offer</Text>
       </View>
 
       {/* Stepper Wizard Bar */}
@@ -571,10 +571,10 @@ export default function SellScreen() {
                 {/* Instant Quote Card */}
                 <View style={styles.valuationCard}>
                   <View style={styles.valuationHeader}>
-                    <Text style={styles.valuationSub}>ESTIMATED INSTANT CASH VALUATION</Text>
+                    <Text style={styles.valuationSub}>ESTIMATED DEVICE VALUE</Text>
                     <View style={styles.guaranteeTag}>
                       <Ionicons name="shield-checkmark" size={11} color="#059669" />
-                      <Text style={styles.guaranteeTagText}>Guaranteed 7 Days</Text>
+                      <Text style={styles.guaranteeTagText}>Pending review</Text>
                     </View>
                   </View>
 
@@ -590,22 +590,22 @@ export default function SellScreen() {
                   <View style={styles.perksList}>
                     <View style={styles.perkItem}>
                       <Ionicons name="home-outline" size={14} color="#ffc400" />
-                      <Text style={styles.perkText}>Free Doorstep Pickup in 24 Hours</Text>
+                      <Text style={styles.perkText}>Admin reviews your device request</Text>
                     </View>
                     <View style={styles.perkItem}>
                       <Ionicons name="cash-outline" size={14} color="#ffc400" />
-                      <Text style={styles.perkText}>Instant Bank / UPI Transfer on spot</Text>
+                      <Text style={styles.perkText}>Approved amount is shown in your request</Text>
                     </View>
                     <View style={styles.perkItem}>
                       <Ionicons name="lock-closed-outline" size={14} color="#ffc400" />
-                      <Text style={styles.perkText}>100% Secure Military-grade Data Wipe</Text>
+                      <Text style={styles.perkText}>Track approval and pickup status in the app</Text>
                     </View>
                   </View>
                 </View>
 
                 {/* Pickup Booking Form */}
-                <Text style={[styles.sectionHeading, { marginTop: 16 }]}>Schedule Free Pickup</Text>
-                <Text style={styles.sectionSub}>Our certified technician will inspect and pay you on the spot</Text>
+                <Text style={[styles.sectionHeading, { marginTop: 16 }]}>Submit Sell Request</Text>
+                <Text style={styles.sectionSub}>Enter your details. Pickup is arranged after admin approval.</Text>
 
                 <View style={styles.formContainer}>
                   <Text style={styles.inputLabel}>Full Name</Text>
@@ -651,7 +651,7 @@ export default function SellScreen() {
                   >
                     <Ionicons name="checkmark-circle" size={20} color="#000000" />
                     <Text style={styles.confirmPickupText}>
-                      Schedule Free Pickup & Get ₹{calculatedQuote().toLocaleString('en-IN')}
+                      Submit Sell Request & Get ₹{calculatedQuote().toLocaleString('en-IN')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -662,14 +662,14 @@ export default function SellScreen() {
                 <View style={styles.successIconCircle}>
                   <Ionicons name="checkmark-done" size={40} color="#ffffff" />
                 </View>
-                <Text style={styles.successTitle}>Pickup Request Scheduled!</Text>
+                <Text style={styles.successTitle}>Sell Request Submitted</Text>
                 <Text style={styles.successSub}>
-                  Our executive will visit your address for doorstep evaluation.
+                  Your request is submitted. We will review it and update you when it is approved.
                 </Text>
 
                 <View style={styles.bookingDetailsBox}>
                   <View style={styles.bookingRow}>
-                    <Text style={styles.bookingLabel}>Booking ID:</Text>
+                    <Text style={styles.bookingLabel}>Request ID:</Text>
                     <Text style={styles.bookingVal}>{bookingId}</Text>
                   </View>
                   <View style={styles.bookingRow}>
