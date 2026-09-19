@@ -91,4 +91,4 @@ const DeviceModelSchema = new Schema<IDeviceModel>(
 );
 
 export const DeviceModelModel =
-  mongoose.models.DeviceModel || mongoose.model<IDeviceModel>('DeviceModel', DeviceModelSchema);
+  (mongoose.models.DeviceModel as mongoose.Model<IDeviceModel>) || mongoose.model<IDeviceModel>('DeviceModel', DeviceModelSchema);
