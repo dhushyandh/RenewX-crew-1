@@ -27,6 +27,7 @@ import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
+import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
 
 export type RootStackParamList = {
   MainTabs: { screen?: keyof TabParamList } | undefined;
@@ -288,6 +289,7 @@ function MainAppNavigation() {
         </Stack.Navigator>
       </NavigationContainer>
       <FloatingContactButtons />
+      <ConnectionStatusBanner />
     </View>
   );
 }
