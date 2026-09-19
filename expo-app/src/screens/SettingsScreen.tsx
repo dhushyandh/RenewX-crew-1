@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SETTINGS_KEY = '@renewx_settings';
@@ -26,22 +27,50 @@ export default function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, signOut } = useAuth();
   const [settings, setSettings] = useState<Settings>(defaults);
+  const [savingKey, setSavingKey] = useState<keyof Settings | null>(null);
+  const [loadingPreferences, setLoadingPreferences] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem(SETTINGS_KEY).then((value) => {
-      if (!value) return;
-      try {
-        setSettings({ ...defaults, ...JSON.parse(value) });
-      } catch {
-        // Ignore invalid local settings and use defaults.
-      }
-    });
+    let active = true;
+    api.users.getNotificationPreferences()
+      .then((value) => {
+        if (!active) return;
+        const next = {
+          orderUpdates: value.order_updates ?? true,
+          sellRequestUpdates: value.sell_request_updates ?? true,
+          marketing: value.marketing ?? false,
+        };
+        setSettings(next);
+        return AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+      })
+      .catch(async () => {
+        const value = await AsyncStorage.getItem(SETTINGS_KEY);
+        if (!active || !value) return;
+        try { setSettings({ ...defaults, ...JSON.parse(value) }); } catch { /* use defaults */ }
+      })
+      .finally(() => { if (active) setLoadingPreferences(false); });
+    return () => { active = false; };
   }, []);
 
   const updateSetting = async (key: keyof Settings, value: boolean) => {
+    const previous = settings[key];
     const next = { ...settings, [key]: value };
     setSettings(next);
-    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    setSavingKey(key);
+    const payload = key === 'orderUpdates'
+      ? { order_updates: value }
+      : key === 'sellRequestUpdates'
+      ? { sell_request_updates: value }
+      : { marketing: value };
+    try {
+      await api.users.updateNotificationPreferences(payload);
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    } catch (error: any) {
+      setSettings({ ...next, [key]: previous });
+      Alert.alert('Could not save setting', error?.message || 'Please try again when you are online.');
+    } finally {
+      setSavingKey(null);
+    }
   };
 
   const resetSettings = () => {
@@ -77,7 +106,7 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>\n        {loadingPreferences && <Text style={styles.syncText}>Syncing preferences…</Text>}
         <View style={styles.accountCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{user?.email?.charAt(0).toUpperCase() || 'U'}</Text>
@@ -102,6 +131,7 @@ export default function SettingsScreen() {
             description="Payment, packing and delivery status"
             value={settings.orderUpdates}
             onValueChange={(value) => updateSetting('orderUpdates', value)}
+            disabled={savingKey === 'orderUpdates'}
           />
           <SettingRow
             icon="cash-outline"
@@ -109,6 +139,7 @@ export default function SettingsScreen() {
             description="Approval, rejection and pickup status"
             value={settings.sellRequestUpdates}
             onValueChange={(value) => updateSetting('sellRequestUpdates', value)}
+            disabled={savingKey === 'sellRequestUpdates'}
             last
           />
           <SettingRow
@@ -117,6 +148,7 @@ export default function SettingsScreen() {
             description="Optional marketing messages from RenewX"
             value={settings.marketing}
             onValueChange={(value) => updateSetting('marketing', value)}
+            disabled={savingKey === 'marketing'}
             last
           />
         </View>
@@ -178,6 +210,7 @@ function SettingRow({
   description,
   value,
   onValueChange,
+  disabled,
   last,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
@@ -185,6 +218,7 @@ function SettingRow({
   description: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
+  disabled?: boolean;
   last?: boolean;
 }) {
   return (
@@ -197,6 +231,7 @@ function SettingRow({
       <Switch
         value={value}
         onValueChange={onValueChange}
+        disabled={disabled}
         trackColor={{ false: '#d1d5db', true: '#fde68a' }}
         thumbColor={value ? '#f59e0b' : '#f8fafc'}
       />
@@ -297,5 +332,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2', paddingVertical: 13, borderRadius: 13, marginTop: 2,
   },
   signOutText: { color: '#b91c1c', fontSize: 13, fontWeight: '800' },
+  syncText: { fontSize: 10, color: '#6b7280', textAlign: 'center', marginBottom: 10 },
   footer: { textAlign: 'center', color: '#9ca3af', fontSize: 10, marginTop: 18 },
 });
