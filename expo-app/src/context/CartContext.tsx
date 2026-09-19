@@ -1,45 +1,85 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Product, CartItem } from '@/types';
 
 interface CartContextValue {
   items: CartItem[];
   addToCart: (product: Product) => void;
-  removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, quantity: number) => void;
+  removeFromCart: (id: string | number) => void;
+  updateQuantity: (id: string | number, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   subtotal: number;
   savings: number;
+  hydrated: boolean;
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
+const CART_STORAGE_KEY = '@renewx_cart';
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(CART_STORAGE_KEY)
+      .then((raw) => {
+        if (!mounted || !raw) return;
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) setItems(parsed);
+        } catch {
+          // Ignore corrupt local cart data.
+        }
+      })
+      .finally(() => {
+        if (mounted) setHydrated(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items)).catch((err) => {
+      console.warn('[Cart] Failed to persist cart:', err);
+    });
+  }, [items, hydrated]);
 
   const addToCart = useCallback((product: Product) => {
+    if (product.stock <= 0) return;
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
+      const existing = prev.find((i) => String(i.id) === String(product.id));
       if (existing) {
+        if (existing.quantity >= product.stock) return prev;
         return prev.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+          String(i.id) === String(product.id)
+            ? { ...i, quantity: Math.min(i.quantity + 1, product.stock) }
+            : i
         );
       }
       return [...prev, { ...product, quantity: 1 }];
     });
   }, []);
 
-  const removeFromCart = useCallback((id: number) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const removeFromCart = useCallback((id: string | number) => {
+    setItems((prev) => prev.filter((i) => String(i.id) !== String(id)));
   }, []);
 
-  const updateQuantity = useCallback((id: number, quantity: number) => {
+  const updateQuantity = useCallback((id: string | number, quantity: number) => {
     if (quantity <= 0) {
-      setItems((prev) => prev.filter((i) => i.id !== id));
+      setItems((prev) => prev.filter((i) => String(i.id) !== String(id)));
       return;
     }
     setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, quantity } : i))
+      prev.map((i) => {
+        if (String(i.id) !== String(id)) return i;
+        const maxStock = Number.isFinite(i.stock) ? Math.max(0, i.stock) : quantity;
+        return { ...i, quantity: Math.min(quantity, maxStock) };
+      }).filter((i) => i.quantity > 0)
     );
   }, []);
 
@@ -48,7 +88,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const savings = items.reduce(
-    (sum, i) => sum + (i.originalPrice - i.price) * i.quantity,
+    (sum, i) => sum + Math.max(0, i.originalPrice - i.price) * i.quantity,
     0
   );
 
@@ -63,6 +103,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         totalItems,
         subtotal,
         savings,
+        hydrated,
       }}
     >
       {children}
