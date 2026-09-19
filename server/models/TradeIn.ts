@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 export interface TradeInValuationRequest {
   category: string;
@@ -35,7 +35,7 @@ export interface TradeInPickupRequest {
   status?: string;
 }
 
-export interface ITradeInRequest extends Document {
+export interface ITradeInRequest {
   id: string;
   user_id?: string;
   category: string;
