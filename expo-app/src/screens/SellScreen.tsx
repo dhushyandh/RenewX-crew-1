@@ -675,9 +675,10 @@ export default function SellScreen() {
                     {quoteLoading ? (
                       <Text style={styles.cashAmount}>Calculating…</Text>
                     ) : (
-                      <Text style={styles.cashAmount}>₹{quoteAmount.toLocaleString('en-IN')}</Text>
+                      <Text style={styles.cashAmount}>{quoteAmount.toLocaleString('en-IN')}</Text>
                     )}
                   </View>
+                  {quoteError && <Text style={styles.quoteError}>{quoteError}</Text>}
 
                   <Text style={styles.deviceSpecSummary}>
                     {selectedBrand} • {selectedModel} ({selectedStorage})
@@ -985,6 +986,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   catalogHint: { fontSize: 10, color: colors.textMuted, marginBottom: 6 },
+  quoteError: { marginTop: 5, color: '#b45309', fontSize: 10, lineHeight: 15 },
   nextButtonDisabled: { opacity: 0.5 },
   nextButtonText: {
     fontSize: 14,
