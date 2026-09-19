@@ -2,14 +2,11 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initialBrands, initialModels } from '@/data/brandsData';
 
-const DEFAULT_HOST =
-  Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
+const PRODUCTION_API_BASE_URL = 'https://renewx-crew-server.onrender.com/api';
+const DEFAULT_HOST = PRODUCTION_API_BASE_URL;
 const configuredApiUrl =
   typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
-const API_BASE_URL =
-  Platform.OS === 'web' && configuredApiUrl?.includes('10.0.2.2')
-    ? configuredApiUrl.replace('10.0.2.2', 'localhost')
-    : configuredApiUrl || DEFAULT_HOST;
+const API_BASE_URL = configuredApiUrl || DEFAULT_HOST;
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
