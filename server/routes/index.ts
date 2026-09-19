@@ -14,7 +14,7 @@ const apiRouter = Router();
 // Health Check Endpoint
 apiRouter.get('/health', async (req, res) => {
   const dbHealth = await checkDatabaseHealth();
-  res.json({
+  res.status(dbHealth.ok ? 200 : 503).json({
     status: dbHealth.ok ? 'healthy' : 'degraded',
     timestamp: new Date().toISOString(),
     service: 'RenewX REST API (MongoDB)',
