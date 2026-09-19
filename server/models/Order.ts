@@ -47,16 +47,11 @@ export interface IOrder extends Document {
 }
 
 export interface CreateOrderDTO {
-  user_id?: string;
   items: {
     product_id: string;
-    product_name: string;
     quantity: number;
-    price: number;
   }[];
-  subtotal: number;
-  savings?: number;
-  customer_info?: {
+  customer_info: {
     name: string;
     phone: string;
     address: string;

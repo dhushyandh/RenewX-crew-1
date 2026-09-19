@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -6,82 +6,21 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '@/context/CartContext';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 export default function CartScreen() {
-  const { items, updateQuantity, removeFromCart, clearCart, subtotal, savings, totalItems } = useCart();
-  const { user } = useAuth();
-  const [checkoutDone, setCheckoutDone] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { items, updateQuantity, removeFromCart, subtotal, savings, totalItems, hydrated } = useCart();
+  const navigation = useNavigation<any>();
 
-  const handleCheckout = () => {
-    Alert.alert(
-      'Confirm Order',
-      `Place order for ${totalItems} items totaling $${subtotal.toFixed(0)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Place Order',
-          onPress: async () => {
-            setIsProcessing(true);
-            try {
-              if (user) {
-                const { data: order, error: orderError } = await supabase
-                  .from('orders')
-                  .insert({
-                    user_id: user.id,
-                    subtotal: Math.round(subtotal),
-                    savings: Math.round(savings),
-                    status: 'pending',
-                  })
-                  .select()
-                  .maybeSingle();
-
-                if (!orderError && order) {
-                  const orderItems = items.map((item) => ({
-                    order_id: order.id,
-                    product_id: item._uuid || null,
-                    product_name: item.name,
-                    quantity: item.quantity,
-                    price: item.price,
-                  }));
-                  await supabase.from('order_items').insert(orderItems);
-                }
-              }
-            } catch (err) {
-              console.warn('Checkout sync warning:', err);
-            } finally {
-              setIsProcessing(false);
-              setCheckoutDone(true);
-              clearCart();
-              setTimeout(() => setCheckoutDone(false), 3500);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  if (checkoutDone) {
+  if (!hydrated) {
     return (
       <SafeAreaView style={styles.emptyContainer} edges={['top']}>
-        <View style={styles.checkoutDone}>
-          <View style={styles.checkoutIcon}>
-            <Ionicons name="checkmark-sharp" size={48} color={colors.black} />
-          </View>
-          <Text style={styles.checkoutTitle}>Order Confirmed!</Text>
-          <Text style={styles.checkoutSubtitle}>
-            Thank you for choosing RenewX Crew. Your renewed electronics order is being processed.
-          </Text>
-        </View>
+        <ActivityIndicator size="large" color={colors.primary} />
       </SafeAreaView>
     );
   }
@@ -114,7 +53,7 @@ export default function CartScreen() {
 
       <FlatList
         data={items}
-        keyExtractor={(item) => String(item._uuid || item.id)}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
@@ -127,6 +66,7 @@ export default function CartScreen() {
               <Text style={styles.itemMeta}>
                 {item.brand} · {item.condition}
               </Text>
+
               <View style={styles.itemBottom}>
                 <View style={styles.qtyRow}>
                   <TouchableOpacity
@@ -135,17 +75,26 @@ export default function CartScreen() {
                   >
                     <Ionicons name="remove" size={14} color={colors.text} />
                   </TouchableOpacity>
+
                   <Text style={styles.qtyText}>{item.quantity}</Text>
+
                   <TouchableOpacity
                     style={styles.qtyButton}
+                    disabled={item.quantity >= item.stock}
                     onPress={() => updateQuantity(item.id, item.quantity + 1)}
                   >
-                    <Ionicons name="add" size={14} color={colors.text} />
+                    <Ionicons
+                      name="add"
+                      size={14}
+                      color={item.quantity >= item.stock ? '#cbd5e1' : colors.text}
+                    />
                   </TouchableOpacity>
                 </View>
+
                 <Text style={styles.itemPrice}>
-                  ${(item.price * item.quantity).toFixed(0)}
+                  ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                 </Text>
+
                 <TouchableOpacity
                   onPress={() => removeFromCart(item.id)}
                   style={styles.removeButton}
@@ -162,39 +111,45 @@ export default function CartScreen() {
         {savings > 0 && (
           <View style={styles.summaryRow}>
             <Text style={styles.savingsText}>You're saving</Text>
-            <Text style={styles.savingsAmount}>${savings.toFixed(0)}</Text>
+            <Text style={styles.savingsAmount}>
+              ₹{savings.toLocaleString('en-IN')}
+            </Text>
           </View>
         )}
+
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
-          <Text style={styles.summaryValue}>${subtotal.toFixed(0)}</Text>
+          <Text style={styles.summaryValue}>
+            ₹{subtotal.toLocaleString('en-IN')}
+          </Text>
         </View>
+
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Shipping</Text>
           <Text style={styles.freeShipping}>Free</Text>
         </View>
+
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>${subtotal.toFixed(0)}</Text>
+          <Text style={styles.totalValue}>
+            ₹{subtotal.toLocaleString('en-IN')}
+          </Text>
         </View>
+
         <TouchableOpacity
-          style={[styles.checkoutButton, isProcessing && { opacity: 0.7 }]}
-          onPress={handleCheckout}
-          disabled={isProcessing}
+          style={styles.checkoutButton}
+          onPress={() => navigation.navigate('Checkout')}
           activeOpacity={0.8}
         >
-          {isProcessing ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : (
-            <>
-              <Text style={styles.checkoutText}>Checkout</Text>
-              <Ionicons name="arrow-forward" size={18} color={colors.primary} />
-            </>
-          )}
+          <Text style={styles.checkoutText}>Continue to Checkout</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.primary} />
         </TouchableOpacity>
+
         <View style={styles.secureRow}>
           <Ionicons name="shield-checkmark" size={14} color={colors.textMuted} />
-          <Text style={styles.secureText}>Secure checkout · Warranty included</Text>
+          <Text style={styles.secureText}>
+            Secure checkout · Warranty included
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -202,13 +157,12 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
   emptyContainer: {
     flex: 1,
     backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -225,14 +179,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.text,
   },
-  itemCount: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-  },
-  list: {
-    padding: spacing.md,
-    paddingBottom: 250,
-  },
+  itemCount: { fontSize: fontSize.xs, color: colors.textMuted },
+  list: { padding: spacing.md, paddingBottom: 260 },
   cartItem: {
     flexDirection: 'row',
     gap: 12,
@@ -250,9 +198,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
     backgroundColor: '#f7f5ec',
   },
-  itemContent: {
-    flex: 1,
-  },
+  itemContent: { flex: 1 },
   itemName: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
@@ -298,9 +244,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.black,
     color: colors.text,
   },
-  removeButton: {
-    padding: 4,
-  },
+  removeButton: { padding: 4 },
   summary: {
     position: 'absolute',
     bottom: 0,
@@ -326,10 +270,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: '#10b981',
   },
-  summaryLabel: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-  },
+  summaryLabel: { fontSize: fontSize.xs, color: colors.textSecondary },
   summaryValue: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
@@ -381,16 +322,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  secureText: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
+  secureText: { fontSize: 10, color: colors.textMuted },
   emptyState: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
-    paddingBottom: 60,
   },
   emptyIcon: {
     width: 72,
@@ -411,32 +347,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textMuted,
     textAlign: 'center',
-  },
-  checkoutDone: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  checkoutIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  checkoutTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    marginBottom: 6,
-  },
-  checkoutSubtitle: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
   },
 });

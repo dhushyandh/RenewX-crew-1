@@ -16,6 +16,7 @@ import SellScreen from '@/screens/SellScreen';
 import TrackScreen from '@/screens/TrackScreen';
 import AccountScreen from '@/screens/AccountScreen';
 import CartScreen from '@/screens/CartScreen';
+import CheckoutScreen from '@/screens/CheckoutScreen';
 import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
@@ -27,6 +28,7 @@ export type RootStackParamList = {
   ProductDetail: { product?: Product; id?: string };
   Search: undefined;
   Cart: undefined;
+  Checkout: undefined;
 
   // Dedicated Admin Routes with direct URLs
   AdminDashboard: undefined;
@@ -72,6 +74,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       ProductDetail: 'product/:id',
       Search: 'search',
       Cart: 'cart',
+      Checkout: 'checkout',
       AdminDashboard: 'admin/dashboard',
       AdminProducts: 'admin/products',
       AdminAddProduct: 'admin/add/product/:id?',
@@ -232,6 +235,7 @@ function MainAppNavigation() {
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
+          <Stack.Screen name="Checkout" component={CheckoutScreen} />
 
           {/* Dedicated Admin Direct Routes */}
           <Stack.Screen name="AdminDashboard" component={AdminPanel} />

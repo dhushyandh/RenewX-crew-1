@@ -168,11 +168,17 @@ export const api = {
       const q = new URLSearchParams(params).toString();
       return await request<any[]>(`/orders${q ? `?${q}` : ''}`);
     },
-    create: async (payload: any) => {
+    create: async (payload: {
+      items: { product_id: string; quantity: number }[];
+      customer_info: { name: string; phone: string; address: string; pincode: string };
+    }) => {
       return await request<any>('/orders', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+    },
+    getById: async (id: string) => {
+      return await request<any>(`/orders/${encodeURIComponent(id)}`);
     },
     updateStatus: async (id: string, status: string, courier?: string, tracking_number?: string) => {
       return await request<any>(`/orders/${id}/status`, {
