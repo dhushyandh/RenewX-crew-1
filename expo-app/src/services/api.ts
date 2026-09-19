@@ -23,12 +23,31 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-  const json = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+  } catch (fetchError: any) {
+    const error = new Error(
+      fetchError?.name === 'AbortError'
+        ? 'Request timed out. Please check your connection.'
+        : 'Unable to connect to RenewX. Please check your connection.',
+    ) as Error & { code?: string; status?: number; network?: boolean };
+    error.code = fetchError?.name === 'AbortError' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR';
+    error.network = true;
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  const json = contentType.includes('application/json') ? await res.json() : null;
   if (!res.ok || json.success === false) {
     const errorMsg = json.error?.message || `HTTP Error ${res.status}`;
     const error = new Error(errorMsg) as Error & { code?: string; status?: number };
@@ -204,11 +223,16 @@ export const api = {
       try {
         const res = await fetch(`${API_BASE_URL}/upload`, { method: 'POST', body: formData, headers });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.error?.message || 'File upload failed');
+        if (!res.ok || !json?.success) {
+          const error = new Error(json?.error?.message || `Upload failed (HTTP ${res.status})`) as Error & { status?: number };
+          error.status = res.status;
+          throw error;
+        }
         return json.data;
-      } catch (err: any) {
-        console.warn('[API Client] FormData upload failed, attempting Base64 fallback:', err);
-        return { url: fileData.uri, fileName: filename, isLocal: true };
+      } catch (err) {
+        // Never return a device-local URI as a fake successful upload.
+        // Local URIs are not durable on another device/server.
+        throw err;
       }
     },
 
