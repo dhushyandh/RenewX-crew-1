@@ -16,6 +16,7 @@ import SellScreen from '@/screens/SellScreen';
 import MySellRequestsScreen from '@/screens/MySellRequestsScreen';
 import TrackScreen from '@/screens/TrackScreen';
 import AccountScreen from '@/screens/AccountScreen';
+import SettingsScreen from '@/screens/SettingsScreen';
 import CartScreen from '@/screens/CartScreen';
 import CheckoutScreen from '@/screens/CheckoutScreen';
 import OrderConfirmScreen from '@/screens/OrderConfirmScreen';
@@ -41,6 +42,7 @@ export type RootStackParamList = {
     };
   };
   MySellRequests: undefined;
+  Settings: undefined;
   Payment: {
     customerInfo: {
       name: string;
@@ -99,6 +101,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       OrderConfirm: 'confirm',
       Payment: 'payment',
       MySellRequests: 'sell-requests',
+      Settings: 'settings',
       AdminDashboard: 'admin/dashboard',
       AdminProducts: 'admin/products',
       AdminAddProduct: 'admin/add/product/:id?',
@@ -264,6 +267,7 @@ function MainAppNavigation() {
           <Stack.Screen name="OrderConfirm" component={OrderConfirmScreen} />
           <Stack.Screen name="Payment" component={PaymentScreen} />
           <Stack.Screen name="MySellRequests" component={MySellRequestsScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
 
           {/* Dedicated Admin Direct Routes */}
           <Stack.Screen name="AdminDashboard" component={AdminPanel} />
