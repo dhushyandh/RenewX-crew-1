@@ -1,7 +1,5 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initialBrands, initialModels } from '@/data/brandsData';
-
 const PRODUCTION_API_BASE_URL = 'https://renewx-crew-server.onrender.com/api';
 const DEFAULT_HOST = PRODUCTION_API_BASE_URL;
 const configuredApiUrl =
@@ -70,18 +68,10 @@ export const api = {
 
   brands: {
     getAll: async (params?: { category?: string; search?: string }) => {
-      try {
-        const q = new URLSearchParams(params as any).toString();
-        return await request<any[]>(`/brands${q ? `?${q}` : ''}`);
-      } catch (e) {
-        console.warn('[API Client Mobile] Falling back to initial brands cache:', e);
-        return initialBrands;
-      }
+      const q = new URLSearchParams(params as any).toString();
+      return await request<any[]>(`/brands${q ? `?${q}` : ''}`);
     },
-    getById: async (id: string) => {
-      try { return await request<any>(`/brands/${id}`); }
-      catch { return initialBrands.find((b) => b.id === id); }
-    },
+    getById: async (id: string) => request<any>(`/brands/${id}`),
     create: async (payload: any) => request<any>('/brands', { method: 'POST', body: JSON.stringify(payload) }),
     update: async (id: string, payload: any) => request<any>(`/brands/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     delete: async (id: string) => request<any>(`/brands/${id}`, { method: 'DELETE' }),
@@ -89,19 +79,10 @@ export const api = {
 
   models: {
     getAll: async (params?: { brand_id?: string; category?: string; featured?: boolean; search?: string }) => {
-      try {
-        const q = new URLSearchParams(params as any).toString();
-        return await request<any[]>(`/models${q ? `?${q}` : ''}`);
-      } catch (e) {
-        console.warn('[API Client Mobile] Falling back to initial models cache:', e);
-        if (params?.brand_id && params.brand_id !== 'all') return initialModels.filter((m: any) => (m.brand_id || m.brandId) === params.brand_id);
-        return initialModels;
-      }
+      const q = new URLSearchParams(params as any).toString();
+      return await request<any[]>(`/models${q ? `?${q}` : ''}`);
     },
-    getById: async (id: string) => {
-      try { return await request<any>(`/models/${id}`); }
-      catch { return initialModels.find((m) => m.id === id); }
-    },
+    getById: async (id: string) => request<any>(`/models/${id}`),
     create: async (payload: any) => request<any>('/models', { method: 'POST', body: JSON.stringify(payload) }),
     update: async (id: string, payload: any) => request<any>(`/models/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     delete: async (id: string) => request<any>(`/models/${id}`, { method: 'DELETE' }),
