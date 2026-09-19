@@ -23,7 +23,7 @@ const normalizeProductPayload = (payload: CreateProductDTO | UpdateProductDTO) =
       normalized[field] =
         typeof value === 'string' ? value.trim() :
         Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) :
-        typeof value === 'string' ? value.trim() : value;
+        value;
     }
   }
   return normalized;

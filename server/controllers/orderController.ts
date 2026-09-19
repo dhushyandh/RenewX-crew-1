@@ -385,7 +385,7 @@ export async function verifyPayment(
   }
 }
 
-async function finalizePaidOrder(order: IOrder, paymentId: string): Promise<IOrder> {
+async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
   if (order.payment_status === 'paid') return order;
 
   const reserved: { id: string; quantity: number }[] = [];

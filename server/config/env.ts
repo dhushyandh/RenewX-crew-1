@@ -38,6 +38,9 @@ export const env = {
   RAZORPAY_KEY_ID: optional('RAZORPAY_KEY_ID'),
   RAZORPAY_KEY_SECRET: optional('RAZORPAY_KEY_SECRET'),
   RAZORPAY_WEBHOOK_SECRET: optional('RAZORPAY_WEBHOOK_SECRET'),
+  SUPABASE_URL: process.env.SUPABASE_URL?.trim() || process.env.VITE_SUPABASE_URL?.trim() || '',
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY?.trim() || process.env.VITE_SUPABASE_ANON_KEY?.trim() || '',
+  SUPABASE_SERVICE_ROLE_KEY: optional('SUPABASE_SERVICE_ROLE_KEY'),
 };
 
 export const isProduction = env.NODE_ENV === 'production';

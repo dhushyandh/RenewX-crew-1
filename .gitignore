@@ -21,3 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.vercel
+server-build.cjs
+server-runtime.cjs
