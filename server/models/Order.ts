@@ -157,5 +157,12 @@ OrderSchema.index(
   { unique: true, partialFilterExpression: { checkout_key: { $type: 'string' } } }
 );
 
+// A Razorpay payment can only belong to one order. The partial index
+// keeps legacy orders without a payment id out of the uniqueness constraint.
+OrderSchema.index(
+  { razorpay_payment_id: 1 },
+  { unique: true, partialFilterExpression: { razorpay_payment_id: { $type: 'string' } } }
+);
+
 export const OrderModel =
   (mongoose.models.Order as mongoose.Model<IOrder>) || mongoose.model<IOrder>('Order', OrderSchema);
