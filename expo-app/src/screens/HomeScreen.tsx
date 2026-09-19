@@ -49,7 +49,7 @@ export default function HomeScreen() {
 
   const handleProductPress = useCallback(
     (product: Product) => {
-      navigation.navigate('ProductDetail', { product });
+      navigation.navigate('ProductDetail', { id: String(product.id) });
     },
     [navigation]
   );
