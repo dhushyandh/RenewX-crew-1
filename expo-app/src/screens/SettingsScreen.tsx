@@ -81,7 +81,16 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           setSettings(defaults);
-          await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(defaults));
+          try {
+            await api.users.updateNotificationPreferences({
+              order_updates: true,
+              sell_request_updates: true,
+              marketing: false,
+            });
+            await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(defaults));
+          } catch (error: any) {
+            Alert.alert('Could not reset settings', error?.message || 'Please try again when you are online.');
+          }
         },
       },
     ]);
@@ -106,7 +115,8 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>\n        {loadingPreferences && <Text style={styles.syncText}>Syncing preferences…</Text>}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        {loadingPreferences && <Text style={styles.syncText}>Syncing preferences…</Text>}
         <View style={styles.accountCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{user?.email?.charAt(0).toUpperCase() || 'U'}</Text>
