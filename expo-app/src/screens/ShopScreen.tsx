@@ -164,7 +164,7 @@ export default function ShopScreen() {
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.9}
-        onPress={() => navigation.navigate('ProductDetail', { product })}
+        onPress={() => navigation.navigate('ProductDetail', { id: String(product.id) })}
       >
         {/* Top Badges & Actions */}
         <View style={styles.cardTopBar}>
