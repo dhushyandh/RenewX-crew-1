@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 export interface DeviceModel {
   id: string;
@@ -13,7 +13,7 @@ export interface DeviceModel {
   created_at?: string;
 }
 
-export interface IDeviceModel extends Document {
+export interface IDeviceModel {
   id: string;
   brand_id: string;
   brand_name: string;
