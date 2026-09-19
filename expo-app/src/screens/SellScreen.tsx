@@ -161,6 +161,13 @@ export default function SellScreen() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!selectedBrand || !selectedModel || !selectedStorage) {
+      setQuoteAmount(0);
+      setQuoteError(null);
+      setQuoteLoading(false);
+      return;
+    }
+
     let active = true;
     setQuoteLoading(true);
     setQuoteError(null);
