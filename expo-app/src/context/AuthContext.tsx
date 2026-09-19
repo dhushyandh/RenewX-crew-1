@@ -2,13 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const DEFAULT_API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
+const PRODUCTION_API_BASE = 'https://renewx-crew-server.onrender.com/api';
+const DEFAULT_API_BASE = PRODUCTION_API_BASE;
 const configuredApiUrl =
   typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
-const API_BASE =
-  Platform.OS === 'web' && configuredApiUrl?.includes('10.0.2.2')
-    ? configuredApiUrl.replace('10.0.2.2', 'localhost')
-    : configuredApiUrl || DEFAULT_API_BASE;
+const API_BASE = configuredApiUrl || DEFAULT_API_BASE;
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 const USER_STORAGE_KEY = '@renewx_auth_user';
 
