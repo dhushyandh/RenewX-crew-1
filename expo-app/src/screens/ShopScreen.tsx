@@ -17,8 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
-import { products as fallbackProducts } from '@/data/products';
-import { supabase, type ProductRow } from '@/lib/supabase';
 import type { Product } from '@/types';
 import { api } from '@/services/api';
 import { useCart } from '@/context/CartContext';
@@ -48,9 +46,9 @@ const sortOptions = [
   { label: 'Highest Rated', value: 'rating' },
 ];
 
-function mapRow(row: ProductRow, index: number): Product {
+function mapRow(row: any): Product {
   return {
-    id: index + 1,
+    id: row.id,
     _uuid: row.id,
     name: row.name,
     brand: row.brand,
@@ -60,10 +58,10 @@ function mapRow(row: ProductRow, index: number): Product {
     condition: row.condition as Product['condition'],
     warrantyMonths: row.warranty_months,
     image: row.image_url,
-    rating: row.rating || 4.8,
-    reviews: row.reviews || 12,
+    rating: row.rating ?? 0,
+    reviews: row.reviews ?? 0,
     stock: row.stock,
-    description: row.description,
+    description: row.description ?? '',
     specs: Array.isArray(row.specs) ? row.specs : [],
   };
 }
@@ -74,23 +72,17 @@ export default function ShopScreen() {
   const { addToCart, items, totalItems } = useCart();
   const toast = useToast();
 
-  const [products, setProducts] = useState<Product[]>(fallbackProducts);
-  const [selectedCategory, setSelectedCategory] = useState('All Devices');
-  const [selectedBrand, setSelectedBrand] = useState('All Brands');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('featured');
-  const [favorites, setFavorites] = useState<Record<number, boolean>>({});
-  const [refreshing, setRefreshing] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchLiveProducts = async () => {
     try {
-      const data = await api.products.getAll();
-      if (data && data.length > 0) {
-        setProducts((data as ProductRow[]).map(mapRow));
-      }
-    } catch (err) {
-      console.warn('Using local fallback products:', err);
+      setLoadError(null);
+      const data = await api.products.getAll({ limit: 100 });
+      setProducts((data as any[]).map(mapRow));
+    } catch (err: any) {
+      setProducts([]);
+      setLoadError(err?.message || 'Unable to load products');
     }
   };
 
