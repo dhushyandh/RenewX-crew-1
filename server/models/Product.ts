@@ -167,4 +167,4 @@ ProductSchema.index({ name: 'text', brand: 'text', description: 'text' });
 ProductSchema.index({ category: 1, brand: 1, price: 1 });
 
 export const ProductModel =
-  mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
+  (mongoose.models.Product as mongoose.Model<IProduct>) || mongoose.model<IProduct>('Product', ProductSchema);
