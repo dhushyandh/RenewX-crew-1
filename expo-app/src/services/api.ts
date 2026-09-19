@@ -1,11 +1,12 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initialBrands, initialModels } from '@/data/brandsData';
-import { products as fallbackProducts } from '@/data/products';
 
-// Default API URLs depending on platform
-const DEFAULT_HOST = Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
-const API_BASE_URL = DEFAULT_HOST;
+const DEFAULT_HOST =
+  Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
+const API_BASE_URL =
+  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL?.trim()) ||
+  DEFAULT_HOST;
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
