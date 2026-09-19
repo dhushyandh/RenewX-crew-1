@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -23,55 +24,12 @@ import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 export default function CartScreen() {
   const { items, updateQuantity, removeFromCart, clearCart, subtotal, savings, totalItems, hydrated } = useCart();
   const { user } = useAuth();
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const navigation = useNavigation<any>();
   const [name, setName] = useState(user?.full_name || '');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [pincode, setPincode] = useState('');
 
-  const handleCheckout = async () => {
-    if (!user) {
-      Alert.alert('Sign in required', 'Please sign in before placing an order.');
-      return;
-    }
-    if (!name.trim() || !phone.trim() || !address.trim() || !/^\d{6}$/.test(pincode.trim())) {
-      Alert.alert('Complete delivery details', 'Enter your name, 10-digit phone number, full address and a valid 6-digit pincode.');
-      return;
-    }
-    if (!/^\d{10}$/.test(phone.replace(/\D/g, ''))) {
-      Alert.alert('Invalid phone number', 'Enter a valid 10-digit Indian mobile number.');
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      const order = await api.orders.create({
-        items: items.map((item) => ({
-          product_id: String(item.id),
-          quantity: item.quantity,
-        })),
-        customer_info: {
-          name: name.trim(),
-          phone: phone.replace(/\D/g, ''),
-          address: address.trim(),
-          pincode: pincode.trim(),
-        },
-      });
-
-      setOrderId(order?.id || null);
-      clearCart();
-      setCheckoutOpen(false);
-    } catch (error: any) {
-      Alert.alert(
-        'Order could not be placed',
-        error?.message || 'Please try again. Your cart was not cleared.'
-      );
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   if (!hydrated) {
     return (
@@ -81,25 +39,6 @@ export default function CartScreen() {
     );
   }
 
-  if (orderId) {
-    return (
-      <SafeAreaView style={styles.emptyContainer} edges={['top']}>
-        <View style={styles.checkoutDone}>
-          <View style={styles.checkoutIcon}>
-            <Ionicons name="checkmark-sharp" size={48} color={colors.black} />
-          </View>
-          <Text style={styles.checkoutTitle}>Order Confirmed</Text>
-          <Text style={styles.orderNumber}>Order #{orderId.slice(0, 8).toUpperCase()}</Text>
-          <Text style={styles.checkoutSubtitle}>
-            Your order has been created successfully. You can follow its status from Track Orders.
-          </Text>
-          <TouchableOpacity style={styles.doneButton} onPress={() => setOrderId(null)}>
-            <Text style={styles.doneButtonText}>Back to Cart</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   if (items.length === 0) {
     return (
@@ -142,65 +81,27 @@ export default function CartScreen() {
                 <Text style={styles.itemMeta}>{item.brand} · {item.condition}</Text>
                 <View style={styles.itemBottom}>
                   <View style={styles.qtyRow}>
-                    <TouchableOpacity
-                      style={styles.qtyButton}
-                      onPress={() => updateQuantity(item.id, item.quantity - 1)}
-                    >
-                      <Ionicons name="remove" size={14} color={colors.text} />
-                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.qtyButton} onPress={() => updateQuantity(item.id, item.quantity - 1)}><Ionicons name="remove" size={14} color={colors.text} /></TouchableOpacity>
                     <Text style={styles.qtyText}>{item.quantity}</Text>
-                    <TouchableOpacity
-                      style={styles.qtyButton}
-                      disabled={item.quantity >= item.stock}
-                      onPress={() => updateQuantity(item.id, item.quantity + 1)}
-                    >
-                      <Ionicons name="add" size={14} color={item.quantity >= item.stock ? '#cbd5e1' : colors.text} />
-                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.qtyButton} disabled={item.quantity >= item.stock} onPress={() => updateQuantity(item.id, item.quantity + 1)}><Ionicons name="add" size={14} color={item.quantity >= item.stock ? '#cbd5e1' : colors.text} /></TouchableOpacity>
                   </View>
                   <Text style={styles.itemPrice}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</Text>
-                  <TouchableOpacity onPress={() => removeFromCart(item.id)} style={styles.removeButton}>
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeFromCart(item.id)} style={styles.removeButton}><Ionicons name="trash-outline" size={18} color="#ef4444" /></TouchableOpacity>
                 </View>
               </View>
             </View>
           )}
-          ListFooterComponent={
-            checkoutOpen ? (
-              <View style={styles.checkoutCard}>
-                <View style={styles.checkoutHeader}>
-                  <Text style={styles.checkoutCardTitle}>Delivery details</Text>
-                  <TouchableOpacity onPress={() => setCheckoutOpen(false)}>
-                    <Ionicons name="close" size={20} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-                <TextInput value={name} onChangeText={setName} placeholder="Full name" placeholderTextColor="#94a3b8" style={styles.input} />
-                <TextInput value={phone} onChangeText={setPhone} placeholder="10-digit mobile number" placeholderTextColor="#94a3b8" keyboardType="phone-pad" maxLength={10} style={styles.input} />
-                <TextInput value={address} onChangeText={setAddress} placeholder="Full delivery address" placeholderTextColor="#94a3b8" multiline style={[styles.input, styles.addressInput]} />
-                <TextInput value={pincode} onChangeText={setPincode} placeholder="6-digit pincode" placeholderTextColor="#94a3b8" keyboardType="number-pad" maxLength={6} style={styles.input} />
-                <TouchableOpacity
-                  style={[styles.placeOrderButton, isProcessing && { opacity: 0.6 }]}
-                  onPress={handleCheckout}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? <ActivityIndicator color={colors.primary} /> : (
-                    <Text style={styles.placeOrderText}>Place Order · ₹{subtotal.toLocaleString('en-IN')}</Text>
-                  )}
-                </TouchableOpacity>
-                <Text style={styles.serverNote}>Final price and stock are verified securely by the server.</Text>
-              </View>
-            ) : null
-          }
         />
-
-        {!checkoutOpen && (
-          <View style={styles.summary}>
-            {savings > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.savingsText}>You're saving</Text>
-                <Text style={styles.savingsAmount}>₹{savings.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
+        <View style={styles.summary}>
+          {savings > 0 && <View style={styles.summaryRow}><Text style={styles.savingsText}>You're saving</Text><Text style={styles.savingsAmount}>₹{savings.toLocaleString('en-IN')}</Text></View>}
+          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>₹{subtotal.toLocaleString('en-IN')}</Text></View>
+          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Shipping</Text><Text style={styles.freeShipping}>Free</Text></View>
+          <View style={styles.totalRow}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalValue}>₹{subtotal.toLocaleString('en-IN')}</Text></View>
+          <TouchableOpacity style={styles.checkoutButton} onPress={() => navigation.navigate('Checkout')} activeOpacity={0.8}>
+            <Text style={styles.checkoutText}>Continue to Checkout</Text><Ionicons name="arrow-forward" size={18} color={colors.primary} />
+          </TouchableOpacity>
+          <View style={styles.secureRow}><Ionicons name="shield-checkmark" size={14} color={colors.textMuted} /><Text style={styles.secureText}>Secure checkout · Warranty included</Text></View>
+        </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
               <Text style={styles.summaryValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
