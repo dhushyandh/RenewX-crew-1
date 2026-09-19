@@ -109,8 +109,8 @@ export default function SearchScreen() {
                   </Text>
                   <View style={styles.resultBottom}>
                     <View style={styles.priceContainer}>
-                      <Text style={styles.resultPrice}>${item.price}</Text>
-                      <Text style={styles.resultOriginal}>${item.originalPrice}</Text>
+                      <Text style={styles.resultPrice}>₹{Number(item.price || 0).toLocaleString('en-IN')}</Text>
+                      <Text style={styles.resultOriginal}>₹{Number(item.originalPrice || 0).toLocaleString('en-IN')}</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.addButton}
