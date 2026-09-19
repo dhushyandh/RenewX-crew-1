@@ -157,6 +157,9 @@ export const api = {
   },
 
   users: {
+    getNotificationPreferences: async () => request<any>('/users/me/notification-preferences'),
+    updateNotificationPreferences: async (payload: { order_updates?: boolean; sell_request_updates?: boolean; marketing?: boolean }) =>
+      request<any>('/users/me/notification-preferences', { method: 'PATCH', body: JSON.stringify(payload) }),
     getAll: async () => request<any[]>('/users'),
     updateRole: async (id: string, role: 'admin' | 'customer') =>
       request<any>(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
