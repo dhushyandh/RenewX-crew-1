@@ -1,10 +1,12 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { api } from '@/services/api';
+import { useEffect, useState } from 'react';
 import { colors, fontSize, fontWeight, radius, spacing, conditionColors } from '@/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -12,12 +14,65 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function ProductDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
-  const { product } = route.params as { product: Product };
+  const params = route.params as { product?: Product; id?: string } | undefined;
+  const [product, setProduct] = useState<Product | null>(params?.product || null);
+  const [loading, setLoading] = useState(!params?.product);
+  const [error, setError] = useState<string | null>(null);
   const { addToCart } = useCart();
 
-  const discount = Math.round(
-    ((product.originalPrice - product.price) / product.originalPrice) * 100
-  );
+  useEffect(() => {
+    if (product || !params?.id) return;
+    let mounted = true;
+    api.products.getById(params.id)
+      .then((row: any) => {
+        if (!mounted) return;
+        setProduct({
+          id: row.id,
+          _uuid: row.id,
+          name: row.name,
+          brand: row.brand,
+          category: row.category as Product['category'],
+          originalPrice: row.original_price,
+          price: row.price,
+          condition: row.condition as Product['condition'],
+          warrantyMonths: row.warranty_months,
+          image: row.image_url,
+          rating: row.rating ?? 0,
+          reviews: row.reviews ?? 0,
+          stock: row.stock,
+          description: row.description ?? '',
+          specs: Array.isArray(row.specs) ? row.specs : [],
+        });
+      })
+      .catch((err: any) => {
+        if (mounted) setError(err?.message || 'Unable to load product');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [params?.id, product]);
+
+  if (loading) {
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
+
+  if (!product) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>{error || 'Product not found'}</Text>
+        <TouchableOpacity style={styles.backErrorButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backErrorText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const discount = product.originalPrice > 0
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : 0;
   const cond = conditionColors[product.condition] || conditionColors.Good;
 
   const handleAddToCart = () => {
@@ -104,14 +159,15 @@ export default function ProductDetailScreen() {
       <View style={styles.bottomBar}>
         <View style={styles.priceSection}>
           <View style={styles.priceRow}>
-            <Text style={styles.price}>${product.price}</Text>
-            <Text style={styles.originalPrice}>${product.originalPrice}</Text>
+            <Text style={styles.price}>₹{product.price.toLocaleString('en-IN')}</Text>
+            <Text style={styles.originalPrice}>₹{product.originalPrice.toLocaleString('en-IN')}</Text>
           </View>
-          <Text style={styles.savings}>Save ${product.originalPrice - product.price}</Text>
+          <Text style={styles.savings}>Save ₹{(product.originalPrice - product.price).toLocaleString('en-IN')}</Text>
         </View>
         <TouchableOpacity
           style={styles.addToCartButton}
           onPress={handleAddToCart}
+          disabled={product.stock <= 0}
           activeOpacity={0.85}
         >
           <Ionicons name="cart" size={18} color={colors.primary} />
@@ -123,6 +179,28 @@ export default function ProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    padding: spacing.lg,
+  },
+  errorText: {
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  backErrorButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+  },
+  backErrorText: {
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+  },
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
