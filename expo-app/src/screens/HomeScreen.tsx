@@ -7,8 +7,8 @@ import type { RootStackParamList } from '@/App';
 import { products as initialFallbackProducts, categories } from '@/data/products';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { supabase, type ProductRow } from '@/lib/supabase';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
 import HomeHeader from '@/components/HomeHeader';
 import HeroBanner from '@/components/HeroBanner';
@@ -17,9 +17,9 @@ import ProductCard from '@/components/ProductCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-function mapRow(row: ProductRow, index: number): Product {
+function mapRow(row: any): Product {
   return {
-    id: index + 1,
+    id: row.id,
     _uuid: row.id,
     name: row.name,
     brand: row.brand,
@@ -29,10 +29,10 @@ function mapRow(row: ProductRow, index: number): Product {
     condition: row.condition as Product['condition'],
     warrantyMonths: row.warranty_months,
     image: row.image_url,
-    rating: row.rating || 4.8,
-    reviews: row.reviews || 12,
+    rating: row.rating ?? 0,
+    reviews: row.reviews ?? 0,
     stock: row.stock,
-    description: row.description,
+    description: row.description ?? '',
     specs: Array.isArray(row.specs) ? row.specs : [],
   };
 }
@@ -43,20 +43,17 @@ export default function HomeScreen() {
   const { isAdmin, signOut } = useAuth();
   const [activeCategory, setActiveCategory] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
-  const [productList, setProductList] = useState<Product[]>(initialFallbackProducts);
+  const [productList, setProductList] = useState<Product[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchLiveProducts = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (!error && data && data.length > 0) {
-        setProductList((data as ProductRow[]).map(mapRow));
-      }
-    } catch (err) {
-      console.warn('Using local fallback products due to fetch error:', err);
+      setLoadError(null);
+      const data = await api.products.getAll({ limit: 100 });
+      setProductList((data as any[]).map(mapRow));
+    } catch (err: any) {
+      setProductList([]);
+      setLoadError(err?.message || 'Unable to load products');
     }
   }, []);
 
