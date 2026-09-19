@@ -19,7 +19,21 @@ export async function uploadImageToStorage(
   fileName: string,
   contentType: string,
 ): Promise<string> {
-  const storage = getClient().storage.from(env.SUPABASE_STORAGE_BUCKET);
+  const supabase = getClient();
+  const bucketName = env.SUPABASE_STORAGE_BUCKET;
+  const bucketCheck = await supabase.storage.getBucket(bucketName);
+  if (bucketCheck.error) {
+    const created = await supabase.storage.createBucket(bucketName, {
+      public: true,
+      fileSizeLimit: '10MB',
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+    });
+    if (created.error && !/already exists/i.test(created.error.message)) {
+      throw new Error(`Image storage bucket is unavailable: ${created.error.message}`);
+    }
+  }
+
+  const storage = supabase.storage.from(bucketName);
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '-');
   const objectPath = `products/${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${safeName}`;
 
