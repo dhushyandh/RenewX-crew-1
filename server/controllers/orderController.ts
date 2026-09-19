@@ -476,7 +476,7 @@ export async function handleRazorpayWebhook(req: Request, res: Response): Promis
       return;
     }
 
-    if (event === 'payment.captured' || event === 'order.paid') {
+    if (event === 'payment.captured') {
       if (order.payment_status !== 'paid') {
         const paymentId = payment?.id || order.razorpay_payment_id;
         if (paymentId) await finalizePaidOrder(order, paymentId);
