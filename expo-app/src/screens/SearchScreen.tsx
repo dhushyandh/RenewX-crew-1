@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,45 +13,83 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/App';
-import { products } from '@/data/products';
+import { products as fallbackProducts } from '@/data/products';
+import { supabase, type ProductRow } from '@/lib/supabase';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+function mapRow(row: ProductRow, index: number): Product {
+  return {
+    id: index + 1,
+    _uuid: row.id,
+    name: row.name,
+    brand: row.brand,
+    category: row.category as Product['category'],
+    originalPrice: row.original_price,
+    price: row.price,
+    condition: row.condition as Product['condition'],
+    warrantyMonths: row.warranty_months,
+    image: row.image_url,
+    rating: row.rating || 4.8,
+    reviews: row.reviews || 12,
+    stock: row.stock,
+    description: row.description,
+    specs: Array.isArray(row.specs) ? row.specs : [],
+  };
+}
+
 export default function SearchScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart } = useCart();
   const [query, setQuery] = useState('');
+  const [allProducts, setAllProducts] = useState<Product[]>(fallbackProducts);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (!error && data && data.length > 0) {
+          setAllProducts((data as ProductRow[]).map(mapRow));
+        }
+      } catch (err) {
+        console.warn('Fallback products active:', err);
+      }
+    })();
+  }, []);
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return products.filter(
+    return allProducts.filter(
       (p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, allProducts]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <Ionicons name="search" size={18} color="#94a3b8" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search renewed electronics..."
-            placeholderTextColor={colors.textMuted}
+            placeholder="Search renewed tech..."
+            placeholderTextColor="#94a3b8"
             value={query}
             onChangeText={setQuery}
             autoFocus
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              <Ionicons name="close-circle" size={18} color="#94a3b8" />
             </TouchableOpacity>
           )}
         </View>
@@ -59,22 +97,24 @@ export default function SearchScreen() {
 
       {query.trim() === '' ? (
         <View style={styles.emptyState}>
-          <Ionicons name="search" size={48} color={colors.border} />
+          <Ionicons name="search-outline" size={48} color="#cbd5e1" />
           <Text style={styles.emptyTitle}>Search for products</Text>
           <Text style={styles.emptySubtitle}>Find laptops, phones, audio, and more</Text>
         </View>
       ) : results.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.border} />
+          <Ionicons name="alert-circle-outline" size={48} color="#cbd5e1" />
           <Text style={styles.emptyTitle}>No results found</Text>
-          <Text style={styles.emptySubtitle}>Try a different search term</Text>
+          <Text style={styles.emptySubtitle}>Try searching with a different term</Text>
         </View>
       ) : (
         <>
-          <Text style={styles.resultCount}>{results.length} results for "{query}"</Text>
+          <Text style={styles.resultCount}>
+            {results.length} results for "{query}"
+          </Text>
           <FlatList
             data={results}
-            keyExtractor={(item) => String(item.id)}
+            keyExtractor={(item) => String(item._uuid || item.id)}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
@@ -86,7 +126,9 @@ export default function SearchScreen() {
                 <Image source={{ uri: item.image }} style={styles.resultImage} />
                 <View style={styles.resultContent}>
                   <Text style={styles.resultBrand}>{item.brand}</Text>
-                  <Text style={styles.resultName} numberOfLines={2}>{item.name}</Text>
+                  <Text style={styles.resultName} numberOfLines={2}>
+                    {item.name}
+                  </Text>
                   <View style={styles.resultBottom}>
                     <View style={styles.priceContainer}>
                       <Text style={styles.resultPrice}>${item.price}</Text>
@@ -96,7 +138,7 @@ export default function SearchScreen() {
                       style={styles.addButton}
                       onPress={() => addToCart(item)}
                     >
-                      <Ionicons name="add" size={18} color={colors.white} />
+                      <Ionicons name="add" size={16} color={colors.primary} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -117,27 +159,33 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   searchInputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radius.full,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8f7f2',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ece8dc',
   },
   searchInput: {
     flex: 1,
@@ -152,83 +200,84 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   emptyTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: colors.text,
     marginTop: spacing.md,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   emptySubtitle: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
     textAlign: 'center',
   },
   resultCount: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   list: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
+    padding: spacing.md,
+    gap: 10,
   },
   resultItem: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
     borderRadius: radius.lg,
     padding: 12,
-    marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
   resultImage: {
-    width: 72,
-    height: 72,
+    width: 68,
+    height: 68,
     borderRadius: radius.md,
     resizeMode: 'cover',
+    backgroundColor: '#f7f5ec',
   },
   resultContent: {
     flex: 1,
+    justifyContent: 'space-between',
   },
   resultBrand: {
     fontSize: 10,
     color: colors.textMuted,
-    marginBottom: 2,
+    textTransform: 'uppercase',
   },
   resultName: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: colors.text,
-    lineHeight: 18,
-    marginBottom: 8,
+    lineHeight: 16,
   },
   resultBottom: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+    gap: 4,
   },
   resultPrice: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.black,
     color: colors.text,
   },
   resultOriginal: {
-    fontSize: fontSize.xs,
+    fontSize: 10,
     color: colors.textMuted,
     textDecorationLine: 'line-through',
   },
   addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.text,
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },

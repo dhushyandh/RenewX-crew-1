@@ -1,41 +1,39 @@
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
-
-const { width } = Dimensions.get('window');
 
 export default function HeroBanner() {
   return (
     <View style={styles.container}>
-      <View style={styles.glow1} />
-      <View style={styles.glow2} />
+      {/* Yellow accent background circle */}
+      <View style={styles.decorCircle} />
 
       <View style={styles.badge}>
-        <Ionicons name="leaf" size={14} color={colors.primaryLight} />
-        <Text style={styles.badgeText}>Certified Refurbished</Text>
+        <View style={styles.badgeDot} />
+        <Text style={styles.badgeText}>RenewX Crew</Text>
       </View>
 
       <Text style={styles.title}>
-        Premium Tech,{'\n'}
-        <Text style={styles.titleAccent}>Renewed & Affordable</Text>
+        Buy. Sell.{'\n'}Upgrade.{'\n'}
+        <Text style={styles.titleAccent}>The Smart Way.</Text>
       </Text>
 
       <Text style={styles.subtitle}>
-        Rigorously tested, professionally refurbished electronics. Save up to 40% with warranty included.
+        Quality checked devices, fair value, and a smarter way to upgrade your tech.
       </Text>
 
       <View style={styles.featuresRow}>
         <View style={styles.feature}>
-          <Ionicons name="shield-checkmark" size={16} color={colors.primaryLight} />
-          <Text style={styles.featureText}>12mo warranty</Text>
+          <Ionicons name="shield-checkmark" size={15} color={colors.text} />
+          <Text style={styles.featureText}>Trusted & Secure</Text>
         </View>
         <View style={styles.feature}>
-          <Ionicons name="trending-down" size={16} color={colors.primaryLight} />
-          <Text style={styles.featureText}>Save 40%</Text>
+          <Ionicons name="ribbon-outline" size={15} color={colors.text} />
+          <Text style={styles.featureText}>Certified Quality</Text>
         </View>
         <View style={styles.feature}>
-          <Ionicons name="leaf" size={16} color={colors.primaryLight} />
-          <Text style={styles.featureText}>Eco-friendly</Text>
+          <Ionicons name="flash-outline" size={15} color={colors.text} />
+          <Text style={styles.featureText}>Fast Delivery</Text>
         </View>
       </View>
     </View>
@@ -45,80 +43,82 @@ export default function HeroBanner() {
 const styles = StyleSheet.create({
   container: {
     margin: spacing.md,
-    borderRadius: radius.xl,
+    borderRadius: 24,
     padding: spacing.lg,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e7e2d6',
     overflow: 'hidden',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  glow1: {
+  decorCircle: {
     position: 'absolute',
-    top: -30,
-    left: -30,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: colors.primary,
-    opacity: 0.15,
-  },
-  glow2: {
-    position: 'absolute',
-    bottom: -40,
+    top: -40,
     right: -40,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: colors.secondary,
-    opacity: 0.12,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: '#fff2a8',
+    opacity: 0.7,
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(5, 150, 105, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.3)',
-    alignSelf: 'flex-start',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  badgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
   },
   badgeText: {
-    color: colors.primaryLight,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   title: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
-    color: colors.white,
-    lineHeight: 34,
-    marginBottom: 12,
+    fontSize: 24,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+    lineHeight: 28,
+    marginBottom: 8,
   },
   titleAccent: {
-    color: colors.primary,
+    color: '#000000',
+    backgroundColor: colors.primary,
   },
   subtitle: {
-    fontSize: fontSize.sm,
-    color: '#9ca3af',
-    lineHeight: 21,
+    fontSize: fontSize.xs,
+    color: '#4f4b42',
+    lineHeight: 18,
     marginBottom: spacing.md,
+    maxWidth: '85%',
   },
   featuresRow: {
     flexDirection: 'row',
-    gap: 16,
-    paddingTop: spacing.md,
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: '#f0ede6',
   },
   feature: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   featureText: {
-    fontSize: fontSize.xs,
-    color: '#9ca3af',
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
   },
 });

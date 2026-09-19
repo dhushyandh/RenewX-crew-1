@@ -1,11 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
-import { products, categories } from '@/data/products';
+import { products as initialFallbackProducts, categories } from '@/data/products';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
+import { supabase, type ProductRow } from '@/lib/supabase';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
 import HomeHeader from '@/components/HomeHeader';
 import HeroBanner from '@/components/HeroBanner';
@@ -14,46 +17,103 @@ import ProductCard from '@/components/ProductCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+function mapRow(row: ProductRow, index: number): Product {
+  return {
+    id: index + 1,
+    _uuid: row.id,
+    name: row.name,
+    brand: row.brand,
+    category: row.category as Product['category'],
+    originalPrice: row.original_price,
+    price: row.price,
+    condition: row.condition as Product['condition'],
+    warrantyMonths: row.warranty_months,
+    image: row.image_url,
+    rating: row.rating || 4.8,
+    reviews: row.reviews || 12,
+    stock: row.stock,
+    description: row.description,
+    specs: Array.isArray(row.specs) ? row.specs : [],
+  };
+}
+
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart, totalItems } = useCart();
+  const { isAdmin, signOut } = useAuth();
   const [activeCategory, setActiveCategory] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
+  const [productList, setProductList] = useState<Product[]>(initialFallbackProducts);
+
+  const fetchLiveProducts = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        setProductList((data as ProductRow[]).map(mapRow));
+      }
+    } catch (err) {
+      console.warn('Using local fallback products due to fetch error:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLiveProducts();
+  }, [fetchLiveProducts]);
 
   const filteredProducts = useMemo(() => {
-    if (activeCategory === 'All') return products;
-    return products.filter((p) => p.category === activeCategory);
-  }, [activeCategory]);
+    if (activeCategory === 'All') return productList;
+    return productList.filter((p) => p.category === activeCategory);
+  }, [activeCategory, productList]);
 
-  const handleProductPress = useCallback((product: Product) => {
-    navigation.navigate('ProductDetail', { product });
-  }, [navigation]);
+  const handleProductPress = useCallback(
+    (product: Product) => {
+      navigation.navigate('ProductDetail', { product });
+    },
+    [navigation]
+  );
 
-  const handleAddToCart = useCallback((product: Product) => {
-    addToCart(product);
-  }, [addToCart]);
+  const handleAddToCart = useCallback(
+    (product: Product) => {
+      addToCart(product);
+    },
+    [addToCart]
+  );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    await fetchLiveProducts();
+    setRefreshing(false);
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <HomeHeader
         onSearch={() => navigation.navigate('Search')}
         cartCount={totalItems}
-        onCart={() => navigation.navigate('MainTabs', { screen: 'Cart' } as any)}
+        onCart={() => navigation.navigate('Cart')}
+        isAdmin={isAdmin}
+        onAdmin={() => navigation.navigate('Admin', { screen: 'dashboard' })}
+        onLogout={signOut}
       />
 
       <FlatList
         data={filteredProducts}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item) => String(item._uuid || item.id)}
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
         ListHeaderComponent={
           <View>
             <HeroBanner />
@@ -82,7 +142,7 @@ export default function HomeScreen() {
           </View>
         )}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -96,7 +156,7 @@ const styles = StyleSheet.create({
   },
   row: {
     paddingHorizontal: spacing.md,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   cardWrapper: {
     flex: 1,
@@ -110,12 +170,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   sectionTitle: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: colors.text,
   },
   itemCount: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
   },
 });

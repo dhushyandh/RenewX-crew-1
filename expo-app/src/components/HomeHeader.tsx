@@ -6,25 +6,45 @@ interface HomeHeaderProps {
   onSearch: () => void;
   cartCount: number;
   onCart: () => void;
+  isAdmin?: boolean;
+  onAdmin?: () => void;
+  onLogout?: () => void;
 }
 
-export default function HomeHeader({ onSearch, cartCount, onCart }: HomeHeaderProps) {
+export default function HomeHeader({
+  onSearch,
+  cartCount,
+  onCart,
+  isAdmin,
+  onAdmin,
+  onLogout,
+}: HomeHeaderProps) {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.logoContainer}>
           <View style={styles.logoIcon}>
-            <Ionicons name="refresh" size={18} color={colors.white} />
+            <Ionicons name="phone-portrait" size={18} color={colors.primary} />
           </View>
-          <Text style={styles.logo}>
-            Renew<Text style={styles.logoAccent}>X</Text>
-          </Text>
+          <View>
+            <Text style={styles.logo}>
+              Renew<Text style={styles.logoAccent}>X</Text>
+            </Text>
+            <Text style={styles.logoSub}>CREW</Text>
+          </View>
         </View>
 
         <View style={styles.actions}>
           <TouchableOpacity onPress={onSearch} style={styles.iconButton}>
-            <Ionicons name="search" size={22} color={colors.text} />
+            <Ionicons name="search" size={20} color={colors.text} />
           </TouchableOpacity>
+
+          {isAdmin && onAdmin && (
+            <TouchableOpacity onPress={onAdmin} style={styles.iconButton}>
+              <Ionicons name="grid-outline" size={20} color={colors.primaryDark} />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity onPress={onCart} style={styles.iconButton}>
             <Ionicons name="cart-outline" size={22} color={colors.text} />
             {cartCount > 0 && (
@@ -33,6 +53,12 @@ export default function HomeHeader({ onSearch, cartCount, onCart }: HomeHeaderPr
               </View>
             )}
           </TouchableOpacity>
+
+          {onLogout && (
+            <TouchableOpacity onPress={onLogout} style={styles.iconButton}>
+              <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -42,8 +68,11 @@ export default function HomeHeader({ onSearch, cartCount, onCart }: HomeHeaderPr
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   topRow: {
     flexDirection: 'row',
@@ -56,20 +85,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoIcon: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: radius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   logo: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.black,
     color: colors.text,
+    letterSpacing: -0.5,
+    lineHeight: 18,
   },
   logoAccent: {
     color: colors.primary,
+  },
+  logoSub: {
+    fontSize: 8,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    letterSpacing: 2,
+    marginTop: 1,
   },
   actions: {
     flexDirection: 'row',
@@ -77,16 +115,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#ffffff',
   },
   badge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: -2,
+    right: -2,
     backgroundColor: colors.primary,
     minWidth: 18,
     height: 18,
@@ -94,10 +135,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
   },
   badgeText: {
-    color: colors.white,
-    fontSize: 10,
+    color: colors.black,
+    fontSize: 9,
     fontWeight: fontWeight.bold,
   },
 });

@@ -1,6 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
@@ -16,12 +15,14 @@ export default function ProductDetailScreen() {
   const { product } = route.params as { product: Product };
   const { addToCart } = useCart();
 
-  const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+  const discount = Math.round(
+    ((product.originalPrice - product.price) / product.originalPrice) * 100
+  );
   const cond = conditionColors[product.condition] || conditionColors.Good;
 
   const handleAddToCart = () => {
     addToCart(product);
-    navigation.navigate('MainTabs', { screen: 'Cart' as any });
+    (navigation as any).navigate('MainTabs', { screen: 'Cart' });
   };
 
   return (
@@ -39,7 +40,7 @@ export default function ProductDetailScreen() {
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
+            <Ionicons name="arrow-back" size={20} color="#111827" />
           </TouchableOpacity>
         </View>
 
@@ -53,15 +54,17 @@ export default function ProductDetailScreen() {
                 <Ionicons
                   key={n}
                   name="star"
-                  size={16}
-                  color={n <= Math.round(product.rating) ? '#fbbf24' : '#e5e7eb'}
+                  size={15}
+                  color={n <= Math.round(product.rating) ? '#f59e0b' : '#e5e7eb'}
                 />
               ))}
             </View>
             <Text style={styles.ratingText}>{product.rating}</Text>
             <Text style={styles.reviewsText}>({product.reviews} reviews)</Text>
             <View style={[styles.conditionBadge, { backgroundColor: cond.bg }]}>
-              <Text style={[styles.conditionText, { color: cond.text }]}>{product.condition}</Text>
+              <Text style={[styles.conditionText, { color: cond.text }]}>
+                {product.condition}
+              </Text>
             </View>
           </View>
 
@@ -71,7 +74,7 @@ export default function ProductDetailScreen() {
           <View style={styles.specsContainer}>
             {product.specs.map((spec, i) => (
               <View key={i} style={styles.specRow}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                <Ionicons name="checkmark-circle" size={16} color="#10b981" />
                 <Text style={styles.specText}>{spec}</Text>
               </View>
             ))}
@@ -79,19 +82,19 @@ export default function ProductDetailScreen() {
 
           <View style={styles.featuresGrid}>
             <View style={styles.featureCard}>
-              <Ionicons name="shield-checkmark" size={22} color={colors.primary} />
+              <Ionicons name="shield-checkmark" size={20} color={colors.text} />
               <Text style={styles.featureCardText}>{product.warrantyMonths}mo warranty</Text>
             </View>
             <View style={styles.featureCard}>
-              <Ionicons name="cube" size={22} color={colors.primary} />
+              <Ionicons name="cube-outline" size={20} color={colors.text} />
               <Text style={styles.featureCardText}>Free shipping</Text>
             </View>
             <View style={styles.featureCard}>
-              <Ionicons name="refresh" size={22} color={colors.primary} />
+              <Ionicons name="refresh" size={20} color={colors.text} />
               <Text style={styles.featureCardText}>14-day returns</Text>
             </View>
             <View style={styles.featureCard}>
-              <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+              <Ionicons name="bag-check-outline" size={20} color={colors.text} />
               <Text style={styles.featureCardText}>{product.stock} in stock</Text>
             </View>
           </View>
@@ -106,8 +109,12 @@ export default function ProductDetailScreen() {
           </View>
           <Text style={styles.savings}>Save ${product.originalPrice - product.price}</Text>
         </View>
-        <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart} activeOpacity={0.8}>
-          <Ionicons name="cart" size={20} color={colors.white} />
+        <TouchableOpacity
+          style={styles.addToCartButton}
+          onPress={handleAddToCart}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="cart" size={18} color={colors.primary} />
           <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
@@ -118,12 +125,12 @@ export default function ProductDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
   },
   imageContainer: {
     position: 'relative',
     aspectRatio: 1,
-    backgroundColor: colors.borderLight,
+    backgroundColor: '#f7f5ec',
   },
   image: {
     width: '100%',
@@ -132,45 +139,49 @@ const styles = StyleSheet.create({
   },
   discountBadge: {
     position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    top: spacing.lg + 10,
+    right: spacing.md,
+    backgroundColor: '#000000',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: radius.full,
   },
   discountText: {
-    color: colors.white,
-    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
   },
   backButton: {
     position: 'absolute',
-    top: spacing.lg + 8,
+    top: spacing.lg + 10,
     left: spacing.md,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e1d8',
   },
   content: {
     padding: spacing.lg,
-    paddingBottom: 100,
+    paddingBottom: 110,
   },
   brand: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
-    fontWeight: fontWeight.medium,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     marginBottom: 4,
   },
   name: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontSize: 20,
+    fontWeight: fontWeight.black,
     color: colors.text,
-    lineHeight: 26,
-    marginBottom: 12,
+    lineHeight: 25,
+    marginBottom: 10,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -183,12 +194,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   ratingText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: colors.text,
   },
   reviewsText: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
   },
   conditionBadge: {
@@ -198,23 +209,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   conditionText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
   },
   description: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-    lineHeight: 22,
+    fontSize: fontSize.sm,
+    color: '#4b5563',
+    lineHeight: 21,
     marginBottom: spacing.lg,
   },
   sectionLabel: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
     color: colors.text,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   specsContainer: {
-    gap: 10,
+    gap: 8,
     marginBottom: spacing.lg,
   },
   specRow: {
@@ -223,8 +234,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   specText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    color: '#374151',
   },
   featuresGrid: {
     flexDirection: 'row',
@@ -232,17 +243,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   featureCard: {
-    flexBasis: '47%',
+    flexBasis: '48%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     padding: 12,
     borderRadius: radius.md,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8f7f2',
+    borderWidth: 1,
+    borderColor: '#ece8dc',
   },
   featureCardText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
     color: colors.text,
   },
   bottomBar: {
@@ -255,7 +268,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -265,35 +278,35 @@ const styles = StyleSheet.create({
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 8,
+    gap: 6,
   },
   price: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.black,
     color: colors.text,
   },
   originalPrice: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
     textDecorationLine: 'line-through',
   },
   savings: {
-    fontSize: fontSize.xs,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
+    fontSize: 11,
+    color: '#10b981',
+    fontWeight: fontWeight.bold,
   },
   addToCartButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     paddingVertical: 14,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    backgroundColor: '#000000',
   },
   addToCartText: {
-    color: colors.white,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
   },
 });

@@ -1,23 +1,41 @@
 import { useState, useCallback } from 'react';
-import { supabase, type ProductRow } from '@/lib/supabase';
+import { api } from '@/services/api';
 import type { Product } from '@/types';
 
-function mapRowToProduct(row: ProductRow): Product {
+export type ProductRow = {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  original_price: number;
+  price: number;
+  condition: string;
+  warranty_months: number;
+  image_url: string;
+  rating?: number;
+  reviews?: number;
+  stock: number;
+  description: string;
+  specs: string[];
+  created_at?: string;
+};
+
+function mapRowToProduct(row: any): Product {
   return {
     id: 0,
-    _uuid: row.id,
+    _uuid: row.id || row._id,
     name: row.name,
     brand: row.brand,
     category: row.category as Product['category'],
-    originalPrice: row.original_price,
+    originalPrice: row.original_price || row.originalPrice,
     price: row.price,
     condition: row.condition as Product['condition'],
-    warrantyMonths: row.warranty_months,
-    image: row.image_url,
-    rating: row.rating,
-    reviews: row.reviews,
-    stock: row.stock,
-    description: row.description,
+    warrantyMonths: row.warranty_months || row.warrantyMonths || 12,
+    image: row.image_url || row.image,
+    rating: row.rating || 4.8,
+    reviews: row.reviews || 0,
+    stock: row.stock !== undefined ? row.stock : 1,
+    description: row.description || '',
     specs: Array.isArray(row.specs) ? row.specs : [],
   };
 }
@@ -30,51 +48,33 @@ export function useProducts() {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: err } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (err) {
+    try {
+      const data = await api.products.getAll();
+      if (Array.isArray(data)) {
+        setProducts(data.map(mapRowToProduct));
+      }
+    } catch {
       setError('Could not load products. Please try again.');
       setProducts([]);
-    } else if (data) {
-      setProducts((data as ProductRow[]).map(mapRowToProduct));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   return { products, loading, error, fetchProducts };
 }
 
 export function useProductMutations() {
-  const createProduct = useCallback(async (product: Omit<ProductRow, 'id' | 'created_at' | 'rating' | 'reviews'>) => {
-    const { data, error } = await supabase
-      .from('products')
-      .insert(product)
-      .select()
-      .maybeSingle();
-
-    if (error) throw error;
-    return data;
+  const createProduct = useCallback(async (product: any) => {
+    return await api.products.create(product);
   }, []);
 
-  const updateProduct = useCallback(async (id: string, updates: Partial<ProductRow>) => {
-    const { error } = await supabase
-      .from('products')
-      .update(updates)
-      .eq('id', id);
-
-    if (error) throw error;
+  const updateProduct = useCallback(async (id: string, updates: any) => {
+    return await api.products.update(id, updates);
   }, []);
 
   const deleteProduct = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    return await api.products.delete(id);
   }, []);
 
   return { createProduct, updateProduct, deleteProduct };

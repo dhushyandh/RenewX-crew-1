@@ -7,28 +7,63 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 export default function CartScreen() {
   const { items, updateQuantity, removeFromCart, clearCart, subtotal, savings, totalItems } = useCart();
+  const { user } = useAuth();
   const [checkoutDone, setCheckoutDone] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleCheckout = () => {
     Alert.alert(
-      'Confirm Checkout',
+      'Confirm Order',
       `Place order for ${totalItems} items totaling $${subtotal.toFixed(0)}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Place Order',
-          onPress: () => {
-            setCheckoutDone(true);
-            clearCart();
-            setTimeout(() => setCheckoutDone(false), 3000);
+          onPress: async () => {
+            setIsProcessing(true);
+            try {
+              if (user) {
+                const { data: order, error: orderError } = await supabase
+                  .from('orders')
+                  .insert({
+                    user_id: user.id,
+                    subtotal: Math.round(subtotal),
+                    savings: Math.round(savings),
+                    status: 'pending',
+                  })
+                  .select()
+                  .maybeSingle();
+
+                if (!orderError && order) {
+                  const orderItems = items.map((item) => ({
+                    order_id: order.id,
+                    product_id: item._uuid || null,
+                    product_name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                  }));
+                  await supabase.from('order_items').insert(orderItems);
+                }
+              }
+            } catch (err) {
+              console.warn('Checkout sync warning:', err);
+            } finally {
+              setIsProcessing(false);
+              setCheckoutDone(true);
+              clearCart();
+              setTimeout(() => setCheckoutDone(false), 3500);
+            }
           },
         },
       ]
@@ -40,11 +75,11 @@ export default function CartScreen() {
       <SafeAreaView style={styles.emptyContainer} edges={['top']}>
         <View style={styles.checkoutDone}>
           <View style={styles.checkoutIcon}>
-            <Ionicons name="checkmark" size={48} color={colors.white} />
+            <Ionicons name="checkmark-sharp" size={48} color={colors.black} />
           </View>
           <Text style={styles.checkoutTitle}>Order Confirmed!</Text>
           <Text style={styles.checkoutSubtitle}>
-            Thank you for choosing renewed tech. Your order is being processed.
+            Thank you for choosing RenewX Crew. Your renewed electronics order is being processed.
           </Text>
         </View>
       </SafeAreaView>
@@ -59,10 +94,12 @@ export default function CartScreen() {
         </View>
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Ionicons name="cart-outline" size={40} color={colors.textMuted} />
+            <Ionicons name="cart-outline" size={40} color="#94a3b8" />
           </View>
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
-          <Text style={styles.emptySubtitle}>Browse renewed electronics and start saving.</Text>
+          <Text style={styles.emptySubtitle}>
+            Browse renewed electronics and upgrade the smart way.
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -77,37 +114,43 @@ export default function CartScreen() {
 
       <FlatList
         data={items}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item) => String(item._uuid || item.id)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <View style={styles.cartItem}>
             <Image source={{ uri: item.image }} style={styles.itemImage} />
             <View style={styles.itemContent}>
-              <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
-              <Text style={styles.itemMeta}>{item.brand} · {item.condition}</Text>
+              <Text style={styles.itemName} numberOfLines={2}>
+                {item.name}
+              </Text>
+              <Text style={styles.itemMeta}>
+                {item.brand} · {item.condition}
+              </Text>
               <View style={styles.itemBottom}>
                 <View style={styles.qtyRow}>
                   <TouchableOpacity
                     style={styles.qtyButton}
                     onPress={() => updateQuantity(item.id, item.quantity - 1)}
                   >
-                    <Ionicons name="remove" size={16} color={colors.text} />
+                    <Ionicons name="remove" size={14} color={colors.text} />
                   </TouchableOpacity>
                   <Text style={styles.qtyText}>{item.quantity}</Text>
                   <TouchableOpacity
                     style={styles.qtyButton}
                     onPress={() => updateQuantity(item.id, item.quantity + 1)}
                   >
-                    <Ionicons name="add" size={16} color={colors.text} />
+                    <Ionicons name="add" size={14} color={colors.text} />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(0)}</Text>
+                <Text style={styles.itemPrice}>
+                  ${(item.price * item.quantity).toFixed(0)}
+                </Text>
                 <TouchableOpacity
                   onPress={() => removeFromCart(item.id)}
                   style={styles.removeButton}
                 >
-                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -134,9 +177,20 @@ export default function CartScreen() {
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>${subtotal.toFixed(0)}</Text>
         </View>
-        <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout} activeOpacity={0.8}>
-          <Text style={styles.checkoutText}>Checkout</Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.white} />
+        <TouchableOpacity
+          style={[styles.checkoutButton, isProcessing && { opacity: 0.7 }]}
+          onPress={handleCheckout}
+          disabled={isProcessing}
+          activeOpacity={0.8}
+        >
+          {isProcessing ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <>
+              <Text style={styles.checkoutText}>Checkout</Text>
+              <Ionicons name="arrow-forward" size={18} color={colors.primary} />
+            </>
+          )}
         </TouchableOpacity>
         <View style={styles.secureRow}>
           <Ionicons name="shield-checkmark" size={14} color={colors.textMuted} />
@@ -162,28 +216,30 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   title: {
-    fontSize: fontSize.xxl,
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text,
   },
   itemCount: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
   },
   list: {
     padding: spacing.md,
-    paddingBottom: 240,
+    paddingBottom: 250,
   },
   cartItem: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
     borderRadius: radius.lg,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -192,13 +248,14 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: radius.md,
     resizeMode: 'cover',
+    backgroundColor: '#f7f5ec',
   },
   itemContent: {
     flex: 1,
   },
   itemName: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
     color: colors.text,
     lineHeight: 18,
     marginBottom: 4,
@@ -216,30 +273,29 @@ const styles = StyleSheet.create({
   qtyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 0,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.sm,
     overflow: 'hidden',
   },
   qtyButton: {
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#f8f7f2',
   },
   qtyText: {
     paddingHorizontal: 8,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: colors.text,
-    minWidth: 28,
+    minWidth: 26,
     textAlign: 'center',
   },
   itemPrice: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.black,
     color: colors.text,
   },
   removeButton: {
@@ -251,57 +307,57 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   savingsText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.primary,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#10b981',
   },
   savingsAmount: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: colors.primary,
+    color: '#10b981',
   },
   summaryLabel: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textSecondary,
   },
   summaryValue: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: colors.text,
   },
   freeShipping: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.primary,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#10b981',
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 8,
     marginTop: 4,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   totalLabel: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.text,
   },
   totalValue: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.black,
     color: colors.text,
   },
   checkoutButton: {
@@ -309,15 +365,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 16,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    marginBottom: 10,
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    backgroundColor: '#000000',
+    marginBottom: 8,
   },
   checkoutText: {
-    color: colors.white,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
   },
   secureRow: {
     flexDirection: 'row',
@@ -326,7 +382,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   secureText: {
-    fontSize: fontSize.xs,
+    fontSize: 10,
     color: colors.textMuted,
   },
   emptyState: {
@@ -337,22 +393,22 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.borderLight,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#f1efe8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   emptyTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   emptySubtitle: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
     textAlign: 'center',
   },
@@ -363,24 +419,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   checkoutIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   checkoutTitle: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   checkoutSubtitle: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 21,
+    lineHeight: 18,
   },
 });

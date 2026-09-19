@@ -8,14 +8,14 @@ interface CategoryPillsProps {
   onChange: (category: string) => void;
 }
 
-const iconMap: Record<string, string> = {
-  grid: 'grid',
-  laptop: 'laptop',
-  phone: 'phone',
-  headphones: 'headphones',
-  watch: 'watch',
-  camera: 'camera',
-  tablet: 'tablet',
+const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
+  grid: 'grid-outline',
+  laptop: 'laptop-outline',
+  phone: 'phone-portrait-outline',
+  headphones: 'headset-outline',
+  watch: 'watch-outline',
+  camera: 'camera-outline',
+  tablet: 'tablet-portrait-outline',
 };
 
 export default function CategoryPills({ categories, active, onChange }: CategoryPillsProps) {
@@ -28,21 +28,18 @@ export default function CategoryPills({ categories, active, onChange }: Category
       >
         {categories.map((cat) => {
           const isActive = active === cat.name;
-          const iconName = iconMap[cat.icon] || 'grid';
+          const iconName = iconMap[cat.icon] || 'grid-outline';
           return (
             <TouchableOpacity
               key={cat.name}
               onPress={() => onChange(cat.name)}
-              style={[
-                styles.pill,
-                isActive && styles.pillActive,
-              ]}
+              style={[styles.pill, isActive && styles.pillActive]}
               activeOpacity={0.7}
             >
               <Ionicons
-                name={iconName as any}
-                size={15}
-                color={isActive ? colors.white : colors.textSecondary}
+                name={iconName}
+                size={14}
+                color={isActive ? colors.primary : colors.textSecondary}
               />
               <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
                 {cat.name}
@@ -67,23 +64,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e5e1d8',
   },
   pillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#000000',
+    borderColor: '#000000',
   },
   pillText: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
     color: colors.textSecondary,
   },
   pillTextActive: {
-    color: colors.white,
+    color: '#ffffff',
+    fontWeight: fontWeight.bold,
   },
 });

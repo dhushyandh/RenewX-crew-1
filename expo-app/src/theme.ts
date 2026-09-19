@@ -1,21 +1,21 @@
 export const colors = {
-  primary: '#059669',
-  primaryDark: '#047857',
-  primaryLight: '#d1fae5',
-  secondary: '#0d9488',
-  accent: '#06b6d4',
-  success: '#22c55e',
+  primary: '#ffc400',
+  primaryDark: '#e0ac00',
+  primaryLight: '#fff8d8',
+  secondary: '#111827',
+  accent: '#ffc400',
+  success: '#10b981',
   warning: '#f59e0b',
   error: '#ef4444',
-  background: '#f9fafb',
+  background: '#f8f7f2',
   surface: '#ffffff',
   text: '#111827',
-  textSecondary: '#6b7280',
+  textSecondary: '#4b5563',
   textMuted: '#9ca3af',
-  border: '#e5e7eb',
-  borderLight: '#f3f4f6',
+  border: '#e6e2d8',
+  borderLight: '#f0ede6',
   white: '#ffffff',
-  black: '#000000',
+  black: '#0a0a0a',
 };
 
 export const spacing = {
@@ -42,7 +42,7 @@ export const fontSize = {
   lg: 18,
   xl: 22,
   xxl: 28,
-  hero: 34,
+  hero: 32,
 };
 
 export const fontWeight = {
@@ -50,6 +50,7 @@ export const fontWeight = {
   medium: '500' as const,
   semibold: '600' as const,
   bold: '700' as const,
+  black: '900' as const,
 };
 
 export const conditionColors: Record<string, { bg: string; text: string }> = {
