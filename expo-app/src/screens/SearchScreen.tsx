@@ -98,7 +98,7 @@ export default function SearchScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.resultItem}
-                onPress={() => navigation.navigate('ProductDetail', { product: item })}
+                onPress={() => navigation.navigate('ProductDetail', { id: String(item.id) })}
                 activeOpacity={0.8}
               >
                 <Image source={{ uri: item.image }} style={styles.resultImage} />
