@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "RenewX",
+    "slug": "renewx-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#059669"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.renewx.mobile"
+    },
+    "android": {
+      "package": "com.renewx.mobile"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
