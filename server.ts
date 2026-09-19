@@ -1,5 +1,8 @@
+import express from 'express';
 import app from './server/index';
 
-// Vercel detects this root server.ts and uses the exported Express app.
-// Local development uses server/local.ts.
-export default app;
+// Keep the Express import in this root entrypoint so Vercel's Node
+// framework detection recognizes the application as an Express server.
+const vercelApp: express.Application = app;
+
+export default vercelApp;
