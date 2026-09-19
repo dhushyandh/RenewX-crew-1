@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 export interface Product {
   id: string;
@@ -19,7 +19,7 @@ export interface Product {
   updated_at?: string;
 }
 
-export interface IProduct extends Document {
+export interface IProduct {
   name: string;
   brand: string;
   category: string;
