@@ -4,8 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
-import { products as fallbackProducts, categories } from '@/data/products';
-import { supabase, type ProductRow } from '@/lib/supabase';
+import { categories } from '@/data/products';
+import { api } from '@/services/api';
+import { mapProductRow } from '@/lib/productMapper';
 import type { Product } from '@/types';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,43 +23,22 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   tablet: 'tablet-portrait-outline',
 };
 
-function mapRow(row: ProductRow, index: number): Product {
-  return {
-    id: index + 1,
-    _uuid: row.id,
-    name: row.name,
-    brand: row.brand,
-    category: row.category as Product['category'],
-    originalPrice: row.original_price,
-    price: row.price,
-    condition: row.condition as Product['condition'],
-    warrantyMonths: row.warranty_months,
-    image: row.image_url,
-    rating: row.rating || 4.8,
-    reviews: row.reviews || 12,
-    stock: row.stock,
-    description: row.description,
-    specs: Array.isArray(row.specs) ? row.specs : [],
-  };
-}
-
 export default function CategoriesScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [productList, setProductList] = useState<Product[]>(fallbackProducts);
+  const [productList, setProductList] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: true });
-        if (!error && data && data.length > 0) {
-          setProductList((data as ProductRow[]).map(mapRow));
-        }
+        const data = await api.products.getAll({ limit: 100 });
+        setProductList((data as any[]).map(mapProductRow));
       } catch (err) {
-        console.warn('Fallback products active:', err);
+        console.warn('Categories API unavailable:', err);
+        setProductList([]);
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -67,6 +47,18 @@ export default function CategoriesScreen() {
     if (selectedCategory === 'All') return productList;
     return productList.filter((p) => p.category === selectedCategory);
   }, [selectedCategory, productList]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centerState}>
+          <Ionicons name="sync-outline" size={34} color={colors.primary} />
+          <Text style={styles.stateTitle}>Loading live inventory</Text>
+          <Text style={styles.stateSub}>Fetching the latest RenewX products…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -118,7 +110,7 @@ export default function CategoriesScreen() {
           <View style={styles.cardWrapper}>
             <TouchableOpacity
               style={styles.miniCard}
-              onPress={() => navigation.navigate('ProductDetail', { product: item })}
+              onPress={() => navigation.navigate('ProductDetail', { id: String(item.id) })}
               activeOpacity={0.85}
             >
               <Image source={item.image ? { uri: item.image } : null} style={styles.miniImage} resizeMode="cover" />
@@ -127,7 +119,7 @@ export default function CategoriesScreen() {
                 <Text style={styles.miniName} numberOfLines={2}>
                   {item.name}
                 </Text>
-                <Text style={styles.miniPrice}>${item.price}</Text>
+                <Text style={styles.miniPrice}>₹{Number(item.price || 0).toLocaleString('en-IN')}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -138,6 +130,9 @@ export default function CategoriesScreen() {
 }
 
 const styles = StyleSheet.create({
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  stateTitle: { marginTop: 12, fontSize: 16, fontWeight: '800', color: colors.text },
+  stateSub: { marginTop: 5, fontSize: 12, color: colors.textMuted, textAlign: 'center' },
   container: {
     flex: 1,
     backgroundColor: colors.background,
