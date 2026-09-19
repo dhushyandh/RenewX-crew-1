@@ -1,7 +1,7 @@
 export type Category = 'Laptops' | 'Phones' | 'Audio' | 'Wearables' | 'Cameras' | 'Tablets';
 
 export interface Product {
-  id: number;
+  id: string | number;
   _uuid?: string;
   name: string;
   brand: string;
