@@ -167,6 +167,13 @@ export const api = {
   tradeIn: {
     getQuote: async (payload: any) => request<any>('/trade-in/quote', { method: 'POST', body: JSON.stringify(payload) }),
     createPickup: async (payload: any) => request<any>('/trade-in/pickup', { method: 'POST', body: JSON.stringify(payload) }),
+    getMyRequests: async () => request<any[]>('/trade-in/my-requests'),
+  },
+
+  notifications: {
+    getAll: async () => request<any>('/notifications'),
+    markRead: async (id: string) => request<any>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' }),
+    markAllRead: async () => request<any>('/notifications/read-all', { method: 'PATCH' }),
   },
 
   upload: {
