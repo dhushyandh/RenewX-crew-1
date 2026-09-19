@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 export interface OrderItem {
   product_id: string;
@@ -49,7 +49,7 @@ export interface Order {
   created_at?: string;
 }
 
-export interface IOrder extends Document {
+export interface IOrder {
   id: string;
   user_id: string;
   subtotal: number;
