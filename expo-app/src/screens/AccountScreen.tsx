@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const SUPPORT_PHONE = typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_SUPPORT_PHONE?.trim() : '';
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
@@ -161,7 +162,7 @@ export default function AccountScreen() {
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Linking.openURL('https://wa.me/919876543210?text=Hello%20RenewX%20Support')}
+            onPress={() => SUPPORT_PHONE ? Linking.openURL(`https://wa.me/${SUPPORT_PHONE.replace(/[^0-9]/g, '')}?text=Hello%20RenewX%20Support`) : Alert.alert('Support', 'WhatsApp support is not configured yet.')}
           >
             <View style={[styles.menuIconCircle, { backgroundColor: '#dcfce7' }]}>
               <Ionicons name="logo-whatsapp" size={18} color="#15803d" />
@@ -172,7 +173,7 @@ export default function AccountScreen() {
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Linking.openURL('tel:+919876543210')}
+            onPress={() => SUPPORT_PHONE ? Linking.openURL(`tel:${SUPPORT_PHONE}`) : Alert.alert('Support', 'Customer helpline is not configured yet.')}
           >
             <View style={[styles.menuIconCircle, { backgroundColor: '#f1f5f9' }]}>
               <Ionicons name="call-outline" size={18} color="#0f172a" />
