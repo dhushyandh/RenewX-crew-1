@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
-import { categories } from '@/data/products';
+import { categories } from '@/data/categories';
 import { api } from '@/services/api';
 import { mapProductRow } from '@/lib/productMapper';
 import type { Product } from '@/types';
