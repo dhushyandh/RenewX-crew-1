@@ -13,7 +13,7 @@ import {
 } from '../services/razorpay';
 import { env } from '../config/env';
 import { User } from '../models/User';
-import { NotificationModel } from '../models/Notification';
+import { createUserNotification } from '../services/notificationService';
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 20;
@@ -633,13 +633,13 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
       const targetUser = await User.findById(order.user_id).select('notification_preferences');
       const shouldNotify = targetUser?.notification_preferences?.order_updates ?? true;
       if (shouldNotify) {
-        await NotificationModel.create({
-          user_id: order.user_id,
+        await createUserNotification(order.user_id, {
           type: 'order',
           title: 'Order status updated',
           body: `Your order is now ${String(status).replace(/_/g, ' ')}.`,
           reference_id: order.id,
           reference_type: 'order',
+          data: { screen: 'Notifications', orderId: order.id },
         });
       }
     }
@@ -676,7 +676,7 @@ export async function deleteOrder(req: AuthenticatedRequest, res: Response, next
     }
 
     // Clean up any notifications referencing this deleted order
-    await NotificationModel.deleteMany({ reference_id: id, reference_type: 'order' }).catch(() => {});
+    // Notifications are retained as an audit trail even if an admin deletes the order.
 
     res.json({ success: true, message: 'Order deleted successfully' });
   } catch (err) {
