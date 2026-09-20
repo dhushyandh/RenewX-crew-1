@@ -13,6 +13,7 @@ export interface IUser {
     sell_request_updates: boolean;
     marketing: boolean;
   };
+  push_tokens?: string[];
   reset_password_token?: string;
   reset_password_expires?: Date;
   created_at: Date;
@@ -65,6 +66,11 @@ const UserSchema = new Schema<IUser>(
       order_updates: { type: Boolean, default: true },
       sell_request_updates: { type: Boolean, default: true },
       marketing: { type: Boolean, default: false },
+    },
+    push_tokens: {
+      type: [String],
+      default: [],
+      select: false,
     },
     reset_password_token: {
       type: String,
