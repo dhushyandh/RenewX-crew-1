@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
 
 Notifications.setNotificationHandler({
@@ -11,6 +12,8 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
+const PUSH_TOKEN_STORAGE_KEY = '@renewx_push_token';
 
 let registrationPromise: Promise<string | null> | null = null;
 
@@ -48,6 +51,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
   await api.users.registerPushToken(token);
+  await AsyncStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token);
   return token;
 }
 
@@ -64,11 +68,17 @@ export function registerPushTokenInBackground(): void {
     });
 }
 
+export async function getStoredPushTokenAsync(): Promise<string | null> {
+  return AsyncStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
+}
+
 export async function unregisterPushTokenAsync(token: string): Promise<void> {
   if (!token) return;
   try {
     await api.users.unregisterPushToken(token);
   } catch (error) {
     console.warn('[Notifications] Push token unregister failed:', error);
+  } finally {
+    await AsyncStorage.removeItem(PUSH_TOKEN_STORAGE_KEY);
   }
 }
