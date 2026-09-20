@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { getApiBaseUrl } from '@/services/api';
+import { getStoredPushTokenAsync, registerPushTokenInBackground, unregisterPushTokenAsync } from '@/services/pushNotifications';
 
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 const USER_STORAGE_KEY = '@renewx_auth_user';
@@ -73,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (fetchErr) {
             console.warn('[Auth] Could not verify session with server, keeping cached user:', fetchErr);
           }
+
+          registerPushTokenInBackground();
         }
       } catch (err) {
         console.error('[Auth] Failed to restore session:', err);
@@ -109,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
       await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
+      registerPushTokenInBackground();
 
       return { error: null };
     } catch (err: any) {
@@ -141,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
       await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
+      registerPushTokenInBackground();
 
       return { error: null };
     } catch (err: any) {
@@ -153,10 +158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(receivedUser);
     await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
     await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
+    registerPushTokenInBackground();
   }, []);
 
   const signOut = useCallback(async () => {
     try {
+      const pushToken = await getStoredPushTokenAsync();
+      if (pushToken) await unregisterPushTokenAsync(pushToken);
       await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
     } finally {
       setToken(null);
