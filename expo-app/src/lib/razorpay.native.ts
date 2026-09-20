@@ -28,16 +28,16 @@ export type RazorpayCheckoutOptions = {
 
 function getNativeRazorpayModule() {
   try {
-    // Primary: direct native module lookup from NativeModules
-    if (NativeModules && NativeModules.RNRazorpayCheckout && typeof NativeModules.RNRazorpayCheckout.open === 'function') {
+    // Only return if NativeModules.RNRazorpayCheckout is ACTUALLY present in the compiled binary!
+    // Never fallback to require('react-native-razorpay') without the native binary, because its
+    // JS wrapper delegates to NativeModules.RNRazorpayCheckout which is null in Expo Go,
+    // throwing "Cannot read property 'open' of null".
+    if (
+      NativeModules &&
+      NativeModules.RNRazorpayCheckout &&
+      typeof NativeModules.RNRazorpayCheckout.open === 'function'
+    ) {
       return NativeModules.RNRazorpayCheckout;
-    }
-    // Fallback: require the package if available
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const rzp = require('react-native-razorpay');
-    const checkout = rzp?.default || rzp;
-    if (checkout && typeof checkout.open === 'function') {
-      return checkout;
     }
   } catch {
     // Not linked or running in Expo Go

@@ -9,9 +9,10 @@ import {
   Alert,
   Platform,
   BackHandler,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import { WebView, WebViewMessageEvent, WebViewNavigation } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { RazorpayCheckoutOptions, RazorpayCheckoutResult } from '@/lib/razorpay';
@@ -101,6 +102,11 @@ export default function RazorpayModal({
           break;
         }
 
+        case 'GATEWAY_READY': {
+          setLoading(false);
+          break;
+        }
+
         default:
           break;
       }
@@ -109,6 +115,7 @@ export default function RazorpayModal({
     }
   };
 
+  // Safe Razorpay Checkout HTML page designed specifically for mobile WebViews
   const checkoutHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -121,7 +128,7 @@ export default function RazorpayModal({
     body, html {
       width: 100%;
       height: 100%;
-      background-color: #0b1120;
+      background-color: #0f172a;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       display: flex;
       flex-direction: column;
@@ -147,8 +154,8 @@ export default function RazorpayModal({
       to { transform: rotate(360deg); }
     }
     .title {
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 17px;
+      font-weight: 700;
       color: #f8fafc;
       margin-bottom: 6px;
     }
@@ -157,15 +164,15 @@ export default function RazorpayModal({
       color: #94a3b8;
     }
   </style>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
-  <div class="loading-container">
+  <div class="loading-container" id="loadingBox">
     <div class="spinner"></div>
     <div class="title">Securing Connection</div>
     <div class="subtitle">Opening Razorpay Payment Gateway...</div>
   </div>
 
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
     function post(type, payload) {
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
@@ -173,26 +180,35 @@ export default function RazorpayModal({
       }
     }
 
-    window.addEventListener('DOMContentLoaded', function() {
+    var rzpOpened = false;
+
+    function initPayment() {
+      if (rzpOpened) return true;
+      if (typeof Razorpay === 'undefined') return false;
+
+      rzpOpened = true;
+
       try {
-        if (typeof Razorpay === 'undefined') {
-          post('GATEWAY_ERROR', { message: 'Razorpay SDK script failed to load' });
-          return;
-        }
+        var baseOptions = ${JSON.stringify(options)};
 
-        var options = ${JSON.stringify(options)};
-
-        options.handler = function(response) {
-          post('PAYMENT_SUCCESS', { data: response });
-        };
-
-        options.modal = {
-          ondismiss: function() {
-            post('PAYMENT_CANCELLED');
+        var options = Object.assign({}, baseOptions, {
+          redirect: false,
+          handler: function(response) {
+            post('PAYMENT_SUCCESS', { data: response });
           },
-          backdropclose: false,
-          escape: false
-        };
+          modal: {
+            ondismiss: function() {
+              post('PAYMENT_CANCELLED');
+            },
+            backdropclose: false,
+            escape: false,
+            handleback: true
+          },
+          retry: {
+            enabled: true,
+            max_count: 3
+          }
+        });
 
         var rzp = new Razorpay(options);
 
@@ -200,15 +216,30 @@ export default function RazorpayModal({
           post('PAYMENT_FAILED', { error: resp.error });
         });
 
-        // Small delay to allow WebView layout to settle
+        post('GATEWAY_READY');
+
         setTimeout(function() {
           rzp.open();
-        }, 300);
+        }, 200);
 
+        return true;
       } catch (err) {
-        post('GATEWAY_ERROR', { message: err.message || 'Failed to initialize payment' });
+        post('GATEWAY_ERROR', { message: err.message || 'Payment initialization error' });
+        return true;
       }
-    });
+    }
+
+    // Continuously check for Razorpay script readiness
+    var attempts = 0;
+    var timer = setInterval(function() {
+      attempts++;
+      if (initPayment()) {
+        clearInterval(timer);
+      } else if (attempts > 60) {
+        clearInterval(timer);
+        post('GATEWAY_ERROR', { message: 'Razorpay SDK took too long to load. Please check your network connection.' });
+      }
+    }, 150);
   </script>
 </body>
 </html>
@@ -226,6 +257,7 @@ export default function RazorpayModal({
       onRequestClose={handleRequestClose}
     >
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        {/* Modal Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.closeButton}
@@ -261,17 +293,64 @@ export default function RazorpayModal({
           </View>
         )}
 
+        {/* WebView Container */}
         <View style={styles.webviewContainer}>
           <WebView
             ref={webViewRef}
-            source={{ html: checkoutHtml, baseUrl: 'https://checkout.razorpay.com' }}
+            source={{ html: checkoutHtml, baseUrl: 'https://api.razorpay.com' }}
             onMessage={handleMessage}
             onLoadEnd={() => setLoading(false)}
             javaScriptEnabled={true}
             domStorageEnabled={true}
+            thirdPartyCookiesEnabled={true}
+            sharedCookiesEnabled={true}
+            setSupportMultipleWindows={false}
+            javaScriptCanOpenWindowsAutomatically={true}
             originWhitelist={['*']}
             allowsInlineMediaPlayback={true}
             mixedContentMode="always"
+            userAgent="Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            onShouldStartLoadWithRequest={(request: WebViewNavigation) => {
+              const { url } = request;
+              if (!url) return true;
+
+              // Allow standard http/https web traffic
+              if (url.startsWith('http://') || url.startsWith('https://')) {
+                return true;
+              }
+
+              // Intercept UPI and third-party payment app deep links
+              if (
+                url.startsWith('upi://') ||
+                url.startsWith('gpay://') ||
+                url.startsWith('tez://') ||
+                url.startsWith('phonepe://') ||
+                url.startsWith('paytmmp://') ||
+                url.startsWith('paytm://') ||
+                url.startsWith('cred://') ||
+                url.startsWith('bhim://') ||
+                url.startsWith('intent://')
+              ) {
+                Linking.canOpenURL(url).then((supported) => {
+                  if (supported) {
+                    Linking.openURL(url).catch(() => {});
+                  } else {
+                    Alert.alert(
+                      'App Not Installed',
+                      'The selected payment app (Google Pay / UPI) is not installed on this device.\n\nIn Test Mode:\n• Select UPI ID and enter: success@razorpay\n• Or choose Netbanking and click "Success"',
+                    );
+                  }
+                }).catch(() => {
+                  Alert.alert(
+                    'App Not Installed',
+                    'In Test Mode, select "UPI ID" and enter success@razorpay, or choose Netbanking and click "Success".',
+                  );
+                });
+                return false;
+              }
+
+              return true;
+            }}
             style={styles.webview}
           />
 
@@ -304,7 +383,6 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 6,
-    borderRadius: radius.md,
   },
   titleContainer: {
     alignItems: 'center',
@@ -322,48 +400,23 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 10,
     color: colors.textMuted,
+    marginTop: 1,
   },
   amountPill: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   amountText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.black,
     color: colors.text,
-  },
-  webviewContainer: {
-    flex: 1,
-    position: 'relative',
-    backgroundColor: '#0b1120',
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: '#0b1120',
-  },
-  loaderOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#0b1120',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loaderText: {
-    color: '#94a3b8',
-    fontSize: fontSize.sm,
   },
   testModeBanner: {
     backgroundColor: '#fef3c7',
     paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -378,5 +431,29 @@ const styles = StyleSheet.create({
   },
   testModeHighlight: {
     fontWeight: fontWeight.bold,
+  },
+  webviewContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+  },
+  loaderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loaderText: {
+    color: '#94a3b8',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
   },
 });

@@ -1,5 +1,14 @@
 import { Router } from 'express';
-import { register, login, getMe, makeAdmin } from '../controllers/authController';
+import {
+  register,
+  login,
+  getMe,
+  makeAdmin,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword,
+  changePassword,
+} from '../controllers/authController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
@@ -8,8 +17,14 @@ const router = Router();
 router.post('/register', register);
 router.post('/login', login);
 
-// Authenticated session profile
+// Password Reset & Email Verification endpoints
+router.post('/forgot-password', requestPasswordReset);
+router.post('/verify-reset-token', verifyResetToken);
+router.post('/reset-password', resetPassword);
+
+// Authenticated session profile & password management
 router.get('/me', authenticateToken, getMe);
+router.post('/change-password', authenticateToken, changePassword);
 
 // Admin role promotion
 router.post('/make-admin', authenticateToken, requireAdmin, makeAdmin);

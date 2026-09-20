@@ -19,10 +19,12 @@ export default function HomeHeader({
 }: HomeHeaderProps) {
   return (
     <div className="px-4 py-3 bg-white border-b border-[#e6e2d8] flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center">
-          <Smartphone className="w-5 h-5 text-[#ffc400]" />
-        </div>
+      <div className="flex items-center gap-2.5">
+        <img
+          src="/images/renewx-crew-logo.png"
+          alt="RenewX Crew"
+          className="w-10 h-10 rounded-xl object-contain bg-white border border-[#e5e1d8] shadow-sm"
+        />
         <div className="leading-none">
           <span className="block text-[20px] font-black tracking-tight text-black">
             Renew<span className="text-[#ffc400]">X</span>

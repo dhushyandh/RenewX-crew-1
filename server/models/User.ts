@@ -13,6 +13,8 @@ export interface IUser {
     sell_request_updates: boolean;
     marketing: boolean;
   };
+  reset_password_token?: string;
+  reset_password_expires?: Date;
   created_at: Date;
   updated_at: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -64,6 +66,16 @@ const UserSchema = new Schema<IUser>(
       sell_request_updates: { type: Boolean, default: true },
       marketing: { type: Boolean, default: false },
     },
+    reset_password_token: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    reset_password_expires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
@@ -74,6 +86,8 @@ const UserSchema = new Schema<IUser>(
         delete ret._id;
         delete ret.__v;
         delete ret.password;
+        delete ret.reset_password_token;
+        delete ret.reset_password_expires;
         return ret;
       },
     },

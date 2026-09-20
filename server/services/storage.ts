@@ -25,8 +25,7 @@ export async function uploadImageToStorage(
   if (bucketCheck.error) {
     const created = await supabase.storage.createBucket(bucketName, {
       public: true,
-      fileSizeLimit: '10MB',
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+      fileSizeLimit: '50MB',
     });
     if (created.error && !/already exists/i.test(created.error.message)) {
       throw new Error(`Image storage bucket is unavailable: ${created.error.message}`);

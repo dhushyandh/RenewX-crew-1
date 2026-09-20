@@ -4,12 +4,14 @@ export interface Product {
   id: string;
   name: string;
   brand: string;
+  model?: string;
   category: string;
   original_price: number;
   price: number;
   condition: string;
   warranty_months: number;
   image_url: string;
+  images?: string[];
   rating?: number;
   reviews?: number;
   stock: number;
@@ -22,12 +24,14 @@ export interface Product {
 export interface IProduct {
   name: string;
   brand: string;
+  model?: string;
   category: string;
   original_price: number;
   price: number;
   condition: string;
   warranty_months: number;
   image_url: string;
+  images?: string[];
   rating: number;
   reviews: number;
   stock: number;
@@ -40,12 +44,14 @@ export interface IProduct {
 export interface CreateProductDTO {
   name: string;
   brand: string;
+  model?: string;
   category: string;
   original_price: number;
   price: number;
   condition?: string;
   warranty_months?: number;
   image_url?: string;
+  images?: string[];
   rating?: number;
   reviews?: number;
   stock?: number;
@@ -104,7 +110,11 @@ const validateCommon = (data: any, partial = false): string[] => {
     const value = toNumber(data.reviews);
     if (value === null || value < 0 || !Number.isInteger(value)) errors.push('Reviews must be a non-negative integer');
   }
+  if (data.model !== undefined && typeof data.model !== 'string') errors.push('Model must be a string');
   if (data.image_url !== undefined && typeof data.image_url !== 'string') errors.push('Image URL must be a string');
+  if (data.images !== undefined && (!Array.isArray(data.images) || data.images.some((item: unknown) => typeof item !== 'string'))) {
+    errors.push('Images must be an array of strings');
+  }
   if (data.description !== undefined && typeof data.description !== 'string') errors.push('Description must be a string');
   if (data.condition !== undefined && (typeof data.condition !== 'string' || !data.condition.trim())) errors.push('Condition must be a non-empty string');
   if (data.specs !== undefined && (!Array.isArray(data.specs) || data.specs.some((item: unknown) => typeof item !== 'string'))) {
@@ -122,9 +132,10 @@ export function validateProductInput(data: any): { valid: boolean; errors: strin
 export function validateProductUpdate(data: any): { valid: boolean; errors: string[] } {
   const errors = validateCommon(data, true);
   const allowed = new Set([
-    'name', 'brand', 'category', 'original_price', 'price', 'condition',
-    'warranty_months', 'image_url', 'rating', 'reviews', 'stock',
-    'description', 'specs',
+    'name', 'brand', 'model', 'category', 'original_price', 'originalPrice',
+    'price', 'condition', 'warranty_months', 'warrantyMonths',
+    'image_url', 'image', 'images', 'rating', 'reviews', 'stock',
+    'description', 'specs', 'id', '_id', '_uuid',
   ]);
   if (data && typeof data === 'object') {
     const unknown = Object.keys(data).filter((key) => !allowed.has(key));
@@ -137,12 +148,14 @@ const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true, maxlength: 160, index: true },
     brand: { type: String, required: true, trim: true, index: true },
+    model: { type: String, trim: true, default: '' },
     category: { type: String, required: true, trim: true, index: true },
     original_price: { type: Number, required: true, min: 0.01 },
     price: { type: Number, required: true, min: 0.01, index: true },
     condition: { type: String, required: true, trim: true, default: 'Like New' },
     warranty_months: { type: Number, min: 0, default: 12 },
     image_url: { type: String, default: '' },
+    images: { type: [String], default: [] },
     rating: { type: Number, min: 0, max: 5, default: 0 },
     reviews: { type: Number, min: 0, default: 0 },
     stock: { type: Number, min: 0, default: 0 },

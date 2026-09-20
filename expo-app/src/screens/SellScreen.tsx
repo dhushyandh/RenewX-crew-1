@@ -6,16 +6,23 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Platform,
   Image,
   ActivityIndicator,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+  SafeAreaView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
+import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 interface CategoryItem {
   id: string;
@@ -33,7 +40,7 @@ const CATEGORIES: CategoryItem[] = [
     maxPrice: '₹85,000',
     ceilingNum: 85000,
     icon: 'phone-portrait-outline',
-    subtitle: 'iPhones, Galaxy S-series, Pixels & more',
+    subtitle: 'iPhones, Galaxy S, Pixels',
   },
   {
     id: 'macbooks',
@@ -41,7 +48,7 @@ const CATEGORIES: CategoryItem[] = [
     maxPrice: '₹1,65,000',
     ceilingNum: 165000,
     icon: 'laptop-outline',
-    subtitle: 'M1, M2, M3 Pro & Intel Silicon',
+    subtitle: 'M1, M2, M3 & Pro Silicon',
   },
   {
     id: 'laptops',
@@ -49,7 +56,7 @@ const CATEGORIES: CategoryItem[] = [
     maxPrice: '₹75,000',
     ceilingNum: 75000,
     icon: 'desktop-outline',
-    subtitle: 'Dell, Lenovo, HP, ASUS & Gaming',
+    subtitle: 'Dell, HP, Lenovo, ASUS',
   },
   {
     id: 'tablets',
@@ -57,7 +64,7 @@ const CATEGORIES: CategoryItem[] = [
     maxPrice: '₹60,000',
     ceilingNum: 60000,
     icon: 'tablet-portrait-outline',
-    subtitle: 'iPad Pro, Air, Mini & Galaxy Tabs',
+    subtitle: 'iPad Pro, Air, Galaxy Tab',
   },
   {
     id: 'wearables',
@@ -65,7 +72,7 @@ const CATEGORIES: CategoryItem[] = [
     maxPrice: '₹35,000',
     ceilingNum: 35000,
     icon: 'watch-outline',
-    subtitle: 'Apple Watch, Galaxy Watch & AirPods',
+    subtitle: 'Apple Watch, AirPods, Sony',
   },
   {
     id: 'cameras',
@@ -73,7 +80,7 @@ const CATEGORIES: CategoryItem[] = [
     maxPrice: '₹95,000',
     ceilingNum: 95000,
     icon: 'camera-outline',
-    subtitle: 'Sony Alpha, Canon EOS & DSLRs',
+    subtitle: 'Sony Alpha, Canon, Nikon',
   },
 ];
 
@@ -118,21 +125,16 @@ const DEFAULT_MODELS: Record<string, string[]> = {
   Sony: ['Sony Alpha A7 IV', 'Sony Alpha A7 III', 'WH-1000XM5', 'WF-1000XM5'],
 };
 
-const STEPS = [
-  { num: 1, label: 'Category', short: 'Category' },
-  { num: 2, label: 'Brand', short: 'Brand' },
-  { num: 3, label: 'Model', short: 'Model' },
-  { num: 4, label: 'Specs & Condition', short: 'Specs' },
-  { num: 5, label: 'Upload Photos', short: 'Photos' },
-  { num: 6, label: 'Expected Price', short: 'Price' },
-  { num: 7, label: 'Pickup Details', short: 'Pickup' },
-  { num: 8, label: 'Review', short: 'Review' },
+const SAVED_ADDRESSES_KEY = '@renewx_saved_addresses';
+
+const FLOW_STEPS = [
+  { id: 1, title: 'Device', icon: 'phone-portrait-outline' as const },
+  { id: 2, title: 'Condition', icon: 'shield-checkmark-outline' as const },
+  { id: 3, title: 'Valuation', icon: 'cash-outline' as const },
+  { id: 4, title: 'Pickup', icon: 'calendar-outline' as const },
 ];
 
-
-type ApiRecord = Record<string, any>;
-
-const unwrapRows = (response: any): ApiRecord[] => {
+const unwrapRows = (response: any): any[] => {
   if (Array.isArray(response)) return response;
   if (Array.isArray(response?.data)) return response.data;
   if (Array.isArray(response?.data?.data)) return response.data.data;
@@ -141,84 +143,51 @@ const unwrapRows = (response: any): ApiRecord[] => {
   return [];
 };
 
-const recordId = (item: ApiRecord) =>
-  String(item?.id ?? item?._id ?? item?.brand_id ?? item?.brandId ?? item?.model_id ?? item?.modelId ?? item?.name ?? '');
-
-const recordName = (item: ApiRecord) =>
-  String(item?.name ?? item?.brand_name ?? item?.brandName ?? item?.model_name ?? item?.modelName ?? '').trim();
-
-const normalizeName = (value: any) =>
-  String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-
-const getBrandId = (brand: ApiRecord | undefined) =>
-  brand ? String(brand?.id ?? brand?._id ?? brand?.brand_id ?? brand?.brandId ?? '') : '';
-
-const getModelBrandId = (model: ApiRecord) =>
-  String(model?.brand_id ?? model?.brandId ?? model?.brand?.id ?? model?.brand?._id ?? '');
-
-const getModelCategory = (model: ApiRecord) =>
-  String(model?.category ?? model?.category_name ?? model?.categoryName ?? model?.category?.name ?? '').trim();
-
-const getStorageOptions = (model: ApiRecord): string[] => {
-  const raw =
-    model?.storage_options ??
-    model?.storageOptions ??
-    model?.storages ??
-    model?.storage ??
-    [];
-
-  if (Array.isArray(raw)) {
-    return raw
-      .map((value) => String(value).trim())
-      .filter(Boolean);
-  }
-
-  if (typeof raw === 'string' && raw.trim()) {
-    return raw.split(',').map((value) => value.trim()).filter(Boolean);
-  }
-
-  return [];
-};
-
 export default function SellScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const toast = useToast();
   const { user } = useAuth();
 
-  // Wizard state: 1 to 8
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(1);
+  // 4-Step streamlined workflow (1: Device, 2: Condition, 3: Valuation, 4: Pickup)
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // STEP 1: Category
+  // STEP 1: Device Info
   const [selectedCat, setSelectedCat] = useState<CategoryItem>(CATEGORIES[0]);
-
-  // STEP 2: Brand
-  const [brandSearch, setBrandSearch] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('Apple');
+  const [brandSearch, setBrandSearch] = useState('');
   const [brandsList, setBrandsList] = useState<any[]>([]);
   const [brandsLoading, setBrandsLoading] = useState(false);
 
-  // STEP 3: Model
-  const [modelSearch, setModelSearch] = useState('');
   const [selectedModel, setSelectedModel] = useState('iPhone 15 Pro');
-  const [customModelMode, setCustomModelMode] = useState(false);
-  const [customModelName, setCustomModelName] = useState('');
+  const [modelSearch, setModelSearch] = useState('');
   const [modelsList, setModelsList] = useState<any[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [customModelMode, setCustomModelMode] = useState(false);
+  const [customModelName, setCustomModelName] = useState('');
 
-  // STEP 4: Specs & Condition
+  // STEP 2: Condition & Specs
   const [storageOptions, setStorageOptions] = useState<string[]>(STANDARD_STORAGES);
   const [selectedStorage, setSelectedStorage] = useState('256 GB');
   const [screenCond, setScreenCond] = useState<'flawless' | 'good' | 'cracked'>('flawless');
   const [bodyCond, setBodyCond] = useState<'likenew' | 'fair' | 'dented'>('likenew');
+
+  // Functional health checks
   const [switchesOn, setSwitchesOn] = useState(true);
   const [touchWorking, setTouchWorking] = useState(true);
   const [cameraClear, setCameraClear] = useState(true);
   const [batteryHealthy, setBatteryHealthy] = useState(true);
+
+  // Accessories
   const [hasBox, setHasBox] = useState(true);
   const [hasCharger, setHasCharger] = useState(true);
   const [hasBill, setHasBill] = useState(true);
 
-  // STEP 5: Upload Photos
+  // STEP 3: Valuation & Photos
+  const [quoteAmount, setQuoteAmount] = useState(48500);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [expectedPrice, setExpectedPrice] = useState('48500');
+
   const [photos, setPhotos] = useState<{
     front: string;
     back: string;
@@ -230,19 +199,16 @@ export default function SellScreen() {
     edges: '',
     billBox: '',
   });
-  const [photoSkipped, setPhotoSkipped] = useState(false);
+  const [photoSkipped, setPhotoSkipped] = useState(true);
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
 
-  // STEP 6: Expected Price & Valuation
-  const [quoteAmount, setQuoteAmount] = useState(48500);
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [expectedPrice, setExpectedPrice] = useState('48500');
-
-  // STEP 7: Pickup Details
+  // STEP 4: Pickup & Payout
   const [userName, setUserName] = useState(user?.full_name || '');
   const [userPhone, setUserPhone] = useState('');
   const [userAddress, setUserAddress] = useState('');
   const [userPincode, setUserPincode] = useState('');
+  const [locating, setLocating] = useState(false);
+
   const [pickupDate, setPickupDate] = useState<'Today' | 'Tomorrow' | 'Day After'>('Today');
   const [timeSlot, setTimeSlot] = useState<'Morning' | 'Afternoon' | 'Evening'>('Morning');
   const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank' | 'cash'>('upi');
@@ -250,65 +216,71 @@ export default function SellScreen() {
   const [bankAccount, setBankAccount] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
 
-  // STEP 8: Review & Booking
+  // Booking Result
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [bookingRefId, setBookingRefId] = useState('');
 
-  // 1. Fetch brands from the real catalog database.
-  // IMPORTANT: an empty DB response stays empty; no demo brands are injected.
+  // Preload saved address if available
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(SAVED_ADDRESSES_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed[0]) {
+            const first = parsed[0];
+            if (!userName && first.name) setUserName(first.name);
+            if (!userPhone && first.phone) setUserPhone(first.phone);
+            if (!userAddress && first.address) setUserAddress(first.address);
+            if (!userPincode && first.pincode) setUserPincode(first.pincode);
+          }
+        }
+      } catch {
+        // Ignore storage read error
+      }
+    })();
+  }, []);
+
+  // Fetch brands from database with fallback
   useEffect(() => {
     let active = true;
     setBrandsLoading(true);
-    setBrandsList([]);
-    setSelectedBrand('');
-    setBrandSearch('');
 
     api.brands
       .getAll({ category: selectedCat.name })
-      .then((response: any) => {
+      .then((res: any) => {
         if (!active) return;
-
-        const rows = unwrapRows(response)
-          .filter((row) => recordName(row))
-          .map((row) => ({
-            ...row,
-            id: recordId(row),
-            name: recordName(row),
+        const rows = unwrapRows(res);
+        const mapped = rows
+          .filter((r) => r && (r.name || r.brand_name))
+          .map((r) => ({
+            id: String(r.id || r._id || r.name),
+            name: String(r.name || r.brand_name).trim(),
           }));
 
-        // Some APIs return the whole catalog even when a category filter is supplied.
-        // If category information exists on a row, keep only matching rows.
-        const categoryRows = rows.filter((row) => {
-          const rowCategory = String(
-            (row as any)?.category ??
-            (row as any)?.category_name ??
-            (row as any)?.categoryName ??
-            (row as any)?.category?.name ??
-            ''
-          ).trim();
-
-          return !rowCategory || normalizeName(rowCategory) === normalizeName(selectedCat.name);
-        });
-
-        const unique = Array.from(
-          new Map(categoryRows.map((row) => [normalizeName(row.name), row])).values()
-        );
-
-        setBrandsList(unique);
-
-        if (selectedBrand && unique.some((brand) => normalizeName(brand.name) === normalizeName(selectedBrand))) {
-          return;
+        if (mapped.length > 0) {
+          setBrandsList(mapped);
+          if (!mapped.some((b) => b.name.toLowerCase() === selectedBrand.toLowerCase())) {
+            setSelectedBrand(mapped[0].name);
+          }
+        } else {
+          const defaults = (DEFAULT_BRANDS[selectedCat.name] || ['Apple', 'Samsung']).map((b) => ({
+            id: b,
+            name: b,
+          }));
+          setBrandsList(defaults);
+          setSelectedBrand(defaults[0].name);
         }
-
-        setSelectedBrand(unique[0]?.name ?? '');
       })
-      .catch((error) => {
+      .catch(() => {
         if (!active) return;
-        console.warn('[SellScreen] Failed to load brands:', error);
-        setBrandsList([]);
-        setSelectedBrand('');
-        toast.error('Could not load brands from the catalog. Please try again.');
+        const defaults = (DEFAULT_BRANDS[selectedCat.name] || ['Apple', 'Samsung']).map((b) => ({
+          id: b,
+          name: b,
+        }));
+        setBrandsList(defaults);
+        setSelectedBrand(defaults[0].name);
       })
       .finally(() => {
         if (active) setBrandsLoading(false);
@@ -319,94 +291,63 @@ export default function SellScreen() {
     };
   }, [selectedCat.name]);
 
-  // 2. Fetch models from the real catalog database.
-  // The selected brand ID is preferred; client-side matching protects us when
-  // the backend returns a broader catalog or uses _id/brandId instead of id.
+  // Fetch models from database with fallback
   useEffect(() => {
-    if (!selectedBrand) {
-      setModelsList([]);
-      setSelectedModel('');
-      return;
-    }
+    if (!selectedBrand) return;
 
     let active = true;
     setModelsLoading(true);
-    setModelsList([]);
-    setSelectedModel('');
-    setModelSearch('');
     setCustomModelMode(false);
     setCustomModelName('');
-    setStorageOptions(STANDARD_STORAGES);
-    setSelectedStorage('256 GB');
 
     const brandObj = brandsList.find(
-      (brand) => normalizeName(brand.name) === normalizeName(selectedBrand)
+      (b) => b.name.toLowerCase() === selectedBrand.toLowerCase()
     );
-    const brandId = getBrandId(brandObj);
 
     api.models
       .getAll({
         category: selectedCat.name,
-        brand_id: brandId || 'all',
+        brand_id: brandObj?.id || 'all',
       })
-      .then((response: any) => {
+      .then((res: any) => {
         if (!active) return;
-
-        const rows = unwrapRows(response)
-          .filter((row) => recordName(row))
-          .map((row) => ({
-            ...row,
-            id: recordId(row),
-            name: recordName(row),
+        const rows = unwrapRows(res);
+        const mapped = rows
+          .filter((r) => r && (r.name || r.model_name))
+          .map((r) => ({
+            id: String(r.id || r._id || r.name),
+            name: String(r.name || r.model_name).trim(),
+            storage_options: r.storage_options || r.storages || [],
           }));
 
-        const filtered = rows.filter((model) => {
-          const modelBrandId = getModelBrandId(model);
-          const modelBrandName = String(
-            (model as any)?.brand_name ??
-            (model as any)?.brandName ??
-            (model as any)?.brand?.name ??
-            ''
-          ).trim();
-
-          const modelCategory = getModelCategory(model);
-
-          const brandMatches =
-            !modelBrandId ||
-            !brandId ||
-            modelBrandId === brandId ||
-            normalizeName(modelBrandName) === normalizeName(selectedBrand);
-
-          const categoryMatches =
-            !modelCategory ||
-            normalizeName(modelCategory) === normalizeName(selectedCat.name);
-
-          return brandMatches && categoryMatches;
-        });
-
-        const unique = Array.from(
-          new Map(filtered.map((model) => [normalizeName(model.name), model])).values()
-        );
-
-        setModelsList(unique);
-
-        const first = unique[0];
-        if (first) {
-          setSelectedModel(first.name);
-
-          const storages = getStorageOptions(first);
-          if (storages.length) {
-            setStorageOptions(storages);
-            setSelectedStorage(storages[0]);
+        if (mapped.length > 0) {
+          setModelsList(mapped);
+          setSelectedModel(mapped[0].name);
+          if (mapped[0].storage_options && mapped[0].storage_options.length > 0) {
+            setStorageOptions(mapped[0].storage_options);
+            setSelectedStorage(mapped[0].storage_options[0]);
           }
+        } else {
+          const defaults = (DEFAULT_MODELS[selectedBrand] || ['Standard Model']).map((m) => ({
+            id: m,
+            name: m,
+            storage_options: STANDARD_STORAGES,
+          }));
+          setModelsList(defaults);
+          setSelectedModel(defaults[0].name);
+          setStorageOptions(STANDARD_STORAGES);
         }
       })
-      .catch((error) => {
+      .catch(() => {
         if (!active) return;
-        console.warn('[SellScreen] Failed to load models:', error);
-        setModelsList([]);
-        setSelectedModel('');
-        toast.error('Could not load models from the catalog. Please try again.');
+        const defaults = (DEFAULT_MODELS[selectedBrand] || ['Standard Model']).map((m) => ({
+          id: m,
+          name: m,
+          storage_options: STANDARD_STORAGES,
+        }));
+        setModelsList(defaults);
+        setSelectedModel(defaults[0].name);
+        setStorageOptions(STANDARD_STORAGES);
       })
       .finally(() => {
         if (active) setModelsLoading(false);
@@ -417,7 +358,37 @@ export default function SellScreen() {
     };
   }, [selectedBrand, selectedCat.name, brandsList]);
 
-  // 3. Algorithmic Quote Calculation
+  // Algorithmic local valuation calculation
+  const calculateLocalValuation = () => {
+    let base = selectedCat.ceilingNum * 0.58;
+    const model = (customModelMode ? customModelName : selectedModel).toLowerCase();
+
+    if (model.includes('max') || model.includes('ultra') || model.includes('pro 16')) base += 14000;
+    else if (model.includes('pro') || model.includes('plus')) base += 8000;
+
+    if (selectedStorage === '1 TB') base += 9000;
+    else if (selectedStorage === '512 GB') base += 5000;
+    else if (selectedStorage === '64 GB') base -= 3000;
+
+    if (screenCond === 'good') base -= 4000;
+    if (screenCond === 'cracked') base -= 11000;
+
+    if (bodyCond === 'fair') base -= 2500;
+    if (bodyCond === 'dented') base -= 6000;
+
+    if (hasBox) base += 800;
+    if (hasCharger) base += 1000;
+    if (hasBill) base += 500;
+
+    if (!switchesOn) base = Math.round(base * 0.4);
+    if (!touchWorking) base -= 3500;
+    if (!cameraClear) base -= 2000;
+    if (!batteryHealthy) base -= 1500;
+
+    return Math.max(Math.round(base), 3500);
+  };
+
+  // Recalculate live quote
   useEffect(() => {
     let active = true;
     setQuoteLoading(true);
@@ -432,30 +403,21 @@ export default function SellScreen() {
         storage: selectedStorage,
         screenCondition: screenCond,
         bodyCondition: bodyCond,
-        functionalChecks: {
-          switchesOn,
-          touchWorking,
-          cameraClear,
-          batteryHealthy,
-        },
-        accessories: {
-          hasBox,
-          hasCharger,
-          hasBill,
-        },
+        functionalChecks: { switchesOn, touchWorking, cameraClear, batteryHealthy },
+        accessories: { hasBox, hasCharger, hasBill },
       })
       .then((res: any) => {
         if (!active) return;
         const amt = Number(res?.valuation || res?.data?.valuation || 0);
         const finalAmt = amt > 0 ? amt : calculateLocalValuation();
         setQuoteAmount(finalAmt);
-        setExpectedPrice(finalAmt.toString());
+        setExpectedPrice(String(finalAmt));
       })
       .catch(() => {
         if (!active) return;
         const localAmt = calculateLocalValuation();
         setQuoteAmount(localAmt);
-        setExpectedPrice(localAmt.toString());
+        setExpectedPrice(String(localAmt));
       })
       .finally(() => {
         if (active) setQuoteLoading(false);
@@ -482,75 +444,59 @@ export default function SellScreen() {
     hasBill,
   ]);
 
-  const calculateLocalValuation = () => {
-    let base = selectedCat.ceilingNum * 0.55;
-    const model = (customModelMode ? customModelName : selectedModel).toLowerCase();
-    if (model.includes('max') || model.includes('ultra') || model.includes('pro 16')) base += 14000;
-    else if (model.includes('pro') || model.includes('plus')) base += 8000;
+  // GPS Auto-detect handler
+  const handleUseGps = async () => {
+    try {
+      setLocating(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please enable location permissions to auto-fill your pickup address.');
+        return;
+      }
 
-    if (selectedStorage === '1 TB') base += 9000;
-    else if (selectedStorage === '512 GB') base += 5000;
-    else if (selectedStorage === '64 GB') base -= 4000;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const geocoded = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
 
-    if (screenCond === 'good') base -= 4500;
-    if (screenCond === 'cracked') base -= 12000;
+      if (geocoded && geocoded.length > 0) {
+        const place = geocoded[0];
+        const parts = [
+          place.name,
+          place.street,
+          place.subregion || place.district,
+          place.city,
+          place.region,
+        ].filter(Boolean);
 
-    if (bodyCond === 'fair') base -= 3000;
-    if (bodyCond === 'dented') base -= 6500;
-
-    if (hasBox) base += 800;
-    if (hasCharger) base += 1000;
-    if (hasBill) base += 500;
-
-    if (!switchesOn) base = Math.round(base * 0.4);
-    if (!touchWorking) base -= 4000;
-    if (!cameraClear) base -= 2500;
-    if (!batteryHealthy) base -= 2000;
-
-    return Math.max(Math.round(base), 3500);
+        if (parts.length > 0) setUserAddress(parts.join(', '));
+        if (place.postalCode) {
+          const cleanPin = place.postalCode.replace(/\D/g, '').slice(0, 6);
+          if (cleanPin.length === 6) setUserPincode(cleanPin);
+        }
+        toast.success('Pickup address detected via GPS', 'Location Found');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not locate current address.');
+    } finally {
+      setLocating(false);
+    }
   };
 
-  const filteredBrands = useMemo(() => {
-    if (!brandSearch.trim()) return brandsList;
-    const q = brandSearch.toLowerCase();
-    return brandsList.filter((b) => b.name.toLowerCase().includes(q));
-  }, [brandsList, brandSearch]);
-
-  const filteredModels = useMemo(() => {
-    if (!modelSearch.trim()) return modelsList;
-    const q = modelSearch.toLowerCase();
-    return modelsList.filter((m) => m.name.toLowerCase().includes(q));
-  }, [modelsList, modelSearch]);
-
+  // Photo upload
   const handlePhotoUpload = async (slot: 'front' | 'back' | 'edges' | 'billBox') => {
     try {
       setUploadingSlot(slot);
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 0.8,
         base64: true,
       });
 
       if (!res.canceled && res.assets && res.assets[0]) {
         const asset = res.assets[0];
-        if (asset.base64) {
-          try {
-            const uploaded = await api.upload.base64(
-              asset.base64,
-              `sell-${slot}-${Date.now()}.jpg`,
-              asset.mimeType || 'image/jpeg'
-            );
-            if (uploaded?.url) {
-              setPhotos((prev) => ({ ...prev, [slot]: uploaded.url }));
-              setPhotoSkipped(false);
-              return;
-            }
-          } catch (e) {
-            console.log('Local URI fallback for photo:', e);
-          }
-        }
         setPhotos((prev) => ({ ...prev, [slot]: asset.uri }));
         setPhotoSkipped(false);
       }
@@ -565,22 +511,32 @@ export default function SellScreen() {
     setPhotos((prev) => ({ ...prev, [slot]: '' }));
   };
 
+  // Submit Trade-in Request
   const handleConfirmPickup = async () => {
     if (!userName.trim() || !userPhone.trim() || !userAddress.trim() || !userPincode.trim()) {
       toast.warning('Please enter your full contact details, pickup address & pincode.', 'Missing Details');
-      setStep(7);
+      return;
+    }
+
+    const cleanPhone = userPhone.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      toast.warning('Please enter a valid 10-digit mobile number.', 'Invalid Phone');
+      return;
+    }
+
+    const cleanPin = userPincode.replace(/\D/g, '').slice(0, 6);
+    if (cleanPin.length !== 6) {
+      toast.warning('Please enter a valid 6-digit PIN code.', 'Invalid PIN');
       return;
     }
 
     if (payoutMethod === 'upi' && !upiId.trim()) {
-      toast.warning('Please provide your UPI ID for instant payout.', 'UPI ID Required');
-      setStep(7);
+      toast.warning('Please enter your UPI ID (e.g. name@okhdfcbank).', 'UPI ID Required');
       return;
     }
 
     if (payoutMethod === 'bank' && (!bankAccount.trim() || !bankIfsc.trim())) {
       toast.warning('Please enter bank account number and IFSC code.', 'Bank Details Required');
-      setStep(7);
       return;
     }
 
@@ -596,8 +552,8 @@ export default function SellScreen() {
         valuationAmount: quoteAmount,
         expectedSellingPrice: Number(expectedPrice) || quoteAmount,
         customerName: userName.trim(),
-        customerPhone: userPhone.trim(),
-        pincode: userPincode.trim(),
+        customerPhone: cleanPhone,
+        pincode: cleanPin,
         address: userAddress.trim(),
         condition: {
           screen: screenCond,
@@ -606,34 +562,26 @@ export default function SellScreen() {
           touchWorking,
           cameraClear,
           batteryHealthy,
-          hasBox,
-          hasCharger,
-          hasBill,
-          photos,
+          accessories: { hasBox, hasCharger, hasBill },
+          photoCount: Object.values(photos).filter(Boolean).length,
           photoSkipped,
-          pickupDate,
-          timeSlot,
-          payoutMethod,
-          payoutDetail:
-            payoutMethod === 'upi'
-              ? upiId.trim()
-              : payoutMethod === 'bank'
-              ? { account: bankAccount.trim(), ifsc: bankIfsc.trim() }
-              : 'Cash',
+          pickupSchedule: { date: pickupDate, time: timeSlot },
+          payout: { method: payoutMethod, upiId, bankAccount, bankIfsc },
         },
       };
 
       const res = await api.tradeIn.createPickup(payload);
-      const refId = res?.id || res?.pickupId || `RNX-SELL-${Date.now().toString().slice(-6)}`;
-      setBookingRefId(refId);
+      const reqId =
+        res?.data?.id ||
+        res?.data?._id ||
+        res?.id ||
+        `RNX-TRD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      setBookingRefId(String(reqId));
       setBookingConfirmed(true);
-      toast.success(`Doorstep pickup scheduled. Reference: ${refId}`, 'Pickup Confirmed');
+      toast.success('Pickup scheduled successfully!', 'Trade-in Booked');
     } catch (err: any) {
-      console.warn('[SellScreen] Pickup booking failed:', err);
-      toast.error(
-        err?.message || 'We could not schedule the pickup. Please try again.',
-        'Pickup Booking Failed'
-      );
+      toast.error(err?.message || 'Could not schedule pickup. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -642,9 +590,9 @@ export default function SellScreen() {
   const handleResetWorkflow = () => {
     setBookingConfirmed(false);
     setBookingRefId('');
-    setStep(1);
+    setCurrentStep(1);
     setPhotos({ front: '', back: '', edges: '', billBox: '' });
-    setPhotoSkipped(false);
+    setPhotoSkipped(true);
     setCustomModelMode(false);
     setCustomModelName('');
   };
@@ -661,1085 +609,1057 @@ export default function SellScreen() {
     };
   }, []);
 
-  return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 14) }]}>
-      {/* Top Header - Minimal & Clean */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Sell Device</Text>
-          <View style={styles.headerBadge}>
-            <View style={styles.greenDot} />
-            <Text style={styles.headerBadgeText}>Doorstep Payout</Text>
-          </View>
-        </View>
-        <Text style={styles.headerSubtitle}>
-          Get a real catalog-backed quote in a few simple steps
-        </Text>
-      </View>
+  const filteredBrands = useMemo(() => {
+    if (!brandSearch.trim()) return brandsList;
+    const q = brandSearch.toLowerCase();
+    return brandsList.filter((b) => b.name.toLowerCase().includes(q));
+  }, [brandsList, brandSearch]);
 
-      {/* Stepper Wizard Bar - Sleek & Compact */}
-      <View style={styles.stepperContainer}>
-        <View style={styles.stepperMetaRow}>
-          <Text style={styles.stepperStepName}>
-            Step {step} of 8: <Text style={styles.stepperCurrentTitle}>{STEPS[step - 1].label}</Text>
-          </Text>
-          <Text style={styles.stepperPercent}>{Math.round((step / 8) * 100)}%</Text>
-        </View>
+  const filteredModels = useMemo(() => {
+    if (!modelSearch.trim()) return modelsList;
+    const q = modelSearch.toLowerCase();
+    return modelsList.filter((m) => m.name.toLowerCase().includes(q));
+  }, [modelsList, modelSearch]);
 
-        {/* Minimal Progress Line */}
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${(step / 8) * 100}%` }]} />
-        </View>
-
-        {/* Horizontal Mini Step Chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.stepChipsScroll}
-        >
-          {STEPS.map((s) => {
-            const isActive = step === s.num;
-            const isDone = step > s.num;
-            return (
-              <TouchableOpacity
-                key={s.num}
-                style={[
-                  styles.stepPill,
-                  isActive && styles.stepPillActive,
-                  isDone && styles.stepPillDone,
-                ]}
-                onPress={() => {
-                  if (s.num <= step) setStep(s.num as any);
-                }}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.stepPillDot,
-                    isActive && styles.stepPillDotActive,
-                    isDone && styles.stepPillDotDone,
-                  ]}
-                >
-                  {isDone ? (
-                    <Ionicons name="checkmark" size={9} color="#ffffff" />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.stepPillNum,
-                        isActive && styles.stepPillNumActive,
-                      ]}
-                    >
-                      {s.num}
-                    </Text>
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.stepPillLabel,
-                    isActive && styles.stepPillLabelActive,
-                    isDone && styles.stepPillLabelDone,
-                  ]}
-                >
-                  {s.short}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Main Content Area */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 }]}
-      >
-        {/* ==================== STEP 1: CATEGORY ==================== */}
-        {step === 1 && (
-          <View style={styles.card}>
-            {/* Minimalist Ceiling Notice */}
-            <View style={styles.ceilingNotice}>
-              <View style={styles.ceilingIconBox}>
-                <Ionicons name="flash-outline" size={18} color="#0f172a" />
+  // Render Confirmation Screen
+  if (bookingConfirmed) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.confirmedScroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.celebrationCard}>
+            <View style={styles.successIconOuter}>
+              <View style={styles.successIconInner}>
+                <Ionicons name="checkmark" size={38} color="#ffffff" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.ceilingHeading}>Live Trade-In Ceiling</Text>
-                <Text style={styles.ceilingValue}>Valuations up to ₹1,65,000</Text>
-                <Text style={styles.ceilingDescription}>
-                  Instant doorstep diagnostic & same-day digital payout.
+            </View>
+
+            <View style={styles.liveBadge}>
+              <View style={styles.greenPulse} />
+              <Text style={styles.liveBadgeText}>PICKUP CONFIRMED</Text>
+            </View>
+
+            <Text style={styles.confirmedHeading}>Free Doorstep Pickup Scheduled</Text>
+            <Text style={styles.confirmedSub}>
+              A certified RenewX technician will inspect your device at your address and transfer cash instantly.
+            </Text>
+
+            <View style={styles.refBox}>
+              <Text style={styles.refLabel}>TRADE-IN REFERENCE ID</Text>
+              <Text style={styles.refCode}>#{bookingRefId.slice(-8).toUpperCase()}</Text>
+            </View>
+
+            <View style={styles.confirmedDetailsCard}>
+              <View style={styles.confirmedRow}>
+                <Text style={styles.confirmedRowKey}>Device</Text>
+                <Text style={styles.confirmedRowVal}>
+                  {selectedBrand} {customModelMode ? customModelName : selectedModel}
+                </Text>
+              </View>
+              <View style={styles.confirmedRow}>
+                <Text style={styles.confirmedRowKey}>Storage & Condition</Text>
+                <Text style={styles.confirmedRowVal}>{selectedStorage} • {screenCond.toUpperCase()}</Text>
+              </View>
+              <View style={styles.confirmedRow}>
+                <Text style={styles.confirmedRowKey}>Offer Payout</Text>
+                <Text style={[styles.confirmedRowVal, { color: colors.primaryDark, fontWeight: '800' }]}>
+                  ₹{Number(expectedPrice || quoteAmount).toLocaleString('en-IN')}
+                </Text>
+              </View>
+              <View style={styles.confirmedRow}>
+                <Text style={styles.confirmedRowKey}>Pickup Schedule</Text>
+                <Text style={styles.confirmedRowVal}>{formattedDates[pickupDate]} ({timeSlot})</Text>
+              </View>
+              <View style={[styles.confirmedRow, { borderBottomWidth: 0 }]}>
+                <Text style={styles.confirmedRowKey}>Payout Mode</Text>
+                <Text style={styles.confirmedRowVal}>
+                  {payoutMethod === 'upi' ? `Instant UPI (${upiId || 'PhonePe/GPay'})` : payoutMethod === 'bank' ? 'Bank Transfer' : 'Cash'}
                 </Text>
               </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Select Device Category</Text>
-            <Text style={styles.sectionSubtitle}>Start with the device type. Brands and models come directly from our catalog.</Text>
-
-            <View style={styles.categoryGrid}>
-              {CATEGORIES.map((cat) => {
-                const isSel = selectedCat.id === cat.id;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.categoryCard, isSel && styles.categoryCardActive]}
-                    onPress={() => setSelectedCat(cat)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.categoryIconCircle, isSel && styles.categoryIconCircleActive]}>
-                      <Ionicons
-                        name={cat.icon}
-                        size={20}
-                        color={isSel ? '#0f172a' : '#64748b'}
-                      />
-                    </View>
-                    <Text style={[styles.categoryTitle, isSel && styles.categoryTitleActive]}>
-                      {cat.name}
-                    </Text>
-                    <Text style={styles.categorySubtitle}>{cat.subtitle}</Text>
-                    <View style={styles.categoryCeilingTag}>
-                      <Text style={styles.categoryCeilingText}>Up to {cat.maxPrice}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={styles.prepNoticeBox}>
+              <View style={styles.prepHeader}>
+                <Ionicons name="information-circle-outline" size={18} color="#1e293b" />
+                <Text style={styles.prepHeading}>Important Preparation Checklist</Text>
+              </View>
+              <Text style={styles.prepBullet}>• Back up your photos & documents, then log out of iCloud or Google.</Text>
+              <Text style={styles.prepBullet}>• Keep original box, charger, and valid ID ready for extra payout.</Text>
+              <Text style={styles.prepBullet}>• Technician conducts a fast 5-minute diagnostic before handover.</Text>
             </View>
 
             <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => setStep(2)}
-              activeOpacity={0.85}
+              style={styles.primaryActionButton}
+              onPress={() => navigation.navigate('MySellRequests')}
+              activeOpacity={0.88}
             >
-              <Text style={styles.primaryButtonText}>Continue to Brand</Text>
-              <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+              <Ionicons name="receipt-outline" size={18} color="#000" />
+              <Text style={styles.primaryActionButtonText}>View My Sell Requests</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryActionButton}
+              onPress={handleResetWorkflow}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryActionButtonText}>Sell Another Device</Text>
             </TouchableOpacity>
           </View>
-        )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
-        {/* ==================== STEP 2: BRAND ==================== */}
-        {step === 2 && (
-          <View style={styles.card}>
-            <View style={styles.sectionHeaderRow}>
-              <View>
-                <Text style={styles.sectionTitle}>Select Brand</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Live catalog • {selectedCat.name}
-                </Text>
+  return (
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 12) }]}>
+      {/* Top RenewX Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.headerTitle}>Sell Your Device</Text>
+              <View style={styles.goldBadge}>
+                <Text style={styles.goldBadgeText}>LIVE CASH</Text>
               </View>
-              {brandsLoading && <ActivityIndicator size="small" color="#0f172a" />}
             </View>
-
-            {/* Minimal Search Bar */}
-            <View style={styles.searchBar}>
-              <Ionicons name="search-outline" size={16} color="#94a3b8" />
-              <TextInput
-                placeholder={`Search catalog brands`}
-                placeholderTextColor="#94a3b8"
-                value={brandSearch}
-                onChangeText={setBrandSearch}
-                style={styles.searchInput}
-              />
-              {brandSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setBrandSearch('')}>
-                  <Ionicons name="close-circle" size={16} color="#94a3b8" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Brand Grid */}
-            {brandsLoading ? (
-              <View style={styles.loadingCatalog}>
-                <ActivityIndicator size="small" color="#111827" />
-                <Text style={styles.loadingCatalogText}>Loading brands from catalog…</Text>
-              </View>
-            ) : null}
-
-            <View style={styles.brandsGrid}>
-              {filteredBrands.map((b) => {
-                const isSel = selectedBrand === b.name;
-                const initial = b.name.charAt(0).toUpperCase();
-                return (
-                  <TouchableOpacity
-                    key={b.id || b.name}
-                    style={[styles.brandCard, isSel && styles.brandCardActive]}
-                    onPress={() => setSelectedBrand(b.name)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.brandAvatar, isSel && styles.brandAvatarActive]}>
-                      <Text style={[styles.brandAvatarText, isSel && styles.brandAvatarTextActive]}>
-                        {initial}
-                      </Text>
-                    </View>
-                    <Text style={[styles.brandName, isSel && styles.brandNameActive]}>
-                      {b.name}
-                    </Text>
-                    {isSel && (
-                      <Ionicons name="checkmark" size={14} color="#0f172a" style={{ marginLeft: 'auto' }} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {filteredBrands.length === 0 && !brandsLoading && (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No brand found matching "{brandSearch}"</Text>
-                <TouchableOpacity
-                  style={styles.emptyActionButton}
-                  onPress={() => setBrandSearch('')}
-                >
-                  <Text style={styles.emptyActionText}>Clear search</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.outlineButton} onPress={() => setStep(1)}>
-                <Ionicons name="arrow-back" size={16} color="#475569" />
-                <Text style={styles.outlineButtonText}>Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.primaryButton, { flex: 1 }, !selectedBrand && styles.buttonDisabled]}
-                onPress={() => setStep(3)}
-                disabled={!selectedBrand}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.primaryButtonText}>Continue to Model</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.headerSubtitle}>
+              Instant valuation • Free doorstep pickup • Same-day payout
+            </Text>
           </View>
-        )}
+          <TouchableOpacity
+            style={styles.headerRequestsBtn}
+            onPress={() => navigation.navigate('MySellRequests')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="receipt-outline" size={16} color={colors.text} />
+            <Text style={styles.headerRequestsText}>My Requests</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-        {/* ==================== STEP 3: MODEL ==================== */}
-        {step === 3 && (
-          <View style={styles.card}>
-            <View style={styles.sectionHeaderRow}>
-              <View>
-                <Text style={styles.sectionTitle}>Select Model</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Live catalog • {selectedBrand} • {selectedCat.name}
+      {/* 4-Step Stepper Bar */}
+      <View style={styles.stepperContainer}>
+        <View style={styles.stepperRow}>
+          {FLOW_STEPS.map((s, index) => {
+            const isCompleted = s.id < currentStep;
+            const isActive = s.id === currentStep;
+
+            return (
+              <React.Fragment key={s.id}>
+                <TouchableOpacity
+                  style={styles.stepItem}
+                  onPress={() => {
+                    if (s.id < currentStep) setCurrentStep(s.id as any);
+                  }}
+                  disabled={s.id > currentStep}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.stepCircle,
+                      isCompleted && styles.stepCircleCompleted,
+                      isActive && styles.stepCircleActive,
+                    ]}
+                  >
+                    {isCompleted ? (
+                      <Ionicons name="checkmark" size={14} color="#000" />
+                    ) : (
+                      <Ionicons
+                        name={s.icon}
+                        size={13}
+                        color={isActive ? colors.primary : '#94a3b8'}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepTitle,
+                      isActive && styles.stepTitleActive,
+                      isCompleted && styles.stepTitleCompleted,
+                    ]}
+                  >
+                    {s.title}
+                  </Text>
+                </TouchableOpacity>
+
+                {index < FLOW_STEPS.length - 1 && (
+                  <View
+                    style={[
+                      styles.stepConnector,
+                      s.id < currentStep && styles.stepConnectorCompleted,
+                    ]}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Selected Summary Ribbon (Steps 2 to 4) */}
+      {currentStep > 1 && (
+        <View style={styles.selectionRibbon}>
+          <View style={styles.selectionRibbonIcon}>
+            <Ionicons name="phone-portrait" size={14} color={colors.primaryDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.selectionRibbonDevice} numberOfLines={1}>
+              {selectedBrand} {customModelMode ? customModelName : selectedModel}
+            </Text>
+            <Text style={styles.selectionRibbonCategory}>
+              {selectedCat.name} • {selectedStorage} • {screenCond.toUpperCase()}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.selectionRibbonEdit}
+            onPress={() => setCurrentStep(1)}
+          >
+            <Text style={styles.selectionRibbonEditText}>Change</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Main Interactive Form Card */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+        >
+          {/* ==================== STEP 1: DEVICE (Category + Brand + Model) ==================== */}
+          {currentStep === 1 && (
+            <View style={styles.stepCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeading}>1. Choose Device Category</Text>
+                <Text style={styles.sectionSub}>
+                  Select what you want to sell. Real-time pricing applies.
                 </Text>
               </View>
-              {modelsLoading && <ActivityIndicator size="small" color="#0f172a" />}
-            </View>
 
-            {/* Search Bar */}
-            <View style={styles.searchBar}>
-              <Ionicons name="search-outline" size={16} color="#94a3b8" />
-              <TextInput
-                placeholder={`Search catalog models`}
-                placeholderTextColor="#94a3b8"
-                value={modelSearch}
-                onChangeText={setModelSearch}
-                style={styles.searchInput}
-              />
-              {modelSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setModelSearch('')}>
-                  <Ionicons name="close-circle" size={16} color="#94a3b8" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Model List */}
-            {!customModelMode && (
-              <View style={styles.modelList}>
-                {filteredModels.map((m) => {
-                  const isSel = selectedModel === m.name;
+              {/* Category Grid */}
+              <View style={styles.categoryGrid}>
+                {CATEGORIES.map((cat) => {
+                  const isSel = selectedCat.id === cat.id;
                   return (
                     <TouchableOpacity
-                      key={m.id || m.name}
-                      style={[styles.modelRow, isSel && styles.modelRowActive]}
-                      onPress={() => {
-                        setSelectedModel(m.name);
-                        const storages = getStorageOptions(m);
-                        if (storages.length) {
-                          setStorageOptions(storages);
-                          setSelectedStorage(storages[0]);
-                        } else {
-                          setStorageOptions(STANDARD_STORAGES);
-                          setSelectedStorage('256 GB');
-                        }
-                      }}
-                      activeOpacity={0.8}
+                      key={cat.id}
+                      style={[styles.categoryCard, isSel && styles.categoryCardActive]}
+                      onPress={() => setSelectedCat(cat)}
+                      activeOpacity={0.82}
                     >
-                      <View style={[styles.radioCircle, isSel && styles.radioCircleActive]}>
-                        {isSel && <View style={styles.radioDot} />}
+                      <View style={[styles.categoryIconCircle, isSel && styles.categoryIconCircleActive]}>
+                        <Ionicons
+                          name={cat.icon}
+                          size={22}
+                          color={isSel ? '#000000' : '#475569'}
+                        />
                       </View>
-                      <Text style={[styles.modelTitle, isSel && styles.modelTitleActive]}>
-                        {m.name}
+                      <Text style={[styles.categoryTitle, isSel && styles.categoryTitleActive]}>
+                        {cat.name}
                       </Text>
-                      {isSel && (
-                        <View style={styles.selectedTag}>
-                          <Text style={styles.selectedTagText}>Selected</Text>
-                        </View>
-                      )}
+                      <Text style={styles.categorySubtitle} numberOfLines={1}>
+                        {cat.subtitle}
+                      </Text>
+                      <View style={[styles.categoryPriceTag, isSel && styles.categoryPriceTagActive]}>
+                        <Text style={[styles.categoryPriceText, isSel && styles.categoryPriceTextActive]}>
+                          Up to {cat.maxPrice}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
               </View>
-            )}
 
-            {filteredModels.length === 0 && !modelsLoading && !customModelMode && (
-              <View style={styles.emptyContainer}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="cube-outline" size={20} color="#64748b" />
+              {/* Brand Selector */}
+              <View style={[styles.sectionHeader, { marginTop: 14 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.sectionHeading}>2. Select Brand</Text>
+                  {brandsLoading && <ActivityIndicator size="small" color={colors.primaryDark} />}
                 </View>
-                <Text style={styles.emptyTitle}>No catalog model found</Text>
-                <Text style={styles.emptyText}>
-                  {modelSearch.trim()
-                    ? `No model matches “${modelSearch.trim()}”.`
-                    : `No ${selectedBrand} models are available for ${selectedCat.name} yet.`}
-                </Text>
+                <Text style={styles.sectionSub}>Available brands for {selectedCat.name}</Text>
               </View>
-            )}
 
-            {/* Custom Model Card */}
-            <TouchableOpacity
-              style={[styles.customToggleCard, customModelMode && styles.customToggleCardActive]}
-              onPress={() => setCustomModelMode(!customModelMode)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={customModelMode ? 'checkbox-outline' : 'add-circle-outline'}
-                size={18}
-                color={customModelMode ? '#0f172a' : '#64748b'}
-              />
-              <View style={{ flex: 1, marginLeft: 8 }}>
-                <Text style={styles.customToggleTitle}>My model is not listed here</Text>
-                <Text style={styles.customToggleSubtitle}>Enter exact model name manually</Text>
-              </View>
-            </TouchableOpacity>
-
-            {customModelMode && (
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.inputLabel}>Custom Device Model</Text>
+              {/* Brand Search */}
+              <View style={styles.searchBar}>
+                <Ionicons name="search-outline" size={16} color="#94a3b8" />
                 <TextInput
-                  placeholder="e.g. Sony WH-1000XM4 or Lenovo ThinkPad X1"
+                  placeholder="Search brand (e.g. Apple, Samsung)..."
                   placeholderTextColor="#94a3b8"
-                  value={customModelName}
-                  onChangeText={setCustomModelName}
-                  style={styles.minimalTextInput}
+                  value={brandSearch}
+                  onChangeText={setBrandSearch}
+                  style={styles.searchInput}
                 />
-              </View>
-            )}
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.outlineButton} onPress={() => setStep(2)}>
-                <Ionicons name="arrow-back" size={16} color="#475569" />
-                <Text style={styles.outlineButtonText}>Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.primaryButton,
-                  { flex: 1 },
-                  (!selectedModel && (!customModelMode || !customModelName.trim())) && styles.buttonDisabled,
-                ]}
-                onPress={() => {
-                  if (customModelMode && !customModelName.trim()) {
-                    toast.warning('Please enter your custom model name.', 'Model Required');
-                    return;
-                  }
-                  setStep(4);
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.primaryButtonText}>Continue to Specs</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* ==================== STEP 4: SPECS & CONDITION ==================== */}
-        {step === 4 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Specs & Condition</Text>
-            <Text style={styles.sectionSubtitle}>
-              Honest inputs guarantee a price match during pickup
-            </Text>
-
-            {/* 1. Storage Variant */}
-            <Text style={styles.inputLabel}>Storage Variant</Text>
-            <View style={styles.storagePillsRow}>
-              {storageOptions.map((st) => {
-                const isSel = selectedStorage === st;
-                return (
-                  <TouchableOpacity
-                    key={st}
-                    style={[styles.storagePill, isSel && styles.storagePillActive]}
-                    onPress={() => setSelectedStorage(st)}
-                  >
-                    <Text style={[styles.storagePillText, isSel && styles.storagePillTextActive]}>
-                      {st}
-                    </Text>
+                {brandSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setBrandSearch('')}>
+                    <Ionicons name="close-circle" size={16} color="#94a3b8" />
                   </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* 2. Screen Condition */}
-            <Text style={styles.inputLabel}>Screen Condition</Text>
-            <View style={styles.segmentedOptionsRow}>
-              {[
-                { key: 'flawless', label: 'Flawless', desc: 'No scratches' },
-                { key: 'good', label: 'Good', desc: 'Minor hairline' },
-                { key: 'cracked', label: 'Cracked', desc: 'Broken / lines' },
-              ].map((opt) => {
-                const isSel = screenCond === opt.key;
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.segmentedBox, isSel && styles.segmentedBoxActive]}
-                    onPress={() => setScreenCond(opt.key as any)}
-                  >
-                    <Text style={[styles.segmentedTitle, isSel && styles.segmentedTitleActive]}>
-                      {opt.label}
-                    </Text>
-                    <Text style={styles.segmentedDesc}>{opt.desc}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* 3. Body Condition */}
-            <Text style={styles.inputLabel}>Body Condition</Text>
-            <View style={styles.segmentedOptionsRow}>
-              {[
-                { key: 'likenew', label: 'Like New', desc: 'No dents' },
-                { key: 'fair', label: 'Fair', desc: 'Light scuffs' },
-                { key: 'dented', label: 'Heavy Wear', desc: 'Noticeable dents' },
-              ].map((opt) => {
-                const isSel = bodyCond === opt.key;
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.segmentedBox, isSel && styles.segmentedBoxActive]}
-                    onPress={() => setBodyCond(opt.key as any)}
-                  >
-                    <Text style={[styles.segmentedTitle, isSel && styles.segmentedTitleActive]}>
-                      {opt.label}
-                    </Text>
-                    <Text style={styles.segmentedDesc}>{opt.desc}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* 4. Functional Health Checklist */}
-            <Text style={styles.inputLabel}>Functional Checks</Text>
-            <View style={styles.checklistGroup}>
-              {[
-                {
-                  label: 'Power & charging',
-                  sub: 'Powers on and charges normally',
-                  value: switchesOn,
-                  toggle: () => setSwitchesOn(!switchesOn),
-                },
-                {
-                  label: 'Touch responsiveness',
-                  sub: 'Responds properly across screen',
-                  value: touchWorking,
-                  toggle: () => setTouchWorking(!touchWorking),
-                },
-                {
-                  label: 'Camera clarity',
-                  sub: 'Front and back cameras work clear',
-                  value: cameraClear,
-                  toggle: () => setCameraClear(!cameraClear),
-                },
-                {
-                  label: 'Battery health',
-                  sub: 'Battery healthy and charges stably',
-                  value: batteryHealthy,
-                  toggle: () => setBatteryHealthy(!batteryHealthy),
-                },
-              ].map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.checklistItem, idx > 0 && styles.checklistItemBorder]}
-                  onPress={item.toggle}
-                >
-                  <Ionicons
-                    name={item.value ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={18}
-                    color={item.value ? '#10b981' : '#cbd5e1'}
-                  />
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.checkTitle}>{item.label}</Text>
-                    <Text style={styles.checkSub}>{item.sub}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* 5. Accessories Bonus */}
-            <Text style={styles.inputLabel}>Original Accessories</Text>
-            <View style={styles.accessoriesList}>
-              <TouchableOpacity
-                style={[styles.accessoryItem, hasBox && styles.accessoryItemActive]}
-                onPress={() => setHasBox(!hasBox)}
-              >
-                <Ionicons name="cube-outline" size={16} color={hasBox ? '#10b981' : '#64748b'} />
-                <Text style={[styles.accessoryName, hasBox && styles.accessoryNameActive]}>
-                  Original Box
-                </Text>
-                <Text style={styles.accessoryPill}>+₹800</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.accessoryItem, hasCharger && styles.accessoryItemActive]}
-                onPress={() => setHasCharger(!hasCharger)}
-              >
-                <Ionicons name="flash-outline" size={16} color={hasCharger ? '#10b981' : '#64748b'} />
-                <Text style={[styles.accessoryName, hasCharger && styles.accessoryNameActive]}>
-                  Original Charger
-                </Text>
-                <Text style={styles.accessoryPill}>+₹1,000</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.accessoryItem, hasBill && styles.accessoryItemActive]}
-                onPress={() => setHasBill(!hasBill)}
-              >
-                <Ionicons name="receipt-outline" size={16} color={hasBill ? '#10b981' : '#64748b'} />
-                <Text style={[styles.accessoryName, hasBill && styles.accessoryNameActive]}>
-                  Purchase Invoice
-                </Text>
-                <Text style={styles.accessoryPill}>+₹500</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.outlineButton} onPress={() => setStep(3)}>
-                <Ionicons name="arrow-back" size={16} color="#475569" />
-                <Text style={styles.outlineButtonText}>Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.primaryButton, { flex: 1 }]}
-                onPress={() => setStep(5)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.primaryButtonText}>Continue to Photos</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* ==================== STEP 5: UPLOAD PHOTOS ==================== */}
-        {step === 5 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Device Photography</Text>
-            <Text style={styles.sectionSubtitle}>
-              Upload 4 photos or choose in-person technician doorstep inspection
-            </Text>
-
-            <View style={styles.photoGrid}>
-              {[
-                { slot: 'front' as const, title: 'Front Display' },
-                { slot: 'back' as const, title: 'Back Panel' },
-                { slot: 'edges' as const, title: 'Edges / Frame' },
-                { slot: 'billBox' as const, title: 'Bill / Box' },
-              ].map((item) => {
-                const imgUri = photos[item.slot];
-                const isUploading = uploadingSlot === item.slot;
-                return (
-                  <View key={item.slot} style={styles.photoSlotBox}>
-                    {imgUri ? (
-                      <View style={styles.photoFilledWrap}>
-                        <Image source={{ uri: imgUri }} style={styles.photoImg as any} />
-                        <TouchableOpacity
-                          style={styles.photoRemoveBadge}
-                          onPress={() => removePhoto(item.slot)}
-                        >
-                          <Ionicons name="close" size={12} color="#ffffff" />
-                        </TouchableOpacity>
-                        <View style={styles.photoSlotNamePlate}>
-                          <Text style={styles.photoSlotNameText}>{item.title}</Text>
-                        </View>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.photoEmptyBox}
-                        onPress={() => handlePhotoUpload(item.slot)}
-                        disabled={isUploading}
-                        activeOpacity={0.8}
-                      >
-                        {isUploading ? (
-                          <ActivityIndicator size="small" color="#0f172a" />
-                        ) : (
-                          <>
-                            <Ionicons name="camera-outline" size={20} color="#64748b" />
-                            <Text style={styles.photoEmptyTitle}>{item.title}</Text>
-                            <Text style={styles.photoEmptyAction}>Tap to upload</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-
-            {/* Skip photo option */}
-            <TouchableOpacity
-              style={[styles.skipCard, photoSkipped && styles.skipCardActive]}
-              onPress={() => setPhotoSkipped(!photoSkipped)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={photoSkipped ? 'checkbox-outline' : 'shield-outline'}
-                size={18}
-                color={photoSkipped ? '#10b981' : '#64748b'}
-              />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.skipCardTitle}>
-                  Skip photo upload (Doorstep physical inspection)
-                </Text>
-                <Text style={styles.skipCardDesc}>
-                  Our certified field agent will inspect and verify your device during pickup.
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.outlineButton} onPress={() => setStep(4)}>
-                <Ionicons name="arrow-back" size={16} color="#475569" />
-                <Text style={styles.outlineButtonText}>Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.primaryButton, { flex: 1 }]}
-                onPress={() => setStep(6)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.primaryButtonText}>Continue to Price</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* ==================== STEP 6: EXPECTED PRICE ==================== */}
-        {step === 6 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Instant Valuation</Text>
-            <Text style={styles.sectionSubtitle}>
-              Fair pricing computed from active market rates and device health
-            </Text>
-
-            {/* Clean Valuation Container */}
-            <View style={styles.valuationPanel}>
-              <View style={styles.valuationTopRow}>
-                <Text style={styles.valuationTag}>Estimated Offer</Text>
-                <View style={styles.priceLockTag}>
-                  <Ionicons name="shield-checkmark" size={12} color="#059669" />
-                  <Text style={styles.priceLockTagText}>7-Day Price Lock</Text>
-                </View>
-              </View>
-
-              <View style={styles.amountDisplayRow}>
-                <Text style={styles.rupeeSign}>₹</Text>
-                {quoteLoading ? (
-                  <ActivityIndicator size="small" color="#0f172a" />
-                ) : (
-                  <Text style={styles.amountNumber}>{quoteAmount.toLocaleString('en-IN')}</Text>
                 )}
               </View>
 
-              <Text style={styles.deviceSpecSub}>
-                {selectedBrand} • {customModelMode ? customModelName : selectedModel} ({selectedStorage})
-              </Text>
-
-              {/* Minimal itemized list */}
-              <View style={styles.breakdownTable}>
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownKey}>Base Market Value</Text>
-                  <Text style={styles.breakdownVal}>₹{(quoteAmount + 3500).toLocaleString('en-IN')}</Text>
-                </View>
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownKey}>Screen ({screenCond})</Text>
-                  <Text style={[styles.breakdownVal, screenCond !== 'flawless' && { color: '#dc2626' }]}>
-                    {screenCond === 'flawless' ? 'Included' : screenCond === 'good' ? '-₹4,500' : '-₹12,000'}
-                  </Text>
-                </View>
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownKey}>Body ({bodyCond})</Text>
-                  <Text style={[styles.breakdownVal, bodyCond !== 'likenew' && { color: '#dc2626' }]}>
-                    {bodyCond === 'likenew' ? 'Included' : bodyCond === 'fair' ? '-₹3,000' : '-₹6,500'}
-                  </Text>
-                </View>
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownKey}>Accessories Bonus</Text>
-                  <Text style={[styles.breakdownVal, { color: '#10b981' }]}>
-                    +₹{(hasBox ? 800 : 0) + (hasCharger ? 1000 : 0) + (hasBill ? 500 : 0)}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Expected Price Input */}
-            <View style={styles.expectedFieldWrap}>
-              <Text style={styles.inputLabel}>Your Expected Selling Price (₹)</Text>
-              <View style={styles.expectedInputRow}>
-                <Text style={styles.currencyLabel}>₹</Text>
-                <TextInput
-                  placeholder="Expected price"
-                  placeholderTextColor="#94a3b8"
-                  value={expectedPrice}
-                  onChangeText={setExpectedPrice}
-                  keyboardType="numeric"
-                  style={styles.expectedInput}
-                />
+              {/* Brand Pills */}
+              <View style={styles.brandPillsWrap}>
+                {filteredBrands.map((b) => {
+                  const isSel = selectedBrand.toLowerCase() === b.name.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={b.id || b.name}
+                      style={[styles.brandPill, isSel && styles.brandPillActive]}
+                      onPress={() => setSelectedBrand(b.name)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.brandPillText, isSel && styles.brandPillTextActive]}>
+                        {b.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
-              {/* Quick Adjust Chips */}
-              <View style={styles.adjustRow}>
-                <TouchableOpacity
-                  style={styles.adjustPill}
-                  onPress={() => setExpectedPrice(quoteAmount.toString())}
-                >
-                  <Text style={styles.adjustPillText}>Match Valuation</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adjustPill}
-                  onPress={() => setExpectedPrice((quoteAmount + 2000).toString())}
-                >
-                  <Text style={styles.adjustPillText}>+₹2,000</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adjustPill}
-                  onPress={() => setExpectedPrice((quoteAmount + 5000).toString())}
-                >
-                  <Text style={styles.adjustPillText}>+₹5,000</Text>
-                </TouchableOpacity>
+              {/* Model Selector */}
+              <View style={[styles.sectionHeader, { marginTop: 16 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.sectionHeading}>3. Select Model</Text>
+                  {modelsLoading && <ActivityIndicator size="small" color={colors.primaryDark} />}
+                </View>
+                <Text style={styles.sectionSub}>Choose exact model variant</Text>
               </View>
-            </View>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.outlineButton} onPress={() => setStep(5)}>
-                <Ionicons name="arrow-back" size={16} color="#475569" />
-                <Text style={styles.outlineButtonText}>Back</Text>
-              </TouchableOpacity>
+              {/* Model Search */}
+              {!customModelMode && (
+                <View style={styles.searchBar}>
+                  <Ionicons name="search-outline" size={16} color="#94a3b8" />
+                  <TextInput
+                    placeholder={`Search ${selectedBrand} models...`}
+                    placeholderTextColor="#94a3b8"
+                    value={modelSearch}
+                    onChangeText={setModelSearch}
+                    style={styles.searchInput}
+                  />
+                  {modelSearch.length > 0 && (
+                    <TouchableOpacity onPress={() => setModelSearch('')}>
+                      <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {/* Models List */}
+              {!customModelMode ? (
+                <View style={styles.modelListWrap}>
+                  {filteredModels.slice(0, 10).map((m) => {
+                    const isSel = selectedModel.toLowerCase() === m.name.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={m.id || m.name}
+                        style={[styles.modelRow, isSel && styles.modelRowActive]}
+                        onPress={() => setSelectedModel(m.name)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.radioCircle, isSel && styles.radioCircleActive]}>
+                          {isSel && <View style={styles.radioDot} />}
+                        </View>
+                        <Text style={[styles.modelRowName, isSel && styles.modelRowNameActive]}>
+                          {m.name}
+                        </Text>
+                        {isSel && (
+                          <View style={styles.selectedBadge}>
+                            <Text style={styles.selectedBadgeText}>Selected</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
+
+              {/* Custom Model Toggle */}
               <TouchableOpacity
-                style={[styles.primaryButton, { flex: 1 }]}
-                onPress={() => setStep(7)}
-                activeOpacity={0.85}
+                style={[styles.customToggleBox, customModelMode && styles.customToggleBoxActive]}
+                onPress={() => setCustomModelMode(!customModelMode)}
+                activeOpacity={0.8}
               >
-                <Text style={styles.primaryButtonText}>Continue to Pickup</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+                <Ionicons
+                  name={customModelMode ? 'checkbox' : 'add-circle-outline'}
+                  size={18}
+                  color={customModelMode ? colors.primaryDark : '#64748b'}
+                />
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={styles.customToggleTitle}>My model is not listed</Text>
+                  <Text style={styles.customToggleDesc}>Type in the exact model name manually</Text>
+                </View>
               </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
-        {/* ==================== STEP 7: PICKUP DETAILS ==================== */}
-        {step === 7 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Pickup & Payment</Text>
-            <Text style={styles.sectionSubtitle}>
-              Schedule free doorstep pickup and select your preferred payout method
-            </Text>
+              {customModelMode && (
+                <View style={{ marginTop: 8 }}>
+                  <TextInput
+                    placeholder="Enter device model (e.g. Sony WH-1000XM4)"
+                    placeholderTextColor="#94a3b8"
+                    value={customModelName}
+                    onChangeText={setCustomModelName}
+                    style={styles.textInput}
+                  />
+                </View>
+              )}
 
-            <View style={styles.inputsStack}>
-              <Text style={styles.inputLabel}>Full Name</Text>
-              <TextInput
-                placeholder="e.g. John Doe"
-                placeholderTextColor="#94a3b8"
-                value={userName}
-                onChangeText={setUserName}
-                style={styles.minimalTextInput}
-              />
-
-              <Text style={styles.inputLabel}>Mobile Number</Text>
-              <TextInput
-                placeholder="10-digit mobile number"
-                placeholderTextColor="#94a3b8"
-                value={userPhone}
-                onChangeText={setUserPhone}
-                keyboardType="phone-pad"
-                style={styles.minimalTextInput}
-              />
-
-              <Text style={styles.inputLabel}>Pickup Address</Text>
-              <TextInput
-                placeholder="Street address, apartment, flat no..."
-                placeholderTextColor="#94a3b8"
-                value={userAddress}
-                onChangeText={setUserAddress}
-                multiline
-                numberOfLines={2}
-                style={[styles.minimalTextInput, { height: 64, textAlignVertical: 'top' }]}
-              />
-
-              <Text style={styles.inputLabel}>Pincode</Text>
-              <TextInput
-                placeholder="e.g. 560001"
-                placeholderTextColor="#94a3b8"
-                value={userPincode}
-                onChangeText={setUserPincode}
-                keyboardType="numeric"
-                maxLength={6}
-                style={styles.minimalTextInput}
-              />
-            </View>
-
-            {/* Date Selection */}
-            <Text style={styles.inputLabel}>Select Date</Text>
-            <View style={styles.selectorRow}>
-              {(['Today', 'Tomorrow', 'Day After'] as const).map((d) => {
-                const isSel = pickupDate === d;
-                return (
-                  <TouchableOpacity
-                    key={d}
-                    style={[styles.selectorBox, isSel && styles.selectorBoxActive]}
-                    onPress={() => setPickupDate(d)}
-                  >
-                    <Text style={[styles.selectorTitle, isSel && styles.selectorTitleActive]}>
-                      {formattedDates[d]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Time Slot Selection */}
-            <Text style={styles.inputLabel}>Time Slot</Text>
-            <View style={styles.selectorRow}>
-              {[
-                { key: 'Morning' as const, label: '10 AM - 1 PM' },
-                { key: 'Afternoon' as const, label: '2 PM - 5 PM' },
-                { key: 'Evening' as const, label: '5 PM - 8 PM' },
-              ].map((t) => {
-                const isSel = timeSlot === t.key;
-                return (
-                  <TouchableOpacity
-                    key={t.key}
-                    style={[styles.selectorBox, isSel && styles.selectorBoxActive]}
-                    onPress={() => setTimeSlot(t.key)}
-                  >
-                    <Text style={[styles.selectorTitle, isSel && styles.selectorTitleActive]}>
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Payout Selection */}
-            <Text style={styles.inputLabel}>Payout Method</Text>
-            <View style={styles.selectorRow}>
-              {[
-                { key: 'upi' as const, label: 'UPI (GPay / PhonePe)' },
-                { key: 'bank' as const, label: 'Bank Transfer' },
-                { key: 'cash' as const, label: 'Cash on Handover' },
-              ].map((p) => {
-                const isSel = payoutMethod === p.key;
-                return (
-                  <TouchableOpacity
-                    key={p.key}
-                    style={[styles.selectorBox, isSel && styles.selectorBoxActive]}
-                    onPress={() => setPayoutMethod(p.key)}
-                  >
-                    <Text style={[styles.selectorTitle, isSel && styles.selectorTitleActive]}>
-                      {p.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {payoutMethod === 'upi' && (
-              <View style={{ marginBottom: 14 }}>
-                <Text style={styles.inputLabel}>UPI ID</Text>
-                <TextInput
-                  placeholder="e.g. mobile@okaxis or user@upi"
-                  placeholderTextColor="#94a3b8"
-                  value={upiId}
-                  onChangeText={setUpiId}
-                  autoCapitalize="none"
-                  style={styles.minimalTextInput}
-                />
-              </View>
-            )}
-
-            {payoutMethod === 'bank' && (
-              <View style={{ marginBottom: 14 }}>
-                <Text style={styles.inputLabel}>Account Number</Text>
-                <TextInput
-                  placeholder="Bank account number"
-                  placeholderTextColor="#94a3b8"
-                  value={bankAccount}
-                  onChangeText={setBankAccount}
-                  keyboardType="numeric"
-                  style={styles.minimalTextInput}
-                />
-                <Text style={styles.inputLabel}>IFSC Code</Text>
-                <TextInput
-                  placeholder="e.g. HDFC0000123"
-                  placeholderTextColor="#94a3b8"
-                  value={bankIfsc}
-                  onChangeText={setBankIfsc}
-                  autoCapitalize="characters"
-                  style={styles.minimalTextInput}
-                />
-              </View>
-            )}
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.outlineButton} onPress={() => setStep(6)}>
-                <Ionicons name="arrow-back" size={16} color="#475569" />
-                <Text style={styles.outlineButtonText}>Back</Text>
-              </TouchableOpacity>
+              {/* Action Button */}
               <TouchableOpacity
-                style={[styles.primaryButton, { flex: 1 }]}
+                style={[
+                  styles.primaryCta,
+                  (!selectedModel && (!customModelMode || !customModelName.trim())) && styles.btnDisabled,
+                ]}
                 onPress={() => {
-                  if (!userName.trim() || !userPhone.trim() || !userAddress.trim() || !userPincode.trim()) {
-                    toast.warning('Please complete all contact and address fields.', 'Missing Details');
+                  if (customModelMode && !customModelName.trim()) {
+                    toast.warning('Please enter your model name.', 'Model Required');
                     return;
                   }
-                  setStep(8);
+                  setCurrentStep(2);
                 }}
-                activeOpacity={0.85}
+                disabled={!selectedModel && (!customModelMode || !customModelName.trim())}
+                activeOpacity={0.88}
               >
-                <Text style={styles.primaryButtonText}>Review Summary</Text>
-                <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+                <Text style={styles.primaryCtaText}>Next: Condition & Specs</Text>
+                <Ionicons name="arrow-forward" size={18} color="#000" />
               </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* ==================== STEP 8: REVIEW ==================== */}
-        {step === 8 && (
-          <View style={styles.card}>
-            {!bookingConfirmed ? (
-              <>
-                <Text style={styles.sectionTitle}>Review & Confirm</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Please review your trade-in submission before confirming pickup
+          {/* ==================== STEP 2: CONDITION & SPECS ==================== */}
+          {currentStep === 2 && (
+            <View style={styles.stepCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeading}>Storage & Condition</Text>
+                <Text style={styles.sectionSub}>
+                  Accurate details ensure exact price matching upon doorstep handover.
                 </Text>
+              </View>
 
-                <View style={styles.summaryCard}>
-                  <View style={styles.summaryTop}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.summaryDeviceTitle}>
-                        {selectedBrand} {customModelMode ? customModelName : selectedModel}
+              {/* Storage */}
+              <Text style={styles.fieldLabel}>Storage Variant</Text>
+              <View style={styles.storageGrid}>
+                {storageOptions.map((st) => {
+                  const isSel = selectedStorage === st;
+                  return (
+                    <TouchableOpacity
+                      key={st}
+                      style={[styles.storageChip, isSel && styles.storageChipActive]}
+                      onPress={() => setSelectedStorage(st)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.storageChipText, isSel && styles.storageChipTextActive]}>
+                        {st}
                       </Text>
-                      <Text style={styles.summaryDeviceMeta}>
-                        {selectedCat.name} • {selectedStorage}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Screen Condition */}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Screen Condition</Text>
+              <View style={styles.conditionCardsRow}>
+                {[
+                  { id: 'flawless', label: 'Flawless', desc: 'No scratches or spots', icon: 'sparkles-outline' },
+                  { id: 'good', label: 'Good', desc: 'Minor hairline scuffs', icon: 'checkmark-outline' },
+                  { id: 'cracked', label: 'Cracked', desc: 'Broken / lines on display', icon: 'warning-outline' },
+                ].map((item) => {
+                  const isSel = screenCond === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.condCard, isSel && styles.condCardActive]}
+                      onPress={() => setScreenCond(item.id as any)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={item.icon as any}
+                        size={16}
+                        color={isSel ? colors.primaryDark : '#64748b'}
+                      />
+                      <Text style={[styles.condCardTitle, isSel && styles.condCardTitleActive]}>
+                        {item.label}
                       </Text>
-                    </View>
-                    <View style={styles.summaryPriceBadge}>
-                      <Text style={styles.summaryPriceTag}>Offer</Text>
-                      <Text style={styles.summaryPriceNum}>
-                        ₹{Number(expectedPrice || quoteAmount).toLocaleString('en-IN')}
+                      <Text style={styles.condCardDesc}>{item.desc}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Body Condition */}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Body & Frame Condition</Text>
+              <View style={styles.conditionCardsRow}>
+                {[
+                  { id: 'likenew', label: 'Like New', desc: 'Flawless pristine body', icon: 'shield-outline' },
+                  { id: 'fair', label: 'Fair', desc: 'Light edge scratches', icon: 'ellipsis-horizontal-outline' },
+                  { id: 'dented', label: 'Heavy Wear', desc: 'Noticeable dents / chips', icon: 'alert-circle-outline' },
+                ].map((item) => {
+                  const isSel = bodyCond === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.condCard, isSel && styles.condCardActive]}
+                      onPress={() => setBodyCond(item.id as any)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={item.icon as any}
+                        size={16}
+                        color={isSel ? colors.primaryDark : '#64748b'}
+                      />
+                      <Text style={[styles.condCardTitle, isSel && styles.condCardTitleActive]}>
+                        {item.label}
                       </Text>
-                    </View>
-                  </View>
+                      <Text style={styles.condCardDesc}>{item.desc}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
-                  <View style={styles.summaryDivider} />
-
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryKey}>Screen / Body</Text>
-                    <Text style={styles.summaryValue}>
-                      {screenCond.toUpperCase()} • {bodyCond.toUpperCase()}
-                    </Text>
-                  </View>
-
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryKey}>Accessories</Text>
-                    <Text style={styles.summaryValue}>
-                      {[hasBox ? 'Box' : null, hasCharger ? 'Charger' : null, hasBill ? 'Bill' : null]
-                        .filter(Boolean)
-                        .join(', ') || 'None'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryKey}>Photos</Text>
-                    <Text style={styles.summaryValue}>
-                      {photoSkipped ? 'Technician Doorstep Inspection' : '4 angles attached'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.summaryDivider} />
-
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryKey}>Pickup To</Text>
-                    <Text style={styles.summaryValue}>{userName} ({userPhone})</Text>
-                  </View>
-
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryKey}>Address</Text>
-                    <Text style={styles.summaryValue}>{userAddress} - {userPincode}</Text>
-                  </View>
-
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryKey}>Schedule</Text>
-                    <Text style={styles.summaryValue}>{formattedDates[pickupDate]} ({timeSlot})</Text>
-                  </View>
-
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryKey}>Payment Method</Text>
-                    <Text style={styles.summaryValue}>
-                      {payoutMethod === 'upi' ? `UPI (${upiId})` : payoutMethod === 'bank' ? 'Bank Transfer' : 'Cash'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity style={styles.outlineButton} onPress={() => setStep(7)}>
-                    <Ionicons name="arrow-back" size={16} color="#475569" />
-                    <Text style={styles.outlineButtonText}>Back</Text>
-                  </TouchableOpacity>
+              {/* Functional Health Checklist */}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Hardware Health Checks</Text>
+              <View style={styles.checklistContainer}>
+                {[
+                  {
+                    title: 'Power & Charging Port',
+                    desc: 'Device boots up & charges reliably',
+                    val: switchesOn,
+                    toggle: () => setSwitchesOn(!switchesOn),
+                  },
+                  {
+                    title: 'Touch & Display Responsive',
+                    desc: 'No ghost touches, smooth response',
+                    val: touchWorking,
+                    toggle: () => setTouchWorking(!touchWorking),
+                  },
+                  {
+                    title: 'Camera Clarity (Front & Back)',
+                    desc: 'Sharp autofocus with clear glass',
+                    val: cameraClear,
+                    toggle: () => setCameraClear(!cameraClear),
+                  },
+                  {
+                    title: 'Battery Health',
+                    desc: 'Normal battery life without instant drain',
+                    val: batteryHealthy,
+                    toggle: () => setBatteryHealthy(!batteryHealthy),
+                  },
+                ].map((check, i) => (
                   <TouchableOpacity
-                    style={[styles.primaryButton, { flex: 1 }, isSubmitting && styles.buttonDisabled]}
-                    onPress={handleConfirmPickup}
-                    disabled={isSubmitting}
-                    activeOpacity={0.85}
+                    key={i}
+                    style={[styles.checklistItem, i > 0 && styles.checklistItemDivider]}
+                    onPress={check.toggle}
+                    activeOpacity={0.75}
                   >
-                    {isSubmitting ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : (
-                      <>
-                        <Ionicons name="checkmark-circle-outline" size={16} color="#ffffff" />
-                        <Text style={styles.primaryButtonText}>Confirm & Book Pickup</Text>
-                      </>
-                    )}
+                    <Ionicons
+                      name={check.val ? 'checkbox' : 'square-outline'}
+                      size={20}
+                      color={check.val ? '#10b981' : '#cbd5e1'}
+                    />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.checklistTitle}>{check.title}</Text>
+                      <Text style={styles.checklistSub}>{check.desc}</Text>
+                    </View>
                   </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <View style={styles.confirmedContainer}>
-                <View style={styles.confirmedCircle}>
-                  <Ionicons name="checkmark" size={28} color="#059669" />
-                </View>
-                <Text style={styles.confirmedHeading}>Pickup Scheduled</Text>
-                <Text style={styles.confirmedSub}>
-                  Our executive will inspect your device and transfer payment at handover.
-                </Text>
+                ))}
+              </View>
 
-                <View style={styles.refBox}>
-                  <Text style={styles.refLabel}>Booking Reference</Text>
-                  <Text style={styles.refCode}>{bookingRefId}</Text>
-                </View>
-
-                <View style={styles.nextStepsBox}>
-                  <Text style={styles.nextStepsHeading}>Before the technician arrives:</Text>
-                  <Text style={styles.nextStepBullet}>• Back up your personal data and sign out of Apple/Google accounts.</Text>
-                  <Text style={styles.nextStepBullet}>• Keep original accessories and ID proof ready.</Text>
-                  <Text style={styles.nextStepBullet}>• Quick 5-minute diagnostic testing followed by instant payment.</Text>
-                </View>
+              {/* Original Accessories Bonus */}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Original Accessories (Bonus Cash)</Text>
+              <View style={styles.accessoriesWrap}>
+                <TouchableOpacity
+                  style={[styles.accItem, hasBox && styles.accItemActive]}
+                  onPress={() => setHasBox(!hasBox)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="cube-outline" size={16} color={hasBox ? '#10b981' : '#64748b'} />
+                  <Text style={[styles.accText, hasBox && styles.accTextActive]}>Original Box</Text>
+                  <Text style={styles.accBadge}>+₹800</Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={handleResetWorkflow}
-                  activeOpacity={0.85}
+                  style={[styles.accItem, hasCharger && styles.accItemActive]}
+                  onPress={() => setHasCharger(!hasCharger)}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.primaryButtonText}>Sell Another Device</Text>
+                  <Ionicons name="flash-outline" size={16} color={hasCharger ? '#10b981' : '#64748b'} />
+                  <Text style={[styles.accText, hasCharger && styles.accTextActive]}>Charger & Cable</Text>
+                  <Text style={styles.accBadge}>+₹1,000</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.accItem, hasBill && styles.accItemActive]}
+                  onPress={() => setHasBill(!hasBill)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="receipt-outline" size={16} color={hasBill ? '#10b981' : '#64748b'} />
+                  <Text style={[styles.accText, hasBill && styles.accTextActive]}>Purchase Bill</Text>
+                  <Text style={styles.accBadge}>+₹500</Text>
                 </TouchableOpacity>
               </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
+
+              {/* Action Buttons */}
+              <View style={styles.twoBtnRow}>
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() => setCurrentStep(1)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.text} />
+                  <Text style={styles.secondaryBtnText}>Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.primaryCta, { flex: 1 }]}
+                  onPress={() => setCurrentStep(3)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.primaryCtaText}>Next: Live Valuation</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#000" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ==================== STEP 3: VALUATION & PHOTOS ==================== */}
+          {currentStep === 3 && (
+            <View style={styles.stepCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeading}>Instant Valuation</Text>
+                <Text style={styles.sectionSub}>
+                  Calculated based on active secondary market rates for your device.
+                </Text>
+              </View>
+
+              {/* Hero RenewX Gold & Midnight Card */}
+              <View style={styles.heroValuationBox}>
+                <View style={styles.heroValuationTop}>
+                  <Text style={styles.heroValuationTag}>LIVE ESTIMATED OFFER</Text>
+                  <View style={styles.lockBadge}>
+                    <Ionicons name="shield-checkmark" size={12} color="#10b981" />
+                    <Text style={styles.lockBadgeText}>7-Day Price Lock</Text>
+                  </View>
+                </View>
+
+                <View style={styles.amountShowcase}>
+                  <Text style={styles.currencyShowcase}>₹</Text>
+                  {quoteLoading ? (
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.amountShowcaseNum}>
+                      {quoteAmount.toLocaleString('en-IN')}
+                    </Text>
+                  )}
+                </View>
+
+                <Text style={styles.heroDeviceSubtitle}>
+                  {selectedBrand} {customModelMode ? customModelName : selectedModel} • {selectedStorage}
+                </Text>
+
+                {/* Breakdown */}
+                <View style={styles.breakdownBox}>
+                  <View style={styles.breakdownRow}>
+                    <Text style={styles.breakdownKey}>Base Market Value</Text>
+                    <Text style={styles.breakdownVal}>₹{(quoteAmount + 3000).toLocaleString('en-IN')}</Text>
+                  </View>
+                  <View style={styles.breakdownRow}>
+                    <Text style={styles.breakdownKey}>Screen ({screenCond})</Text>
+                    <Text style={[styles.breakdownVal, screenCond !== 'flawless' && { color: '#ef4444' }]}>
+                      {screenCond === 'flawless' ? 'Included' : screenCond === 'good' ? '-₹4,000' : '-₹11,000'}
+                    </Text>
+                  </View>
+                  <View style={styles.breakdownRow}>
+                    <Text style={styles.breakdownKey}>Body ({bodyCond})</Text>
+                    <Text style={[styles.breakdownVal, bodyCond !== 'likenew' && { color: '#ef4444' }]}>
+                      {bodyCond === 'likenew' ? 'Included' : bodyCond === 'fair' ? '-₹2,500' : '-₹6,000'}
+                    </Text>
+                  </View>
+                  <View style={[styles.breakdownRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.breakdownKey}>Accessories Bonus</Text>
+                    <Text style={[styles.breakdownVal, { color: '#10b981' }]}>
+                      +₹{(hasBox ? 800 : 0) + (hasCharger ? 1000 : 0) + (hasBill ? 500 : 0)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Expected Price Input & Adjusters */}
+              <View style={{ marginTop: 14 }}>
+                <Text style={styles.fieldLabel}>Your Expected Selling Price (₹)</Text>
+                <View style={styles.expectedInputRow}>
+                  <Text style={styles.expectedCurrency}>₹</Text>
+                  <TextInput
+                    placeholder="Expected price"
+                    placeholderTextColor="#94a3b8"
+                    value={expectedPrice}
+                    onChangeText={setExpectedPrice}
+                    keyboardType="numeric"
+                    style={styles.expectedInput}
+                  />
+                </View>
+
+                <View style={styles.quickAdjustRow}>
+                  <TouchableOpacity
+                    style={styles.adjustPill}
+                    onPress={() => setExpectedPrice(quoteAmount.toString())}
+                  >
+                    <Text style={styles.adjustPillText}>Match Valuation</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.adjustPill}
+                    onPress={() => setExpectedPrice((quoteAmount + 2000).toString())}
+                  >
+                    <Text style={styles.adjustPillText}>+₹2,000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.adjustPill}
+                    onPress={() => setExpectedPrice((quoteAmount + 5000).toString())}
+                  >
+                    <Text style={styles.adjustPillText}>+₹5,000</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Photos Section (Optional with Doorstep Skip) */}
+              <View style={{ marginTop: 18 }}>
+                <Text style={styles.fieldLabel}>Device Photography (Optional)</Text>
+                <Text style={styles.sectionSub}>Upload photos or choose physical doorstep inspection.</Text>
+
+                <View style={styles.photoGrid}>
+                  {[
+                    { slot: 'front' as const, title: 'Front Screen' },
+                    { slot: 'back' as const, title: 'Back Panel' },
+                    { slot: 'edges' as const, title: 'Frame / Edges' },
+                    { slot: 'billBox' as const, title: 'Box / Bill' },
+                  ].map((p) => {
+                    const uri = photos[p.slot];
+                    const isUploading = uploadingSlot === p.slot;
+
+                    return (
+                      <View key={p.slot} style={styles.photoBox}>
+                        {uri ? (
+                          <View style={styles.photoImgWrap}>
+                            <Image source={{ uri }} style={styles.photoImg} />
+                            <TouchableOpacity
+                              style={styles.photoDeleteBtn}
+                              onPress={() => removePhoto(p.slot)}
+                            >
+                              <Ionicons name="close" size={12} color="#fff" />
+                            </TouchableOpacity>
+                            <View style={styles.photoTitlePill}>
+                              <Text style={styles.photoTitlePillText}>{p.title}</Text>
+                            </View>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.photoEmpty}
+                            onPress={() => handlePhotoUpload(p.slot)}
+                            disabled={isUploading}
+                            activeOpacity={0.75}
+                          >
+                            {isUploading ? (
+                              <ActivityIndicator size="small" color={colors.primaryDark} />
+                            ) : (
+                              <>
+                                <Ionicons name="camera-outline" size={20} color="#64748b" />
+                                <Text style={styles.photoEmptyText}>{p.title}</Text>
+                                <Text style={styles.photoUploadHint}>Tap to upload</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Skip Photos Card */}
+                <TouchableOpacity
+                  style={[styles.skipPhotoCard, photoSkipped && styles.skipPhotoCardActive]}
+                  onPress={() => setPhotoSkipped(!photoSkipped)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={photoSkipped ? 'checkbox' : 'shield-outline'}
+                    size={20}
+                    color={photoSkipped ? colors.primaryDark : '#64748b'}
+                  />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.skipPhotoTitle}>Skip photos (In-Person Doorstep Diagnostics)</Text>
+                    <Text style={styles.skipPhotoDesc}>
+                      Our technician will physically verify device health during pickup.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.twoBtnRow}>
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() => setCurrentStep(2)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.text} />
+                  <Text style={styles.secondaryBtnText}>Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.primaryCta, { flex: 1 }]}
+                  onPress={() => setCurrentStep(4)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.primaryCtaText}>Next: Schedule Pickup</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#000" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ==================== STEP 4: PICKUP & PAYOUT ==================== */}
+          {currentStep === 4 && (
+            <View style={styles.stepCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeading}>Doorstep Pickup & Payout</Text>
+                <Text style={styles.sectionSub}>
+                  Enter your address, preferred slot, and instant payout destination.
+                </Text>
+              </View>
+
+              {/* GPS Auto-Fill Button */}
+              <TouchableOpacity
+                style={styles.gpsButton}
+                onPress={handleUseGps}
+                disabled={locating}
+                activeOpacity={0.85}
+              >
+                {locating ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <Ionicons name="navigate-outline" size={16} color="#000" />
+                )}
+                <Text style={styles.gpsButtonText}>
+                  {locating ? 'Detecting current address...' : 'Auto-fill Pickup Address with GPS'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Address Form */}
+              <View style={{ gap: 10, marginTop: 10 }}>
+                <View>
+                  <Text style={styles.fieldLabel}>Contact Name</Text>
+                  <TextInput
+                    placeholder="Full name"
+                    placeholderTextColor="#94a3b8"
+                    value={userName}
+                    onChangeText={setUserName}
+                    style={styles.textInput}
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.fieldLabel}>Phone Number (10 Digits)</Text>
+                  <TextInput
+                    placeholder="10-digit mobile number"
+                    placeholderTextColor="#94a3b8"
+                    value={userPhone}
+                    onChangeText={setUserPhone}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                    style={styles.textInput}
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.fieldLabel}>Pickup Address</Text>
+                  <TextInput
+                    placeholder="House/flat no., street, landmark, area"
+                    placeholderTextColor="#94a3b8"
+                    value={userAddress}
+                    onChangeText={setUserAddress}
+                    multiline
+                    numberOfLines={2}
+                    style={[styles.textInput, { height: 68, textAlignVertical: 'top' }]}
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.fieldLabel}>PIN Code</Text>
+                  <TextInput
+                    placeholder="6-digit postal code"
+                    placeholderTextColor="#94a3b8"
+                    value={userPincode}
+                    onChangeText={setUserPincode}
+                    keyboardType="numeric"
+                    maxLength={6}
+                    style={styles.textInput}
+                  />
+                </View>
+              </View>
+
+              {/* Pickup Schedule */}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Select Pickup Date</Text>
+              <View style={styles.scheduleRow}>
+                {(['Today', 'Tomorrow', 'Day After'] as const).map((d) => {
+                  const isSel = pickupDate === d;
+                  return (
+                    <TouchableOpacity
+                      key={d}
+                      style={[styles.schedulePill, isSel && styles.schedulePillActive]}
+                      onPress={() => setPickupDate(d)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.schedulePillText, isSel && styles.schedulePillTextActive]}>
+                        {formattedDates[d]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Preferred Time Slot</Text>
+              <View style={styles.scheduleRow}>
+                {[
+                  { id: 'Morning' as const, label: '10 AM - 1 PM' },
+                  { id: 'Afternoon' as const, label: '2 PM - 5 PM' },
+                  { id: 'Evening' as const, label: '5 PM - 8 PM' },
+                ].map((slot) => {
+                  const isSel = timeSlot === slot.id;
+                  return (
+                    <TouchableOpacity
+                      key={slot.id}
+                      style={[styles.schedulePill, isSel && styles.schedulePillActive]}
+                      onPress={() => setTimeSlot(slot.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.schedulePillText, isSel && styles.schedulePillTextActive]}>
+                        {slot.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Payout Method */}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>How would you like to receive payment?</Text>
+              <View style={styles.payoutGrid}>
+                {[
+                  { id: 'upi' as const, label: 'Instant UPI', sub: 'GPay / PhonePe / Paytm', icon: 'flash-outline' },
+                  { id: 'bank' as const, label: 'Bank Transfer', sub: 'NEFT / IMPS direct', icon: 'card-outline' },
+                  { id: 'cash' as const, label: 'Cash on Handover', sub: 'Physical currency', icon: 'cash-outline' },
+                ].map((pm) => {
+                  const isSel = payoutMethod === pm.id;
+                  return (
+                    <TouchableOpacity
+                      key={pm.id}
+                      style={[styles.payoutCard, isSel && styles.payoutCardActive]}
+                      onPress={() => setPayoutMethod(pm.id)}
+                      activeOpacity={0.82}
+                    >
+                      <Ionicons
+                        name={pm.icon as any}
+                        size={18}
+                        color={isSel ? colors.primaryDark : '#64748b'}
+                      />
+                      <Text style={[styles.payoutCardTitle, isSel && styles.payoutCardTitleActive]}>
+                        {pm.label}
+                      </Text>
+                      <Text style={styles.payoutCardSub}>{pm.sub}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Dynamic Payout Inputs */}
+              {payoutMethod === 'upi' && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.fieldLabel}>Your UPI ID</Text>
+                  <TextInput
+                    placeholder="e.g. 9876543210@okaxis or user@upi"
+                    placeholderTextColor="#94a3b8"
+                    value={upiId}
+                    onChangeText={setUpiId}
+                    autoCapitalize="none"
+                    style={styles.textInput}
+                  />
+                </View>
+              )}
+
+              {payoutMethod === 'bank' && (
+                <View style={{ gap: 8, marginTop: 10 }}>
+                  <View>
+                    <Text style={styles.fieldLabel}>Account Number</Text>
+                    <TextInput
+                      placeholder="Bank account number"
+                      placeholderTextColor="#94a3b8"
+                      value={bankAccount}
+                      onChangeText={setBankAccount}
+                      keyboardType="numeric"
+                      style={styles.textInput}
+                    />
+                  </View>
+                  <View>
+                    <Text style={styles.fieldLabel}>IFSC Code</Text>
+                    <TextInput
+                      placeholder="e.g. HDFC0000123"
+                      placeholderTextColor="#94a3b8"
+                      value={bankIfsc}
+                      onChangeText={setBankIfsc}
+                      autoCapitalize="characters"
+                      style={styles.textInput}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Final Review Summary Pill */}
+              <View style={styles.reviewSummaryBox}>
+                <View style={styles.reviewSummaryRow}>
+                  <Text style={styles.reviewSummaryKey}>Device</Text>
+                  <Text style={styles.reviewSummaryVal}>
+                    {selectedBrand} {customModelMode ? customModelName : selectedModel} ({selectedStorage})
+                  </Text>
+                </View>
+                <View style={styles.reviewSummaryRow}>
+                  <Text style={styles.reviewSummaryKey}>Final Payout</Text>
+                  <Text style={[styles.reviewSummaryVal, { color: colors.primaryDark, fontWeight: '800' }]}>
+                    ₹{Number(expectedPrice || quoteAmount).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+                <View style={[styles.reviewSummaryRow, { borderBottomWidth: 0 }]}>
+                  <Text style={styles.reviewSummaryKey}>Pickup Time</Text>
+                  <Text style={styles.reviewSummaryVal}>{formattedDates[pickupDate]} ({timeSlot})</Text>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.twoBtnRow}>
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() => setCurrentStep(3)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.text} />
+                  <Text style={styles.secondaryBtnText}>Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.primaryCta, { flex: 1 }, isSubmitting && styles.btnDisabled]}
+                  onPress={handleConfirmPickup}
+                  disabled={isSubmitting}
+                  activeOpacity={0.88}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#000" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={18} color="#000" />
+                      <Text style={styles.primaryCtaText}>Confirm & Schedule Pickup</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -1747,797 +1667,585 @@ export default function SellScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f6f7fb',
+    backgroundColor: colors.background, // Warm #f8f7f2
   },
 
-  // Minimal Header
+  // Header
   header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 14,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: spacing.md,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: colors.border,
   },
-  headerRow: {
+  headerTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.3,
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  greenDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10b981',
-  },
-  headerBadgeText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#475569',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
   },
   headerSubtitle: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#64748b',
-    marginTop: 3,
-  },
-
-  // Stepper Header
-  stepperContainer: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  stepperMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  stepperStepName: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748b',
-  },
-  stepperCurrentTitle: {
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  stepperPercent: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  progressTrack: {
-    height: 3,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 1.5,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#0f172a',
-    borderRadius: 1.5,
-  },
-  stepChipsScroll: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2,
-  },
-  stepPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 14,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  stepPillActive: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
-  },
-  stepPillDone: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#bbf7d0',
-  },
-  stepPillDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepPillDotActive: {
-    backgroundColor: '#ffffff',
-  },
-  stepPillDotDone: {
-    backgroundColor: '#10b981',
-  },
-  stepPillNum: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  stepPillNumActive: {
-    color: '#0f172a',
-  },
-  stepPillLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748b',
-  },
-  stepPillLabelActive: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  stepPillLabelDone: {
-    color: '#15803d',
-  },
-
-  // Main Card & Body
-  scrollContent: {
-    padding: 14,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#e8ebf0',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-    letterSpacing: -0.2,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#64748b',
-    marginTop: 2,
-    marginBottom: 14,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-
-  // Step 1: Category & Ceiling
-  ceilingNotice: {
-    flexDirection: 'row',
-    gap: 10,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  ceilingIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ceilingHeading: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  ceilingValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginTop: 1,
-  },
-  ceilingDescription: {
-    fontSize: 11,
-    fontWeight: '400',
-    color: '#64748b',
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
     marginTop: 2,
   },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  categoryCard: {
-    width: '48.5%',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 12,
-  },
-  categoryCardActive: {
-    borderColor: '#0f172a',
-    backgroundColor: '#f8fafc',
-  },
-  categoryIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  categoryIconCircleActive: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  categoryTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  categoryTitleActive: {
-    color: '#0f172a',
-  },
-  categorySubtitle: {
-    fontSize: 10,
-    fontWeight: '400',
-    color: '#64748b',
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  categoryCeilingTag: {
-    backgroundColor: '#f1f5f9',
-    alignSelf: 'flex-start',
+  goldBadge: {
+    backgroundColor: colors.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
-  categoryCeilingText: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#475569',
+  goldBadgeText: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  headerRequestsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  headerRequestsText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
   },
 
-  // Step 2: Brands
-  searchBar: {
+  // 4-Step Stepper
+  stepperContainer: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingHorizontal: 13,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-    marginBottom: 16,
+    justifyContent: 'space-between',
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#0f172a',
-  },
-  brandsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  brandCard: {
-    flexDirection: 'row',
+  stepItem: {
     alignItems: 'center',
-    gap: 8,
-    width: '48.5%',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    padding: 11,
+    gap: 4,
+    minWidth: 50,
   },
-  brandCardActive: {
-    borderColor: '#0f172a',
-    backgroundColor: '#f8fafc',
-  },
-  brandAvatar: {
+  stepCircle: {
     width: 26,
     height: 26,
     borderRadius: 13,
     backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandAvatarActive: {
-    backgroundColor: '#0f172a',
-  },
-  brandAvatarText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  brandAvatarTextActive: {
-    color: '#ffffff',
-  },
-  brandName: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#334155',
-    flex: 1,
-  },
-  brandNameActive: {
-    color: '#0f172a',
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-
-
-  loadingCatalog: {
-    minHeight: 72,
-    borderRadius: 14,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e8ebf0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    gap: 7,
-  },
-
-  loadingCatalogText: {
-    fontSize: 11,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-
-  emptyIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-
-  emptyTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 3,
-  },
-
-  emptyText: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#64748b',
-  },
-  emptyActionButton: {
-    marginTop: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#f1f5f9',
-  },
-  emptyActionText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#0f172a',
-  },
-
-  // Step 3: Models
-  modelList: {
-    gap: 6,
-    marginBottom: 12,
-  },
-  modelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-  },
-  modelRowActive: {
-    borderColor: '#0f172a',
-    backgroundColor: '#f8fafc',
-  },
-  radioCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
     borderWidth: 1.5,
     borderColor: '#cbd5e1',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioCircleActive: {
-    borderColor: '#0f172a',
+  stepCircleActive: {
+    backgroundColor: '#0a0a0a',
+    borderColor: colors.primary,
+    borderWidth: 2,
   },
-  radioDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#0f172a',
+  stepCircleCompleted: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  modelTitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#334155',
+  stepTitle: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: fontWeight.medium,
+  },
+  stepTitleActive: {
+    color: colors.text,
+    fontWeight: fontWeight.bold,
+  },
+  stepTitleCompleted: {
+    color: colors.text,
+    fontWeight: fontWeight.semibold,
+  },
+  stepConnector: {
     flex: 1,
+    height: 2,
+    backgroundColor: '#e2e8f0',
+    marginBottom: 16,
+    marginHorizontal: 4,
   },
-  modelTitleActive: {
-    color: '#0f172a',
-    fontWeight: '600',
+  stepConnectorCompleted: {
+    backgroundColor: colors.primary,
   },
-  selectedTag: {
+
+  // Selected Ribbon
+  selectionRibbon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffdf0',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fef08a',
+    gap: 8,
+  },
+  selectionRibbonIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fef9c3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionRibbonDevice: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  selectionRibbonCategory: {
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
+  selectionRibbonEdit: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#ffffff',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: '#fef08a',
+  },
+  selectionRibbonEditText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+
+  // Main Scroll & Step Card
+  scrollContent: {
+    padding: spacing.md,
+  },
+  stepCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  sectionHeader: {
+    marginBottom: 10,
+  },
+  sectionHeading: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  sectionSub: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+
+  // Step 1: Category Grid
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  categoryCard: {
+    width: '48.5%',
+    backgroundColor: '#fafaf9',
+    borderRadius: radius.md,
+    padding: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  categoryCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#fffdf0',
+  },
+  categoryIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryIconCircleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  categoryTitleActive: {
+    color: '#000000',
+  },
+  categorySubtitle: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  categoryPriceTag: {
     backgroundColor: '#f1f5f9',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    alignSelf: 'flex-start',
   },
-  selectedTagText: {
-    fontSize: 9,
-    fontWeight: '600',
+  categoryPriceTagActive: {
+    backgroundColor: '#fef08a',
+  },
+  categoryPriceText: {
+    fontSize: 10,
+    fontWeight: fontWeight.semibold,
     color: '#475569',
   },
-  customToggleCard: {
+  categoryPriceTextActive: {
+    color: '#854d0e',
+  },
+
+  // Search Bar
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 14,
-  },
-  customToggleCardActive: {
-    borderColor: '#0f172a',
-    backgroundColor: '#ffffff',
-  },
-  customToggleTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#334155',
-  },
-  customToggleSubtitle: {
-    fontSize: 10,
-    fontWeight: '400',
-    color: '#64748b',
-  },
-
-  // Inputs
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 6,
-    marginTop: 6,
-  },
-  minimalTextInput: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     paddingHorizontal: 10,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#0f172a',
-    marginBottom: 6,
+    height: 38,
+    marginBottom: 8,
+    gap: 6,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    color: colors.text,
+    paddingVertical: 0,
   },
 
-  // Step 4: Specs & Condition
-  storagePillsRow: {
+  // Brand Pills
+  brandPillsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  storagePill: {
+  brandPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: radius.full,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
   },
-  storagePillActive: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+  brandPillActive: {
+    backgroundColor: '#0a0a0a',
+    borderColor: '#0a0a0a',
   },
-  storagePillText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#475569',
+  brandPillText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
   },
-  storagePillTextActive: {
-    color: '#ffffff',
-    fontWeight: '600',
+  brandPillTextActive: {
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
   },
-  segmentedOptionsRow: {
-    flexDirection: 'row',
+
+  // Models List
+  modelListWrap: {
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  segmentedBox: {
-    flex: 1,
-    padding: 9,
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
+  modelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafaf9',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  modelRowActive: {
+    backgroundColor: '#fffdf0',
+    borderColor: colors.primary,
+  },
+  modelRowName: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text,
+  },
+  modelRowNameActive: {
+    fontWeight: fontWeight.bold,
+    color: '#000',
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioCircleActive: {
+    borderColor: colors.primaryDark,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primaryDark,
+  },
+  selectedBadge: {
+    backgroundColor: '#fef08a',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  selectedBadgeText: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    color: '#854d0e',
+  },
+
+  // Custom Model Toggle
+  customToggleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    marginTop: 4,
+  },
+  customToggleBoxActive: {
+    backgroundColor: '#fffdf0',
+    borderColor: colors.primary,
+  },
+  customToggleTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  customToggleDesc: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+
+  // Step 2: Specs & Condition
+  fieldLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: 6,
+  },
+  storageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  storageChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  storageChipActive: {
+    backgroundColor: '#0a0a0a',
+    borderColor: '#0a0a0a',
+  },
+  storageChipText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  storageChipTextActive: {
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+  },
+  conditionCardsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  condCard: {
+    flex: 1,
+    backgroundColor: '#fafaf9',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 10,
     alignItems: 'center',
   },
-  segmentedBoxActive: {
-    borderColor: '#0f172a',
-    backgroundColor: '#f8fafc',
+  condCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#fffdf0',
   },
-  segmentedTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
+  condCardTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginTop: 4,
   },
-  segmentedTitleActive: {
-    color: '#0f172a',
+  condCardTitleActive: {
+    color: '#000000',
   },
-  segmentedDesc: {
+  condCardDesc: {
     fontSize: 9,
-    fontWeight: '400',
-    color: '#64748b',
-    marginTop: 2,
+    color: colors.textMuted,
     textAlign: 'center',
+    marginTop: 2,
   },
-  checklistGroup: {
-    backgroundColor: '#f8fafc',
+
+  // Checklist
+  checklistContainer: {
+    backgroundColor: '#fafaf9',
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    marginBottom: 12,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
   checklistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-  },
-  checklistItemBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  checkTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#1e293b',
-  },
-  checkSub: {
-    fontSize: 10,
-    fontWeight: '400',
-    color: '#64748b',
-  },
-  accessoriesList: {
-    gap: 6,
-    marginBottom: 16,
-  },
-  accessoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     padding: 10,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
-  accessoryItemActive: {
+  checklistItemDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  checklistTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+  },
+  checklistSub: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+
+  // Accessories
+  accessoriesWrap: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  accItem: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 8,
+    gap: 3,
+  },
+  accItemActive: {
     borderColor: '#10b981',
     backgroundColor: '#f0fdf4',
   },
-  accessoryName: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#334155',
-    flex: 1,
+  accText: {
+    fontSize: 10,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
-  accessoryNameActive: {
-    color: '#15803d',
-    fontWeight: '600',
+  accTextActive: {
+    color: '#047857',
   },
-  accessoryPill: {
-    fontSize: 11,
-    fontWeight: '600',
+  accBadge: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
     color: '#10b981',
   },
 
-  // Step 5: Photos
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  photoSlotBox: {
-    width: '48.5%',
-    aspectRatio: 1.1,
-  },
-  photoEmptyBox: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  // Step 3: Valuation Box
+  heroValuationBox: {
+    backgroundColor: '#0f172a',
+    borderRadius: radius.lg,
+    padding: 16,
     borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
-  photoEmptyTitle: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#334155',
+    borderColor: '#1e293b',
     marginTop: 4,
   },
-  photoEmptyAction: {
-    fontSize: 9,
-    fontWeight: '400',
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  photoFilledWrap: {
-    flex: 1,
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  photoImg: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  photoRemoveBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoSlotNamePlate: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(15,23,42,0.7)',
-    paddingVertical: 3,
-    alignItems: 'center',
-  },
-  photoSlotNameText: {
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#ffffff',
-  },
-  skipCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 16,
-  },
-  skipCardActive: {
-    borderColor: '#10b981',
-    backgroundColor: '#f0fdf4',
-  },
-  skipCardTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#334155',
-  },
-  skipCardDesc: {
-    fontSize: 10,
-    fontWeight: '400',
-    color: '#64748b',
-    marginTop: 1,
-  },
-
-  // Step 6: Valuation
-  valuationPanel: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-  },
-  valuationTopRow: {
+  heroValuationTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  valuationTag: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748b',
-    textTransform: 'uppercase',
+  heroValuationTag: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#94a3b8',
+    letterSpacing: 0.5,
   },
-  priceLockTag: {
+  lockBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
   },
-  priceLockTagText: {
+  lockBadgeText: {
     fontSize: 10,
-    fontWeight: '500',
-    color: '#15803d',
+    fontWeight: fontWeight.bold,
+    color: '#10b981',
   },
-  amountDisplayRow: {
+  amountShowcase: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 2,
-    marginVertical: 4,
+    gap: 4,
+    marginTop: 8,
   },
-  rupeeSign: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#0f172a',
+  currencyShowcase: {
+    fontSize: 22,
+    fontWeight: fontWeight.black,
+    color: colors.primary,
   },
-  amountNumber: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a',
+  amountShowcaseNum: {
+    fontSize: 34,
+    fontWeight: fontWeight.black,
+    color: '#ffffff',
     letterSpacing: -0.5,
   },
-  deviceSpecSub: {
-    fontSize: 11,
-    fontWeight: '400',
-    color: '#64748b',
-    marginBottom: 10,
+  heroDeviceSubtitle: {
+    fontSize: fontSize.xs,
+    color: '#94a3b8',
+    marginTop: 2,
+    marginBottom: 12,
   },
-  breakdownTable: {
+  breakdownBox: {
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: '#334155',
     paddingTop: 8,
+    gap: 5,
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -2546,264 +2254,477 @@ const styles = StyleSheet.create({
   },
   breakdownKey: {
     fontSize: 11,
-    fontWeight: '400',
-    color: '#64748b',
+    color: '#94a3b8',
   },
   breakdownVal: {
     fontSize: 11,
-    fontWeight: '500',
-    color: '#0f172a',
+    fontWeight: fontWeight.semibold,
+    color: '#f8fafc',
   },
-  expectedFieldWrap: {
-    marginBottom: 16,
-  },
+
+  // Expected price
   expectedInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    height: 44,
   },
-  currencyLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginRight: 4,
+  expectedCurrency: {
+    fontSize: 18,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginRight: 6,
   },
   expectedInput: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-    paddingVertical: 6,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
   },
-  adjustRow: {
+  quickAdjustRow: {
     flexDirection: 'row',
     gap: 6,
+    marginTop: 6,
   },
   adjustPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
     backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   adjustPillText: {
     fontSize: 11,
-    fontWeight: '500',
-    color: '#334155',
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
   },
 
-  // Step 7: Pickup & Form
-  inputsStack: {
+  // Photos
+  photoGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
     marginBottom: 10,
   },
-  selectorRow: {
+  photoBox: {
+    flex: 1,
+    aspectRatio: 1,
+  },
+  photoEmpty: {
+    flex: 1,
+    backgroundColor: '#fafaf9',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#cbd5e1',
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  photoEmptyText: {
+    fontSize: 9,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  photoUploadHint: {
+    fontSize: 8,
+    color: colors.textMuted,
+  },
+  photoImgWrap: {
+    flex: 1,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  photoImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  photoDeleteBtn: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoTitlePill: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  photoTitlePillText: {
+    fontSize: 8,
+    fontWeight: fontWeight.bold,
+    color: '#ffffff',
+  },
+  skipPhotoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 10,
+  },
+  skipPhotoCardActive: {
+    backgroundColor: '#fffdf0',
+    borderColor: colors.primary,
+  },
+  skipPhotoTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  skipPhotoDesc: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+
+  // Step 4: Pickup & Address
+  gpsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    marginBottom: 4,
+  },
+  gpsButtonText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#000000',
+  },
+  textInput: {
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: fontSize.xs,
+    color: colors.text,
+  },
+  scheduleRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 12,
   },
-  selectorBox: {
+  schedulePill: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
+    paddingHorizontal: 4,
+    borderRadius: radius.md,
+    backgroundColor: '#fafaf9',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  selectorBoxActive: {
-    borderColor: '#0f172a',
-    backgroundColor: '#ffffff',
+  schedulePillActive: {
+    backgroundColor: '#0a0a0a',
+    borderColor: '#0a0a0a',
   },
-  selectorTitle: {
+  schedulePillText: {
     fontSize: 11,
-    fontWeight: '500',
-    color: '#475569',
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
-  selectorTitleActive: {
-    color: '#0f172a',
-    fontWeight: '600',
+  schedulePillTextActive: {
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
   },
-
-  // Step 8: Review & Confirm
-  summaryCard: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  summaryTop: {
+  payoutGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 6,
+  },
+  payoutCard: {
+    flex: 1,
+    backgroundColor: '#fafaf9',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 8,
     alignItems: 'center',
   },
-  summaryDeviceTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
+  payoutCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#fffdf0',
   },
-  summaryDeviceMeta: {
+  payoutCardTitle: {
     fontSize: 11,
-    fontWeight: '400',
-    color: '#64748b',
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  payoutCardTitleActive: {
+    color: '#000000',
+  },
+  payoutCardSub: {
+    fontSize: 9,
+    color: colors.textMuted,
+    textAlign: 'center',
     marginTop: 1,
   },
-  summaryPriceBadge: {
-    alignItems: 'flex-end',
+  reviewSummaryBox: {
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 10,
+    marginTop: 14,
+    gap: 4,
   },
-  summaryPriceTag: {
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#64748b',
-    textTransform: 'uppercase',
-  },
-  summaryPriceNum: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#e2e8f0',
-    marginVertical: 10,
-  },
-  summaryRow: {
+  reviewSummaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
-  summaryKey: {
+  reviewSummaryKey: {
     fontSize: 11,
-    fontWeight: '400',
-    color: '#64748b',
+    color: colors.textMuted,
   },
-  summaryValue: {
+  reviewSummaryVal: {
     fontSize: 11,
-    fontWeight: '500',
-    color: '#0f172a',
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
     flex: 1,
     textAlign: 'right',
-    marginLeft: 8,
   },
 
-  // Success Screen
-  confirmedContainer: {
-    alignItems: 'center',
-    paddingVertical: 18,
-  },
-  confirmedCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#ecfdf5',
+  // CTA Buttons
+  primaryCta: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    borderRadius: radius.md,
+    marginTop: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  confirmedHeading: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#0f172a',
+  primaryCtaText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.black,
+    color: '#000000',
+    letterSpacing: 0.2,
   },
-  confirmedSub: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 3,
-    marginBottom: 14,
+  btnDisabled: {
+    opacity: 0.5,
   },
-  refBox: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  refLabel: {
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#64748b',
-    textTransform: 'uppercase',
-  },
-  refCode: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0f172a',
-    letterSpacing: 0.5,
-    marginTop: 1,
-  },
-  nextStepsBox: {
-    width: '100%',
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 18,
-  },
-  nextStepsHeading: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 6,
-  },
-  nextStepBullet: {
-    fontSize: 11,
-    fontWeight: '400',
-    color: '#64748b',
-    lineHeight: 16,
-    marginBottom: 2,
-  },
-
-  // Shared Buttons
-  buttonRow: {
+  twoBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 12,
+    marginTop: 16,
   },
-  outlineButton: {
+  secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
     backgroundColor: '#ffffff',
     borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+  },
+  secondaryBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+
+  // Confirmation View
+  confirmedScroll: {
+    padding: spacing.md,
+  },
+  celebrationCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  successIconOuter: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#d1fae5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  successIconInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    marginBottom: 8,
+  },
+  greenPulse: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
+  liveBadgeText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#15803d',
+  },
+  confirmedHeading: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  confirmedSub: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  refBox: {
+    width: '100%',
+    backgroundColor: '#fffdf0',
+    borderWidth: 1,
+    borderColor: '#fef08a',
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  refLabel: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    color: '#854d0e',
+    letterSpacing: 0.5,
+  },
+  refCode: {
+    fontSize: 20,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  confirmedDetailsCard: {
+    width: '100%',
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 12,
+    gap: 8,
+    marginBottom: 16,
+  },
+  confirmedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0ede6',
+  },
+  confirmedRowKey: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  confirmedRowVal: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    flex: 1,
+    textAlign: 'right',
+  },
+  prepNoticeBox: {
+    width: '100%',
+    backgroundColor: '#f8fafc',
+    borderRadius: radius.md,
+    borderWidth: 1,
     borderColor: '#e2e8f0',
+    padding: 12,
+    marginBottom: 18,
+    gap: 4,
   },
-  outlineButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#475569',
+  prepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
   },
-  primaryButton: {
+  prepHeading: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#1e293b',
+  },
+  prepBullet: {
+    fontSize: 11,
+    color: '#64748b',
+    lineHeight: 16,
+  },
+  primaryActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#0f172a',
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    gap: 8,
+    width: '100%',
+    backgroundColor: colors.primary,
+    paddingVertical: 13,
+    borderRadius: radius.md,
+    marginBottom: 10,
   },
-  primaryButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#ffffff',
+  primaryActionButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.black,
+    color: '#000000',
   },
-  buttonDisabled: {
-    opacity: 0.5,
+  secondaryActionButton: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  secondaryActionButtonText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
   },
 });

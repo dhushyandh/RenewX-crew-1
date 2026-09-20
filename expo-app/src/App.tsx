@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavigationContainer, type LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -25,6 +26,7 @@ import PaymentScreen from '@/screens/PaymentScreen';
 import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
+import SecurityScreen from '@/screens/SecurityScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
@@ -37,16 +39,23 @@ export type RootStackParamList = {
   Cart: undefined;
   Checkout: undefined;
   OrderConfirm: {
-    customerInfo: {
+    order?: any;
+    orderId?: string;
+    customerInfo?: {
       name: string;
       phone: string;
       address: string;
       pincode: string;
     };
-  };
+    paymentMethod?: 'razorpay' | 'cod' | string;
+    paymentStatus?: 'paid' | 'cod' | 'pending' | string;
+    items?: any[];
+    totalAmount?: number;
+  } | undefined;
   MySellRequests: undefined;
   Settings: undefined;
   Notifications: undefined;
+  Security: { token?: string; email?: string } | undefined;
   Payment: {
     customerInfo: {
       name: string;
@@ -102,11 +111,12 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Search: 'search',
       Cart: 'cart',
       Checkout: 'checkout',
-      OrderConfirm: 'confirm',
+      OrderConfirm: 'order-confirmed',
       Payment: 'payment',
       MySellRequests: 'sell-requests',
       Settings: 'settings',
       Notifications: 'notifications',
+      Security: 'security',
       AdminDashboard: 'admin/dashboard',
       AdminProducts: 'admin/products',
       AdminAddProduct: 'admin/add/product/:id?',
@@ -276,6 +286,7 @@ const ProtectedOrderConfirmScreen = withProtectedRoute(OrderConfirmScreen, {
 
 function MainAppNavigation() {
   const { user, loading } = useAuth();
+  const [showSecurity, setShowSecurity] = useState(false);
 
   if (loading) {
     return (
@@ -285,14 +296,22 @@ function MainAppNavigation() {
     );
   }
 
-  if (!user) {
-    return <AuthScreen />;
+  const isWebSecurity =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    (window.location.pathname.startsWith('/security') || window.location.href.includes('/security'));
+
+  if (!user && !isWebSecurity && !showSecurity) {
+    return <AuthScreen onForgotPassword={() => setShowSecurity(true)} />;
   }
 
   return (
     <View style={{ flex: 1 }}>
       <NavigationContainer linking={linking}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator
+          screenOptions={{ headerShown: false }}
+          initialRouteName={!user || isWebSecurity || showSecurity ? 'Security' : 'MainTabs'}
+        >
           <Stack.Screen name="MainTabs" component={TabNavigator} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
@@ -303,6 +322,14 @@ function MainAppNavigation() {
           <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
           <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
           <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
+          <Stack.Screen name="Security">
+            {(props) => (
+              <SecurityScreen
+                {...props}
+                onBack={!user ? () => setShowSecurity(false) : undefined}
+              />
+            )}
+          </Stack.Screen>
 
           {/* Dedicated Protected Admin Direct Routes */}
           <Stack.Screen name="AdminDashboard" component={ProtectedAdminPanel} />

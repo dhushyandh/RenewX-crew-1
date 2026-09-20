@@ -404,15 +404,10 @@ export default function SettingsScreen() {
           />
 
           <ActionRow
-            icon="lock-closed-outline"
-            title="Security"
-            description="Password and sign-in are managed by your account"
-            onPress={() =>
-              Alert.alert(
-                'Security',
-                'Use the sign-in flow to manage your account password. Password changes are not handled locally by the app.'
-              )
-            }
+            icon="shield-checkmark-outline"
+            title="Password & Security"
+            description="Change password, request reset link, or update security"
+            onPress={() => navigation.navigate('Security' as any)}
           />
 
           <ActionRow

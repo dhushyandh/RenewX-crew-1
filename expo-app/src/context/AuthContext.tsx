@@ -1,12 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { getApiBaseUrl } from '@/services/api';
 
-const PRODUCTION_API_BASE = 'https://renewx-crew-server.onrender.com/api';
-const DEFAULT_API_BASE = PRODUCTION_API_BASE;
-const configuredApiUrl =
-  typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
-const API_BASE = configuredApiUrl || DEFAULT_API_BASE;
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 const USER_STORAGE_KEY = '@renewx_auth_user';
 
@@ -27,6 +23,7 @@ interface AuthContextValue {
   loading: boolean;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  loginWithToken: (token: string, user: AppUser) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -58,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           // Verify token with backend
           try {
-            const res = await fetch(`${API_BASE}/auth/me`, {
+            const res = await fetch(`${getApiBaseUrl()}/auth/me`, {
               headers: { Authorization: `Bearer ${storedToken}` },
             });
             const json = await res.json();
@@ -93,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch(`${getApiBaseUrl()}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
@@ -121,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const res = await fetch(`${getApiBaseUrl()}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -151,6 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loginWithToken = useCallback(async (receivedToken: string, receivedUser: AppUser) => {
+    setToken(receivedToken);
+    setUser(receivedUser);
+    await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
+    await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
@@ -177,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signUp,
         signIn,
+        loginWithToken,
         signOut,
       }}
     >

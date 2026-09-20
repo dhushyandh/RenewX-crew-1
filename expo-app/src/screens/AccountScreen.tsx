@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { api } from '@/services/api';
+import { confirmAction } from '@/lib/confirmAction';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SUPPORT_PHONE = '+919080168778';
@@ -31,16 +32,14 @@ export default function AccountScreen() {
   }, []);
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-        },
+    confirmAction(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      async () => {
+        await signOut();
       },
-    ]);
+      'Sign Out'
+    );
   };
 
   return (
@@ -200,9 +199,23 @@ export default function AccountScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Settings */}
+        {/* Settings & Security */}
         <View style={styles.menuSection}>
-          <Text style={styles.menuHeader}>Preferences</Text>
+          <Text style={styles.menuHeader}>Preferences & Security</Text>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Security' as any)}
+          >
+            <View style={[styles.menuIconCircle, { backgroundColor: '#ecfdf5' }]}>
+              <Ionicons name="shield-checkmark-outline" size={18} color="#059669" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuTitle}>Password & Security</Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Change password & email verification</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => navigation.navigate('Settings')}
@@ -212,7 +225,7 @@ export default function AccountScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.menuTitle}>Settings</Text>
-              <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Notifications, security & app preferences</Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Notifications, theme & app preferences</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </TouchableOpacity>

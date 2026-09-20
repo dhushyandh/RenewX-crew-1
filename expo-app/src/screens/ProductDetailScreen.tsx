@@ -48,6 +48,14 @@ export default function ProductDetailScreen() {
 
   const { addToCart } = useCart();
 
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    }
+  }, [navigation]);
+
   const loadProduct = useCallback(
     async (showLoader = true) => {
       if (!params?.id) {
@@ -160,7 +168,7 @@ export default function ProductDetailScreen() {
 
         <TouchableOpacity
           style={styles.backErrorButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
           activeOpacity={0.85}
         >
           <Text style={styles.backErrorText}>Go Back</Text>
@@ -180,7 +188,7 @@ export default function ProductDetailScreen() {
     if (isOutOfStock) return;
 
     addToCart(product);
-    (navigation as any).navigate('MainTabs', { screen: 'Cart' });
+    navigation.navigate('Cart');
   };
 
   return (
@@ -224,7 +232,7 @@ export default function ProductDetailScreen() {
 
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={handleBack}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Go back"

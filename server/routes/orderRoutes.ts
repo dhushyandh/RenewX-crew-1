@@ -5,6 +5,7 @@ import {
   createCheckoutOrder,
   verifyPayment,
   updateOrderStatus,
+  deleteOrder,
 } from '../controllers/orderController';
 import { authenticateToken, requireAuthenticated, requireAdmin } from '../middleware/auth';
 
@@ -15,5 +16,6 @@ router.post('/verify-payment', authenticateToken, requireAuthenticated, verifyPa
 router.get('/', authenticateToken, getOrders);
 router.get('/:id', authenticateToken, requireAuthenticated, getOrderById);
 router.patch('/:id/status', authenticateToken, requireAdmin, updateOrderStatus);
+router.delete('/:id', authenticateToken, requireAdmin, deleteOrder);
 
 export default router;

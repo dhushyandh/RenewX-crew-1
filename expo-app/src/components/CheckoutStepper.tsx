@@ -9,8 +9,8 @@ interface CheckoutStepperProps {
 
 const STEPS = [
   { id: 1, title: 'Address', icon: 'location-outline' as const },
-  { id: 2, title: 'Confirm', icon: 'document-text-outline' as const },
-  { id: 3, title: 'Payment', icon: 'card-outline' as const },
+  { id: 2, title: 'Payment', icon: 'card-outline' as const },
+  { id: 3, title: 'Confirmed', icon: 'checkmark-circle-outline' as const },
 ];
 
 export default function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
@@ -30,10 +30,11 @@ export default function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
                     styles.circle,
                     isCompleted && styles.circleCompleted,
                     isActive && styles.circleActive,
+                    step.id === 3 && isActive && { backgroundColor: '#10b981', borderColor: '#10b981' },
                   ]}
                 >
-                  {isCompleted ? (
-                    <Ionicons name="checkmark" size={14} color="#000" />
+                  {isCompleted || (step.id === 3 && isActive) ? (
+                    <Ionicons name="checkmark" size={14} color={step.id === 3 && isActive ? '#fff' : '#000'} />
                   ) : (
                     <Text
                       style={[

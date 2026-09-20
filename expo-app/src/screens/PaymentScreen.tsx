@@ -106,7 +106,8 @@ export default function PaymentScreen() {
 
       if (Platform.OS === 'web' || isNativeRazorpayAvailable()) {
         const paymentResult = await openRazorpay(options);
-        await completeOnlineVerification(checkout.order.id, paymentResult);
+        const orderId = checkout.order?.id || checkout.order?._id;
+        await completeOnlineVerification(orderId, paymentResult);
       } else {
         setActiveOrder(checkout.order);
         setCheckoutOptions(options);
@@ -132,19 +133,20 @@ export default function PaymentScreen() {
         razorpay_signature: paymentResult.razorpay_signature,
       });
 
+      const currentItems = [...items];
+      const currentSubtotal = subtotal;
+
       clearCart();
 
-      Alert.alert(
-        'Payment Successful!',
-        `Your order #${verifiedOrder.id || orderId} has been confirmed.`,
-        [
-          {
-            text: 'Track Order',
-            onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
-          },
-        ],
-        { cancelable: false },
-      );
+      navigation.replace('OrderConfirm', {
+        order: verifiedOrder,
+        orderId: String(verifiedOrder?.id || orderId),
+        customerInfo,
+        paymentMethod: 'razorpay',
+        paymentStatus: 'paid',
+        items: currentItems,
+        totalAmount: currentSubtotal,
+      });
     } catch (error: any) {
       Alert.alert(
         'Payment Received',
@@ -187,19 +189,20 @@ export default function PaymentScreen() {
                 checkoutKey,
               );
 
+              const currentItems = [...items];
+              const currentSubtotal = subtotal;
+
               clearCart();
 
-              Alert.alert(
-                'Order Placed Successfully!',
-                `Your Cash on Delivery order #${checkout.order.id} is confirmed. Please keep ₹${subtotal.toLocaleString('en-IN')} ready at delivery.`,
-                [
-                  {
-                    text: 'Track Order',
-                    onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
-                  },
-                ],
-                { cancelable: false },
-              );
+              navigation.replace('OrderConfirm', {
+                order: checkout.order,
+                orderId: String(checkout.order?.id || checkoutKey),
+                customerInfo,
+                paymentMethod: 'cod',
+                paymentStatus: 'cod',
+                items: currentItems,
+                totalAmount: currentSubtotal,
+              });
             } catch (err: any) {
               Alert.alert(
                 'Order placement failed',
@@ -246,7 +249,7 @@ export default function PaymentScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Cart'))}
           style={styles.backButton}
           disabled={processing}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -260,8 +263,8 @@ export default function PaymentScreen() {
         </View>
       </View>
 
-      {/* Stepper: Step 3 Active */}
-      <CheckoutStepper currentStep={3} />
+      {/* Stepper: Step 2 Active */}
+      <CheckoutStepper currentStep={2} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Delivery Address Reminder */}
@@ -401,7 +404,10 @@ export default function PaymentScreen() {
         options={checkoutOptions}
         onSuccess={(res) => {
           setModalVisible(false);
-          if (activeOrder?.id) completeOnlineVerification(activeOrder.id, res);
+          const orderId = activeOrder?.id || activeOrder?._id || checkoutOptions?.order_id;
+          if (orderId) {
+            completeOnlineVerification(orderId, res);
+          }
         }}
         onError={(err) => {
           setModalVisible(false);

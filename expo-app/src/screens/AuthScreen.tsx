@@ -54,7 +54,11 @@ function getFriendlyAuthError(message: string) {
   return message || 'Something went wrong. Please try again.';
 }
 
-export default function AuthScreen() {
+interface AuthScreenProps {
+  onForgotPassword?: () => void;
+}
+
+export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
   // signInWithGoogle is intentionally read as an optional method so this
   // screen remains compatible with an AuthContext that is being upgraded.
   const auth = useAuth() as any;
@@ -279,6 +283,23 @@ export default function AuthScreen() {
                 />
               </TouchableOpacity>
             </View>
+            {isLogin && (
+              <View style={styles.forgotPasswordRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (onForgotPassword) {
+                      onForgotPassword();
+                    } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                      window.location.href = '/security';
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {error ? (
@@ -633,5 +654,16 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 10,
     textAlign: 'center',
+  },
+
+  forgotPasswordRow: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+  },
+
+  forgotPasswordText: {
+    fontSize: 12,
+    fontWeight: fontWeight.bold,
+    color: '#0284c7',
   },
 });

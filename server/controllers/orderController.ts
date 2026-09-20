@@ -655,3 +655,31 @@ export async function createOrder(req: AuthenticatedRequest, res: Response, next
   // through the production payment-order flow.
   return createCheckoutOrder(req, res, next);
 }
+
+export async function deleteOrder(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({ success: false, error: { message: 'Admin access required', code: 'FORBIDDEN' } });
+      return;
+    }
+
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, error: { message: 'Invalid order ID', code: 'INVALID_ID' } });
+      return;
+    }
+
+    const deletedOrder = await OrderModel.findByIdAndDelete(id);
+    if (!deletedOrder) {
+      res.status(404).json({ success: false, error: { message: 'Order not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    // Clean up any notifications referencing this deleted order
+    await NotificationModel.deleteMany({ reference_id: id, reference_type: 'order' }).catch(() => {});
+
+    res.json({ success: true, message: 'Order deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+}

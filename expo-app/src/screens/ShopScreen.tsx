@@ -388,12 +388,7 @@ export default function ShopScreen() {
               style={[styles.addBtn, isAdded && styles.addBtnDone]}
               onPress={() => {
                 addToCart(product);
-                toast.success(`${product.name} added to cart`, 'Added to Cart', {
-                  action: {
-                    label: 'View Cart',
-                    onPress: () => navigation.navigate('Cart'),
-                  },
-                });
+                navigation.navigate('Cart');
               }}
               activeOpacity={0.8}
             >

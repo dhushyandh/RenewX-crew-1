@@ -26,6 +26,8 @@ import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import BrandsView from '@/components/admin/BrandsView';
 import ImagePickerButton from '@/components/ImagePickerButton';
+import * as Clipboard from 'expo-clipboard';
+import { sanitizeImageUrl } from '@/lib/imageUtils';
 
 
 type AdminView = 'dashboard' | 'products' | 'brands' | 'orders' | 'users' | 'tradeIns';
@@ -98,6 +100,24 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
     }
   }, [routeName, paramScreen, targetId]);
 
+  const handleExit = () => {
+    if (modalVisible) {
+      setModalVisible(false);
+    }
+    if (onExit) {
+      onExit();
+      return;
+    }
+    try {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+      });
+    } catch {
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    }
+  };
+
   const handleBack = () => {
     if (modalVisible) {
       setModalVisible(false);
@@ -105,10 +125,30 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
     }
     if (onExit) {
       onExit();
-    } else if (navigation.canGoBack()) {
-      navigation.goBack();
+      return;
+    }
+
+    try {
+      const state = navigation.getState();
+      const adminRoutes = new Set([
+        'AdminDashboard', 'AdminProducts', 'AdminAddProduct', 'AdminEditProduct',
+        'AdminBrands', 'AdminAddBrand', 'AdminAddModel', 'AdminOrders',
+        'AdminUsers', 'AdminTradeIns', 'Admin'
+      ]);
+      const hasNonAdminInHistory = state?.routes?.slice(0, -1).some((r: any) => !adminRoutes.has(r.name));
+      if (hasNonAdminInHistory && navigation.canGoBack()) {
+        navigation.goBack();
+        return;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (view !== 'dashboard') {
+      setView('dashboard');
+      navigation.navigate('AdminDashboard');
     } else {
-      navigation.navigate('MainTabs', { screen: 'Account' });
+      handleExit();
     }
   };
 
@@ -152,6 +192,11 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
 
         <View style={styles.headerCenter}>
           <View style={styles.headerTitleRow}>
+            <Image
+              source={require('@/assets/logo.png')}
+              style={styles.headerLogoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.headerTitle}>RenewX Admin</Text>
             <View style={styles.adminBadge}>
               <Text style={styles.adminBadgeText}>PORTAL</Text>
@@ -160,7 +205,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
           <Text style={styles.headerSubtitle}>Store Catalog & Orders</Text>
         </View>
 
-        <TouchableOpacity onPress={handleBack} style={styles.addActionButton} activeOpacity={0.85}>
+        <TouchableOpacity onPress={handleExit} style={styles.addActionButton} activeOpacity={0.85}>
           <Ionicons name="log-out-outline" size={18} color="#000" />
           <Text style={styles.addActionButtonText}>Exit</Text>
         </TouchableOpacity>
@@ -898,6 +943,26 @@ function OrdersView() {
     applyStatus(orderId, status);
   };
 
+  const handleDeleteOrder = (orderId: string) => {
+    confirmAction(
+      'Delete Order',
+      `Are you sure you want to permanently delete order #${orderId.slice(-8).toUpperCase()}? This action cannot be undone.`,
+      async () => {
+        setUpdatingOrderId(orderId);
+        try {
+          await api.orders.delete(orderId);
+          setOrders((prev) => prev.filter((o) => String(o.id || o._id) !== orderId));
+          toast.success('Order deleted successfully', 'Order Deleted');
+        } catch (err: any) {
+          toast.error(err?.message || 'Failed to delete order', 'Error');
+        } finally {
+          setUpdatingOrderId(null);
+        }
+      },
+      'Delete'
+    );
+  };
+
   const filtered = orders.filter((o) => {
     const statusOk = filterStatus === 'all' || o.status === filterStatus;
     if (!statusOk) return false;
@@ -1025,8 +1090,33 @@ function OrdersView() {
                 </View>
 
                 <View style={styles.orderCardFooter}>
-                  <View style={[styles.methodTag, isCod ? styles.codTag : styles.razorpayTag]}>
-                    <Text style={[styles.methodTagText, isCod ? styles.codTagText : styles.razorpayTagText]}>{isCod ? 'COD' : 'ONLINE'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={[styles.methodTag, isCod ? styles.codTag : styles.razorpayTag]}>
+                      <Text style={[styles.methodTagText, isCod ? styles.codTagText : styles.razorpayTagText]}>{isCod ? 'COD' : 'ONLINE'}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteOrder(orderId)}
+                      disabled={isUpdating}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: radius.sm,
+                        backgroundColor: '#fef2f2',
+                        borderWidth: 1,
+                        borderColor: '#fecaca',
+                        opacity: isUpdating ? 0.5 : 1,
+                      }}
+                    >
+                      {isUpdating ? (
+                        <ActivityIndicator size={12} color="#dc2626" />
+                      ) : (
+                        <Ionicons name="trash-outline" size={13} color="#dc2626" />
+                      )}
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#dc2626' }}>Delete</Text>
+                    </TouchableOpacity>
                   </View>
                   <Text style={styles.orderGrandTotal}>₹{Number(order.subtotal || order.total || 0).toLocaleString('en-IN')}</Text>
                 </View>
@@ -1504,10 +1594,54 @@ function ProductModal({
     );
   };
 
-  const addImage = () => {
-    if (!inputImageUrl.trim()) return;
-    setImages((prev) => [...prev, inputImageUrl.trim()]);
+  const addImage = (overrideUrl?: string) => {
+    const raw = typeof overrideUrl === 'string' ? overrideUrl : inputImageUrl;
+    if (!raw || !raw.trim()) return;
+    const clean = sanitizeImageUrl(raw);
+    if (!clean) return;
+    setImages((prev) => [...prev, clean]);
     setInputImageUrl('');
+  };
+
+  const handlePasteClipboard = async () => {
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard?.read) {
+        try {
+          const items = await (navigator as any).clipboard.read();
+          for (const item of items) {
+            const imageType = item.types.find((t: string) => t.startsWith('image/'));
+            if (imageType) {
+              const blob = await item.getType(imageType);
+              const reader = new FileReader();
+              reader.onload = async () => {
+                const base64Data = reader.result as string;
+                if (base64Data) {
+                  addImage(base64Data);
+                  toast.success('Pasted image from clipboard');
+                }
+              };
+              reader.readAsDataURL(blob);
+              return;
+            }
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      const str = await Clipboard.getStringAsync();
+      if (str && str.trim()) {
+        const clean = sanitizeImageUrl(str);
+        if (clean) {
+          addImage(clean);
+          toast.success('Pasted image from clipboard');
+          return;
+        }
+      }
+      toast.info('No image or image URL found in clipboard');
+    } catch {
+      toast.error('Could not access clipboard');
+    }
   };
 
   const removeImage = (idx: number) => {
@@ -1572,7 +1706,8 @@ function ProductModal({
       price: parseInt(sellingPrice),
       condition: normalizedCondition,
       image_url: primaryImage,
-      stock: parseInt(stockQty) || 1,
+      images: images.length ? images : [primaryImage],
+      stock: isNaN(parseInt(stockQty, 10)) ? 1 : Math.max(0, parseInt(stockQty, 10)),
       description: conditionDescription.trim() || conditionTitle.trim() || 'Certified pre-owned device.',
       specs: combinedSpecs,
     };
@@ -1958,22 +2093,55 @@ function ProductModal({
               </View>
 
               {imageTab === 'url' ? (
-                <View style={styles.photoUrlBar}>
-                  <View style={styles.photoUrlInputWrap}>
-                    <Ionicons name="link-outline" size={16} color="#94a3b8" style={{ marginRight: 6 }} />
-                    <TextInput
-                      value={inputImageUrl}
-                      onChangeText={setInputImageUrl}
-                      placeholder="Paste image link (https://..."
-                      placeholderTextColor="#94a3b8"
-                      autoCapitalize="none"
-                      style={styles.photoUrlInput}
-                    />
+                <View>
+                  <View style={styles.photoUrlBar}>
+                    <View style={styles.photoUrlInputWrap}>
+                      <Ionicons name="link-outline" size={16} color="#94a3b8" style={{ marginRight: 6 }} />
+                      <TextInput
+                        value={inputImageUrl}
+                        onChangeText={setInputImageUrl}
+                        placeholder="Paste image URL (https://... or data:image/...)"
+                        placeholderTextColor="#94a3b8"
+                        autoCapitalize="none"
+                        style={styles.photoUrlInput}
+                      />
+                      {inputImageUrl.length > 0 && (
+                        <TouchableOpacity onPress={() => setInputImageUrl('')} style={{ padding: 4 }}>
+                          <Ionicons name="close-circle" size={14} color="#94a3b8" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <TouchableOpacity onPress={() => addImage()} style={styles.photoAddBtn} activeOpacity={0.85}>
+                      <Ionicons name="checkmark" size={15} color="#ffc400" />
+                      <Text style={styles.photoAddBtnText}>Add</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handlePasteClipboard} style={styles.photoPasteBtn} activeOpacity={0.85}>
+                      <Ionicons name="clipboard-outline" size={15} color="#ffffff" />
+                      <Text style={styles.photoPasteBtnText}>Paste</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={addImage} style={styles.photoAddBtn} activeOpacity={0.85}>
-                    <Ionicons name="checkmark" size={15} color="#ffc400" />
-                    <Text style={styles.photoAddBtnText}>Add</Text>
-                  </TouchableOpacity>
+
+                  {/* Immediate Live Preview when user pastes or types a URL */}
+                  {inputImageUrl.trim().length > 0 && (
+                    <View style={styles.livePhotoPreviewCard}>
+                      <Image
+                        source={{ uri: sanitizeImageUrl(inputImageUrl) }}
+                        style={styles.livePhotoThumb}
+                        resizeMode="cover"
+                        {...(Platform.OS === 'web' ? { referrerPolicy: 'no-referrer' } as any : {})}
+                      />
+                      <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                        <Text style={styles.livePhotoPreviewTitle}>Detected Image</Text>
+                        <Text style={styles.livePhotoPreviewUrl} numberOfLines={1} ellipsizeMode="middle">
+                          {sanitizeImageUrl(inputImageUrl)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={() => addImage()} style={styles.livePhotoAddBtn} activeOpacity={0.85}>
+                        <Ionicons name="add" size={14} color="#000000" />
+                        <Text style={styles.livePhotoAddBtnText}>Add Photo</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               ) : (
                 <View style={styles.uploadBoxWrap}>
@@ -1992,7 +2160,12 @@ function ProductModal({
                 <View style={styles.thumbStrip}>
                   {images.map((img, i) => (
                     <View key={i} style={styles.thumbCard}>
-                      <Image source={{ uri: img }} style={styles.thumbImage} resizeMode="cover" />
+                      <Image
+                        source={{ uri: img }}
+                        style={styles.thumbImage}
+                        resizeMode="cover"
+                        {...(Platform.OS === 'web' ? { referrerPolicy: 'no-referrer' } as any : {})}
+                      />
                       <TouchableOpacity onPress={() => removeImage(i)} style={styles.thumbDeleteBadge}>
                         <Ionicons name="close" size={12} color="#ffffff" />
                       </TouchableOpacity>
@@ -2067,6 +2240,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  headerLogoImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
   },
   headerTitle: {
     fontSize: fontSize.lg,
@@ -2930,6 +3109,60 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#ffc400',
+  },
+  photoPasteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  photoPasteBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  livePhotoPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  livePhotoThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#cbd5e1',
+  },
+  livePhotoPreviewTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  livePhotoPreviewUrl: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  livePhotoAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ffc400',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  livePhotoAddBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#000000',
   },
   uploadBoxWrap: {
     padding: 12,

@@ -53,6 +53,7 @@ export interface ITradeInRequest {
   created_at: Date;
   updated_at: Date;
   condition?: Record<string, unknown>;
+  admin_note?: string;
 }
 
 export function calculateInstantQuote(req: TradeInValuationRequest): {

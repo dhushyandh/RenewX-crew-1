@@ -1,16 +1,38 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NativeModules, Platform } from 'react-native';
+
 const PRODUCTION_API_BASE_URL = 'https://renewx-crew-server.onrender.com/api';
-const DEFAULT_HOST = PRODUCTION_API_BASE_URL;
-const configuredApiUrl =
-  typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
-const API_BASE_URL = configuredApiUrl || DEFAULT_HOST;
 
 export function getApiBaseUrl(): string {
-  return API_BASE_URL;
+  const configured =
+    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
+  let url = configured || PRODUCTION_API_BASE_URL;
+
+  // On native mobile (Android / iOS physical device or emulator), 'localhost' points to the phone itself.
+  // Automatically resolve it to the host computer running Metro bundler & backend server.
+  if (Platform.OS !== 'web' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+    const scriptURL = NativeModules?.SourceCode?.scriptURL;
+    if (scriptURL) {
+      const match = scriptURL.match(/^https?:\/\/([^/:]+)/);
+      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
+        return url.replace(/localhost|127\.0\.0\.1/, match[1]);
+      }
+    }
+    if (Platform.OS === 'android') {
+      return url.replace(/localhost|127\.0\.0\.1/, '10.0.2.2');
+    }
+  }
+
+  return url;
 }
+
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+interface RequestOptions extends RequestInit {
+  timeoutMs?: number;
+}
+
+async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
 
   const headers: Record<string, string> = {
@@ -20,12 +42,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
+  const timeoutMs = options.timeoutMs ?? 35000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    res = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       ...options,
       headers,
       signal: options.signal || controller.signal,
@@ -63,6 +86,33 @@ export const api = {
     } catch {
       return { status: 'offline', localFallback: true };
     }
+  },
+
+  auth: {
+    requestPasswordReset: async (email: string, redirectUrl?: string) =>
+      request<{ email: string; expiresInMinutes: number; resetUrl?: string; token?: string; simulated?: boolean }>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email, redirectUrl }),
+        timeoutMs: 45000,
+      }),
+
+    verifyResetToken: async (token: string, email?: string) =>
+      request<{ email: string; name?: string }>('/auth/verify-reset-token', {
+        method: 'POST',
+        body: JSON.stringify({ token, email }),
+      }),
+
+    resetPassword: async (payload: { token: string; newPassword: string; email?: string }) =>
+      request<{ token: string; user: any }>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    changePassword: async (payload: { currentPassword: string; newPassword: string }) =>
+      request<{ message: string }>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
   },
 
   brands: {
@@ -153,6 +203,12 @@ export const api = {
         body: JSON.stringify({ status, courier, tracking_number }),
       });
     },
+
+    delete: async (id: string) => {
+      return await request<any>(`/orders/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    },
   },
 
   users: {
@@ -201,7 +257,7 @@ export const api = {
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       try {
-        const res = await fetch(`${API_BASE_URL}/upload`, { method: 'POST', body: formData, headers });
+        const res = await fetch(`${getApiBaseUrl()}/upload`, { method: 'POST', body: formData, headers });
         const json = await res.json();
         if (!res.ok || !json?.success) {
           const error = new Error(json?.error?.message || `Upload failed (HTTP ${res.status})`) as Error & { status?: number };
@@ -220,6 +276,12 @@ export const api = {
       request<{ url: string; fileName: string }>('/upload/base64', {
         method: 'POST',
         body: JSON.stringify({ base64: base64String, fileName, contentType }),
+      }),
+
+    url: async (imageUrl: string) =>
+      request<{ url: string; fileName?: string }>('/upload/url', {
+        method: 'POST',
+        body: JSON.stringify({ url: imageUrl }),
       }),
   },
 };

@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
@@ -23,9 +23,11 @@ export default function HomeHeader({
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.logoContainer}>
-          <View style={styles.logoIcon}>
-            <Ionicons name="phone-portrait" size={18} color={colors.primary} />
-          </View>
+          <Image
+            source={require('@/assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <View>
             <Text style={styles.logo}>
               Renew<Text style={styles.logoAccent}>X</Text>
@@ -84,13 +86,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  logoIcon: {
-    width: 34,
-    height: 34,
+  logoImage: {
+    width: 38,
+    height: 38,
     borderRadius: radius.md,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#ffffff',
   },
   logo: {
     fontSize: fontSize.lg,

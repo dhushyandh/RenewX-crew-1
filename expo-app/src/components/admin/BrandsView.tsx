@@ -659,7 +659,7 @@ function BrandFormModal({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <View style={{ flex: 1 }}>
               <TextInput
-                placeholder="Image URL or upload below..."
+                placeholder="Image URL, data:image/... or pick below"
                 value={logo}
                 onChangeText={setLogo}
                 style={formStyles.input}

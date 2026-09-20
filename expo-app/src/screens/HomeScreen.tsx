@@ -402,7 +402,10 @@ export default function HomeScreen() {
       <ProductCard
         product={item}
         onPress={() => openProduct(item)}
-        onAddToCart={() => addToCart(item)}
+        onAddToCart={() => {
+          addToCart(item);
+          navigation.navigate('Cart');
+        }}
       />
     </View>
   );

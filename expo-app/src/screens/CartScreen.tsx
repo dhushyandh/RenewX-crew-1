@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '@/context/CartContext';
+import { confirmAction } from '@/lib/confirmAction';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 function formatMoney(value: number) {
@@ -32,27 +34,23 @@ export default function CartScreen() {
   const navigation = useNavigation<any>();
 
   const handleRemove = (item: any) => {
-    Alert.alert(
+    const itemId = item.id ?? item._uuid ?? item._id;
+    confirmAction(
       'Remove item?',
       `Remove ${item.name || 'this item'} from your cart?`,
-      [
-        { text: 'Keep Item', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeFromCart(item.id),
-        },
-      ],
+      () => removeFromCart(itemId),
+      'Remove'
     );
   };
 
   const handleDecrease = (item: any) => {
+    const itemId = item.id ?? item._uuid ?? item._id;
     if (item.quantity <= 1) {
       handleRemove(item);
       return;
     }
 
-    updateQuantity(item.id, item.quantity - 1);
+    updateQuantity(itemId, item.quantity - 1);
   };
 
   if (!hydrated) {
@@ -73,7 +71,7 @@ export default function CartScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerIcon}
-            onPress={() => navigation.goBack()}
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs', { screen: 'Home' }))}
             activeOpacity={0.75}
             accessibilityRole="button"
             accessibilityLabel="Go back"
@@ -117,7 +115,7 @@ export default function CartScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerIcon}
-          onPress={() => navigation.goBack()}
+          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs', { screen: 'Home' }))}
           activeOpacity={0.75}
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -215,7 +213,7 @@ export default function CartScreen() {
                     style={styles.quantityButton}
                     disabled={item.quantity >= item.stock}
                     onPress={() =>
-                      updateQuantity(item.id, item.quantity + 1)
+                      updateQuantity(item.id ?? item._uuid ?? (item as any)._id, item.quantity + 1)
                     }
                     activeOpacity={0.7}
                     accessibilityRole="button"

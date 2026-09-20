@@ -1,23 +1,20 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { uploadFile, uploadBase64 } from '../controllers/uploadController';
+import { uploadFile, uploadBase64, uploadUrl } from '../controllers/uploadController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
-// Configure multer memory storage
+// Configure multer memory storage with no file type restrictions
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10 MB limit
+    fileSize: 50 * 1024 * 1024, // 50 MB limit
   },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files (JPEG, PNG, WebP, etc.) are allowed.'));
-    }
+  fileFilter: (_req, _file, cb) => {
+    // No restrictions: accept any image or file type
+    cb(null, true);
   },
 });
 
@@ -42,9 +39,12 @@ function handleSingleUpload(req: Request, res: Response, next: NextFunction) {
 }
 
 // 1. Multipart Form File Upload Endpoint
-router.post('/', authenticateToken, requireAdmin, handleSingleUpload, uploadFile);
+router.post('/', authenticateToken, handleSingleUpload, uploadFile);
 
 // 2. Base64 JSON Payload Upload Endpoint (for Expo/mobile)
-router.post('/base64', authenticateToken, requireAdmin, uploadBase64);
+router.post('/base64', authenticateToken, uploadBase64);
+
+// 3. Remote URL Download & Cache Endpoint
+router.post('/url', authenticateToken, uploadUrl);
 
 export default router;

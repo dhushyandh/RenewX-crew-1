@@ -36,38 +36,55 @@ export default function ImagePickerButton({
 
       // Preferred method: base64 upload if available
       if (asset.base64) {
-        const fileName = asset.fileName || `device-${Date.now()}.jpg`;
+        const fileName = asset.fileName || `device-${Date.now()}`;
         const contentType = asset.mimeType || 'image/jpeg';
-        const res = await api.upload.base64(asset.base64, fileName, contentType);
-        if (res?.url) {
-          onImageUploaded(res.url);
-          toast.success('Device photo uploaded to cloud storage', 'Upload Complete');
-          return;
+        const dataUri = asset.base64.startsWith('data:')
+          ? asset.base64
+          : `data:${contentType};base64,${asset.base64}`;
+
+        try {
+          const res = await api.upload.base64(asset.base64, fileName, contentType);
+          if (res?.url) {
+            onImageUploaded(res.url);
+            toast.success('Image uploaded successfully', 'Upload Complete');
+            return;
+          }
+        } catch (uploadErr) {
+          console.warn('[ImagePicker] Remote upload failed, attaching data URI directly:', uploadErr);
         }
+
+        // Direct data URI fallback so it always works
+        onImageUploaded(dataUri);
+        toast.success('Image attached successfully', 'Image Linked');
+        return;
       }
 
       // Fallback method: multipart native file URI upload
       const uri = asset.uri;
-      const fileName = asset.fileName || uri.split('/').pop() || `device-${Date.now()}.jpg`;
-      const res = await api.upload.image({
-        uri,
-        name: fileName,
-        type: asset.mimeType || 'image/jpeg',
-      });
+      const fileName = asset.fileName || uri.split('/').pop() || `device-${Date.now()}`;
+      try {
+        const res = await api.upload.image({
+          uri,
+          name: fileName,
+          type: asset.mimeType || 'image/jpeg',
+        });
 
-      if (res?.url) {
-        onImageUploaded(res.url);
-        toast.success('Device photo uploaded to cloud storage', 'Upload Complete');
-      } else {
-        // Fallback to local URI
-        onImageUploaded(uri);
-        toast.info('Photo attached to catalog via local URI', 'Image Linked');
+        if (res?.url) {
+          onImageUploaded(res.url);
+          toast.success('Image uploaded successfully', 'Upload Complete');
+          return;
+        }
+      } catch (uploadErr) {
+        console.warn('[ImagePicker] Remote upload failed, attaching URI directly:', uploadErr);
       }
+
+      // Fallback to local URI
+      onImageUploaded(uri);
+      toast.info('Image attached successfully', 'Image Linked');
     } catch (err: any) {
-      console.warn('[ImagePicker] Upload server issue, using local URI fallback:', err);
-      // Fallback to asset URI so UI does not break
+      console.warn('[ImagePicker] Upload issue, using local URI fallback:', err);
       onImageUploaded(asset.uri);
-      toast.info('Using local photo link (server offline)', 'Photo Attached');
+      toast.info('Image attached', 'Photo Attached');
     } finally {
       setUploading(false);
     }
@@ -85,10 +102,9 @@ export default function ImagePickerButton({
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect,
-        quality: 0.8,
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: false,
+        quality: 1,
         base64: true,
       });
 
@@ -112,9 +128,9 @@ export default function ImagePickerButton({
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect,
-        quality: 0.8,
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: false,
+        quality: 1,
         base64: true,
       });
 

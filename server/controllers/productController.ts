@@ -10,16 +10,28 @@ const parsePositiveInt = (value: unknown, fallback: number, max: number): number
 };
 
 const productFields = [
-  'name', 'brand', 'category', 'original_price', 'price', 'condition',
-  'warranty_months', 'image_url', 'rating', 'reviews', 'stock',
+  'name', 'brand', 'model', 'category', 'original_price', 'price', 'condition',
+  'warranty_months', 'image_url', 'images', 'rating', 'reviews', 'stock',
   'description', 'specs',
 ] as const;
 
-const normalizeProductPayload = (payload: CreateProductDTO | UpdateProductDTO) => {
+const normalizeProductPayload = (payload: any) => {
   const normalized: Record<string, unknown> = {};
+  const data = { ...payload };
+
+  if (data.originalPrice !== undefined && data.original_price === undefined) {
+    data.original_price = data.originalPrice;
+  }
+  if (data.warrantyMonths !== undefined && data.warranty_months === undefined) {
+    data.warranty_months = data.warrantyMonths;
+  }
+  if (data.image !== undefined && data.image_url === undefined) {
+    data.image_url = data.image;
+  }
+
   for (const field of productFields) {
-    if (payload[field] !== undefined) {
-      const value = payload[field];
+    if (data[field] !== undefined) {
+      const value = data[field];
       normalized[field] =
         typeof value === 'string' ? value.trim() :
         Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) :
