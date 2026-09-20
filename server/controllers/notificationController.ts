@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { NotificationModel } from '../models/Notification';
+import { User } from '../models/User';
 
 export async function getNotifications(
   req: AuthenticatedRequest,
@@ -69,6 +70,74 @@ export async function markAllNotificationsRead(
     );
 
     res.json({ success: true, message: 'Notifications marked as read' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+function validatePushToken(value: unknown): string | null {
+  const token = typeof value === 'string' ? value.trim() : '';
+  if (!token || token.length > 256 || !/^(Expo(nent)?PushToken)\[[A-Za-z0-9_-]+\]$/.test(token)) {
+    return null;
+  }
+  return token;
+}
+
+export async function registerPushToken(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const token = validatePushToken(req.body?.token);
+    if (!token) {
+      res.status(400).json({ success: false, error: { message: 'A valid Expo push token is required', code: 'INVALID_PUSH_TOKEN' } });
+      return;
+    }
+
+    // A physical device token should belong to only one signed-in account.
+    await User.updateMany(
+      { _id: { $ne: req.user.id }, push_tokens: token },
+      { $pull: { push_tokens: token } }
+    ).exec();
+
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { $addToSet: { push_tokens: token } },
+      { new: false }
+    ).exec();
+
+    res.json({ success: true, message: 'Push token registered' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unregisterPushToken(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const token = validatePushToken(req.body?.token);
+    if (!token) {
+      res.status(400).json({ success: false, error: { message: 'A valid Expo push token is required', code: 'INVALID_PUSH_TOKEN' } });
+      return;
+    }
+
+    await User.findByIdAndUpdate(req.user.id, { $pull: { push_tokens: token } }).exec();
+    res.json({ success: true, message: 'Push token removed' });
   } catch (err) {
     next(err);
   }
