@@ -24,3 +24,7 @@ dist-ssr
 .vercel
 server-build.cjs
 server-runtime.cjs
+.expo/
+**/.expo/
+.expo
+**/.expo

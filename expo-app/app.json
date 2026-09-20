@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#059669"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.renewx.mobile",
@@ -33,6 +28,17 @@
       "eas": {
         "projectId": "67751613-3615-45fe-a3bc-2cf4a5c76179"
       }
-    }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#059669",
+          "image": "./assets/splash.png",
+          "imageWidth": 200
+        }
+      ]
+    ]
   }
 }

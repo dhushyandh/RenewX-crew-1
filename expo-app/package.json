@@ -20,8 +20,10 @@
     "@supabase/supabase-js": "^2.116.0",
     "expo": "^57.0.0",
     "expo-clipboard": "^57.0.2",
+    "expo-font": "~57.0.4",
     "expo-image-picker": "~57.0.19",
     "expo-location": "~57.0.19",
+    "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -34,8 +36,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@types/react": "~18.2.45",
-    "typescript": "^5.9.3"
+    "@types/react": "~19.2.4",
+    "typescript": "~6.0.3"
   },
   "private": true
 }
