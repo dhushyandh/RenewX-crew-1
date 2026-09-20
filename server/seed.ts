@@ -14,15 +14,21 @@ async function seed() {
 
   // 1. Seed / Upsert Primary Administrator
   const adminEmail = env.ADMIN_EMAIL.toLowerCase();
+  const adminInitialPassword = process.env.ADMIN_INITIAL_PASSWORD?.trim();
+
+  if (!adminInitialPassword) {
+    throw new Error('ADMIN_INITIAL_PASSWORD must be configured before running the production database seeder.');
+  }
+
   let adminUser = await User.findOne({ email: adminEmail });
   if (!adminUser) {
     adminUser = await User.create({
       email: adminEmail,
-      password: 'admin123', // Initial development password
+      password: adminInitialPassword
       full_name: 'RenewX Administrator',
       role: 'admin',
     });
-    console.log(`✓ Admin user created: ${adminEmail} (password: admin123)`);
+    console.log(`✓ Admin user created: ${adminEmail}`);
   } else {
     adminUser.role = 'admin';
     await adminUser.save();
