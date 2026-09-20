@@ -13,6 +13,7 @@ import {
 } from '../services/razorpay';
 import { env } from '../config/env';
 import { User } from '../models/User';
+import { NotificationModel } from '../models/Notification';
 import { createUserNotification } from '../services/notificationService';
 
 const MAX_ORDER_ITEMS = 50;
@@ -676,7 +677,7 @@ export async function deleteOrder(req: AuthenticatedRequest, res: Response, next
     }
 
     // Clean up any notifications referencing this deleted order
-    // Notifications are retained as an audit trail even if an admin deletes the order.
+    await NotificationModel.deleteMany({ reference_id: id, reference_type: 'order' }).catch(() => {});
 
     res.json({ success: true, message: 'Order deleted successfully' });
   } catch (err) {
