@@ -6,7 +6,7 @@ import {
   TradeInModel,
 } from '../models/TradeIn';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { NotificationModel } from '../models/Notification';
+import { createUserNotification } from '../services/notificationService';
 import { User } from '../models/User';
 
 export async function getValuationQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -158,13 +158,13 @@ export async function updateTradeInStatus(
           ? `Your ${request.brand} ${request.model} sell request was rejected.`
           : `Your ${request.brand} ${request.model} sell request is now ${status.replace(/_/g, ' ')}.`;
 
-      await NotificationModel.create({
-        user_id: request.user_id,
+      await createUserNotification(request.user_id, {
         type: 'trade_in',
         title,
         body,
         reference_id: request.id,
         reference_type: 'trade_in',
+        data: { screen: 'Notifications', tradeInId: request.id },
       });
     }
 
