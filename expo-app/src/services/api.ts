@@ -213,6 +213,16 @@ export const api = {
 
   users: {
     getNotificationPreferences: async () => request<any>('/users/me/notification-preferences'),
+    registerPushToken: async (token: string) =>
+      request<any>('/users/me/push-token', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+    unregisterPushToken: async (token: string) =>
+      request<any>('/users/me/push-token', {
+        method: 'DELETE',
+        body: JSON.stringify({ token }),
+      }),
     updateNotificationPreferences: async (payload: { order_updates?: boolean; sell_request_updates?: boolean; marketing?: boolean }) =>
       request<any>('/users/me/notification-preferences', { method: 'PATCH', body: JSON.stringify(payload) }),
     getAll: async () => request<any[]>('/users'),
