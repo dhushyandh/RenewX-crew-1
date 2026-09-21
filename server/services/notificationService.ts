@@ -10,10 +10,25 @@ interface PushPayload {
   data?: Record<string, unknown>;
 }
 
-function isExpoPushToken(value: unknown): value is string {
-  return typeof value === 'string' &&
-    value.length <= 256 &&
-    /^(Expo(nent)?PushToken)\[[A-Za-z0-9_-]+\]$/.test(value);
+/**
+ * Validates whether a given token is a valid Expo Push Token.
+ * Follows official Expo SDK logic:
+ * - ExponentPushToken[...] or ExpoPushToken[...] (bracket format)
+ * - EAS push token UUID format: 8-4-4-4-12 hex string
+ */
+export function isExpoPushToken(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const token = value.trim();
+  if (!token || token.length > 256) return false;
+
+  const isBracketFormat =
+    (token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken[')) &&
+    token.endsWith(']') &&
+    token.length > 20;
+
+  const isUuidFormat = /^[a-z\d]{8}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{12}$/i.test(token);
+
+  return isBracketFormat || isUuidFormat;
 }
 
 async function sendExpoPushMessages(messages: Array<Record<string, unknown>>): Promise<void> {
@@ -53,6 +68,7 @@ async function sendExpoPushMessages(messages: Array<Record<string, unknown>>): P
         .filter((token): token is string => typeof token === 'string');
 
       if (invalidTokens.length) {
+        console.warn(`[Notifications] Pruning ${invalidTokens.length} unregistered device token(s)`);
         await User.updateMany(
           { push_tokens: { $in: invalidTokens } },
           { $pull: { push_tokens: { $in: invalidTokens } } }
@@ -61,7 +77,9 @@ async function sendExpoPushMessages(messages: Array<Record<string, unknown>>): P
 
       const errors = tickets.filter((ticket) => ticket?.status === 'error');
       if (errors.length) {
-        console.warn('[Notifications] Expo rejected', errors.length, 'push message(s).');
+        console.warn('[Notifications] Expo rejected', errors.length, 'push message(s):', errors);
+      } else {
+        console.log(`[Notifications] Expo accepted ${tickets.length} push notification(s) successfully.`);
       }
     } catch (error) {
       console.error('[Notifications] Expo Push Service request failed:', error);
@@ -90,9 +108,15 @@ export async function createUserNotification(
   });
 
   const user = await User.findById(userId).select('+push_tokens');
-  const tokens = (user?.push_tokens || []).filter(isExpoPushToken);
+  const rawTokens = user?.push_tokens || [];
+  const tokens = rawTokens.filter(isExpoPushToken);
 
-  if (!tokens.length) return;
+  if (!tokens.length) {
+    console.warn(`[Notifications] Push skipped for user ${userId}: no valid Expo push tokens registered (raw tokens in DB: ${rawTokens.length})`);
+    return;
+  }
+
+  console.log(`[Notifications] Dispatching push notification "${payload.title}" to ${tokens.length} device(s) for user ${userId}...`);
 
   await sendExpoPushMessages(
     tokens.map((to) => ({

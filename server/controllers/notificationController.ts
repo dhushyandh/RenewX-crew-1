@@ -76,12 +76,13 @@ export async function markAllNotificationsRead(
 }
 
 
+import { isExpoPushToken } from '../services/notificationService';
+
 function validatePushToken(value: unknown): string | null {
-  const token = typeof value === 'string' ? value.trim() : '';
-  if (!token || token.length > 256 || !/^(Expo(nent)?PushToken)\[[A-Za-z0-9_-]+\]$/.test(token)) {
-    return null;
+  if (isExpoPushToken(value)) {
+    return (value as string).trim();
   }
-  return token;
+  return null;
 }
 
 export async function registerPushToken(
@@ -95,9 +96,18 @@ export async function registerPushToken(
       return;
     }
 
-    const token = validatePushToken(req.body?.token);
+    const rawToken = req.body?.token ?? req.body?.pushToken ?? req.body?.push_token;
+    const token = validatePushToken(rawToken);
     if (!token) {
-      res.status(400).json({ success: false, error: { message: 'A valid Expo push token is required', code: 'INVALID_PUSH_TOKEN' } });
+      console.warn(`[PushToken] 400 Rejected registration for user ${req.user.id}. Payload:`, req.body);
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'A valid Expo push token is required',
+          code: 'INVALID_PUSH_TOKEN',
+          received: typeof rawToken === 'string' ? `${rawToken.slice(0, 30)}...` : null,
+        },
+      });
       return;
     }
 
@@ -113,6 +123,7 @@ export async function registerPushToken(
       { new: false }
     ).exec();
 
+    console.log(`[PushToken] Successfully registered push token for user ${req.user.id}: ${token.slice(0, 25)}...`);
     res.json({ success: true, message: 'Push token registered' });
   } catch (err) {
     next(err);
@@ -130,13 +141,15 @@ export async function unregisterPushToken(
       return;
     }
 
-    const token = validatePushToken(req.body?.token);
+    const rawToken = req.body?.token ?? req.body?.pushToken ?? req.body?.push_token;
+    const token = validatePushToken(rawToken);
     if (!token) {
       res.status(400).json({ success: false, error: { message: 'A valid Expo push token is required', code: 'INVALID_PUSH_TOKEN' } });
       return;
     }
 
     await User.findByIdAndUpdate(req.user.id, { $pull: { push_tokens: token } }).exec();
+    console.log(`[PushToken] Removed push token for user ${req.user.id}`);
     res.json({ success: true, message: 'Push token removed' });
   } catch (err) {
     next(err);

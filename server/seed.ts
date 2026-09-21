@@ -24,7 +24,7 @@ async function seed() {
   if (!adminUser) {
     adminUser = await User.create({
       email: adminEmail,
-      password: adminInitialPassword
+      password: adminInitialPassword,
       full_name: 'RenewX Administrator',
       role: 'admin',
     });
