@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "496752270183",
+    "project_id": "renewx-app",
+    "storage_bucket": "renewx-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496752270183:android:6d843c0929777e75146dc2",
+        "android_client_info": {
+          "package_name": "com.renewx.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAS8JP6C2Jy11uYH_2BcPl1CX4zCR3rec8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

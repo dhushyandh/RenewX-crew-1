@@ -19,7 +19,6 @@
     },
     "android": {
       "package": "com.renewx.mobile",
-      "versionCode": 1,
       "googleServicesFile": "./google-services.json"
     },
     "web": {

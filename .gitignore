@@ -28,8 +28,6 @@ server-runtime.cjs
 **/.expo/
 .expo
 **/.expo
-google-services.json
-**/google-services.json
 firebase-service-account.json
 **/firebase-service-account.json
 
