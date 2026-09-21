@@ -12,3 +12,7 @@ npm-debug.*
 web-build/
 .env.local
 .env.*.local
+google-services.json
+firebase-service-account.json
+*-service-account*.json
+

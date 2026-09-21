@@ -19,7 +19,8 @@
     },
     "android": {
       "package": "com.renewx.mobile",
-      "versionCode": 1
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro"
@@ -39,7 +40,14 @@
           "imageWidth": 200
         }
       ],
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffc400",
+          "defaultChannel": "default"
+        }
+      ]
     ]
   }
 }
