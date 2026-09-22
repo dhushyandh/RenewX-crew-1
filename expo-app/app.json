@@ -50,7 +50,8 @@
           "color": "#ffc400",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "owner": "dhushyandhs-workspace",
     "scheme": "renewx"

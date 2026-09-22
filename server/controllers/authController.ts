@@ -208,29 +208,6 @@ async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdTokenPayloa
     throw new Error('Invalid Google ID token');
   }
 
-  const decoded = jwt.decode(idToken, { complete: true });
-  if (!decoded || typeof decoded !== 'object' || !decoded.header || decoded.header.alg !== 'RS256' || !decoded.header.kid) {
-    throw new Error('Invalid Google ID token');
-  }
-
-  const certs = await getGoogleCertificates();
-  const publicKey = certs[decoded.header.kid];
-  if (!publicKey) {
-    // Google can rotate signing keys before the cache expires. Refresh once.
-    googleCertCache = null;
-    const refreshedCerts = await getGoogleCertificates();
-    if (!refreshedCerts[decoded.header.kid]) {
-      throw new Error('Unknown Google signing key');
-    }
-    googleCertCache = {
-      certs: refreshedCerts,
-      expiresAt: Date.now() + 3600000,
-    };
-  }
-
-  const signingKey = (googleCertCache?.certs || certs)[decoded.header.kid];
-  if (!signingKey) throw new Error('Unknown Google signing key');
-
   const allowedAudiences = env.GOOGLE_CLIENT_IDS
     .split(',')
     .map((value) => value.trim())
@@ -240,9 +217,44 @@ async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdTokenPayloa
     throw new Error('Google OAuth is not configured on the server');
   }
 
+  // Primary: verify via Google tokeninfo endpoint (fast, robust, automatically validates keys)
+  try {
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+    if (res.ok) {
+      const data = await res.json() as any;
+      if (data.email && (data.email_verified === 'true' || data.email_verified === true)) {
+        return {
+          email: data.email,
+          email_verified: true,
+          name: data.name,
+          picture: data.picture,
+          sub: data.sub,
+          exp: Number(data.exp),
+        };
+      }
+    }
+  } catch (fetchErr) {
+    console.warn('[Auth] Google tokeninfo fetch failed, attempting local verification:', fetchErr);
+  }
+
+  // Fallback: local RS256 cert verification
+  const decoded = jwt.decode(idToken, { complete: true });
+  if (!decoded || typeof decoded !== 'object' || !decoded.header || decoded.header.alg !== 'RS256' || !decoded.header.kid) {
+    throw new Error('Invalid Google ID token');
+  }
+
+  const certs = await getGoogleCertificates();
+  let signingKey = certs[decoded.header.kid];
+  if (!signingKey) {
+    googleCertCache = null;
+    const refreshedCerts = await getGoogleCertificates();
+    signingKey = refreshedCerts[decoded.header.kid];
+  }
+  if (!signingKey) throw new Error('Unknown Google signing key');
+
   const payload = jwt.verify(idToken, signingKey, {
     algorithms: ['RS256'],
-    audience: allowedAudiences,
+    audience: allowedAudiences as any,
     issuer: ['https://accounts.google.com', 'accounts.google.com'],
   }) as GoogleIdTokenPayload;
 

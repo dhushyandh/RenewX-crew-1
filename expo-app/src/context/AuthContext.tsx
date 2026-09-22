@@ -53,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : googleWebClientId !== 'disabled';
 
   const [, , promptGoogleAsync] = Google.useIdTokenAuthRequest({
+    clientId: googleWebClientId,
     webClientId: googleWebClientId,
     androidClientId: googleAndroidClientId,
     iosClientId: googleIosClientId,
