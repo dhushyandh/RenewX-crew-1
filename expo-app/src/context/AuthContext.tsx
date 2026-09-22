@@ -179,6 +179,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loginWithToken = useCallback(async (receivedToken: string, receivedUser: AppUser) => {
+    setToken(receivedToken);
+    setUser(receivedUser);
+    await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
+    await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
+    registerPushTokenInBackground();
+  }, []);
+
+
   const signInWithGoogle = useCallback(async () => {
     if (!googleConfigured) {
       return {
@@ -239,14 +248,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [googleConfigured, promptGoogleAsync, loginWithToken]);
 
-  const loginWithToken = useCallback(async (receivedToken: string, receivedUser: AppUser) => {
-    setToken(receivedToken);
-    setUser(receivedUser);
-    await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
-    await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
-    registerPushTokenInBackground();
-  }, []);
-
 
   const signOut = useCallback(async () => {
     try {
@@ -276,6 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signUp,
         signIn,
+        signInWithGoogle,
         loginWithToken,
         signOut,
       }}
