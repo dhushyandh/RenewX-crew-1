@@ -201,7 +201,7 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
       return;
     }
 
-    const { full_name, avatar_url } = req.body || {};
+    const { full_name, avatar_url, phone, address, city, state, pincode, bio } = req.body || {};
     const updates: Record<string, any> = {};
 
     if (full_name !== undefined) {
@@ -210,6 +210,30 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
 
     if (avatar_url !== undefined) {
       updates.avatar_url = typeof avatar_url === 'string' ? avatar_url.trim() : '';
+    }
+
+    if (phone !== undefined) {
+      updates.phone = typeof phone === 'string' ? phone.trim() : '';
+    }
+
+    if (address !== undefined) {
+      updates.address = typeof address === 'string' ? address.trim() : '';
+    }
+
+    if (city !== undefined) {
+      updates.city = typeof city === 'string' ? city.trim() : '';
+    }
+
+    if (state !== undefined) {
+      updates.state = typeof state === 'string' ? state.trim() : '';
+    }
+
+    if (pincode !== undefined) {
+      updates.pincode = typeof pincode === 'string' ? pincode.trim() : '';
+    }
+
+    if (bio !== undefined) {
+      updates.bio = typeof bio === 'string' ? bio.trim() : '';
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -232,6 +256,12 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
         role: updatedUser.role,
         full_name: updatedUser.full_name,
         avatar_url: updatedUser.avatar_url,
+        phone: updatedUser.phone,
+        address: updatedUser.address,
+        city: updatedUser.city,
+        state: updatedUser.state,
+        pincode: updatedUser.pincode,
+        bio: updatedUser.bio,
       },
     });
   } catch (err) {

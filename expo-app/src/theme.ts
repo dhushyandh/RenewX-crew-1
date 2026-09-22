@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const colors = {
   primary: '#ffc400',
   primaryDark: '#e0ac00',
@@ -50,7 +52,15 @@ export const fontWeight = {
   medium: '500' as const,
   semibold: '600' as const,
   bold: '700' as const,
-  black: '900' as const,
+  black: '800' as const,
+};
+
+export const fontFamily = {
+  regular: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_400Regular' }),
+  medium: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_500Medium' }),
+  semibold: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_600SemiBold' }),
+  bold: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_700Bold' }),
+  extraBold: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_800ExtraBold' }),
 };
 
 export const conditionColors: Record<string, { bg: string; text: string }> = {
@@ -59,3 +69,4 @@ export const conditionColors: Record<string, { bg: string; text: string }> = {
   Good: { bg: '#dbeafe', text: '#1d4ed8' },
   Fair: { bg: '#fef3c7', text: '#b45309' },
 };
+

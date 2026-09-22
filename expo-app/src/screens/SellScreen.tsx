@@ -485,6 +485,36 @@ export default function SellScreen() {
     }
   };
 
+  // Convert asset (URI/Blob/Data) to Base64 reliably on Web & Mobile
+  const resolveAssetBase64 = async (asset: ImagePicker.ImagePickerAsset): Promise<string> => {
+    if (asset.base64 && typeof asset.base64 === 'string' && asset.base64.trim()) {
+      return asset.base64.trim();
+    }
+    if (asset.uri && asset.uri.startsWith('data:')) {
+      const parts = asset.uri.split(',');
+      return parts[1] || '';
+    }
+    if (asset.uri) {
+      try {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const res = reader.result as string;
+            const b64 = res.includes(',') ? res.split(',')[1] : res;
+            resolve(b64 || '');
+          };
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(blob);
+        });
+      } catch (err) {
+        console.warn('[ImageConversion] Could not convert uri to base64:', err);
+      }
+    }
+    return '';
+  };
+
   // Photo upload
   const handlePhotoUpload = async (slot: 'front' | 'back' | 'edges' | 'billBox') => {
     try {
@@ -498,8 +528,33 @@ export default function SellScreen() {
 
       if (!res.canceled && res.assets && res.assets[0]) {
         const asset = res.assets[0];
-        setPhotos((prev) => ({ ...prev, [slot]: asset.uri }));
-        setPhotoSkipped(false);
+        const base64Data = await resolveAssetBase64(asset);
+        let photoUri = '';
+
+        if (base64Data) {
+          try {
+            const fileName = `device-${slot}-${Date.now()}.jpg`;
+            const uploadRes = await api.upload.base64(base64Data, fileName, 'image/jpeg');
+            if (uploadRes?.url) {
+              photoUri = uploadRes.url;
+            } else {
+              photoUri = `data:image/jpeg;base64,${base64Data}`;
+            }
+          } catch (uploadErr) {
+            console.warn('[Upload] Cloud storage upload failed, saving as inline data URI:', uploadErr);
+            photoUri = `data:image/jpeg;base64,${base64Data}`;
+          }
+        } else if (asset.uri && !asset.uri.startsWith('blob:')) {
+          photoUri = asset.uri;
+        }
+
+        if (photoUri) {
+          setPhotos((prev) => ({ ...prev, [slot]: photoUri }));
+          setPhotoSkipped(false);
+          toast.success(`${slot.toUpperCase()} photo uploaded successfully.`);
+        } else {
+          toast.error('Could not process the selected image. Please try again.');
+        }
       }
     } catch (err: any) {
       toast.error(err?.message || 'Could not attach image');
@@ -545,6 +600,44 @@ export default function SellScreen() {
       setIsSubmitting(true);
       const activeModel = customModelMode && customModelName.trim() ? customModelName.trim() : selectedModel;
 
+      // Sanitize all photos: ensure zero blob: URLs reach the backend
+      const sanitizedPhotosList: string[] = [];
+      const sanitizedPhotoMap: Record<string, string> = {};
+
+      for (const [slotKey, rawUri] of Object.entries(photos)) {
+        if (!rawUri || typeof rawUri !== 'string' || !rawUri.trim()) continue;
+        let pUri = rawUri.trim();
+        if (pUri.startsWith('blob:')) {
+          try {
+            const resp = await fetch(pUri);
+            const b = await resp.blob();
+            const b64 = await new Promise<string>((resolve) => {
+              const r = new FileReader();
+              r.onloadend = () => {
+                const res = r.result as string;
+                resolve(res.includes(',') ? res.split(',')[1] : res);
+              };
+              r.onerror = () => resolve('');
+              r.readAsDataURL(b);
+            });
+            if (b64) {
+              try {
+                const up = await api.upload.base64(b64, `device-${slotKey}-${Date.now()}.jpg`, 'image/jpeg');
+                pUri = up?.url || `data:image/jpeg;base64,${b64}`;
+              } catch {
+                pUri = `data:image/jpeg;base64,${b64}`;
+              }
+            }
+          } catch (e) {
+            console.warn('[SellScreen] Pre-submit blob conversion failed:', e);
+          }
+        }
+        if (pUri && !pUri.startsWith('blob:')) {
+          sanitizedPhotosList.push(pUri);
+          sanitizedPhotoMap[slotKey] = pUri;
+        }
+      }
+
       const payload = {
         category: selectedCat.name,
         brand: selectedBrand,
@@ -554,8 +647,10 @@ export default function SellScreen() {
         expectedSellingPrice: Number(expectedPrice) || quoteAmount,
         customerName: userName.trim(),
         customerPhone: cleanPhone,
+        customerEmail: user?.email || '',
         pincode: cleanPin,
         address: userAddress.trim(),
+        photos: sanitizedPhotosList,
         condition: {
           screen: screenCond,
           body: bodyCond,
@@ -564,8 +659,10 @@ export default function SellScreen() {
           cameraClear,
           batteryHealthy,
           accessories: { hasBox, hasCharger, hasBill },
-          photoCount: Object.values(photos).filter(Boolean).length,
-          photoSkipped,
+          photoCount: sanitizedPhotosList.length,
+          photoSkipped: sanitizedPhotosList.length === 0,
+          photos: sanitizedPhotosList,
+          photoMap: sanitizedPhotoMap,
           pickupSchedule: { date: pickupDate, time: timeSlot },
           payout: { method: payoutMethod, upiId, bankAccount, bankIfsc },
         },

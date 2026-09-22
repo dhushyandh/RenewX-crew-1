@@ -8,6 +8,12 @@ export interface IUser {
   role: 'admin' | 'customer';
   full_name?: string;
   avatar_url?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  bio?: string;
   notification_preferences?: {
     order_updates: boolean;
     sell_request_updates: boolean;
@@ -30,6 +36,12 @@ export interface UserProfile {
   role: 'admin' | 'customer';
   full_name?: string;
   avatar_url?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  bio?: string;
   created_at?: string;
 }
 
@@ -62,6 +74,30 @@ const UserSchema = new Schema<IUser>(
       default: '',
     },
     avatar_url: {
+      type: String,
+      default: '',
+    },
+    phone: {
+      type: String,
+      default: '',
+    },
+    address: {
+      type: String,
+      default: '',
+    },
+    city: {
+      type: String,
+      default: '',
+    },
+    state: {
+      type: String,
+      default: '',
+    },
+    pincode: {
+      type: String,
+      default: '',
+    },
+    bio: {
       type: String,
       default: '',
     },

@@ -28,10 +28,13 @@ export interface TradeInPickupRequest {
   model: string;
   storage: string;
   valuationAmount: number;
+  expectedSellingPrice?: number;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   pincode: string;
   address: string;
+  photos?: string[];
   status?: string;
   condition?: Record<string, unknown>;
   admin_note?: string;
@@ -45,10 +48,13 @@ export interface ITradeInRequest {
   model: string;
   storage: string;
   valuation_amount: number;
+  expected_price?: number;
   customer_name: string;
   customer_phone: string;
+  customer_email?: string;
   pincode: string;
   address: string;
+  photos: string[];
   status: string;
   created_at: Date;
   updated_at: Date;
@@ -124,10 +130,13 @@ const TradeInRequestSchema = new Schema<ITradeInRequest>(
     model: { type: String, required: true },
     storage: { type: String, required: true },
     valuation_amount: { type: Number, required: true },
+    expected_price: { type: Number, default: 0 },
     customer_name: { type: String, required: true },
     customer_phone: { type: String, required: true },
+    customer_email: { type: String, default: '' },
     pincode: { type: String, required: true },
     address: { type: String, required: true },
+    photos: { type: [String], default: [] },
     status: { type: String, default: 'pending', index: true },
     condition: { type: Schema.Types.Mixed, default: {} },
     admin_note: { type: String, default: '' },

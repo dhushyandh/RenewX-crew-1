@@ -4,12 +4,59 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+
+// Global font injection for Web without overriding vector icon fonts
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const styleId = 'renewx-outfit-global';
+  let styleEl = document.getElementById(styleId);
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    document.head.appendChild(styleEl);
+  }
+  styleEl.innerHTML = `
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+    html, body, #root, input, textarea, select, button {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    [dir="auto"]:not([style*="Ionicons"]):not([style*="Material"]):not([style*="FontAwesome"]):not([style*="Feather"]):not([style*="AntDesign"]):not([style*="Entypo"]):not([style*="EvilIcons"]):not([style*="Octicons"]):not([style*="SimpleLineIcons"]):not([style*="Zocial"]):not([style*="Fontisto"]):not([style*="Foundation"]) {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+  `;
+}
+
+// Global font default for React Native Native only
+if (Platform.OS !== 'web') {
+  if ((Text as any).defaultProps == null) {
+    (Text as any).defaultProps = {};
+  }
+  (Text as any).defaultProps.style = [
+    { fontFamily: 'Outfit_400Regular' },
+    (Text as any).defaultProps.style,
+  ];
+
+  if ((TextInput as any).defaultProps == null) {
+    (TextInput as any).defaultProps = {};
+  }
+  (TextInput as any).defaultProps.style = [
+    { fontFamily: 'Outfit_400Regular' },
+    (TextInput as any).defaultProps.style,
+  ];
+}
 import type { Product } from '@/types';
 import { colors } from '@/theme';
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ToastProvider } from '@/context/ToastContext';
+import {
+  useFonts,
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+  Outfit_800ExtraBold,
+} from '@expo-google-fonts/outfit';
 
 import HomeScreen from '@/screens/HomeScreen';
 import ShopScreen from '@/screens/ShopScreen';
@@ -362,6 +409,22 @@ function MainAppNavigation() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+    Outfit_800ExtraBold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f8f7f2', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#ffc400" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ToastProvider>

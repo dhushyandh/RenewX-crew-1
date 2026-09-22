@@ -265,7 +265,16 @@ export const api = {
   },
 
   users: {
-    updateProfile: async (data: { full_name?: string; avatar_url?: string }) =>
+    updateProfile: async (data: {
+      full_name?: string;
+      avatar_url?: string;
+      phone?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      bio?: string;
+    }) =>
       request<any>('/users/me/profile', { method: 'PATCH', body: JSON.stringify(data) }),
     requestEmailVerification: async (new_email: string) =>
       request<{ pending_email: string; expires_at: string }>('/users/me/email/request-verification', {

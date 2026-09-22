@@ -43,13 +43,11 @@ export default function ProductCard({ product, onPress, onAddToCart }: ProductCa
           {product.name}
         </Text>
 
-        <View style={styles.warrantyRow}>
-          <Ionicons name="shield-checkmark" size={12} color={colors.text} />
-          <Text style={styles.warrantyText}>{product.warrantyMonths}mo warranty</Text>
-          {product.stock <= 5 && (
-            <Text style={styles.stockText}>Only {product.stock} left</Text>
-          )}
-        </View>
+        {product.stock <= 5 && (
+          <View style={styles.stockRow}>
+            <Text style={styles.stockText}>Only {product.stock} left in stock</Text>
+          </View>
+        )}
 
         <View style={styles.bottomRow}>
           <View style={styles.priceContainer}>
@@ -141,15 +139,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginBottom: 6,
   },
-  warrantyRow: {
+  stockRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 8,
-  },
-  warrantyText: {
-    fontSize: 10,
-    color: '#6b675e',
+    marginBottom: 6,
   },
   stockText: {
     fontSize: 10,

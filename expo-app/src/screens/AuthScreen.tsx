@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -168,9 +169,11 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
       >
         {/* Brand */}
         <View style={styles.brandSection}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoMarkText}>R</Text>
-          </View>
+          <Image
+            source={require('@/assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
 
           <View>
             <Text style={styles.brandName}>
@@ -395,20 +398,11 @@ const styles = StyleSheet.create({
     marginBottom: 34,
   },
 
-  logoMark: {
-    width: 46,
-    height: 46,
+  logoImage: {
+    width: 48,
+    height: 48,
     borderRadius: 14,
-    backgroundColor: colors.black,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 11,
-  },
-
-  logoMarkText: {
-    color: colors.primary,
-    fontSize: 24,
-    fontWeight: fontWeight.black,
+    marginRight: 12,
   },
 
   brandName: {

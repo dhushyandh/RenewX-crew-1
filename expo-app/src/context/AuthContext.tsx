@@ -17,6 +17,12 @@ export interface AppUser {
   role: 'admin' | 'customer';
   full_name?: string;
   avatar_url?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  bio?: string;
 }
 
 interface AuthContextValue {

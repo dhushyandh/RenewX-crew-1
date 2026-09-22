@@ -42,6 +42,34 @@ export async function createPickupRequest(req: AuthenticatedRequest, res: Respon
       return;
     }
 
+    const candidates: string[] = [];
+    if (Array.isArray(payload.photos)) {
+      candidates.push(...payload.photos);
+    }
+    const cond = (payload.condition || {}) as Record<string, any>;
+    if (Array.isArray(cond.photos)) {
+      candidates.push(...cond.photos);
+    } else if (cond.photos && typeof cond.photos === 'object') {
+      Object.values(cond.photos).forEach((val) => {
+        if (typeof val === 'string' && val.trim()) candidates.push(val);
+      });
+    }
+    if (cond.photoMap && typeof cond.photoMap === 'object') {
+      Object.values(cond.photoMap).forEach((val) => {
+        if (typeof val === 'string' && val.trim()) candidates.push(val);
+      });
+    }
+    ['front', 'back', 'edges', 'side', 'bill', 'billBox', 'photo', 'device_image'].forEach((k) => {
+      if (typeof cond[k] === 'string' && cond[k].trim()) candidates.push(cond[k]);
+    });
+    if (Array.isArray((payload as any).images)) {
+      candidates.push(...(payload as any).images);
+    }
+
+    const photosList = Array.from(
+      new Set(candidates.filter((p: any) => typeof p === 'string' && p.trim().length > 0))
+    );
+
     const newRequest = await TradeInModel.create({
       user_id: req.user.id,
       category: payload.category,
@@ -49,12 +77,18 @@ export async function createPickupRequest(req: AuthenticatedRequest, res: Respon
       model: payload.model,
       storage: payload.storage,
       valuation_amount: Number(payload.valuationAmount || 0),
+      expected_price: Number(payload.expectedSellingPrice || payload.valuationAmount || 0),
       customer_name: payload.customerName,
       customer_phone: payload.customerPhone,
+      customer_email: payload.customerEmail || req.user.email || '',
       pincode: payload.pincode,
       address: payload.address || '',
+      photos: photosList,
       status: 'pending',
-      condition: payload.condition || {},
+      condition: {
+        ...(payload.condition || {}),
+        photos: photosList,
+      },
     });
 
     await notifyUserEvent({

@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
-import { colors, spacing, radius } from '@/theme';
+import { colors, spacing, radius, fontFamily } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 export default function EditProfileScreen() {
@@ -32,6 +32,12 @@ export default function EditProfileScreen() {
   // Profile fields
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [bio, setBio] = useState(user?.bio || '');
+  const [address, setAddress] = useState(user?.address || '');
+  const [city, setCity] = useState(user?.city || '');
+  const [stateName, setStateName] = useState(user?.state || '');
+  const [pincode, setPincode] = useState(user?.pincode || '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -92,7 +98,7 @@ export default function EditProfileScreen() {
     setAvatarUrl('');
   };
 
-  // 2. Save Name and Avatar
+  // 2. Save Full Profile Details
   const handleSaveProfile = async () => {
     const trimmedName = fullName.trim();
     if (!trimmedName) {
@@ -105,12 +111,24 @@ export default function EditProfileScreen() {
       const res = await api.users.updateProfile({
         full_name: trimmedName,
         avatar_url: avatarUrl.trim(),
+        phone: phone.trim(),
+        bio: bio.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        state: stateName.trim(),
+        pincode: pincode.trim(),
       });
 
       if (res?.data) {
         await updateUser({
           full_name: res.data.full_name,
           avatar_url: res.data.avatar_url,
+          phone: res.data.phone,
+          bio: res.data.bio,
+          address: res.data.address,
+          city: res.data.city,
+          state: res.data.state,
+          pincode: res.data.pincode,
         });
       }
 
@@ -200,28 +218,33 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.container, { paddingTop: safeTop }]}
     >
-      {/* Top Navigation Bar */}
+      {/* Sleek Header Bar */}
       <View style={styles.navBar}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Ionicons name="arrow-back" size={22} color="#0f172a" />
+          <Ionicons name="arrow-back" size={20} color="#0f172a" />
         </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 8 }}>
+        <View style={styles.navTextContainer}>
           <Text style={styles.navTitle}>Edit Profile</Text>
-          <Text style={styles.navSub}>Manage personal info & verified email</Text>
+          <Text style={styles.navSub}>Personal details & verified email</Text>
         </View>
         <TouchableOpacity
           style={[styles.navSaveBtn, savingProfile && styles.btnDisabled]}
           onPress={handleSaveProfile}
           disabled={savingProfile}
+          activeOpacity={0.8}
         >
           {savingProfile ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color="#000000" />
           ) : (
-            <Text style={styles.navSaveText}>Save</Text>
+            <>
+              <Ionicons name="checkmark" size={14} color="#000000" />
+              <Text style={styles.navSaveText}>Save</Text>
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -229,9 +252,11 @@ export default function EditProfileScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets?.bottom || 0, 24) + 40 }]}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Avatar Section */}
+        {/* Luxury Avatar Section */}
         <View style={styles.avatarCard}>
+          <View style={styles.avatarGlow} />
           <View style={styles.avatarWrapper}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImg} resizeMode="cover" />
@@ -247,24 +272,37 @@ export default function EditProfileScreen() {
               style={styles.cameraBadge}
               onPress={handlePickImage}
               disabled={uploadingImage}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
               {uploadingImage ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color="#000000" />
               ) : (
-                <Ionicons name="camera" size={16} color="#ffffff" />
+                <Ionicons name="camera" size={16} color="#000000" />
               )}
             </TouchableOpacity>
           </View>
 
+          <Text style={styles.avatarTip}>
+            {uploadingImage ? 'Uploading photo...' : 'Tap the camera button to change your photo'}
+          </Text>
+
           <View style={styles.avatarActionsRow}>
-            <TouchableOpacity style={styles.actionPill} onPress={handlePickImage} disabled={uploadingImage}>
-              <Ionicons name="image-outline" size={14} color="#059669" />
-              <Text style={styles.actionPillText}>{uploadingImage ? 'Uploading...' : 'Choose Photo'}</Text>
+            <TouchableOpacity
+              style={styles.actionPill}
+              onPress={handlePickImage}
+              disabled={uploadingImage}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="image-outline" size={14} color="#0f172a" />
+              <Text style={styles.actionPillText}>{uploadingImage ? 'Uploading...' : 'Choose from Library'}</Text>
             </TouchableOpacity>
 
             {avatarUrl ? (
-              <TouchableOpacity style={[styles.actionPill, styles.actionPillDestructive]} onPress={handleRemovePhoto}>
+              <TouchableOpacity
+                style={[styles.actionPill, styles.actionPillDestructive]}
+                onPress={handleRemovePhoto}
+                activeOpacity={0.75}
+              >
                 <Ionicons name="trash-outline" size={14} color="#dc2626" />
                 <Text style={[styles.actionPillText, { color: '#dc2626' }]}>Remove</Text>
               </TouchableOpacity>
@@ -272,14 +310,15 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-        {/* Basic Information Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionHeading}>Basic Information</Text>
-
+        {/* Section 1: Personal Information */}
+        <Text style={styles.sectionHeader}>Personal Details</Text>
+        <View style={styles.formCard}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Full Name</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={18} color="#64748b" style={styles.inputIcon} />
+              <View style={styles.inputIconBox}>
+                <Ionicons name="person-outline" size={18} color="#64748b" />
+              </View>
               <TextInput
                 style={styles.textInput}
                 value={fullName}
@@ -289,82 +328,217 @@ export default function EditProfileScreen() {
                 autoCapitalize="words"
               />
               {fullName.length > 0 && (
-                <TouchableOpacity onPress={() => setFullName('')}>
-                  <Ionicons name="close-circle" size={16} color="#cbd5e1" />
+                <TouchableOpacity
+                  onPress={() => setFullName('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={18} color="#cbd5e1" />
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
+          <View style={styles.dividerLine} />
+
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Account Level</Text>
-            <View style={styles.roleCard}>
-              <Ionicons
-                name={user?.role === 'admin' ? 'shield-checkmark' : 'person-circle'}
-                size={20}
-                color={user?.role === 'admin' ? '#d97706' : '#2563eb'}
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <View style={styles.inputWrapper}>
+              <View style={styles.inputIconBox}>
+                <Ionicons name="call-outline" size={18} color="#64748b" />
+              </View>
+              <TextInput
+                style={styles.textInput}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="+91 98765 43210"
+                placeholderTextColor="#94a3b8"
+                keyboardType="phone-pad"
               />
-              <Text style={styles.roleText}>
-                {user?.role === 'admin' ? 'Administrator Account' : 'Verified Member'}
-              </Text>
+              {phone.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setPhone('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={18} color="#cbd5e1" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.dividerLine} />
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Bio / About</Text>
+            <View style={[styles.inputWrapper, { height: 'auto', minHeight: 48, paddingVertical: 8, alignItems: 'flex-start' }]}>
+              <View style={[styles.inputIconBox, { marginTop: 4 }]}>
+                <Ionicons name="document-text-outline" size={18} color="#64748b" />
+              </View>
+              <TextInput
+                style={[styles.textInput, { minHeight: 40, textAlignVertical: 'top' }]}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="A brief line about yourself"
+                placeholderTextColor="#94a3b8"
+                multiline
+                numberOfLines={2}
+              />
+            </View>
+          </View>
+
+          <View style={styles.dividerLine} />
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Account Status</Text>
+            <View style={styles.roleCard}>
+              <View style={[styles.roleIconCircle, { backgroundColor: user?.role === 'admin' ? '#fef3c7' : '#ecfdf5' }]}>
+                <Ionicons
+                  name={user?.role === 'admin' ? 'shield-checkmark' : 'sparkles'}
+                  size={18}
+                  color={user?.role === 'admin' ? '#d97706' : '#059669'}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.roleTitle}>
+                  {user?.role === 'admin' ? 'Administrator Account' : 'Verified Member Account'}
+                </Text>
+                <Text style={styles.roleSub}>
+                  {user?.role === 'admin'
+                    ? 'Full permissions to manage store and orders'
+                    : 'Authorized to shop, sell devices and track orders'}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Email Address & Verification Section */}
-        <View style={styles.sectionCard}>
-          <View style={styles.headingRow}>
-            <Text style={styles.sectionHeading}>Email Address</Text>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={13} color="#059669" />
-              <Text style={styles.verifiedBadgeText}>Active & Verified</Text>
+        {/* Section 2: Address & Shipping Details */}
+        <Text style={styles.sectionHeader}>Address & Delivery Details</Text>
+        <View style={styles.formCard}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Street / Building / Flat</Text>
+            <View style={styles.inputWrapper}>
+              <View style={styles.inputIconBox}>
+                <Ionicons name="home-outline" size={18} color="#64748b" />
+              </View>
+              <TextInput
+                style={styles.textInput}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="House / Apartment no., Street name"
+                placeholderTextColor="#94a3b8"
+              />
             </View>
           </View>
 
+          <View style={styles.dividerLine} />
+
+          <View style={styles.twoColumnRow}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 6 }]}>
+              <Text style={styles.inputLabel}>City</Text>
+              <View style={styles.inputWrapper}>
+                <View style={styles.inputIconBox}>
+                  <Ionicons name="business-outline" size={17} color="#64748b" />
+                </View>
+                <TextInput
+                  style={styles.textInput}
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="e.g. Chennai"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+            </View>
+
+            <View style={[styles.inputGroup, { flex: 1, marginLeft: 6 }]}>
+              <Text style={styles.inputLabel}>PIN / Postal Code</Text>
+              <View style={styles.inputWrapper}>
+                <View style={styles.inputIconBox}>
+                  <Ionicons name="pin-outline" size={17} color="#64748b" />
+                </View>
+                <TextInput
+                  style={styles.textInput}
+                  value={pincode}
+                  onChangeText={setPincode}
+                  placeholder="600001"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.dividerLine} />
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>State / Region</Text>
+            <View style={styles.inputWrapper}>
+              <View style={styles.inputIconBox}>
+                <Ionicons name="map-outline" size={18} color="#64748b" />
+              </View>
+              <TextInput
+                style={styles.textInput}
+                value={stateName}
+                onChangeText={setStateName}
+                placeholder="e.g. Tamil Nadu"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Section 2: Email & Verification */}
+        <Text style={styles.sectionHeader}>Email & Security</Text>
+        <View style={styles.formCard}>
           {/* Current Email Display */}
-          <View style={styles.currentEmailBox}>
-            <View style={styles.emailIconBox}>
+          <View style={styles.emailDisplayRow}>
+            <View style={styles.emailIconCircle}>
               <Ionicons name="mail" size={18} color="#059669" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.currentEmailLabel}>Current Email</Text>
-              <Text style={styles.currentEmailValue}>{user?.email}</Text>
+              <Text style={styles.emailDisplayLabel}>Active Email</Text>
+              <Text style={styles.emailDisplayValue}>{user?.email}</Text>
             </View>
-            {!showEmailChange && (
-              <TouchableOpacity
-                style={styles.changeEmailBtn}
-                onPress={() => {
-                  setShowEmailChange(true);
-                  setNewEmail('');
-                  setVerificationPending(false);
-                }}
-              >
-                <Text style={styles.changeEmailBtnText}>Change</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.activePill}>
+              <Ionicons name="checkmark-circle" size={12} color="#059669" />
+              <Text style={styles.activePillText}>Verified</Text>
+            </View>
           </View>
 
-          {/* Expandable Email Change with Verification */}
-          {showEmailChange && (
-            <View style={styles.emailChangeContainer}>
-              <View style={styles.noticeBox}>
-                <Ionicons name="information-circle-outline" size={16} color="#2563eb" style={{ marginTop: 1 }} />
-                <Text style={styles.noticeText}>
-                  To protect your account, your active email will not change until you verify the new address via a 6-digit code.
+          {!showEmailChange ? (
+            <TouchableOpacity
+              style={styles.changeEmailToggle}
+              onPress={() => {
+                setShowEmailChange(true);
+                setNewEmail('');
+                setVerificationPending(false);
+              }}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="swap-horizontal" size={16} color="#0f172a" />
+              <Text style={styles.changeEmailToggleText}>Change Email Address</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.changeEmailSection}>
+              <View style={styles.securityNotice}>
+                <Ionicons name="shield-checkmark-outline" size={16} color="#0369a1" />
+                <Text style={styles.securityNoticeText}>
+                  For security, your current email remains active until you confirm the 6-digit code sent to the new address.
                 </Text>
               </View>
 
               {!verificationPending ? (
-                /* Step 1: Input New Email & Request Code */
-                <View style={styles.inputGroup}>
+                /* Step 1: Input New Email */
+                <View>
                   <Text style={styles.inputLabel}>New Email Address</Text>
                   <View style={styles.inputWrapper}>
-                    <Ionicons name="mail-outline" size={18} color="#64748b" style={styles.inputIcon} />
+                    <View style={styles.inputIconBox}>
+                      <Ionicons name="mail-outline" size={18} color="#64748b" />
+                    </View>
                     <TextInput
                       style={styles.textInput}
                       value={newEmail}
                       onChangeText={setNewEmail}
-                      placeholder="e.g. name@example.com"
+                      placeholder="name@example.com"
                       placeholderTextColor="#94a3b8"
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -372,43 +546,44 @@ export default function EditProfileScreen() {
                     />
                   </View>
 
-                  <View style={styles.emailBtnRow}>
+                  <View style={styles.actionBtnRow}>
                     <TouchableOpacity
-                      style={[styles.primaryActionBtn, sendingCode && styles.btnDisabled]}
+                      style={[styles.sendCodeBtn, sendingCode && styles.btnDisabled]}
                       onPress={handleRequestEmailCode}
                       disabled={sendingCode}
+                      activeOpacity={0.85}
                     >
                       {sendingCode ? (
-                        <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 6 }} />
+                        <ActivityIndicator size="small" color="#000000" />
                       ) : (
-                        <Ionicons name="send-outline" size={15} color="#ffffff" style={{ marginRight: 6 }} />
+                        <>
+                          <Ionicons name="send" size={14} color="#000000" style={{ marginRight: 6 }} />
+                          <Text style={styles.sendCodeBtnText}>Send 6-Digit Code</Text>
+                        </>
                       )}
-                      <Text style={styles.primaryActionBtnText}>
-                        {sendingCode ? 'Sending Code...' : 'Send Verification Code'}
-                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.cancelBtn}
+                      style={styles.cancelActionBtn}
                       onPress={() => {
                         setShowEmailChange(false);
                         setNewEmail('');
                       }}
+                      activeOpacity={0.7}
                     >
-                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                      <Text style={styles.cancelActionBtnText}>Cancel</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
-                /* Step 2: Enter 6-Digit Verification Code */
-                <View style={styles.verificationBox}>
-                  <View style={styles.verifyHeaderRow}>
-                    <View style={styles.verifyBadge}>
-                      <Ionicons name="key-outline" size={14} color="#059669" />
-                      <Text style={styles.verifyBadgeText}>Step 2 of 2</Text>
+                /* Step 2: Verification Code Input */
+                <View style={styles.codeVerifyContainer}>
+                  <View style={styles.codeHeaderRow}>
+                    <View style={styles.stepBadge}>
+                      <Text style={styles.stepBadgeText}>STEP 2 OF 2</Text>
                     </View>
-                    <Text style={styles.codeSentInfo}>
-                      Code sent to: <Text style={{ fontWeight: '800', color: '#0f172a' }}>{codeSentTo}</Text>
+                    <Text style={styles.sentToText} numberOfLines={1}>
+                      Sent to: <Text style={styles.sentToBold}>{codeSentTo}</Text>
                     </Text>
                   </View>
 
@@ -417,35 +592,37 @@ export default function EditProfileScreen() {
                     style={styles.otpInput}
                     value={verificationCode}
                     onChangeText={setVerificationCode}
-                    placeholder="000000"
+                    placeholder="• • • • • •"
                     placeholderTextColor="#cbd5e1"
                     keyboardType="number-pad"
                     maxLength={6}
                     autoFocus
                   />
 
-                  <View style={styles.emailBtnRow}>
+                  <View style={styles.actionBtnRow}>
                     <TouchableOpacity
-                      style={[styles.primaryActionBtn, verifyingCode && styles.btnDisabled]}
+                      style={[styles.verifySubmitBtn, verifyingCode && styles.btnDisabled]}
                       onPress={handleVerifyEmailCode}
                       disabled={verifyingCode}
+                      activeOpacity={0.85}
                     >
                       {verifyingCode ? (
-                        <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 6 }} />
+                        <ActivityIndicator size="small" color="#ffffff" />
                       ) : (
-                        <Ionicons name="checkmark-circle-outline" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                        <>
+                          <Ionicons name="checkmark-circle" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                          <Text style={styles.verifySubmitBtnText}>Verify & Save</Text>
+                        </>
                       )}
-                      <Text style={styles.primaryActionBtnText}>
-                        {verifyingCode ? 'Verifying...' : 'Verify & Update Email'}
-                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.resendBtn}
+                      style={styles.resendActionBtn}
                       onPress={handleRequestEmailCode}
                       disabled={sendingCode}
+                      activeOpacity={0.7}
                     >
-                      <Text style={styles.resendBtnText}>Resend</Text>
+                      <Text style={styles.resendActionBtnText}>Resend</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -454,20 +631,20 @@ export default function EditProfileScreen() {
           )}
         </View>
 
-        {/* Primary Save Changes Button */}
+        {/* Big Bottom Save CTA */}
         <TouchableOpacity
-          style={[styles.bigSaveBtn, savingProfile && styles.btnDisabled]}
+          style={[styles.bigPrimaryBtn, savingProfile && styles.btnDisabled]}
           onPress={handleSaveProfile}
           disabled={savingProfile}
           activeOpacity={0.85}
         >
           {savingProfile ? (
-            <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
+            <ActivityIndicator size="small" color="#000000" style={{ marginRight: 8 }} />
           ) : (
-            <Ionicons name="save-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+            <Ionicons name="checkmark-circle" size={19} color="#000000" style={{ marginRight: 8 }} />
           )}
-          <Text style={styles.bigSaveBtnText}>
-            {savingProfile ? 'Saving Details...' : 'Save Profile Changes'}
+          <Text style={styles.bigPrimaryBtnText}>
+            {savingProfile ? 'Saving Changes...' : 'Save Profile Changes'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -478,80 +655,109 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f7f2',
   },
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+    borderBottomColor: '#ebe7dd',
+    backgroundColor: '#f8f7f2',
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f1f5f9',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e8e4da',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  navTextContainer: {
+    flex: 1,
+    marginLeft: 12,
   },
   navTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fontFamily.bold,
+    fontSize: 20,
     color: '#0f172a',
     letterSpacing: -0.3,
   },
   navSub: {
-    fontSize: 11,
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
     color: '#64748b',
     marginTop: 1,
   },
   navSaveBtn: {
-    backgroundColor: '#059669',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ffc400',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
-    minWidth: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 20,
+    shadowColor: '#ffc400',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
   },
   navSaveText: {
-    color: '#ffffff',
+    fontFamily: fontFamily.bold,
+    color: '#000000',
     fontSize: 13,
-    fontWeight: '800',
   },
   btnDisabled: {
-    opacity: 0.65,
+    opacity: 0.6,
   },
   scrollContent: {
-    padding: spacing.md,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   avatarCard: {
     backgroundColor: '#ffffff',
-    borderRadius: radius.lg,
-    padding: 24,
+    borderRadius: 22,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#e8e4da',
+    marginBottom: 20,
+    position: 'relative',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
     elevation: 2,
+  },
+  avatarGlow: {
+    position: 'absolute',
+    top: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 196, 0, 0.08)',
   },
   avatarWrapper: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   avatarImg: {
     width: 96,
     height: 96,
     borderRadius: 48,
     borderWidth: 3,
-    borderColor: '#059669',
+    borderColor: '#ffc400',
   },
   avatarPlaceholder: {
     width: 96,
@@ -561,21 +767,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#059669',
+    borderColor: '#ffc400',
   },
   avatarInitial: {
-    fontSize: 38,
-    fontWeight: '900',
+    fontFamily: fontFamily.bold,
+    fontSize: 34,
     color: '#ffffff',
   },
   cameraBadge: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#059669',
+    bottom: 0,
+    right: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#ffc400',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
@@ -586,6 +792,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
   },
+  avatarTip: {
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 14,
+  },
   avatarActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -595,71 +807,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#f8fafc',
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#e2e8f0',
   },
   actionPillDestructive: {
     backgroundColor: '#fef2f2',
     borderColor: '#fecaca',
   },
   actionPillText: {
+    fontFamily: fontFamily.semibold,
     fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
+    color: '#0f172a',
   },
-  sectionCard: {
+  sectionHeader: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginLeft: 6,
+    marginBottom: 8,
+  },
+  formCard: {
     backgroundColor: '#ffffff',
-    borderRadius: radius.lg,
-    padding: 18,
-    marginBottom: spacing.md,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#e8e4da',
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 2,
   },
-  sectionHeading: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0f172a',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 14,
-  },
-  headingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-  },
-  verifiedBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
-  },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 8,
   },
   inputLabel: {
+    fontFamily: fontFamily.semibold,
     fontSize: 12,
-    fontWeight: '700',
     color: '#475569',
     marginBottom: 6,
   },
@@ -667,211 +858,275 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 12,
-    height: 46,
+    height: 48,
   },
-  inputIcon: {
-    marginRight: 10,
+  inputIconBox: {
+    width: 24,
+    alignItems: 'center',
+    marginRight: 8,
   },
   textInput: {
     flex: 1,
+    fontFamily: fontFamily.regular,
     fontSize: 14,
     color: '#0f172a',
-    fontWeight: '600',
+  },
+  dividerLine: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
+  },
+  twoColumnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
     backgroundColor: '#f8fafc',
-    borderRadius: 12,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
   },
-  roleText: {
+  roleIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleTitle: {
+    fontFamily: fontFamily.bold,
     fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
+    color: '#0f172a',
   },
-  currentEmailBox: {
+  roleSub: {
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  emailDisplayRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
-    padding: 14,
+    borderColor: '#e2e8f0',
   },
-  emailIconBox: {
+  emailIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: '#dcfce7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  currentEmailLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
+  emailDisplayLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 10,
+    color: '#64748b',
     textTransform: 'uppercase',
   },
-  currentEmailValue: {
-    fontSize: 14,
-    fontWeight: '800',
+  emailDisplayValue: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
     color: '#0f172a',
     marginTop: 1,
   },
-  changeEmailBtn: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+  activePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#a7f3d0',
   },
-  changeEmailBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
+  activePillText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 10,
     color: '#059669',
   },
-  emailChangeContainer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+  changeEmailToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 11,
+    marginTop: 12,
   },
-  noticeBox: {
+  changeEmailToggleText: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    color: '#0f172a',
+  },
+  changeEmailSection: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  securityNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#f0f9ff',
     borderWidth: 1,
-    borderColor: '#bfdbfe',
-    borderRadius: 10,
+    borderColor: '#bae6fd',
+    borderRadius: 12,
     padding: 12,
     marginBottom: 14,
   },
-  noticeText: {
+  securityNoticeText: {
     flex: 1,
+    fontFamily: fontFamily.medium,
     fontSize: 11,
     lineHeight: 16,
-    color: '#1e40af',
-    fontWeight: '500',
+    color: '#0369a1',
   },
-  emailBtnRow: {
+  actionBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginTop: 10,
   },
-  primaryActionBtn: {
+  sendCodeBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: '#ffc400',
     paddingVertical: 12,
     borderRadius: 12,
   },
-  primaryActionBtnText: {
-    color: '#ffffff',
+  sendCodeBtnText: {
+    fontFamily: fontFamily.bold,
+    color: '#000000',
     fontSize: 13,
-    fontWeight: '800',
   },
-  cancelBtn: {
-    paddingHorizontal: 14,
+  cancelActionBtn: {
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  cancelBtnText: {
+  cancelActionBtnText: {
+    fontFamily: fontFamily.semibold,
     color: '#64748b',
     fontSize: 13,
-    fontWeight: '700',
   },
-  resendBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+  codeVerifyContainer: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  resendBtnText: {
-    color: '#059669',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  verificationBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    padding: 16,
-  },
-  verifyHeaderRow: {
+  codeHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  verifyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#dcfce7',
+  stepBadge: {
+    backgroundColor: '#ffc400',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 6,
   },
-  verifyBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
+  stepBadgeText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 9,
+    color: '#000000',
+    letterSpacing: 0.5,
   },
-  codeSentInfo: {
+  sentToText: {
+    fontFamily: fontFamily.regular,
     fontSize: 11,
     color: '#64748b',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 8,
+  },
+  sentToBold: {
+    fontFamily: fontFamily.bold,
+    color: '#0f172a',
   },
   otpInput: {
     backgroundColor: '#ffffff',
     borderWidth: 2,
-    borderColor: '#059669',
+    borderColor: '#ffc400',
     borderRadius: 12,
     height: 52,
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 10,
+    fontSize: 22,
+    fontFamily: fontFamily.bold,
+    letterSpacing: 8,
     textAlign: 'center',
     color: '#0f172a',
     marginBottom: 6,
   },
-  bigSaveBtn: {
+  verifySubmitBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0f172a',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  verifySubmitBtnText: {
+    fontFamily: fontFamily.bold,
+    color: '#ffffff',
+    fontSize: 13,
+  },
+  resendActionBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  resendActionBtnText: {
+    fontFamily: fontFamily.bold,
+    color: '#0f172a',
+    fontSize: 13,
+  },
+  bigPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffc400',
     paddingVertical: 16,
-    borderRadius: 14,
-    shadowColor: '#0f172a',
+    borderRadius: 16,
+    shadowColor: '#ffc400',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 3,
     marginTop: 6,
   },
-  bigSaveBtnText: {
-    color: '#ffffff',
+  bigPrimaryBtnText: {
+    fontFamily: fontFamily.bold,
+    color: '#000000',
     fontSize: 15,
-    fontWeight: '800',
   },
 });
+
