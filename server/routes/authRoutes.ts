@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   register,
   login,
+  googleAuth,
   getMe,
   makeAdmin,
   requestPasswordReset,
@@ -16,6 +17,7 @@ const router = Router();
 // Public auth endpoints
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', googleAuth);
 
 // Password Reset & Email Verification endpoints
 router.post('/forgot-password', requestPasswordReset);
