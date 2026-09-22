@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { generateToken, AuthenticatedRequest } from '../middleware/auth';
 import { env } from '../config/env';
@@ -156,6 +157,179 @@ export async function getMe(req: AuthenticatedRequest, res: Response, next: Next
         full_name: user.full_name,
         avatar_url: user.avatar_url,
         created_at: user.created_at,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+interface GoogleIdTokenPayload {
+  iss?: string;
+  aud?: string;
+  sub?: string;
+  email?: string;
+  email_verified?: boolean;
+  exp?: number;
+  name?: string;
+  picture?: string;
+}
+
+let googleCertCache: {
+  certs: Record<string, string>;
+  expiresAt: number;
+} | null = null;
+
+async function getGoogleCertificates(): Promise<Record<string, string>> {
+  if (googleCertCache && googleCertCache.expiresAt > Date.now()) {
+    return googleCertCache.certs;
+  }
+
+  const response = await fetch('https://www.googleapis.com/oauth2/v1/certs');
+  if (!response.ok) {
+    throw new Error(`Unable to fetch Google signing certificates (HTTP ${response.status})`);
+  }
+
+  const certs = await response.json() as Record<string, string>;
+  const cacheControl = response.headers.get('cache-control') || '';
+  const maxAgeMatch = cacheControl.match(/max-age=(\\d+)/i);
+  const maxAgeSeconds = maxAgeMatch ? Number(maxAgeMatch[1]) : 3600;
+
+  googleCertCache = {
+    certs,
+    expiresAt: Date.now() + Math.max(60, Math.min(maxAgeSeconds, 86400)) * 1000,
+  };
+
+  return certs;
+}
+
+async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdTokenPayload> {
+  if (!idToken || typeof idToken !== 'string' || idToken.length > 8192) {
+    throw new Error('Invalid Google ID token');
+  }
+
+  const decoded = jwt.decode(idToken, { complete: true });
+  if (!decoded || typeof decoded !== 'object' || !decoded.header || decoded.header.alg !== 'RS256' || !decoded.header.kid) {
+    throw new Error('Invalid Google ID token');
+  }
+
+  const certs = await getGoogleCertificates();
+  const publicKey = certs[decoded.header.kid];
+  if (!publicKey) {
+    // Google can rotate signing keys before the cache expires. Refresh once.
+    googleCertCache = null;
+    const refreshedCerts = await getGoogleCertificates();
+    if (!refreshedCerts[decoded.header.kid]) {
+      throw new Error('Unknown Google signing key');
+    }
+    googleCertCache = {
+      certs: refreshedCerts,
+      expiresAt: Date.now() + 3600000,
+    };
+  }
+
+  const signingKey = (googleCertCache?.certs || certs)[decoded.header.kid];
+  if (!signingKey) throw new Error('Unknown Google signing key');
+
+  const allowedAudiences = env.GOOGLE_CLIENT_IDS
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (!allowedAudiences.length) {
+    throw new Error('Google OAuth is not configured on the server');
+  }
+
+  const payload = jwt.verify(idToken, signingKey, {
+    algorithms: ['RS256'],
+    audience: allowedAudiences,
+    issuer: ['https://accounts.google.com', 'accounts.google.com'],
+  }) as GoogleIdTokenPayload;
+
+  if (!payload.sub || !payload.email || payload.email_verified !== true) {
+    throw new Error('Google account email is not verified');
+  }
+
+  if (!payload.exp || payload.exp * 1000 <= Date.now()) {
+    throw new Error('Google ID token has expired');
+  }
+
+  return payload;
+}
+
+export async function googleAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken || typeof idToken !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Google ID token is required', code: 'VALIDATION_ERROR' },
+      });
+      return;
+    }
+
+    let payload: GoogleIdTokenPayload;
+    try {
+      payload = await verifyGoogleIdToken(idToken.trim());
+    } catch (error) {
+      console.warn('[Auth] Google ID token verification failed:', error instanceof Error ? error.message : error);
+      res.status(401).json({
+        success: false,
+        error: { message: 'Invalid Google authentication token', code: 'INVALID_GOOGLE_TOKEN' },
+      });
+      return;
+    }
+
+    const normalizedEmail = payload.email!.trim().toLowerCase();
+
+    let user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      const role: 'admin' | 'customer' =
+        env.ADMIN_EMAIL && normalizedEmail === env.ADMIN_EMAIL.toLowerCase() ? 'admin' : 'customer';
+
+      user = await User.create({
+        email: normalizedEmail,
+        full_name: payload.name?.trim() || '',
+        avatar_url: payload.picture || '',
+        role,
+        // Google-authenticated accounts still need a password field for the existing schema.
+        password: crypto.randomBytes(32).toString('hex'),
+      });
+    } else {
+      // Keep the existing account/role and only fill missing profile data from Google.
+      let changed = false;
+      if (!user.full_name && payload.name) {
+        user.full_name = payload.name.trim();
+        changed = true;
+      }
+      if (!user.avatar_url && payload.picture) {
+        user.avatar_url = payload.picture;
+        changed = true;
+      }
+      if (changed) await user.save();
+    }
+
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    res.json({
+      success: true,
+      message: 'Signed in with Google successfully',
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          full_name: user.full_name,
+          avatar_url: user.avatar_url,
+        },
       },
     });
   } catch (err) {
