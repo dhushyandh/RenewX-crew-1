@@ -247,6 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerPushTokenInBackground();
   }, []);
 
+
   const signOut = useCallback(async () => {
     try {
       const pushToken = await getStoredPushTokenAsync();
