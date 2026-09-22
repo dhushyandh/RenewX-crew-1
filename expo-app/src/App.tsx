@@ -31,6 +31,7 @@ import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
 import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
+import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
 
 export type RootStackParamList = {
   MainTabs: { screen?: keyof TabParamList } | undefined;
@@ -347,6 +348,7 @@ function MainAppNavigation() {
       </NavigationContainer>
       <FloatingContactButtons />
       <ConnectionStatusBanner />
+      <NotificationPermissionPrompt />
     </View>
   );
 }

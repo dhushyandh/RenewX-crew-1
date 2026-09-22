@@ -6,7 +6,7 @@ import {
   TradeInModel,
 } from '../models/TradeIn';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { createUserNotification } from '../services/notificationService';
+import { createUserNotification, notifyUserEvent } from '../services/notificationService';
 import { User } from '../models/User';
 
 export async function getValuationQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -55,6 +55,15 @@ export async function createPickupRequest(req: AuthenticatedRequest, res: Respon
       address: payload.address || '',
       status: 'pending',
       condition: payload.condition || {},
+    });
+
+    await notifyUserEvent({
+      action: 'trade_in_submitted',
+      userId: req.user.id,
+      tradeInId: newRequest.id,
+      brand: newRequest.brand,
+      model: newRequest.model,
+      valuation: newRequest.valuation_amount,
     });
 
     res.status(201).json({
@@ -131,41 +140,61 @@ export async function updateTradeInStatus(
     }
 
     const previousStatus = request.status;
+    const previousValuation = request.valuation_amount;
     request.status = status;
+    let valuationChanged = false;
     if (approvedAmount !== undefined && Number.isFinite(Number(approvedAmount))) {
-      request.valuation_amount = Number(approvedAmount);
+      const newAmount = Number(approvedAmount);
+      if (newAmount !== previousValuation) {
+        valuationChanged = true;
+      }
+      request.valuation_amount = newAmount;
     }
     if (adminNote !== undefined) {
       (request as any).admin_note = String(adminNote).trim();
     }
     await request.save();
 
-    if (request.user_id && previousStatus !== status) {
-      const targetUser = await User.findById(request.user_id).select('notification_preferences');
-      const shouldNotify = targetUser?.notification_preferences?.sell_request_updates ?? true;
-      if (!shouldNotify) {
-        res.json({ success: true, message: 'Trade-in status updated', data: request });
-        return;
+    if (request.user_id) {
+      if (valuationChanged) {
+        await notifyUserEvent({
+          action: 'trade_in_valuation_changed',
+          userId: request.user_id,
+          tradeInId: request.id,
+          brand: request.brand,
+          model: request.model,
+          amount: request.valuation_amount,
+        });
       }
-      const title =
-        status === 'approved' ? 'Sell request approved' :
-        status === 'rejected' ? 'Sell request rejected' :
-        'Sell request updated';
-      const body =
-        status === 'approved'
-          ? `Your ${request.brand} ${request.model} sell request was approved.`
-          : status === 'rejected'
-          ? `Your ${request.brand} ${request.model} sell request was rejected.`
-          : `Your ${request.brand} ${request.model} sell request is now ${status.replace(/_/g, ' ')}.`;
 
-      await createUserNotification(request.user_id, {
-        type: 'trade_in',
-        title,
-        body,
-        reference_id: request.id,
-        reference_type: 'trade_in',
-        data: { screen: 'Notifications', tradeInId: request.id },
-      });
+      if (previousStatus !== status) {
+        if (status === 'scheduled') {
+          await notifyUserEvent({
+            action: 'pickup_scheduled',
+            userId: request.user_id,
+            tradeInId: request.id,
+            brand: request.brand,
+            model: request.model,
+          });
+        } else if (status === 'picked_up') {
+          await notifyUserEvent({
+            action: 'pickup_completed',
+            userId: request.user_id,
+            tradeInId: request.id,
+            brand: request.brand,
+            model: request.model,
+          });
+        } else {
+          await notifyUserEvent({
+            action: 'trade_in_status_changed',
+            userId: request.user_id,
+            tradeInId: request.id,
+            brand: request.brand,
+            model: request.model,
+            status,
+          });
+        }
+      }
     }
 
     res.json({ success: true, message: 'Trade-in status updated', data: request });

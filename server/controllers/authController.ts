@@ -4,6 +4,7 @@ import { User } from '../models/User';
 import { generateToken, AuthenticatedRequest } from '../middleware/auth';
 import { env } from '../config/env';
 import { sendPasswordResetEmail } from '../services/emailService';
+import { notifyUserEvent } from '../services/notificationService';
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -380,6 +381,13 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     user.reset_password_expires = undefined;
     await user.save(); // pre-save hook securely hashes the new password
 
+    await notifyUserEvent({
+      action: 'account_security_update',
+      userId: user.id,
+      title: 'Account/security update',
+      message: 'Your account password was successfully reset.',
+    });
+
     // Issue session token so user is automatically authenticated
     const authToken = generateToken({
       id: user.id,
@@ -450,6 +458,13 @@ export async function changePassword(req: AuthenticatedRequest, res: Response, n
 
     user.password = newPassword;
     await user.save();
+
+    await notifyUserEvent({
+      action: 'account_security_update',
+      userId: user.id,
+      title: 'Account/security update',
+      message: 'Your account password was successfully updated.',
+    });
 
     res.json({
       success: true,

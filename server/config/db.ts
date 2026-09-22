@@ -36,6 +36,7 @@ export async function connectDB(): Promise<typeof mongoose> {
       serverSelectionTimeoutMS: 15000,
       connectTimeoutMS: 15000,
       socketTimeoutMS: 45000,
+      maxIdleTimeMS: 60000,
       maxPoolSize: 20,
       minPoolSize: env.NODE_ENV === 'production' ? 2 : 0,
     })
@@ -69,6 +70,9 @@ export async function checkDatabaseHealth(): Promise<{ ok: boolean; latencyMs: n
 mongoose.connection.on('disconnected', () => {
   connectPromise = null;
   console.warn('⚠️ [MongoDB] Disconnected');
+});
+mongoose.connection.on('reconnected', () => {
+  console.log('🔄 [MongoDB] Reconnected');
 });
 mongoose.connection.on('error', (error) => console.error('❌ [MongoDB] Runtime error:', error.message));
 

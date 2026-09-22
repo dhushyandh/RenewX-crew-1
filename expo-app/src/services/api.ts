@@ -4,21 +4,35 @@ import { NativeModules, Platform } from 'react-native';
 const PRODUCTION_API_BASE_URL = 'https://renewx-crew-server.onrender.com/api';
 
 export function getApiBaseUrl(): string {
+  // If running in a web browser (e.g. Expo Web at localhost:8081)
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      /^192\.168\.\d+\.\d+$/.test(hostname) ||
+      /^10\.\d+\.\d+\.\d+$/.test(hostname)
+    ) {
+      return `http://${hostname}:5000/api`;
+    }
+  }
+
   const configured =
     typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
   let url = configured || PRODUCTION_API_BASE_URL;
 
-  // On native mobile (Android / iOS physical device or emulator), 'localhost' points to the phone itself.
-  // Automatically resolve it to the host computer running Metro bundler & backend server.
-  if (Platform.OS !== 'web' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+  // On native mobile (Android / iOS physical device or emulator), resolve local host to the machine running Metro bundler & backend server.
+  if (Platform.OS !== 'web') {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (scriptURL) {
       const match = scriptURL.match(/^https?:\/\/([^/:]+)/);
       if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
-        return url.replace(/localhost|127\.0\.0\.1/, match[1]);
+        if (url.includes('localhost') || url.includes('127.0.0.1') || /192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/.test(url)) {
+          return url.replace(/localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/, match[1]);
+        }
       }
     }
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
       return url.replace(/localhost|127\.0\.0\.1/, '10.0.2.2');
     }
   }
@@ -27,6 +41,24 @@ export function getApiBaseUrl(): string {
 }
 
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
+
+type ConnectionListener = (isOffline: boolean) => void;
+const connectionListeners = new Set<ConnectionListener>();
+
+export function onConnectionChange(listener: ConnectionListener) {
+  connectionListeners.add(listener);
+  return () => {
+    connectionListeners.delete(listener);
+  };
+}
+
+export function notifyConnectionState(isOffline: boolean) {
+  connectionListeners.forEach((listener) => {
+    try {
+      listener(isOffline);
+    } catch {}
+  });
+}
 
 interface RequestOptions extends RequestInit {
   timeoutMs?: number;
@@ -53,7 +85,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       headers,
       signal: options.signal || controller.signal,
     });
+    // Successful response received from backend
+    notifyConnectionState(false);
   } catch (fetchError: any) {
+    notifyConnectionState(true);
     const error = new Error(
       fetchError?.name === 'AbortError'
         ? 'Request timed out. Please check your connection.'
@@ -82,7 +117,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 export const api = {
   health: async () => {
     try {
-      return await request<any>('/health');
+      return await request<any>('/health', { timeoutMs: 8000 });
     } catch {
       return { status: 'offline', localFallback: true };
     }
@@ -251,6 +286,11 @@ export const api = {
     getAll: async () => request<any>('/notifications'),
     markRead: async (id: string) => request<any>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' }),
     markAllRead: async () => request<any>('/notifications/read-all', { method: 'PATCH' }),
+    triggerTest: async (action?: string) =>
+      request<any>('/notifications/test-event', {
+        method: 'POST',
+        body: JSON.stringify({ action }),
+      }),
   },
 
   upload: {

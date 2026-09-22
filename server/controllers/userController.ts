@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { User } from '../models/User';
 import { env } from '../config/env';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { notifyUserEvent } from '../services/notificationService';
 
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -57,6 +58,13 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
 
     targetUser.role = role;
     await targetUser.save();
+
+    await notifyUserEvent({
+      action: 'account_security_update',
+      userId: targetUser.id,
+      title: 'Account/security update',
+      message: `Your account role has been updated to ${role}.`,
+    });
 
     res.json({ success: true, data: targetUser });
   } catch (err) {
@@ -164,6 +172,13 @@ export async function updateMyNotificationPreferences(
       res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
       return;
     }
+
+    await notifyUserEvent({
+      action: 'account_security_update',
+      userId: req.user.id,
+      title: 'Account/security update',
+      message: 'Your notification preferences have been successfully updated.',
+    });
 
     res.json({
       success: true,

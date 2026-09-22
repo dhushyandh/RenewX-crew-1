@@ -270,11 +270,40 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [productList, setProductList] = useState<Product[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [usingCache, setUsingCache] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
 
   const heroScrollRef = useRef<ScrollView>(null);
+
+  const saveProductsCache = useCallback(async (rows: any[]) => {
+    try {
+      // Keep only top 20 items and strip large base64 strings to prevent SQLite SQLITE_FULL
+      const lightweight = rows.slice(0, 20).map((r: any) => {
+        const img = typeof r.image === 'string' ? r.image : '';
+        const safeImage = img.startsWith('data:') && img.length > 5000 ? '' : img;
+        return {
+          id: r.id || r._uuid || r._id,
+          name: r.name,
+          price: r.price,
+          originalPrice: r.originalPrice,
+          brand: r.brand,
+          category: r.category,
+          stock: r.stock,
+          condition: r.condition,
+          image: safeImage,
+        };
+      });
+
+      await AsyncStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(lightweight));
+    } catch (err: any) {
+      console.warn('[Home] Failed to write product cache:', err?.message);
+      // If SQLite DB is full, clear the corrupt or oversized key to free up disk space
+      if (err?.message?.includes('SQLITE_FULL') || err?.message?.includes('full')) {
+        try {
+          await AsyncStorage.removeItem(PRODUCTS_CACHE_KEY);
+        } catch {}
+      }
+    }
+  }, []);
 
   const readCache = useCallback(async () => {
     try {
@@ -287,7 +316,6 @@ export default function HomeScreen() {
       const mapped = rows.map(mapProductRow);
       if (mapped.length) {
         setProductList(mapped);
-        setUsingCache(true);
         return true;
       }
     } catch (error) {
@@ -299,31 +327,26 @@ export default function HomeScreen() {
 
   const fetchLiveProducts = useCallback(async () => {
     try {
-      setLoadError(null);
-
       const data = await api.products.getAll({ limit: 100 });
       const rows = Array.isArray(data) ? data : [];
       const mapped = rows.map(mapProductRow);
 
       setProductList(mapped);
-      setUsingCache(false);
       setHeroIndex(0);
 
-      await AsyncStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(rows));
+      // Save lightweight cache in background (isolated from main fetch)
+      saveProductsCache(rows);
     } catch (err: any) {
+      console.warn('[Home] Live product fetch failed:', err?.message);
       const cached = await readCache();
-
-      setLoadError(
-        err?.message || 'Unable to load products. Check your connection.',
-      );
-
       if (!cached) {
         setProductList([]);
       }
     } finally {
       setLoading(false);
     }
-  }, [readCache]);
+  }, [readCache, saveProductsCache]);
+
 
   useEffect(() => {
     fetchLiveProducts();
@@ -502,30 +525,6 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {loadError && (
-              <View style={styles.connectionNotice}>
-                <Ionicons
-                  name={usingCache ? 'cloud-offline-outline' : 'warning-outline'}
-                  size={18}
-                  color="#92400e"
-                />
-                <View style={styles.connectionCopy}>
-                  <Text style={styles.connectionTitle}>
-                    {usingCache ? 'Showing saved products' : 'Could not load products'}
-                  </Text>
-                  <Text style={styles.connectionText}>
-                    {usingCache
-                      ? 'The latest inventory will appear when the connection returns.'
-                      : loadError}
-                  </Text>
-                </View>
-
-                <TouchableOpacity onPress={onRefresh} style={styles.retryButton}>
-                  <Text style={styles.retryText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             <View style={styles.arrivalsHeader}>
               <Text style={styles.arrivalsTitle}>New Device Arrivals</Text>
               <TouchableOpacity
@@ -553,31 +552,25 @@ export default function HomeScreen() {
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
                 <Ionicons
-                  name={loadError ? 'cloud-offline-outline' : 'cube-outline'}
+                  name="cube-outline"
                   size={30}
                   color={colors.textMuted}
                 />
               </View>
 
-              <Text style={styles.emptyTitle}>
-                {loadError ? 'Inventory unavailable' : 'No products available'}
-              </Text>
+              <Text style={styles.emptyTitle}>No products available</Text>
 
               <Text style={styles.emptyText}>
-                {loadError
-                  ? 'We could not reach the product service. Please try again.'
-                  : 'New certified devices will appear here when they are published.'}
+                New certified devices will appear here when they are published.
               </Text>
 
-              {loadError && (
-                <TouchableOpacity
-                  style={styles.emptyRetry}
-                  onPress={onRefresh}
-                >
-                  <Ionicons name="refresh" size={16} color="#ffffff" />
-                  <Text style={styles.emptyRetryText}>Try Again</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.emptyRetry}
+                onPress={onRefresh}
+              >
+                <Ionicons name="refresh" size={16} color="#ffffff" />
+                <Text style={styles.emptyRetryText}>Refresh</Text>
+              </TouchableOpacity>
             </View>
           ) : null
         }
@@ -1051,46 +1044,6 @@ const styles = StyleSheet.create({
   productWrapper: {
     flex: 1,
     maxWidth: '50%',
-  },
-
-  connectionNotice: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: '#fffbeb',
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-
-  connectionCopy: {
-    flex: 1,
-  },
-
-  connectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#78350f',
-  },
-
-  connectionText: {
-    fontSize: 10,
-    color: '#92400e',
-    marginTop: 2,
-  },
-
-  retryButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-
-  retryText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#92400e',
   },
 
   skeletonGrid: {

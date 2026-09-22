@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { ProductModel, CreateProductDTO, UpdateProductDTO } from '../models/Product';
+import { broadcastNewProductArrival } from '../services/notificationService';
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -109,10 +110,23 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
   try {
     const saved = await ProductModel.create(normalizeProductPayload(req.body));
     res.status(201).json({ success: true, data: saved });
+
+    // Broadcast "New Arrival" notification to ALL users & devices
+    broadcastNewProductArrival({
+      id: saved.id || (saved as any)._id?.toString(),
+      name: saved.name,
+      brand: (saved as any).brand,
+      category: (saved as any).category,
+      price: saved.price,
+      image: (saved as any).image_url || (saved as any).image,
+    }).catch((notifErr) => {
+      console.error('[Products] Failed to dispatch new arrival broadcast:', notifErr);
+    });
   } catch (err) {
     next(err);
   }
 }
+
 
 export async function updateProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

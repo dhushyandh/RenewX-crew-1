@@ -15,7 +15,12 @@ if (env.NODE_ENV === 'production' && env.CORS_ORIGINS.includes('*')) {
 const allowedOrigins = new Set(env.CORS_ORIGINS.filter((origin) => origin !== '*'));
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    if (!origin || env.CORS_ORIGINS.includes('*') || allowedOrigins.has(origin)) {
+    if (
+      !origin ||
+      env.CORS_ORIGINS.includes('*') ||
+      allowedOrigins.has(origin) ||
+      (env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(origin))
+    ) {
       return callback(null, true);
     }
     return callback(new Error('Origin not allowed by CORS'));

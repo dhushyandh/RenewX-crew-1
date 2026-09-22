@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
 
@@ -93,5 +93,53 @@ export async function unregisterPushTokenAsync(token: string): Promise<void> {
     console.warn('[Notifications] Push token unregister failed:', error);
   } finally {
     await AsyncStorage.removeItem(PUSH_TOKEN_STORAGE_KEY);
+  }
+}
+
+export async function getNotificationPermissionStatus(): Promise<{
+  granted: boolean;
+  canAskAgain: boolean;
+  status: string;
+}> {
+  if (Platform.OS === 'web') {
+    return { granted: true, canAskAgain: false, status: 'granted' };
+  }
+  try {
+    const permissions = await Notifications.getPermissionsAsync();
+    return {
+      granted: permissions.granted || permissions.status === 'granted',
+      canAskAgain: permissions.canAskAgain,
+      status: permissions.status,
+    };
+  } catch {
+    return { granted: false, canAskAgain: true, status: 'undetermined' };
+  }
+}
+
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return true;
+
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.granted || current.status === 'granted') {
+      registerPushTokenInBackground();
+      return true;
+    }
+
+    if (current.canAskAgain) {
+      const requested = await Notifications.requestPermissionsAsync();
+      if (requested.granted || requested.status === 'granted') {
+        registerPushTokenInBackground();
+        return true;
+      }
+      return false;
+    } else {
+      // Must open settings when user previously chose "Don't ask again"
+      await Linking.openSettings();
+      return false;
+    }
+  } catch (error) {
+    console.warn('[Notifications] Error requesting permission:', error);
+    return false;
   }
 }

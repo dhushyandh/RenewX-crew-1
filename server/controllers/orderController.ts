@@ -14,7 +14,7 @@ import {
 import { env } from '../config/env';
 import { User } from '../models/User';
 import { NotificationModel } from '../models/Notification';
-import { createUserNotification } from '../services/notificationService';
+import { createUserNotification, notifyUserEvent } from '../services/notificationService';
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 20;
@@ -284,6 +284,14 @@ export async function createCheckoutOrder(
           order_items: orderItems,
         });
 
+        await notifyUserEvent({
+          action: 'order_placed',
+          userId: req.user.id,
+          orderId: codOrder.id,
+          subtotal: codOrder.subtotal,
+          paymentMethod: 'Cash on Delivery',
+        });
+
         res.status(201).json({
           success: true,
           data: {
@@ -510,6 +518,20 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
     order.estimated_delivery = order.estimated_delivery || '2-3 Business Days';
     await order.save();
 
+    await notifyUserEvent({
+      action: 'payment_successful',
+      userId: order.user_id,
+      orderId: order.id,
+      subtotal: order.subtotal,
+    });
+    await notifyUserEvent({
+      action: 'order_placed',
+      userId: order.user_id,
+      orderId: order.id,
+      subtotal: order.subtotal,
+      paymentMethod: 'Razorpay',
+    });
+
     return order;
   } catch (error) {
     if (reserved.length) {
@@ -523,14 +545,35 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
     try {
       await refundRazorpayPayment(paymentId, order.subtotal * 100);
       order.payment_status = 'refunded';
+      await notifyUserEvent({
+        action: 'refund_update',
+        userId: order.user_id,
+        orderId: order.id,
+        amount: order.subtotal,
+        status: 'completed',
+      });
     } catch (refundError) {
       console.error('[Payments] Refund failed after stock conflict:', refundError);
       order.payment_status = 'refund_pending';
+      await notifyUserEvent({
+        action: 'refund_update',
+        userId: order.user_id,
+        orderId: order.id,
+        amount: order.subtotal,
+        status: 'pending',
+      });
     }
 
     order.razorpay_payment_id = paymentId;
     order.status = 'cancelled';
     await order.save();
+
+    await notifyUserEvent({
+      action: 'order_cancelled',
+      userId: order.user_id,
+      orderId: order.id,
+      reason: 'Items became unavailable',
+    });
 
     throw error;
   }
@@ -594,7 +637,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
     }
 
     const { id } = req.params;
-    const { status, courier, tracking_number, estimated_delivery } = req.body;
+    const { status, courier, tracking_number, estimated_delivery, refund, payment_status } = req.body;
 
     const allowedStatuses = new Set([
       'pending', 'verified', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled',
@@ -615,7 +658,46 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
       return;
     }
 
-    if (status === 'cancelled' && order.payment_status === 'paid') {
+    // Support admin initiating refund during cancellation or directly
+    if (refund && order.payment_status === 'paid' && order.razorpay_payment_id) {
+      try {
+        await refundRazorpayPayment(order.razorpay_payment_id, order.subtotal * 100);
+        order.payment_status = 'refunded';
+        if (order.user_id) {
+          await notifyUserEvent({
+            action: 'refund_update',
+            userId: order.user_id,
+            orderId: order.id,
+            amount: order.subtotal,
+            status: 'completed',
+          });
+        }
+      } catch (refundErr) {
+        order.payment_status = 'refund_pending';
+        if (order.user_id) {
+          await notifyUserEvent({
+            action: 'refund_update',
+            userId: order.user_id,
+            orderId: order.id,
+            amount: order.subtotal,
+            status: 'pending',
+          });
+        }
+      }
+    } else if (payment_status && payment_status !== order.payment_status) {
+      order.payment_status = payment_status;
+      if ((payment_status === 'refunded' || payment_status === 'refund_pending') && order.user_id) {
+        await notifyUserEvent({
+          action: 'refund_update',
+          userId: order.user_id,
+          orderId: order.id,
+          amount: order.subtotal,
+          status: payment_status === 'refunded' ? 'completed' : 'pending',
+        });
+      }
+    }
+
+    if (status === 'cancelled' && order.payment_status === 'paid' && !refund) {
       res.status(409).json({
         success: false,
         error: { message: 'Paid orders require the refund flow before cancellation', code: 'REFUND_REQUIRED' },
@@ -631,16 +713,41 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
     await order.save();
 
     if (status && order.user_id) {
-      const targetUser = await User.findById(order.user_id).select('notification_preferences');
-      const shouldNotify = targetUser?.notification_preferences?.order_updates ?? true;
-      if (shouldNotify) {
-        await createUserNotification(order.user_id, {
-          type: 'order',
-          title: 'Order status updated',
-          body: `Your order is now ${String(status).replace(/_/g, ' ')}.`,
-          reference_id: order.id,
-          reference_type: 'order',
-          data: { screen: 'Notifications', orderId: order.id },
+      if (status === 'shipped') {
+        await notifyUserEvent({
+          action: 'order_shipped',
+          userId: order.user_id,
+          orderId: order.id,
+          courier: order.courier,
+          trackingNumber: order.tracking_number,
+        });
+      } else if (status === 'out_for_delivery') {
+        await notifyUserEvent({
+          action: 'out_for_delivery',
+          userId: order.user_id,
+          orderId: order.id,
+          courier: order.courier,
+        });
+      } else if (status === 'delivered') {
+        await notifyUserEvent({
+          action: 'order_delivered',
+          userId: order.user_id,
+          orderId: order.id,
+        });
+      } else if (status === 'cancelled') {
+        await notifyUserEvent({
+          action: 'order_cancelled',
+          userId: order.user_id,
+          orderId: order.id,
+        });
+      } else {
+        await notifyUserEvent({
+          action: 'order_status_changed',
+          userId: order.user_id,
+          orderId: order.id,
+          status,
+          courier: order.courier,
+          trackingNumber: order.tracking_number,
         });
       }
     }
