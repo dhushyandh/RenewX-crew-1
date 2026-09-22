@@ -16,6 +16,9 @@ export interface IUser {
   push_tokens?: string[];
   reset_password_token?: string;
   reset_password_expires?: Date;
+  pending_email?: string;
+  email_verification_code?: string;
+  email_verification_expires?: Date;
   created_at: Date;
   updated_at: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -78,6 +81,23 @@ const UserSchema = new Schema<IUser>(
       select: false,
     },
     reset_password_expires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    pending_email: {
+      type: String,
+      default: null,
+      lowercase: true,
+      trim: true,
+      select: false,
+    },
+    email_verification_code: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    email_verification_expires: {
       type: Date,
       default: null,
       select: false,

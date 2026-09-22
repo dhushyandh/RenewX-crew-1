@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { api } from '@/services/api';
 import { confirmAction } from '@/lib/confirmAction';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SUPPORT_PHONE = '+919080168778';
@@ -15,7 +16,7 @@ const WHATSAPP_COMMUNITY_URL =
   'https://chat.whatsapp.com/FyyALPUCzl2KvmRHnz2aaA?mode=gi_t';
 
 export default function AccountScreen() {
-  const insets = useSafeAreaInsets();
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const { user, isAdmin, signOut } = useAuth();
   const [sellCount, setSellCount] = useState(0);
@@ -43,7 +44,7 @@ export default function AccountScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       {/* Top Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Account & Profile</Text>
@@ -57,9 +58,13 @@ export default function AccountScreen() {
         {/* User Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </Text>
+            {user?.avatar_url ? (
+              <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} resizeMode="cover" />
+            ) : (
+              <Text style={styles.avatarText}>
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.nameRow}>
@@ -81,6 +86,15 @@ export default function AccountScreen() {
               <Text style={styles.verifiedText}>Verified Member</Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.editProfileBtn}
+            onPress={() => navigation.navigate('EditProfile')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="create-outline" size={14} color="#059669" />
+            <Text style={styles.editProfileBtnText}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Admin Panel Quick Jump */}
@@ -287,11 +301,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffc400',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontSize: 20,
     fontWeight: '900',
     color: '#000000',
+  },
+  editProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  editProfileBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#059669',
   },
   nameRow: {
     flexDirection: 'row',

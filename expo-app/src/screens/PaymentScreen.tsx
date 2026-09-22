@@ -24,6 +24,7 @@ import {
 import RazorpayModal from '@/components/RazorpayModal';
 import CheckoutStepper from '@/components/CheckoutStepper';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type RouteParams = {
   Payment: {
@@ -42,6 +43,7 @@ function createCheckoutKey(): string {
 }
 
 export default function PaymentScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, 'Payment'>>();
   const { items, subtotal, clearCart } = useCart();
@@ -245,7 +247,7 @@ export default function PaymentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -419,7 +421,7 @@ export default function PaymentScreen() {
           Alert.alert('Payment cancelled', 'Your order was not completed. Your cart is safe.');
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -433,7 +435,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,

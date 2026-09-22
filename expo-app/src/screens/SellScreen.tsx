@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 interface CategoryItem {
@@ -144,7 +145,7 @@ const unwrapRows = (response: any): any[] => {
 };
 
 export default function SellScreen() {
-  const insets = useSafeAreaInsets();
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const toast = useToast();
   const { user } = useAuth();
@@ -624,7 +625,7 @@ export default function SellScreen() {
   // Render Confirmation Screen
   if (bookingConfirmed) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <ScrollView contentContainerStyle={styles.confirmedScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.celebrationCard}>
             <View style={styles.successIconOuter}>
@@ -705,12 +706,12 @@ export default function SellScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 12) }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       {/* Top RenewX Header */}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>

@@ -13,14 +13,32 @@ if (env.NODE_ENV === 'production' && env.CORS_ORIGINS.includes('*')) {
 }
 
 const allowedOrigins = new Set(env.CORS_ORIGINS.filter((origin) => origin !== '*'));
+
+const isAllowedOrigin = (origin: string | undefined): boolean => {
+  if (!origin) return true;
+  if (env.CORS_ORIGINS.includes('*')) return true;
+  if (allowedOrigins.has(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+    if (
+      host.endsWith('.expo.app') ||
+      host === 'expo.app' ||
+      host.endsWith('.vercel.app') ||
+      host.endsWith('.onrender.com') ||
+      /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(origin)
+    ) {
+      return true;
+    }
+  } catch {
+    // malformed origin
+  }
+  return false;
+};
+
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    if (
-      !origin ||
-      env.CORS_ORIGINS.includes('*') ||
-      allowedOrigins.has(origin) ||
-      (env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(origin))
-    ) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
     return callback(new Error('Origin not allowed by CORS'));

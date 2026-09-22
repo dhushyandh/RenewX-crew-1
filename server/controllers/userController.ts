@@ -4,6 +4,7 @@ import { User } from '../models/User';
 import { env } from '../config/env';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { notifyUserEvent } from '../services/notificationService';
+import { sendEmailVerificationCode } from '../services/emailService';
 
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -192,3 +193,177 @@ export async function updateMyNotificationPreferences(
     next(err);
   }
 }
+
+export async function updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const { full_name, avatar_url } = req.body || {};
+    const updates: Record<string, any> = {};
+
+    if (full_name !== undefined) {
+      updates.full_name = typeof full_name === 'string' ? full_name.trim() : '';
+    }
+
+    if (avatar_url !== undefined) {
+      updates.avatar_url = typeof avatar_url === 'string' ? avatar_url.trim() : '';
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updates },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        full_name: updatedUser.full_name,
+        avatar_url: updatedUser.avatar_url,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function requestEmailVerification(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const newEmail = req.body?.new_email?.trim()?.toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!newEmail || !emailRegex.test(newEmail)) {
+      res.status(400).json({ success: false, error: { message: 'A valid new email address is required', code: 'INVALID_EMAIL' } });
+      return;
+    }
+
+    if (newEmail === req.user.email.toLowerCase()) {
+      res.status(400).json({ success: false, error: { message: 'This is already your active email address', code: 'SAME_EMAIL' } });
+      return;
+    }
+
+    // Check if new email is already used by another account
+    const existing = await User.findOne({ email: newEmail, _id: { $ne: req.user.id } });
+    if (existing) {
+      res.status(400).json({ success: false, error: { message: 'This email address is already registered with another account', code: 'EMAIL_IN_USE' } });
+      return;
+    }
+
+    // Generate 6-digit random code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $set: {
+        pending_email: newEmail,
+        email_verification_code: verificationCode,
+        email_verification_expires: expiresAt,
+      },
+    });
+
+    await sendEmailVerificationCode({
+      email: newEmail,
+      name: req.user.full_name,
+      code: verificationCode,
+    });
+
+    res.json({
+      success: true,
+      message: `Verification code sent to ${newEmail}. Please enter the 6-digit code to confirm.`,
+      data: {
+        pending_email: newEmail,
+        expires_at: expiresAt,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyEmailUpdate(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const { code } = req.body || {};
+    const cleanCode = typeof code === 'string' ? code.trim() : '';
+
+    if (!cleanCode || cleanCode.length !== 6) {
+      res.status(400).json({ success: false, error: { message: 'A 6-digit verification code is required', code: 'INVALID_CODE' } });
+      return;
+    }
+
+    const user = await User.findById(req.user.id).select('+pending_email +email_verification_code +email_verification_expires');
+    if (!user || !user.pending_email || !user.email_verification_code) {
+      res.status(400).json({ success: false, error: { message: 'No pending email change request found. Please request a new verification code.', code: 'NO_PENDING_REQUEST' } });
+      return;
+    }
+
+    if (user.email_verification_expires && new Date() > user.email_verification_expires) {
+      res.status(400).json({ success: false, error: { message: 'Verification code has expired. Please request a new code.', code: 'CODE_EXPIRED' } });
+      return;
+    }
+
+    if (user.email_verification_code !== cleanCode) {
+      res.status(400).json({ success: false, error: { message: 'Invalid verification code. Please check and try again.', code: 'INCORRECT_CODE' } });
+      return;
+    }
+
+    // Double check email collision right before committing
+    const collision = await User.findOne({ email: user.pending_email, _id: { $ne: user._id } });
+    if (collision) {
+      res.status(400).json({ success: false, error: { message: 'This email is already registered with another account.', code: 'EMAIL_IN_USE' } });
+      return;
+    }
+
+    const oldEmail = user.email;
+    const verifiedEmail = user.pending_email;
+
+    user.email = verifiedEmail;
+    user.pending_email = undefined;
+    user.email_verification_code = undefined;
+    user.email_verification_expires = undefined;
+    await user.save();
+
+    await notifyUserEvent({
+      action: 'account_security_update',
+      userId: user.id,
+      title: 'Account email updated',
+      message: `Your account email address was changed from ${oldEmail} to ${verifiedEmail}.`,
+    });
+
+    res.json({
+      success: true,
+      message: 'Email address successfully verified and updated',
+      data: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        full_name: user.full_name,
+        avatar_url: user.avatar_url,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

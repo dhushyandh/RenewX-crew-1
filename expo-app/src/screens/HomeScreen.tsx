@@ -12,6 +12,7 @@ import {
   Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -434,7 +435,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <HomeHeader
         onSearch={() => navigation.navigate('Search')}
         cartCount={totalItems}
@@ -578,7 +579,7 @@ export default function HomeScreen() {
       />
 
       <FloatingContactButtons />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -638,7 +639,10 @@ function FloatingContactButtons() {
   if (!actions.length) return null;
 
   return (
-    <View pointerEvents="box-none" style={styles.floatingContacts}>
+    <View
+      pointerEvents={Platform.OS === 'web' ? undefined : 'box-none'}
+      style={[styles.floatingContacts, Platform.OS === 'web' ? ({ pointerEvents: 'box-none' } as any) : undefined]}
+    >
       {actions.map((action) => (
         <TouchableOpacity
           key={action.key}

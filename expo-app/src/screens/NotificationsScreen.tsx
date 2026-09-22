@@ -6,10 +6,12 @@ import { Alert, Image, Platform, RefreshControl, ScrollView, StyleSheet, Text, T
 import type { RootStackParamList } from '@/App';
 import { api } from '@/services/api';
 import { getNotificationPermissionStatus, requestNotificationPermission } from '@/services/pushNotifications';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function NotificationsScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const [items, setItems] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -181,7 +183,7 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
           <Ionicons name="arrow-back" size={21} color="#0f172a" />
@@ -299,7 +301,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f7f2' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16,
-    paddingTop: 16, paddingBottom: 14, backgroundColor: '#fff',
+    paddingTop: 8, paddingBottom: 14, backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: '#ebe7dd',
   },
   headerLogo: { width: 32, height: 32, borderRadius: 8 },

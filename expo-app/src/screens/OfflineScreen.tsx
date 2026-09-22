@@ -16,12 +16,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 interface OfflineScreenProps {
   onRetrySuccess?: () => void;
 }
 
 export default function OfflineScreen({ onRetrySuccess }: OfflineScreenProps) {
+  const safeTop = useSafeHeaderTop();
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<string>('');
   const [retryFailed, setRetryFailed] = useState(false);
@@ -79,7 +81,7 @@ export default function OfflineScreen({ onRetrySuccess }: OfflineScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
 
       {/* Header with RenewX branding & status badge */}
@@ -208,7 +210,7 @@ export default function OfflineScreen({ onRetrySuccess }: OfflineScreenProps) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -25,6 +25,7 @@ import {
   spacing,
   conditionColors,
 } from '@/theme';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,6 +35,7 @@ type RouteParams = {
 };
 
 export default function ProductDetailScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const params = route.params as RouteParams | undefined;
@@ -225,13 +227,13 @@ export default function ProductDetailScreen() {
           )}
 
           {discount > 0 ? (
-            <View style={styles.discountBadge}>
+            <View style={[styles.discountBadge, { top: safeTop }]}>
               <Text style={styles.discountText}>-{discount}%</Text>
             </View>
           ) : null}
 
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { top: safeTop }]}
             onPress={handleBack}
             activeOpacity={0.7}
             accessibilityRole="button"

@@ -4,17 +4,35 @@ import { NativeModules, Platform } from 'react-native';
 const PRODUCTION_API_BASE_URL = 'https://renewx-crew-server.onrender.com/api';
 
 export function getApiBaseUrl(): string {
-  // If running in a web browser (e.g. Expo Web at localhost:8081)
+  // If running in a web browser
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-    const hostname = window.location.hostname;
-    if (
+    const { hostname, protocol } = window.location;
+    const isLocalHost =
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
       /^192\.168\.\d+\.\d+$/.test(hostname) ||
-      /^10\.\d+\.\d+\.\d+$/.test(hostname)
-    ) {
-      return `http://${hostname}:5000/api`;
+      /^10\.\d+\.\d+\.\d+$/.test(hostname);
+
+    // If deployed on public web (e.g. *.expo.app, vercel, netlify, custom domain) or accessed over HTTPS,
+    // NEVER use http:// or local IP - browsers strictly block Mixed Content.
+    if (!isLocalHost || protocol === 'https:') {
+      const configured =
+        typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
+      // Allow configured URL only if it's HTTPS and not pointing to a private LAN/localhost
+      if (
+        configured &&
+        configured.startsWith('https://') &&
+        !configured.includes('localhost') &&
+        !configured.includes('127.0.0.1') &&
+        !/192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/.test(configured)
+      ) {
+        return configured;
+      }
+      return PRODUCTION_API_BASE_URL;
     }
+
+    // Local web development on HTTP (e.g. http://localhost:8081 or http://192.168.1.4:8081)
+    return `http://${hostname}:5000/api`;
   }
 
   const configured =
@@ -247,6 +265,18 @@ export const api = {
   },
 
   users: {
+    updateProfile: async (data: { full_name?: string; avatar_url?: string }) =>
+      request<any>('/users/me/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    requestEmailVerification: async (new_email: string) =>
+      request<{ pending_email: string; expires_at: string }>('/users/me/email/request-verification', {
+        method: 'POST',
+        body: JSON.stringify({ new_email }),
+      }),
+    verifyEmailUpdate: async (code: string) =>
+      request<any>('/users/me/email/verify', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
     getNotificationPreferences: async () => request<any>('/users/me/notification-preferences'),
     registerPushToken: async (token: string) =>
       request<any>('/users/me/push-token', {

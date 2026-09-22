@@ -10,6 +10,7 @@ import { mapProductRow } from '@/lib/productMapper';
 import type { Product } from '@/types';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -24,6 +25,7 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function CategoriesScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [productList, setProductList] = useState<Product[]>([]);
@@ -50,18 +52,18 @@ export default function CategoriesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <View style={styles.centerState}>
           <Ionicons name="sync-outline" size={34} color={colors.primary} />
           <Text style={styles.stateTitle}>Loading live inventory</Text>
           <Text style={styles.stateSub}>Fetching the latest RenewX products…</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Categories</Text>
       </View>
@@ -125,7 +127,7 @@ export default function CategoriesScreen() {
           </View>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

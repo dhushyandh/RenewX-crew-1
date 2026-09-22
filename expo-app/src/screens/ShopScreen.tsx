@@ -22,6 +22,7 @@ import { api } from '@/services/api';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
 import { mapProductRow } from '@/lib/productMapper';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { Ionicons } from '@expo/vector-icons';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -106,7 +107,7 @@ function getProductImage(product: Product): { uri: string } | null {
 }
 
 export default function ShopScreen() {
-  const insets = useSafeAreaInsets();
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const { addToCart, items, totalItems } = useCart();
   const toast = useToast();
@@ -466,7 +467,7 @@ export default function ShopScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.header}>
         <View>
           <View style={styles.brandRow}>

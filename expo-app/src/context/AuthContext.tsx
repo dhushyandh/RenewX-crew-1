@@ -25,6 +25,7 @@ interface AuthContextValue {
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   loginWithToken: (token: string, user: AppUser) => Promise<void>;
+  updateUser: (updates: Partial<AppUser>) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -161,6 +162,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerPushTokenInBackground();
   }, []);
 
+  const updateUser = useCallback(async (updates: Partial<AppUser>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, ...updates };
+      AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       const pushToken = await getStoredPushTokenAsync();
@@ -190,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signIn,
         loginWithToken,
+        updateUser,
         signOut,
       }}
     >

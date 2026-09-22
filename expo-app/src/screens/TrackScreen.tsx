@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type Order = any;
 type SearchMode = 'order' | 'phone';
@@ -147,6 +148,7 @@ function getRank(status?: string) {
 }
 
 export default function TrackScreen() {
+  const safeTop = useSafeHeaderTop();
   const { user } = useAuth();
 
   const [searchMode, setSearchMode] = useState<SearchMode>('order');
@@ -322,7 +324,7 @@ export default function TrackScreen() {
   const imageAvailable = Boolean(getOrderImage(selectedOrder));
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -761,7 +763,7 @@ export default function TrackScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

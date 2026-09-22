@@ -22,6 +22,7 @@ import { useCart } from '@/context/CartContext';
 import { api } from '@/services/api';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { mapProductRow } from '@/lib/productMapper';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -57,6 +58,7 @@ const normalize = (value: unknown): string =>
     .toLowerCase();
 
 export default function SearchScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const { addToCart } = useCart();
 
@@ -438,9 +440,8 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={styles.container}
-      edges={['top']}
+    <View
+      style={[styles.container, { paddingTop: safeTop }]}
     >
       <View style={styles.header}>
         <TouchableOpacity
@@ -563,7 +564,7 @@ export default function SearchScreen() {
           />
         </>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

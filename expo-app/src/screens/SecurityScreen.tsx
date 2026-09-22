@@ -17,6 +17,7 @@ import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type SecurityTab = 'email_link' | 'direct_change';
 
@@ -25,6 +26,7 @@ interface SecurityScreenProps {
 }
 
 export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const toast = useToast();
@@ -252,7 +254,7 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
   const directStrength = getPasswordStrength(directNewPassword);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       {/* Top Navigation Bar */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -614,7 +616,7 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -27,6 +27,7 @@ import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
 import SecurityScreen from '@/screens/SecurityScreen';
+import EditProfileScreen from '@/screens/EditProfileScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
@@ -56,6 +57,7 @@ export type RootStackParamList = {
   MySellRequests: undefined;
   Settings: undefined;
   Notifications: undefined;
+  EditProfile: undefined;
   Security: { token?: string; email?: string } | undefined;
   Payment: {
     customerInfo: {
@@ -117,6 +119,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       MySellRequests: 'sell-requests',
       Settings: 'settings',
       Notifications: 'notifications',
+      EditProfile: 'edit-profile',
       Security: 'security',
       AdminDashboard: 'admin/dashboard',
       AdminProducts: 'admin/products',
@@ -269,6 +272,10 @@ const ProtectedNotificationsScreen = withProtectedRoute(NotificationsScreen, {
   requireAuth: true,
 });
 
+const ProtectedEditProfileScreen = withProtectedRoute(EditProfileScreen, {
+  requireAuth: true,
+});
+
 const ProtectedMySellRequestsScreen = withProtectedRoute(MySellRequestsScreen, {
   requireAuth: true,
 });
@@ -323,6 +330,7 @@ function MainAppNavigation() {
           <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
           <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
           <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
+          <Stack.Screen name="EditProfile" component={ProtectedEditProfileScreen} />
           <Stack.Screen name="Security">
             {(props) => (
               <SecurityScreen

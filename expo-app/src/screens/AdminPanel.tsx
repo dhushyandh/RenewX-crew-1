@@ -28,6 +28,7 @@ import BrandsView from '@/components/admin/BrandsView';
 import ImagePickerButton from '@/components/ImagePickerButton';
 import * as Clipboard from 'expo-clipboard';
 import { sanitizeImageUrl } from '@/lib/imageUtils';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 
 type AdminView = 'dashboard' | 'products' | 'brands' | 'orders' | 'users' | 'tradeIns';
@@ -172,7 +173,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
     setModalVisible(true);
   };
 
-  const topPadding = Platform.OS === 'ios' ? insets.top : 10;
+  const safeTop = useSafeHeaderTop();
 
   if (authLoading || !isAdmin) {
     return (
@@ -183,7 +184,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: topPadding }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       {/* Minimal Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -293,7 +294,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

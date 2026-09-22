@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import CheckoutStepper from '@/components/CheckoutStepper';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type RouteParams = {
   OrderConfirm: {
@@ -32,6 +33,7 @@ type RouteParams = {
 };
 
 export default function OrderConfirmScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, 'OrderConfirm'>>();
 
@@ -91,7 +93,7 @@ export default function OrderConfirmScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <View style={styles.brandRow}>
@@ -317,7 +319,7 @@ export default function OrderConfirmScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -328,7 +330,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     paddingHorizontal: 18,
-    paddingTop: Platform.OS === 'android' ? 14 : 10,
+    paddingTop: 8,
     paddingBottom: 10,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,

@@ -20,9 +20,10 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import CheckoutStepper from '@/components/CheckoutStepper';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 interface SavedAddress {
-  id?: string;
+  id: string;
   name: string;
   phone: string;
   address: string;
@@ -33,6 +34,7 @@ interface SavedAddress {
 const SAVED_ADDRESSES_KEY = '@renewx_saved_addresses';
 
 export default function CheckoutScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const { items, subtotal, hydrated } = useCart();
   const { user } = useAuth();
@@ -227,14 +229,14 @@ export default function CheckoutScreen() {
 
   if (!hydrated) {
     return (
-      <SafeAreaView style={styles.loading}>
+      <View style={[styles.loading, { paddingTop: safeTop }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -453,7 +455,7 @@ export default function CheckoutScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -473,7 +475,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,

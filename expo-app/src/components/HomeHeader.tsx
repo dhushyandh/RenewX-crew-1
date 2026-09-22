@@ -2,6 +2,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+
 interface HomeHeaderProps {
   onSearch: () => void;
   cartCount: number;
@@ -19,8 +21,10 @@ export default function HomeHeader({
   onAdmin,
   onLogout,
 }: HomeHeaderProps) {
+  const safeTop = useSafeHeaderTop();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.topRow}>
         <View style={styles.logoContainer}>
           <Image
@@ -70,7 +74,6 @@ export default function HomeHeader({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: spacing.md,
-    paddingTop: 10,
     paddingBottom: 12,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,

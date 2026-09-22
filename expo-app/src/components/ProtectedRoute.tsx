@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 export interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -28,25 +29,26 @@ export default function ProtectedRoute({
   title,
   message,
 }: ProtectedRouteProps) {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const { user, isAdmin, loading, signOut } = useAuth();
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingTop: safeTop }]}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Verifying permissions…</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Check 1: User authentication required
   if (requireAuth && !user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.header}>
           <TouchableOpacity
@@ -95,14 +97,14 @@ export default function ProtectedRoute({
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Check 2: Admin authorization required
   if (adminOnly && !isAdmin) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.header}>
           <TouchableOpacity
@@ -157,7 +159,7 @@ export default function ProtectedRoute({
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 

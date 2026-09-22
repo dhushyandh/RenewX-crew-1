@@ -1,21 +1,24 @@
-import { View, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function FloatingContactButtons() {
   const openWhatsApp = () => {
-    Linking.openURL('https://wa.me/919876543210?text=Hello%20RenewX%2C%20I%20have%20an%20inquiry%20about%20a%20device.');
+    Linking.openURL('https://wa.me/+919080168778?text=Hello%20RenewX%2C%20I%20have%20an%20inquiry%20about%20a%20device.');
   };
 
   const openCall = () => {
-    Linking.openURL('tel:+919876543210');
+    Linking.openURL('tel:+919080168778');
   };
 
   const openInstagram = () => {
-    Linking.openURL('https://instagram.com');
+    Linking.openURL('https://www.instagram.com/renewx_crew/');
   };
 
   return (
-    <View pointerEvents="box-none" style={styles.container}>
+    <View
+      pointerEvents={Platform.OS === 'web' ? undefined : 'box-none'}
+      style={[styles.container, Platform.OS === 'web' ? ({ pointerEvents: 'box-none' } as any) : undefined]}
+    >
       <TouchableOpacity
         style={[styles.floatingBtn, styles.whatsappBtn]}
         onPress={openWhatsApp}

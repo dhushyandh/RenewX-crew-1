@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '@/context/CartContext';
 import { confirmAction } from '@/lib/confirmAction';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 
 function formatMoney(value: number) {
@@ -21,6 +22,7 @@ function formatMoney(value: number) {
 }
 
 export default function CartScreen() {
+  const safeTop = useSafeHeaderTop();
   const {
     items,
     updateQuantity,
@@ -55,19 +57,19 @@ export default function CartScreen() {
 
   if (!hydrated) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <View style={styles.loadingScreen}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingTitle}>Loading your cart</Text>
           <Text style={styles.loadingText}>Just a moment…</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (items.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerIcon}
@@ -106,12 +108,12 @@ export default function CartScreen() {
             <Ionicons name="arrow-forward" size={17} color={colors.black} />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerIcon}
@@ -335,7 +337,7 @@ export default function CartScreen() {
           </Text>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

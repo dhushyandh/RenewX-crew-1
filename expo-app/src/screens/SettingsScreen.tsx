@@ -18,6 +18,7 @@ import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -63,6 +64,7 @@ const preferenceMeta: Record<
 };
 
 export default function SettingsScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const { user, signOut } = useAuth();
 
@@ -246,7 +248,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -596,7 +598,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: 6,
     paddingBottom: spacing.sm + 2,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,

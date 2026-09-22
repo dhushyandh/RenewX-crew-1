@@ -1,11 +1,24 @@
 import { Router } from 'express';
-import { getUsers, updateUserRole, deleteUser, getMyNotificationPreferences, updateMyNotificationPreferences } from '../controllers/userController';
+import {
+  getUsers,
+  updateUserRole,
+  deleteUser,
+  getMyNotificationPreferences,
+  updateMyNotificationPreferences,
+  updateProfile,
+  requestEmailVerification,
+  verifyEmailUpdate,
+} from '../controllers/userController';
 import { registerPushToken, unregisterPushToken } from '../controllers/notificationController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
-// Current-user preferences
+// Current-user profile & preferences
+router.patch('/me/profile', authenticateToken, updateProfile);
+router.post('/me/email/request-verification', authenticateToken, requestEmailVerification);
+router.post('/me/email/verify', authenticateToken, verifyEmailUpdate);
+
 router.get('/me/notification-preferences', authenticateToken, getMyNotificationPreferences);
 router.patch('/me/notification-preferences', authenticateToken, updateMyNotificationPreferences);
 router.post('/me/push-token', authenticateToken, registerPushToken);

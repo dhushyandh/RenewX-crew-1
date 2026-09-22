@@ -10,7 +10,8 @@ import { authenticateToken, requireAuthenticated } from '../middleware/auth';
 const router = Router();
 
 router.get('/', authenticateToken, requireAuthenticated, getNotifications);
-router.post('/test-event', authenticateToken, requireAuthenticated, triggerTestNotification);
+router.post('/test', authenticateToken, triggerTestNotification);
+router.post('/test-event', authenticateToken, triggerTestNotification);
 router.patch('/read-all', authenticateToken, requireAuthenticated, markAllNotificationsRead);
 router.patch('/:id/read', authenticateToken, requireAuthenticated, markNotificationRead);
 

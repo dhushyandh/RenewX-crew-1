@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, Act
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 const STATUS_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; color: string }> = {
   pending: { label: 'Pending Review', icon: 'time-outline', bg: '#fff7ed', color: '#c2410c' },
@@ -20,6 +21,7 @@ function formatStatus(status: string) {
 }
 
 export default function MySellRequestsScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ export default function MySellRequestsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
           <Ionicons name="arrow-back" size={21} color="#0f172a" />
@@ -144,7 +146,7 @@ export default function MySellRequestsScreen() {
 const styles=StyleSheet.create({
   container:{flex:1,backgroundColor:'#f8f7f2'},
   center:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:'#f8f7f2'},
-  header:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:16,paddingTop:18,paddingBottom:14,backgroundColor:'#fff',borderBottomWidth:1,borderBottomColor:'#e5e7eb'},
+  header:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:16,paddingTop:8,paddingBottom:14,backgroundColor:'#fff',borderBottomWidth:1,borderBottomColor:'#e5e7eb'},
   back:{width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center',backgroundColor:'#f1f5f9'},
   refresh:{width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center',backgroundColor:'#f1f5f9'},
   title:{fontSize:20,fontWeight:'900',color:'#0f172a'},

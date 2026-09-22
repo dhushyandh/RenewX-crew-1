@@ -139,3 +139,96 @@ If you did not request a password change, please ignore this email or review you
 
   return { success: true, simulated: true };
 }
+
+interface EmailVerificationCodeOptions {
+  email: string;
+  name?: string;
+  code: string;
+}
+
+export async function sendEmailVerificationCode({
+  email,
+  name,
+  code,
+}: EmailVerificationCodeOptions): Promise<{ success: boolean; simulated?: boolean; messageId?: string }> {
+  const clientName = name || email.split('@')[0] || 'Valued Member';
+  const fromAddress = process.env.SMTP_FROM?.trim() || '"RenewX Security" <security@renewx.com>';
+
+  const mailOptions = {
+    from: fromAddress,
+    to: email,
+    subject: 'RenewX • Verify Your New Email Address',
+    text: `Hello ${clientName},
+
+Your 6-digit verification code to update your RenewX account email is:
+
+${code}
+
+This code expires in 15 minutes. If you did not request this email change, please ignore this message.
+
+— RenewX Security Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Verify Your New Email</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; color: #0f172a; }
+    .container { max-width: 540px; margin: 30px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .header { background: #0a0a0a; padding: 24px; text-align: center; }
+    .logo-title { color: #ffffff; font-size: 22px; font-weight: 900; margin: 0; }
+    .logo-accent { color: #059669; }
+    .content { padding: 32px 28px; text-align: center; }
+    .greeting { font-size: 18px; font-weight: 700; margin-bottom: 12px; color: #0f172a; text-align: left; }
+    .desc { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; text-align: left; }
+    .code-box { display: inline-block; background: #f0fdf4; border: 2px dashed #059669; border-radius: 12px; padding: 16px 36px; margin: 16px 0; }
+    .code { font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #047857; font-family: monospace; }
+    .expiry { font-size: 12px; color: #64748b; margin-top: 12px; }
+    .footer { background: #f8fafc; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo-title">Renew<span class="logo-accent">X</span></div>
+    </div>
+    <div class="content">
+      <div class="greeting">Hello ${clientName},</div>
+      <div class="desc">We received a request to update your account email to this address. Use the 6-digit verification code below to confirm this change:</div>
+      <div class="code-box">
+        <div class="code">${code}</div>
+      </div>
+      <div class="expiry">This verification code will expire in 15 minutes.</div>
+    </div>
+    <div class="footer">
+      © ${new Date().getFullYear()} RenewX Inc. • Account Security Verification
+    </div>
+  </div>
+</body>
+</html>
+    `,
+  };
+
+  const activeTransporter = getTransporter();
+
+  if (activeTransporter) {
+    try {
+      const info = await activeTransporter.sendMail(mailOptions);
+      console.log(`[Email] Sent email verification code to ${email} (MessageID: ${info.messageId})`);
+      return { success: true, messageId: info.messageId };
+    } catch (err) {
+      console.error('[Email] Failed to send via SMTP, falling back to simulated log:', err);
+    }
+  }
+
+  // Development / fallback simulation
+  console.log('\n=============================================================');
+  console.log('📧 [RENEWX EMAIL DISPATCH] New Email Verification Code');
+  console.log(`To: ${email}`);
+  console.log(`Verification Code: ${code}`);
+  console.log('=============================================================\n');
+
+  return { success: true, simulated: true };
+}
+
