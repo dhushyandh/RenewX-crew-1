@@ -9,7 +9,11 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://renewx-crew-server.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://renewx-crew-server.onrender.com/api",
+        "EXPO_PUBLIC_ADMIN_EMAIL": "dhushyandhneduncheziyan4896@gmail.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "137465495964-23ihoo497pkud3g1jt9ddinm2c8er8kp.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "137465495964-73h47m03fkc6ka0r04f8ab748dtos6nf.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "137465495964-8jmmaraa7amhuvap8me97smbu3tbsrp5.apps.googleusercontent.com"
       }
     },
     "preview-local": {
@@ -18,7 +22,11 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.4:5000/api"
+        "EXPO_PUBLIC_API_URL": "http://192.168.1.4:5000/api",
+        "EXPO_PUBLIC_ADMIN_EMAIL": "dhushyandhneduncheziyan4896@gmail.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "137465495964-23ihoo497pkud3g1jt9ddinm2c8er8kp.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "137465495964-73h47m03fkc6ka0r04f8ab748dtos6nf.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "137465495964-8jmmaraa7amhuvap8me97smbu3tbsrp5.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -26,7 +34,11 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://renewx-crew-server.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://renewx-crew-server.onrender.com/api",
+        "EXPO_PUBLIC_ADMIN_EMAIL": "dhushyandhneduncheziyan4896@gmail.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "137465495964-23ihoo497pkud3g1jt9ddinm2c8er8kp.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "137465495964-73h47m03fkc6ka0r04f8ab748dtos6nf.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "137465495964-8jmmaraa7amhuvap8me97smbu3tbsrp5.apps.googleusercontent.com"
       }
     }
   }
