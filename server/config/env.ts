@@ -35,6 +35,7 @@ export const env = {
   JWT_SECRET: required('JWT_SECRET'),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN?.trim() || '7d',
   ADMIN_EMAIL: process.env.ADMIN_EMAIL?.trim() || '',
+  GOOGLE_CLIENT_IDS: process.env.GOOGLE_CLIENT_IDS?.trim() || '',
   RAZORPAY_KEY_ID: optional('RAZORPAY_KEY_ID'),
   RAZORPAY_KEY_SECRET: optional('RAZORPAY_KEY_SECRET'),
   RAZORPAY_WEBHOOK_SECRET: optional('RAZORPAY_WEBHOOK_SECRET'),
