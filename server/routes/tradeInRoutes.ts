@@ -5,6 +5,7 @@ import {
   getTradeInRequests,
   getMyTradeInRequests,
   updateTradeInStatus,
+  cancelMyTradeInRequest,
 } from '../controllers/tradeInController';
 import { authenticateToken, requireAuthenticated, requireAdmin } from '../middleware/auth';
 
@@ -14,8 +15,11 @@ const router = Router();
 router.post('/quote', getValuationQuote);
 router.post('/pickup', authenticateToken, requireAuthenticated, createPickupRequest);
 
-// Admin-only trade-in pickup requests retrieval
+// Customer endpoints
 router.get('/my-requests', authenticateToken, requireAuthenticated, getMyTradeInRequests);
+router.post('/pickup/:id/cancel', authenticateToken, requireAuthenticated, cancelMyTradeInRequest);
+
+// Admin-only trade-in pickup requests retrieval & updates
 router.get('/pickup', authenticateToken, requireAdmin, getTradeInRequests);
 router.patch('/pickup/:id/status', authenticateToken, requireAdmin, updateTradeInStatus);
 

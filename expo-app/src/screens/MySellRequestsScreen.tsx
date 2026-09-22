@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { useToast } from '@/context/ToastContext';
 
 const STATUS_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; color: string }> = {
   pending: { label: 'Pending Review', icon: 'time-outline', bg: '#fff7ed', color: '#c2410c' },
@@ -23,9 +24,11 @@ function formatStatus(status: string) {
 export default function MySellRequestsScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
+  const toast = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -47,9 +50,48 @@ export default function MySellRequestsScreen() {
     return () => clearInterval(timer);
   }, [load]));
 
+  const handleCancelRequest = (item: any) => {
+    const id = String(item.id || item._id);
+    const deviceName = `${item.brand || 'Device'} ${item.model || ''}`.trim();
+
+    const doCancel = async () => {
+      try {
+        setCancellingId(id);
+        await api.tradeIn.cancel(id, 'Cancelled by user');
+        setItems((prev) =>
+          prev.map((it) => (String(it.id || it._id) === id ? { ...it, status: 'cancelled' } : it))
+        );
+        toast.success(`Sell request for ${deviceName} has been cancelled.`, 'Request Cancelled');
+      } catch (err: any) {
+        toast.error(err?.message || 'Could not cancel request. Please try again.');
+      } finally {
+        setCancellingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm(`Are you sure you want to cancel your sell request for ${deviceName}?`)) {
+        doCancel();
+      }
+    } else {
+      Alert.alert(
+        'Cancel Sell Request',
+        `Are you sure you want to cancel your sell request for ${deviceName}?`,
+        [
+          { text: 'Keep Request', style: 'cancel' },
+          { text: 'Yes, Cancel', style: 'destructive', onPress: doCancel },
+        ]
+      );
+    }
+  };
+
   const renderItem = ({ item }: { item: any }) => {
-    const meta = formatStatus(item.status || 'pending');
+    const id = String(item.id || item._id);
+    const status = String(item.status || 'pending');
+    const meta = formatStatus(status);
     const amount = Number(item.valuation_amount || 0);
+    const canCancel = ['pending', 'approved', 'scheduled'].includes(status);
+    const isCancelling = cancellingId === id;
 
     return (
       <View style={styles.card}>
@@ -74,20 +116,51 @@ export default function MySellRequestsScreen() {
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.label}>Request ID</Text>
-          <Text style={styles.value}>#{String(item.id).slice(-8).toUpperCase()}</Text>
+          <Text style={styles.value}>#{id.slice(-8).toUpperCase()}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.label}>Submitted</Text>
           <Text style={styles.value}>{item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN') : '—'}</Text>
         </View>
 
-        {item.status === 'approved' && (
+        {status === 'approved' && (
           <View style={styles.approvedBox}>
             <Ionicons name="checkmark-circle" size={18} color="#047857" />
             <View style={{ flex: 1 }}>
               <Text style={styles.approvedTitle}>Your sell request is approved</Text>
               <Text style={styles.approvedSub}>RenewX will proceed with the next pickup/inspection step.</Text>
             </View>
+          </View>
+        )}
+
+        {/* Customer Cancellation Button */}
+        {canCancel && (
+          <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'flex-end' }}>
+            <TouchableOpacity
+              onPress={() => handleCancelRequest(item)}
+              disabled={isCancelling}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingVertical: 7,
+                paddingHorizontal: 12,
+                borderRadius: 8,
+                backgroundColor: '#fef2f2',
+                borderWidth: 1,
+                borderColor: '#fca5a5',
+              }}
+              activeOpacity={0.8}
+            >
+              {isCancelling ? (
+                <ActivityIndicator size="small" color="#dc2626" />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={15} color="#dc2626" />
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#dc2626' }}>Cancel Request</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         )}
       </View>

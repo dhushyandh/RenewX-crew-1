@@ -236,3 +236,63 @@ export async function updateTradeInStatus(
     next(err);
   }
 }
+
+export async function cancelMyTradeInRequest(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const request = await TradeInModel.findById(id);
+    if (!request) {
+      res.status(404).json({ success: false, error: { message: 'Sell request not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    // Only owner of the request or admin can cancel
+    if (request.user_id && request.user_id !== req.user.id && req.user.role !== 'admin') {
+      res.status(403).json({ success: false, error: { message: 'Not authorized to cancel this request', code: 'FORBIDDEN' } });
+      return;
+    }
+
+    if (request.status === 'completed') {
+      res.status(400).json({ success: false, error: { message: 'Completed sell requests cannot be cancelled' } });
+      return;
+    }
+
+    if (request.status === 'cancelled') {
+      res.json({ success: true, message: 'Sell request is already cancelled', data: request });
+      return;
+    }
+
+    request.status = 'cancelled';
+    const note = reason ? `Cancelled: ${String(reason).trim()}` : 'Cancelled by customer';
+    (request as any).admin_note = [(request as any).admin_note, note].filter(Boolean).join(' | ');
+
+    await request.save();
+
+    if (request.user_id) {
+      await notifyUserEvent({
+        action: 'trade_in_status_changed',
+        userId: request.user_id,
+        tradeInId: request.id,
+        brand: request.brand,
+        model: request.model,
+        status: 'cancelled',
+      });
+    }
+
+    res.json({ success: true, message: 'Sell request cancelled successfully', data: request });
+  } catch (err) {
+    next(err);
+  }
+}
+

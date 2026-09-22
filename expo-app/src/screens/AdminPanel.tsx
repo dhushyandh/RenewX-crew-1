@@ -471,6 +471,23 @@ function TradeInsView() {
         await createInventoryFromApprovedRequest(currentItem, finalAmount > 0 ? finalAmount : 7000);
       }
 
+      if (status === 'rejected' && currentItem) {
+        // If device was previously approved and added to store inventory, remove or archive it
+        try {
+          const allProds = await api.products.getAll();
+          const targetName = `${currentItem.brand || 'Device'} ${currentItem.model || ''}`.trim().toLowerCase();
+          const matched = allProds.find((p: any) =>
+            p.name?.trim().toLowerCase() === targetName ||
+            (p.brand?.toLowerCase() === currentItem.brand?.toLowerCase() && p.model?.toLowerCase() === currentItem.model?.toLowerCase())
+          );
+          if (matched && (matched.id || (matched as any)._id)) {
+            await api.products.delete(matched.id || (matched as any)._id);
+          }
+        } catch (delErr) {
+          console.warn('[TradeIn] Delist inventory notice on reject:', delErr);
+        }
+      }
+
       const updated = await api.tradeIn.updateStatus(
         id,
         status,
@@ -482,11 +499,24 @@ function TradeInsView() {
         ? { ...item, ...(updated || {}), status, approved_amount: finalAmount > 0 ? finalAmount : item.approved_amount, admin_note: noteToSave }
         : item));
 
+      setSelectedInspectionItem((prev: any) => {
+        if (!prev || String(prev.id || prev._id) !== id) return prev;
+        return {
+          ...prev,
+          ...(updated || {}),
+          status,
+          approved_amount: finalAmount > 0 ? finalAmount : prev.approved_amount,
+          admin_note: noteToSave,
+        };
+      });
+
       toast.success(
         status === 'approved'
           ? 'Request approved and device added to inventory.'
+          : status === 'rejected'
+          ? 'Sell request rejected and delisted from store.'
           : `Sell request marked ${status.replace(/_/g, ' ')}`,
-        status === 'approved' ? 'Inventory Updated' : 'Request Updated'
+        status === 'approved' ? 'Inventory Updated' : status === 'rejected' ? 'Request Rejected' : 'Request Updated'
       );
     } catch (err: any) {
       toast.error(err?.message || 'Unable to update this sell request.');
@@ -650,8 +680,8 @@ function TradeInsView() {
                   <Text style={styles.orderAddressText}>📍 {item.pickup_address || item.address}</Text>
                 ) : null}
 
-                {/* Valuation Info & Primary Inspect Button */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9' }}>
+                {/* Valuation Info & Photo Count */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9' }}>
                   <View>
                     <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600' }}>Valuation / Asking</Text>
                     <Text style={{ fontSize: 18, fontWeight: '900', color: '#0f172a' }}>
@@ -659,59 +689,142 @@ function TradeInsView() {
                     </Text>
                   </View>
 
-                  {/* PROMINENT PRIMARY INSPECTION BUTTON */}
+                  {photos.length > 0 && (
+                    <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="images-outline" size={13} color="#475569" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>{photos.length} photos</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Sleek Action Buttons Row */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                  {/* Primary Sleek Inspect Button */}
                   <TouchableOpacity
                     onPress={() => openInspection(item)}
                     style={{
+                      flex: 1,
                       flexDirection: 'row',
                       alignItems: 'center',
-                      gap: 8,
+                      justifyContent: 'center',
+                      gap: 7,
                       backgroundColor: '#0f172a',
-                      paddingHorizontal: 16,
-                      paddingVertical: 10,
-                      borderRadius: 12,
-                      shadowColor: '#000',
+                      paddingVertical: 11,
+                      paddingHorizontal: 14,
+                      borderRadius: 10,
+                      shadowColor: '#0f172a',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 4,
-                      elevation: 3,
+                      shadowOpacity: 0.15,
+                      shadowRadius: 3,
+                      elevation: 2,
                     }}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="scan-outline" size={17} color="#ffc400" />
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff' }}>
-                      Inspect Request
+                    <Ionicons name="search-outline" size={16} color="#38bdf8" />
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#ffffff' }}>
+                      Inspect Device
                     </Text>
-                    <View style={{ backgroundColor: '#ffc400', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1.5 }}>
-                      <Text style={{ fontSize: 9, fontWeight: '900', color: '#000' }}>
-                        DECIDE
-                      </Text>
-                    </View>
+                    <Ionicons name="chevron-forward" size={13} color="#94a3b8" />
                   </TouchableOpacity>
-                </View>
 
-                {/* Sub-banner inviting condition check */}
-                <TouchableOpacity
-                  onPress={() => openInspection(item)}
-                  style={{
-                    marginTop: 8,
-                    paddingVertical: 7,
-                    paddingHorizontal: 12,
-                    backgroundColor: '#eff6ff',
-                    borderRadius: 9,
-                    borderWidth: 1,
-                    borderColor: '#bfdbfe',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: 11, color: '#1e40af', fontWeight: '700' }}>
-                    🔍 Tap here to inspect photos, 12-point diagnostic check & decide approval
-                  </Text>
-                  <Ionicons name="chevron-forward" size={14} color="#1e40af" />
-                </TouchableOpacity>
+                  {/* Status-specific Direct Actions */}
+                  {status === 'approved' ? (
+                    /* IF APPROVED: Give direct 1-click REJECT button */
+                    <TouchableOpacity
+                      onPress={() => update(id, 'rejected', undefined, 'Approval revoked and request rejected by admin')}
+                      disabled={busyId === id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        backgroundColor: '#fef2f2',
+                        borderWidth: 1.5,
+                        borderColor: '#fca5a5',
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      {busyId === id ? (
+                        <ActivityIndicator size="small" color="#dc2626" />
+                      ) : (
+                        <>
+                          <Ionicons name="close-circle-outline" size={16} color="#dc2626" />
+                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#dc2626' }}>Reject Request</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  ) : status === 'rejected' ? (
+                    /* IF REJECTED: Give direct RE-APPROVE button */
+                    <TouchableOpacity
+                      onPress={() => update(id, 'approved', undefined, 'Re-evaluated and approved by admin')}
+                      disabled={busyId === id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        backgroundColor: '#ecfdf5',
+                        borderWidth: 1.5,
+                        borderColor: '#86efac',
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      {busyId === id ? (
+                        <ActivityIndicator size="small" color="#16a34a" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
+                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#16a34a' }}>Re-Approve</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  ) : status === 'cancelled' ? (
+                    /* IF CANCELLED: Informative status badge */
+                    <View style={{
+                      backgroundColor: '#f1f5f9',
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}>
+                      <Ionicons name="ban-outline" size={14} color="#64748b" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b' }}>Cancelled</Text>
+                    </View>
+                  ) : (
+                    /* IF PENDING / SCHEDULED: Quick 1-click Approve */
+                    <TouchableOpacity
+                      onPress={() => update(id, 'approved', undefined, 'Condition verified and approved by admin')}
+                      disabled={busyId === id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        backgroundColor: '#ecfdf5',
+                        borderWidth: 1.5,
+                        borderColor: '#86efac',
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      {busyId === id ? (
+                        <ActivityIndicator size="small" color="#16a34a" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
+                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#16a34a' }}>Approve</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             );
           })}
@@ -1154,58 +1267,186 @@ function TradeInsView() {
                   gap: 8,
                   alignItems: 'stretch',
                 }}>
-                  {/* APPROVE BUTTON */}
-                  <TouchableOpacity
-                    onPress={handleApproveFromInspection}
-                    disabled={isSavingInspection}
-                    style={{
-                      flex: isSmallScreen ? undefined : 2,
-                      backgroundColor: '#16a34a',
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      borderRadius: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      shadowColor: '#16a34a',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 4,
-                      elevation: 2,
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff', textAlign: 'center' }}>
-                      ✓ Approve & Add to Store (₹{Number(inspectionOffer || selectedInspectionItem.approved_amount || selectedInspectionItem.expected_price || 7000).toLocaleString('en-IN')})
-                    </Text>
-                  </TouchableOpacity>
+                  {selectedInspectionItem.status === 'approved' ? (
+                    <>
+                      {/* Approved Status Banner */}
+                      <View style={{
+                        flex: isSmallScreen ? undefined : 1.3,
+                        backgroundColor: '#ecfdf5',
+                        borderWidth: 1.5,
+                        borderColor: '#86efac',
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                      }}>
+                        <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#15803d', textAlign: 'center' }}>
+                          Live in Store (₹{Number(selectedInspectionItem.approved_amount || selectedInspectionItem.valuation_amount || 7000).toLocaleString('en-IN')})
+                        </Text>
+                      </View>
 
-                  {/* REJECT BUTTON */}
-                  <TouchableOpacity
-                    onPress={handleRejectFromInspection}
-                    disabled={isSavingInspection}
-                    style={{
-                      flex: isSmallScreen ? undefined : 1,
-                      backgroundColor: '#fee2e2',
-                      borderWidth: 1.5,
-                      borderColor: '#fca5a5',
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      borderRadius: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="close-circle" size={17} color="#dc2626" />
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#dc2626' }}>
-                      ✕ Reject Request
-                    </Text>
-                  </TouchableOpacity>
+                      {/* REJECT BUTTON FOR APPROVED ITEM */}
+                      <TouchableOpacity
+                        onPress={handleRejectFromInspection}
+                        disabled={isSavingInspection}
+                        style={{
+                          flex: isSmallScreen ? undefined : 1,
+                          backgroundColor: '#dc2626',
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          borderRadius: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          shadowColor: '#dc2626',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        {isSavingInspection ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons name="close-circle" size={18} color="#ffffff" />
+                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff' }}>
+                              ✕ Reject & Delist
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  ) : selectedInspectionItem.status === 'rejected' ? (
+                    <>
+                      {/* Rejected Status Banner */}
+                      <View style={{
+                        flex: isSmallScreen ? undefined : 1,
+                        backgroundColor: '#fee2e2',
+                        borderWidth: 1.5,
+                        borderColor: '#fca5a5',
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                      }}>
+                        <Ionicons name="close-circle" size={18} color="#dc2626" />
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#b91c1c' }}>
+                          Currently Rejected
+                        </Text>
+                      </View>
+
+                      {/* RE-APPROVE BUTTON */}
+                      <TouchableOpacity
+                        onPress={handleApproveFromInspection}
+                        disabled={isSavingInspection}
+                        style={{
+                          flex: isSmallScreen ? undefined : 1.5,
+                          backgroundColor: '#16a34a',
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          borderRadius: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          shadowColor: '#16a34a',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        {isSavingInspection ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
+                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff', textAlign: 'center' }}>
+                              ✓ Re-Approve & Add to Store (₹{Number(inspectionOffer || selectedInspectionItem.approved_amount || selectedInspectionItem.expected_price || 7000).toLocaleString('en-IN')})
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      {/* APPROVE BUTTON */}
+                      <TouchableOpacity
+                        onPress={handleApproveFromInspection}
+                        disabled={isSavingInspection}
+                        style={{
+                          flex: isSmallScreen ? undefined : 2,
+                          backgroundColor: '#16a34a',
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          borderRadius: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          shadowColor: '#16a34a',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        {isSavingInspection ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
+                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff', textAlign: 'center' }}>
+                              ✓ Approve & Add to Store (₹{Number(inspectionOffer || selectedInspectionItem.approved_amount || selectedInspectionItem.expected_price || 7000).toLocaleString('en-IN')})
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
+                      {/* REJECT BUTTON */}
+                      <TouchableOpacity
+                        onPress={handleRejectFromInspection}
+                        disabled={isSavingInspection}
+                        style={{
+                          flex: isSmallScreen ? undefined : 1,
+                          backgroundColor: '#fee2e2',
+                          borderWidth: 1.5,
+                          borderColor: '#fca5a5',
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          borderRadius: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        {isSavingInspection ? (
+                          <ActivityIndicator size="small" color="#dc2626" />
+                        ) : (
+                          <>
+                            <Ionicons name="close-circle" size={17} color="#dc2626" />
+                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#dc2626' }}>
+                              ✕ Reject Request
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
 
                 {/* Mobile Toggle for Notes / Status Override */}

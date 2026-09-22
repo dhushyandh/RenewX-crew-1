@@ -319,6 +319,11 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ status, approvedAmount, adminNote }),
       }),
+    cancel: async (id: string, reason?: string) =>
+      request<any>(`/trade-in/pickup/${encodeURIComponent(id)}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
   },
 
   notifications: {
