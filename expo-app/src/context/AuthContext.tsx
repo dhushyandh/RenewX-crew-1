@@ -1,8 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { getApiBaseUrl } from '@/services/api';
 import { getStoredPushTokenAsync, registerPushTokenInBackground, unregisterPushTokenAsync } from '@/services/pushNotifications';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
 const USER_STORAGE_KEY = '@renewx_auth_user';
@@ -24,6 +28,7 @@ interface AuthContextValue {
   loading: boolean;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   loginWithToken: (token: string, user: AppUser) => Promise<void>;
   updateUser: (updates: Partial<AppUser>) => Promise<void>;
   signOut: () => Promise<void>;
@@ -35,6 +40,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || 'disabled';
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || 'disabled';
+  const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || 'disabled';
+
+  const googleConfigured =
+    Platform.OS === 'android'
+      ? googleAndroidClientId !== 'disabled'
+      : Platform.OS === 'ios'
+        ? googleIosClientId !== 'disabled'
+        : googleWebClientId !== 'disabled';
+
+  const [, , promptGoogleAsync] = Google.useIdTokenAuthRequest({
+    webClientId: googleWebClientId,
+    androidClientId: googleAndroidClientId,
+    iosClientId: googleIosClientId,
+    selectAccount: true,
+  });
 
   // Restore session from AsyncStorage on boot
   useEffect(() => {
@@ -162,6 +185,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerPushTokenInBackground();
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    if (!googleConfigured) return { error: 'Google sign-in is not configured for this app build.' };
+    try {
+      const result = await promptGoogleAsync();
+      if (result?.type !== 'success') {
+        if (result?.type === 'cancel' || result?.type === 'dismiss') return { error: 'Google sign-in was cancelled.' };
+        return { error: 'Google sign-in failed. Please try again.' };
+      }
+      const idToken = result.params?.id_token || result.authentication?.idToken;
+      if (!idToken) return { error: 'Google did not return a valid ID token.' };
+      const response = await fetch(getApiBaseUrl() + '/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) return { error: json.error?.message || 'Google sign-in could not be completed.' };
+      await loginWithToken(json.data.token, json.data.user);
+      return { error: null };
+    } catch (err: any) {
+      console.error('[Auth] Google sign-in failed:', err);
+      return { error: err?.message || 'Unable to complete Google sign-in.' };
+    }
+  }, [googleConfigured, promptGoogleAsync, loginWithToken]);
+
   const updateUser = useCallback(async (updates: Partial<AppUser>) => {
     setUser((prev) => {
       if (!prev) return null;
@@ -199,6 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signUp,
         signIn,
+        signInWithGoogle,
         loginWithToken,
         updateUser,
         signOut,
