@@ -15,6 +15,7 @@ import { env } from '../config/env';
 import { User } from '../models/User';
 import { NotificationModel } from '../models/Notification';
 import { createUserNotification, notifyUserEvent } from '../services/notificationService';
+import { broadcastOrderUpdate } from '../services/orderWebSocket';
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 20;
@@ -517,6 +518,7 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
     order.tracking_number = order.tracking_number || 'RNX' + Date.now().toString().slice(-9);
     order.estimated_delivery = order.estimated_delivery || '2-3 Business Days';
     await order.save();
+    broadcastOrderUpdate(order);
 
     await notifyUserEvent({
       action: 'payment_successful',
@@ -711,6 +713,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
     if (estimated_delivery !== undefined) order.estimated_delivery = String(estimated_delivery).trim();
 
     await order.save();
+    broadcastOrderUpdate(order);
 
     if (status && order.user_id) {
       if (status === 'shipped') {

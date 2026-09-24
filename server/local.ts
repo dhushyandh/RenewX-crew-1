@@ -2,6 +2,7 @@ import app from './index';
 import { env } from './config/env';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db';
+import { setupOrderWebSocket } from './services/orderWebSocket';
 
 async function start() {
   await connectDB();
@@ -13,6 +14,8 @@ async function start() {
     console.log('🩺 Health check: /api/health');
     console.log('=======================================================');
   });
+
+  setupOrderWebSocket(server);
 
   const gracefulShutdown = (signal: string) => {
     console.log(`[Server] Received ${signal}. Shutting down gracefully...`);
