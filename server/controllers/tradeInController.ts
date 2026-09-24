@@ -173,15 +173,20 @@ export async function updateTradeInStatus(
       return;
     }
 
-    // Admin can correct a decision while the request is still in the
-    // decision stage. Once pickup/inspection has started, keep the lifecycle forward-only.
+    // Decision can be corrected between approved/rejected. Once pickup starts,
+    // the request becomes forward-only and cannot be returned to a decision state.
     const decisionStatuses = new Set(['pending', 'approved', 'rejected']);
-    if (decisionStatuses.has(request.status) && !decisionStatuses.has(status)) {
-      // Leaving the decision stage is allowed only for the normal approved/rejected path.
-    } else if (!decisionStatuses.has(request.status) && decisionStatuses.has(status)) {
+    const lifecycleAfterApproval = new Set(['scheduled', 'picked_up', 'inspected', 'completed', 'cancelled']);
+    const canTransition =
+      (request.status === 'pending' && (status === 'approved' || status === 'rejected')) ||
+      ((request.status === 'approved' || request.status === 'rejected') &&
+        (status === 'approved' || status === 'rejected' || status === 'scheduled')) ||
+      (!decisionStatuses.has(request.status) && lifecycleAfterApproval.has(status));
+
+    if (!canTransition && request.status !== status) {
       res.status(409).json({
         success: false,
-        error: { message: 'This request has already entered the pickup/inspection lifecycle and its decision cannot be reversed.', code: 'INVALID_TRANSITION' },
+        error: { message: `Cannot change sell request from ${request.status} to ${status}.`, code: 'INVALID_TRANSITION' },
       });
       return;
     }
