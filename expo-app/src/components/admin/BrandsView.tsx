@@ -1021,9 +1021,13 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   brandList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 12,
   },
   brandCard: {
+    width: '48.5%',
     backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 16,
