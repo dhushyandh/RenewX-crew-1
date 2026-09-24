@@ -60,12 +60,17 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     targetUser.role = role;
     await targetUser.save();
 
-    await notifyUserEvent({
-      action: 'account_security_update',
-      userId: targetUser.id,
-      title: 'Account/security update',
-      message: `Your account role has been updated to ${role}.`,
-    });
+    // Role persistence must not fail because a notification provider is unavailable.
+    try {
+      await notifyUserEvent({
+        action: 'account_security_update',
+        userId: targetUser.id,
+        title: 'Account/security update',
+        message: `Your account role has been updated to ${role}.`,
+      });
+    } catch (notificationError) {
+      console.warn('[Users] Role updated but notification failed:', notificationError);
+    }
 
     res.json({ success: true, data: targetUser });
   } catch (err) {
