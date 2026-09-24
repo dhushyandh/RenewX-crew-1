@@ -273,8 +273,8 @@ export async function createCheckoutOrder(
           payment_method: 'cod',
           currency: 'INR',
           checkout_key: checkoutKey,
-          courier: 'BlueDart Express',
-          tracking_number: 'RNX' + Date.now().toString().slice(-9),
+          courier: '',
+          tracking_number: '',
           estimated_delivery: '3-5 Business Days',
           customer_info: {
             name: customer.name.trim(),
@@ -639,7 +639,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
     }
 
     const { id } = req.params;
-    const { status, courier, tracking_number, estimated_delivery, refund, payment_status } = req.body;
+    const { status, courier, courier_phone, tracking_number, estimated_delivery, refund, payment_status } = req.body;
 
     const allowedStatuses = new Set([
       'pending', 'verified', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled',
