@@ -2353,27 +2353,33 @@ function UsersView() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const openEditUser = (targetUser: Profile) => {
-    setEditingUser(targetUser);
-    setEditRole(targetUser.role === 'admin' ? 'admin' : 'customer');
-  };
+  const handleRoleChange = (targetUser: Profile, nextRole: 'admin' | 'customer') => {
+    const userId = String(targetUser.id || (targetUser as any)._id || '');
+    if (!userId || nextRole === targetUser.role) return;
 
-  const saveEditedUser = async () => {
-    if (!editingUser) return;
-    const userId = editingUser.id || (editingUser as any)._id;
-    try {
-      setUpdatingId(userId);
-      await api.users.updateRole(userId, editRole);
-      setProfiles((prev) =>
-        prev.map((p) => ((p.id === userId || (p as any)._id === userId) ? { ...p, role: editRole } : p))
-      );
-      toast.success(`${editingUser.email} updated`, 'User Updated');
-      setEditingUser(null);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to update user role');
-    } finally {
-      setUpdatingId(null);
-    }
+    confirmAction(
+      'Change User Role',
+      `Change ${targetUser.email} to ${nextRole === 'admin' ? 'ADMIN' : 'CUSTOMER'}?`,
+      async () => {
+        try {
+          setUpdatingId(userId);
+          const updated = await api.users.updateRole(userId, nextRole);
+          const savedRole = updated?.role || updated?.data?.role || nextRole;
+          setProfiles((prev) =>
+            prev.map((p) =>
+              String(p.id || (p as any)._id) === userId ? { ...p, role: savedRole } : p
+            )
+          );
+          toast.success(`${targetUser.email} is now ${savedRole}`, 'Role Updated');
+        } catch (err: any) {
+          toast.error(err?.message || 'Failed to update user role');
+          await fetchUsers();
+        } finally {
+          setUpdatingId(null);
+        }
+      },
+      nextRole === 'admin' ? 'Make Admin' : 'Make Customer'
+    );
   };
 
   const handleDeleteUser = (targetUser: Profile) => {
@@ -2453,9 +2459,9 @@ function UsersView() {
                       placeholder="Role"
                       disabled={isUpdating}
                       onChange={(value) => {
-                        if (value === (isAdmin ? 'admin' : 'customer')) return;
-                        openEditUser(user);
-                        setEditRole(value as 'admin' | 'customer');
+                        const nextRole = value as 'admin' | 'customer';
+                        if (nextRole === (isAdmin ? 'admin' : 'customer')) return;
+                        handleRoleChange(user, nextRole);
                       }}
                     />
                   </View>
