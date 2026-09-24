@@ -273,8 +273,8 @@ export async function createCheckoutOrder(
           payment_method: 'cod',
           currency: 'INR',
           checkout_key: checkoutKey,
-          courier: 'BlueDart Express',
-          tracking_number: 'RNX' + Date.now().toString().slice(-9),
+          courier: '',
+          tracking_number: '',
           estimated_delivery: '3-5 Business Days',
           customer_info: {
             name: customer.name.trim(),
@@ -514,9 +514,7 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
     order.razorpay_payment_id = paymentId;
     order.payment_verified_at = new Date();
     order.status = 'verified';
-    order.courier = order.courier || 'BlueDart Express';
-    order.tracking_number = order.tracking_number || 'RNX' + Date.now().toString().slice(-9);
-    order.estimated_delivery = order.estimated_delivery || '2-3 Business Days';
+    // Courier, tracking number and ETA are assigned by admin after dispatch.
     await order.save();
     broadcastOrderUpdate(order);
 
@@ -639,7 +637,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
     }
 
     const { id } = req.params;
-    const { status, courier, tracking_number, estimated_delivery, refund, payment_status } = req.body;
+    const { status, courier, courier_phone, tracking_number, estimated_delivery, refund, payment_status } = req.body;
 
     const allowedStatuses = new Set([
       'pending', 'verified', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled',
@@ -709,6 +707,14 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
 
     if (status) order.status = status;
     if (courier !== undefined) order.courier = String(courier).trim();
+    if (courier_phone !== undefined) {
+      const cleanPhone = String(courier_phone).trim();
+      if (cleanPhone && !/^[0-9+()\-\s]{7,20}$/.test(cleanPhone)) {
+        res.status(400).json({ success: false, error: { message: 'Invalid courier mobile number', code: 'INVALID_COURIER_PHONE' } });
+        return;
+      }
+      order.courier_phone = cleanPhone;
+    }
     if (tracking_number !== undefined) order.tracking_number = String(tracking_number).trim();
     if (estimated_delivery !== undefined) order.estimated_delivery = String(estimated_delivery).trim();
 

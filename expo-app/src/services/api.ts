@@ -250,10 +250,17 @@ export const api = {
 
     getById: async (id: string) => request<any>(`/orders/${encodeURIComponent(id)}`),
 
-    updateStatus: async (id: string, status: string, courier?: string, tracking_number?: string) => {
+    updateStatus: async (
+      id: string,
+      status: string,
+      courier?: string,
+      tracking_number?: string,
+      courier_phone?: string,
+      estimated_delivery?: string,
+    ) => {
       return await request<any>(`/orders/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, courier, tracking_number }),
+        body: JSON.stringify({ status, courier, tracking_number, courier_phone, estimated_delivery }),
       });
     },
 

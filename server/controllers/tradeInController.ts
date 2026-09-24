@@ -173,6 +173,24 @@ export async function updateTradeInStatus(
       return;
     }
 
+    // Decision can be corrected between approved/rejected. Once pickup starts,
+    // the request becomes forward-only and cannot be returned to a decision state.
+    const decisionStatuses = new Set(['pending', 'approved', 'rejected']);
+    const lifecycleAfterApproval = new Set(['scheduled', 'picked_up', 'inspected', 'completed', 'cancelled']);
+    const canTransition =
+      (request.status === 'pending' && (status === 'approved' || status === 'rejected')) ||
+      ((request.status === 'approved' || request.status === 'rejected') &&
+        (status === 'approved' || status === 'rejected' || status === 'scheduled')) ||
+      (!decisionStatuses.has(request.status) && lifecycleAfterApproval.has(status));
+
+    if (!canTransition && request.status !== status) {
+      res.status(409).json({
+        success: false,
+        error: { message: `Cannot change sell request from ${request.status} to ${status}.`, code: 'INVALID_TRANSITION' },
+      });
+      return;
+    }
+
     const previousStatus = request.status;
     const previousValuation = request.valuation_amount;
     request.status = status;

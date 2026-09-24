@@ -204,7 +204,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
               <Text style={styles.adminBadgeText}>PORTAL</Text>
             </View>
           </View>
-          <Text style={styles.headerSubtitle}>Store Catalog & Orders</Text>
+          <Text style={styles.headerSubtitle}>Management Portal</Text>
         </View>
 
         <TouchableOpacity onPress={handleExit} style={styles.addActionButton} activeOpacity={0.85}>
@@ -1685,15 +1685,18 @@ function DashboardView({
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [sellRequests, setSellRequests] = useState<any[]>([]);
 
   const loadStats = useCallback(async () => {
     try {
-      const [prods, ords] = await Promise.all([
+      const [prods, ords, sell] = await Promise.all([
         api.products.getAll().catch((): any[] => []),
         api.orders.getAll().catch((): any[] => []),
+        api.tradeIn.getAll().catch((): any[] => []),
       ]);
       setProducts((prods as ProductRow[]) || []);
       setOrders(ords || []);
+      setSellRequests((sell as any[]) || []);
     } catch {
       // ignore
     } finally {
@@ -1834,6 +1837,56 @@ function DashboardView({
 
                 <Text style={styles.orderTotalAmount}>₹{Number(order.subtotal || 0).toLocaleString('en-IN')}</Text>
               </View>
+            );
+          })
+        )}
+      </View>
+
+      {/* Recent Sell Requests */}
+      <View style={styles.cardContainer}>
+        <View style={styles.cardTopRow}>
+          <View>
+            <Text style={styles.cardHeaderTitle}>Recent Sell Requests</Text>
+            <Text style={styles.cardHeaderSub}>Latest device resale submissions</Text>
+          </View>
+          <TouchableOpacity onPress={() => onNavigate('tradeIns')} style={styles.viewAllBtn}>
+            <Text style={styles.viewAllText}>View All</Text>
+            <Ionicons name="chevron-forward" size={12} color="#2563eb" />
+          </TouchableOpacity>
+        </View>
+
+        {sellRequests.length === 0 ? (
+          <Text style={styles.emptyNote}>No sell requests recorded yet.</Text>
+        ) : (
+          sellRequests.slice(0, 5).map((item) => {
+            const status = String(item.status || 'pending');
+            const statusStyle =
+              status === 'approved'
+                ? { color: '#15803d', backgroundColor: '#dcfce7' }
+                : status === 'rejected'
+                ? { color: '#b91c1c', backgroundColor: '#fee2e2' }
+                : { color: '#b45309', backgroundColor: '#fef3c7' };
+            return (
+              <TouchableOpacity
+                key={String(item.id || item._id)}
+                style={styles.recentOrderRow}
+                onPress={() => onNavigate('tradeIns')}
+                activeOpacity={0.8}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orderIdText}>
+                    {String(item.brand || 'Device')} {String(item.model || '')}
+                  </Text>
+                  <Text style={styles.orderMetaText}>
+                    {String(item.customer_name || item.customer_phone || 'Customer')}
+                  </Text>
+                </View>
+                <View style={[styles.statusTag, { backgroundColor: statusStyle.backgroundColor }]}>
+                  <Text style={[styles.statusTagText, { color: statusStyle.color }]}>
+                    {status.replace(/_/g, ' ').toUpperCase()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -2012,7 +2065,7 @@ function OrdersView() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const [shippingDrafts, setShippingDrafts] = useState<Record<string, { courier: string; tracking: string }>>({});
+  const [shippingDrafts, setShippingDrafts] = useState<Record<string, { courier: string; courierPhone: string; tracking: string }>>({});
   const toast = useToast();
 
   const fetchOrders = useCallback(async () => {
@@ -2028,6 +2081,7 @@ function OrdersView() {
           if (!next[id]) {
             next[id] = {
               courier: String(o.courier || ''),
+              courierPhone: String(o.courier_phone || o.courierPhone || ''),
               tracking: String(o.tracking_number || o.trackingNumber || ''),
             };
           }
@@ -2049,15 +2103,16 @@ function OrdersView() {
   const applyStatus = async (orderId: string, status: string) => {
     setUpdatingOrderId(orderId);
     try {
-      const draft = shippingDrafts[orderId] || { courier: '', tracking: '' };
+      const draft = shippingDrafts[orderId] || { courier: '', courierPhone: '', tracking: '' };
       const updated = await api.orders.updateStatus(
         orderId,
         status,
         draft.courier.trim() || undefined,
         draft.tracking.trim() || undefined,
+        draft.courierPhone.trim() || undefined,
       );
       setOrders((prev) =>
-        prev.map((o) => (String(o.id || o._id) === orderId ? { ...o, ...(updated || {}), status, courier: draft.courier, tracking_number: draft.tracking } : o)),
+        prev.map((o) => (String(o.id || o._id) === orderId ? { ...o, ...(updated || {}), status, courier: draft.courier, courier_phone: draft.courierPhone, tracking_number: draft.tracking } : o)),
       );
       toast.success(`Order marked ${status.replace(/_/g, ' ')}`, 'Order Updated');
     } catch (err: any) {
@@ -2201,8 +2256,16 @@ function OrdersView() {
                     <TextInput
                       value={draft.courier}
                       onChangeText={(v) => setShippingDrafts((p) => ({ ...p, [orderId]: { ...draft, courier: v } }))}
-                      placeholder="Courier"
+                      placeholder="Courier service / company"
                       placeholderTextColor="#94a3b8"
+                      style={[styles.formInput, { flex: 1 }]}
+                    />
+                    <TextInput
+                      value={draft.courierPhone}
+                      onChangeText={(v) => setShippingDrafts((p) => ({ ...p, [orderId]: { ...draft, courierPhone: v } }))}
+                      placeholder="Courier mobile"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType="phone-pad"
                       style={[styles.formInput, { flex: 1 }]}
                     />
                     <TextInput
@@ -2290,27 +2353,33 @@ function UsersView() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const openEditUser = (targetUser: Profile) => {
-    setEditingUser(targetUser);
-    setEditRole(targetUser.role === 'admin' ? 'admin' : 'customer');
-  };
+  const handleRoleChange = (targetUser: Profile, nextRole: 'admin' | 'customer') => {
+    const userId = String(targetUser.id || (targetUser as any)._id || '');
+    if (!userId || nextRole === targetUser.role) return;
 
-  const saveEditedUser = async () => {
-    if (!editingUser) return;
-    const userId = editingUser.id || (editingUser as any)._id;
-    try {
-      setUpdatingId(userId);
-      await api.users.updateRole(userId, editRole);
-      setProfiles((prev) =>
-        prev.map((p) => ((p.id === userId || (p as any)._id === userId) ? { ...p, role: editRole } : p))
-      );
-      toast.success(`${editingUser.email} updated`, 'User Updated');
-      setEditingUser(null);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to update user role');
-    } finally {
-      setUpdatingId(null);
-    }
+    confirmAction(
+      'Change User Role',
+      `Change ${targetUser.email} to ${nextRole === 'admin' ? 'ADMIN' : 'CUSTOMER'}?`,
+      async () => {
+        try {
+          setUpdatingId(userId);
+          const updated = await api.users.updateRole(userId, nextRole);
+          const savedRole = updated?.role || updated?.data?.role || nextRole;
+          setProfiles((prev) =>
+            prev.map((p) =>
+              String(p.id || (p as any)._id) === userId ? { ...p, role: savedRole } : p
+            )
+          );
+          toast.success(`${targetUser.email} is now ${savedRole}`, 'Role Updated');
+        } catch (err: any) {
+          toast.error(err?.message || 'Failed to update user role');
+          await fetchUsers();
+        } finally {
+          setUpdatingId(null);
+        }
+      },
+      nextRole === 'admin' ? 'Make Admin' : 'Make Customer'
+    );
   };
 
   const handleDeleteUser = (targetUser: Profile) => {
@@ -2390,9 +2459,9 @@ function UsersView() {
                       placeholder="Role"
                       disabled={isUpdating}
                       onChange={(value) => {
-                        if (value === (isAdmin ? 'admin' : 'customer')) return;
-                        openEditUser(user);
-                        setEditRole(value as 'admin' | 'customer');
+                        const nextRole = value as 'admin' | 'customer';
+                        if (nextRole === (isAdmin ? 'admin' : 'customer')) return;
+                        handleRoleChange(user, nextRole);
                       }}
                     />
                   </View>

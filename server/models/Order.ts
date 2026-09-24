@@ -37,6 +37,7 @@ export interface Order {
   checkout_key?: string;
   currency: 'INR';
   courier?: string;
+  courier_phone?: string;
   tracking_number?: string;
   estimated_delivery?: string;
   customer_info?: {
@@ -123,7 +124,8 @@ const OrderSchema = new Schema<IOrder>(
     payment_verified_at: { type: Date },
     checkout_key: { type: String, select: false },
     currency: { type: String, enum: ['INR'], default: 'INR' },
-    courier: { type: String, default: 'BlueDart Express' },
+    courier: { type: String, default: '' },
+    courier_phone: { type: String, default: '' },
     tracking_number: { type: String, default: '' },
     estimated_delivery: { type: String, default: '' },
     customer_info: {

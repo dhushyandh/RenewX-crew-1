@@ -565,10 +565,15 @@ export default function TrackScreen() {
               <View style={styles.deliveryItem}>
                 <Ionicons name="car-outline" size={17} color={colors.primary} />
                 <View>
-                  <Text style={styles.deliveryLabel}>Courier</Text>
+                  <Text style={styles.deliveryLabel}>Courier service</Text>
                   <Text style={styles.deliveryValue}>
                     {selectedOrder?.courier || 'Not assigned'}
                   </Text>
+                  {selectedOrder?.courier_phone ? (
+                    <Text style={styles.deliveryPhone}>
+                      {selectedOrder.courier_phone}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
 
@@ -1215,6 +1220,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.text,
     fontWeight: fontWeight.bold,
+  },
+  deliveryPhone: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginTop: 2,
   },
 
   timelineSection: {
