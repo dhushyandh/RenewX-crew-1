@@ -37,6 +37,7 @@ export interface Order {
   checkout_key?: string;
   currency: 'INR';
   courier?: string;
+  courier_phone?: string;
   tracking_number?: string;
   estimated_delivery?: string;
   customer_info?: {
