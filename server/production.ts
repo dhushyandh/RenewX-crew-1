@@ -1,6 +1,7 @@
 import app from './index';
 import { env } from './config/env';
 import { connectDB } from './config/db';
+import { setupOrderWebSocket } from './services/orderWebSocket';
 
 async function start(): Promise<void> {
   await connectDB();
@@ -8,6 +9,8 @@ async function start(): Promise<void> {
   const server = app.listen(env.PORT, '0.0.0.0', () => {
     console.log(`🚀 RenewX API listening on port ${env.PORT}`);
   });
+
+  setupOrderWebSocket(server);
 
   const shutdown = (signal: string): void => {
     console.log(`[HTTP] Received ${signal}; shutting down gracefully`);
