@@ -336,6 +336,23 @@ export default function AccountScreen() {
             </View>
             <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
           </TouchableOpacity>
+
+          <View style={styles.rowSeparator} />
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => navigation.navigate('AboutRenewX')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: '#e0f2fe' }]}>
+              <Ionicons name="information-circle" size={18} color="#0284c7" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>About RenewX Crew</Text>
+              <Text style={styles.menuSub}>How it works, policies, contact & warranty</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+          </TouchableOpacity>
         </View>
 
         {/* Sign Out Card */}

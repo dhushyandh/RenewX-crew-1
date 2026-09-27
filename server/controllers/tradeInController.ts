@@ -70,14 +70,24 @@ export async function createPickupRequest(req: AuthenticatedRequest, res: Respon
       new Set(candidates.filter((p: any) => typeof p === 'string' && p.trim().length > 0))
     );
 
+    if (photosList.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'At least one photo of the device is required to submit a sell request.' },
+      });
+      return;
+    }
+
+    const quoteAmount = Number(payload.expectedSellingPrice || payload.valuationAmount || 0);
+
     const newRequest = await TradeInModel.create({
       user_id: req.user.id,
       category: payload.category,
       brand: payload.brand,
       model: payload.model,
       storage: payload.storage,
-      valuation_amount: Number(payload.valuationAmount || 0),
-      expected_price: Number(payload.expectedSellingPrice || payload.valuationAmount || 0),
+      valuation_amount: quoteAmount,
+      expected_price: quoteAmount,
       customer_name: payload.customerName,
       customer_phone: payload.customerPhone,
       customer_email: payload.customerEmail || req.user.email || '',

@@ -26,7 +26,12 @@
       "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/icon.png",
+      "name": "RenewX | Certified Pre-Owned Electronics Marketplace",
+      "shortName": "RenewX",
+      "themeColor": "#ffc400",
+      "backgroundColor": "#ffffff"
     },
     "extra": {
       "eas": {

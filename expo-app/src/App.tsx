@@ -83,6 +83,7 @@ import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
 import ForgotPasswordScreen from '@/screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/ResetPasswordScreen';
+import AboutRenewXScreen from '@/screens/AboutRenewXScreen';
 import SecurityScreen from '@/screens/SecurityScreen';
 import EditProfileScreen from '@/screens/EditProfileScreen';
 import OnboardingProfileScreen from '@/screens/OnboardingProfileScreen';
@@ -122,6 +123,7 @@ export type RootStackParamList = {
   } | undefined;
   MySellRequests: undefined;
   Settings: undefined;
+  AboutRenewX: undefined;
   Notifications: undefined;
   EditProfile: undefined;
   OnboardingProfile: undefined;
@@ -193,6 +195,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Payment: 'payment',
       MySellRequests: 'sell-requests',
       Settings: 'settings',
+      AboutRenewX: 'about',
       Notifications: 'notifications',
       EditProfile: 'edit-profile',
       OnboardingProfile: 'onboarding',
@@ -531,6 +534,30 @@ function MainAppNavigation() {
         onStateChange={() => {
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+            try {
+              const current = navigationRef.current?.getCurrentRoute();
+              if (current?.name) {
+                const screenTitles: Record<string, string> = {
+                  Home: 'RenewX | Certified Pre-Owned Electronics Marketplace',
+                  Shop: 'Shop Certified Devices | RenewX',
+                  Sell: 'Sell Your Device for Instant Cash | RenewX',
+                  Track: 'Live Order Tracking | RenewX',
+                  Account: 'My Account | RenewX',
+                  Cart: 'Shopping Cart | RenewX',
+                  Checkout: 'Secure Checkout | RenewX',
+                  ProductDetail: 'Product Specifications | RenewX',
+                  Notifications: 'Notifications | RenewX',
+                  AboutRenewX: 'About RenewX Crew | Mission & Policies',
+                  AdminDashboard: 'Admin Control Center | RenewX',
+                  AdminProducts: 'Inventory Management | RenewX',
+                  AdminOrders: 'Order Management | RenewX',
+                  Auth: 'Sign In / Register | RenewX',
+                  ForgotPassword: 'Reset Your Password | RenewX',
+                  ResetPassword: 'Set New Password | RenewX',
+                };
+                document.title = screenTitles[current.name] || `${current.name} | RenewX`;
+              }
+            } catch {}
           }
         }}
       >
@@ -553,6 +580,7 @@ function MainAppNavigation() {
           <Stack.Screen name="Payment" component={ProtectedPaymentScreen} />
           <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
           <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
+          <Stack.Screen name="AboutRenewX" component={AboutRenewXScreen} />
           <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
           <Stack.Screen name="EditProfile" component={ProtectedEditProfileScreen} />
           <Stack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />

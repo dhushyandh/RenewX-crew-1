@@ -330,7 +330,7 @@ export async function getOrderInvoice(req: AuthenticatedRequest, res: Response, 
         <div class="party-detail">
           Certified Refurbished Technology Hub<br />
           Email: support@renewx.in<br />
-          Web: https://renewx.in<br />
+          Web: https://renewx.expo.app<br />
           GSTIN: 33AAACR2938L1Z8
         </div>
       </div>

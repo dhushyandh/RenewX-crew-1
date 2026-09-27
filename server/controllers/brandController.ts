@@ -11,7 +11,22 @@ export async function getBrands(req: Request, res: Response, next: NextFunction)
     const filter: Record<string, any> = {};
 
     if (category && category !== 'All' && typeof category === 'string') {
-      filter.category = new RegExp(`^${category}$`, 'i');
+      const cat = category.trim();
+      if (/^macbooks?$/i.test(cat)) {
+        filter.$or = [{ category: /^laptops?$/i }, { name: /^apple$/i }];
+      } else if (/^tablets?/i.test(cat)) {
+        filter.$or = [{ category: /^tablets?$/i }, { name: /^(apple|samsung|lenovo|xiaomi)$/i }];
+      } else if (/^gaming$/i.test(cat)) {
+        filter.$or = [{ category: /^gaming$/i }, { name: /^(sony|microsoft|nintendo|asus|msi|razer)$/i }];
+      } else if (/^cameras?$/i.test(cat)) {
+        filter.$or = [{ category: /^cameras?$/i }, { name: /^(sony|canon|nikon|fujifilm|gopro|dji)$/i }];
+      } else if (/^wearables?$/i.test(cat)) {
+        filter.$or = [{ category: /^wearables?$/i }, { name: /^(apple|samsung|garmin|fitbit|oneplus|xiaomi|realme)$/i }];
+      } else if (/^laptops?$/i.test(cat)) {
+        filter.$or = [{ category: /^laptops?$/i }, { name: /^apple$/i }];
+      } else {
+        filter.category = new RegExp(`^${cat}$`, 'i');
+      }
     }
 
     if (search && typeof search === 'string' && search.trim()) {

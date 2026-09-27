@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import * as Clipboard from 'expo-clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
@@ -84,7 +87,47 @@ const BRAND_LOGOS: Record<string, string> = {
 };
 
 const STANDARD_STORAGES = ['64 GB', '128 GB', '256 GB', '512 GB', '1 TB'];
-const DRAFT_KEY = '@renewx_sell_draft_v3';
+const DRAFT_KEY = '@renewx_sell_draft_v4';
+const DRAFT_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+const CONTACT_PHONE = '+91 90801 68778';
+const CONTACT_PHONE_CLEAN = '9080168778';
+const CONTACT_EMAIL = 'ganeshsk272@gmail.com';
+
+function getStoredDraftSync(): any | null {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = window.localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed?.timestamp && Date.now() - parsed.timestamp < DRAFT_TTL_MS) {
+        return parsed;
+      } else {
+        window.localStorage.removeItem(DRAFT_KEY);
+      }
+    } catch {}
+  }
+  return null;
+}
+
+const saveDraftToStorage = (data: any) => {
+  const json = JSON.stringify(data);
+  AsyncStorage.setItem(DRAFT_KEY, json).catch(() => {});
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(DRAFT_KEY, json);
+    } catch {}
+  }
+};
+
+const clearDraftFromStorage = async () => {
+  await AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(DRAFT_KEY);
+    } catch {}
+  }
+};
 
 const STEPS = [
   { id: 1, title: 'Category', icon: 'grid-outline' as const },
@@ -108,6 +151,110 @@ const unwrapRows = (response: any): any[] => {
 
 const getBrandLogo = (name: string) => BRAND_LOGOS[name] || `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(name)}&backgroundColor=ffc400&textColor=111111`;
 
+function BrandLogoImage({
+  uri,
+  name,
+  style,
+}: {
+  uri?: string;
+  name: string;
+  style?: any;
+}) {
+  const [imgUri, setImgUri] = useState<string>(() => uri || getBrandLogo(name));
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setImgUri(uri || getBrandLogo(name));
+    setHasError(false);
+  }, [uri, name]);
+
+  if (hasError || !imgUri) {
+    return (
+      <View style={[styles.brandFallbackBox, style]}>
+        <Text style={styles.brandFallbackText}>{(name || 'B').trim().charAt(0).toUpperCase()}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: imgUri }}
+      style={[styles.brandLogo, style]}
+      resizeMode="contain"
+      onError={() => {
+        const fallback = getBrandLogo(name);
+        if (imgUri !== fallback) {
+          setImgUri(fallback);
+        } else {
+          setHasError(true);
+        }
+      }}
+    />
+  );
+}
+
+function AnimatedTickBadge() {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const checkAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 5,
+        useNativeDriver: true,
+      }),
+      Animated.timing(checkAnim, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.15,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    });
+  }, []);
+
+  return (
+    <View style={styles.animatedTickWrapper}>
+      <Animated.View
+        style={[
+          styles.animatedTickPulse,
+          {
+            transform: [{ scale: pulseAnim }],
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.animatedTickCircle,
+          {
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <Animated.View style={{ opacity: checkAnim, transform: [{ scale: checkAnim }] }}>
+          <Ionicons name="checkmark-sharp" size={44} color="#16a34a" />
+        </Animated.View>
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function SellScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
@@ -116,7 +263,15 @@ export default function SellScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const stepTimerRef = useRef<any>(null);
 
-  const [step, setStep] = useState(1);
+  // Synchronously load draft stored within last 10 minutes (prevents flash of Step 1 on web refresh)
+  const initialDraft = useMemo(() => getStoredDraftSync(), []);
+
+  const [step, setStep] = useState<number>(() => {
+    if (initialDraft?.step && initialDraft.step >= 1 && initialDraft.step <= 8) {
+      return initialDraft.step;
+    }
+    return 1;
+  });
 
   // Clear pending transition timer on unmount
   useEffect(() => {
@@ -159,32 +314,37 @@ export default function SellScreen() {
       }
     }, [])
   );
-  const [category, setCategory] = useState<Category | null>(null);
+
+  const [category, setCategory] = useState<Category | null>(() => initialDraft?.category || null);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [brand, setBrand] = useState<Brand | null>(null);
+  const [brand, setBrand] = useState<Brand | null>(() => initialDraft?.brand || null);
   const [brandSearch, setBrandSearch] = useState('');
-  const [customBrand, setCustomBrand] = useState('');
+  const [customBrand, setCustomBrand] = useState(() => initialDraft?.customBrand || '');
 
   const [models, setModels] = useState<Model[]>([]);
-  const [model, setModel] = useState<Model | null>(null);
+  const [model, setModel] = useState<Model | null>(() => initialDraft?.model || null);
   const [modelSearch, setModelSearch] = useState('');
-  const [customModel, setCustomModel] = useState('');
+  const [customModel, setCustomModel] = useState(() => initialDraft?.customModel || '');
 
-  const [storage, setStorage] = useState('');
-  const [ram, setRam] = useState('');
-  const [color, setColor] = useState('');
-  const [purchaseYear, setPurchaseYear] = useState('');
-  const [screenCondition, setScreenCondition] = useState<'flawless' | 'good' | 'cracked'>('flawless');
-  const [bodyCondition, setBodyCondition] = useState<'likenew' | 'fair' | 'dented'>('likenew');
-  const [powerOn, setPowerOn] = useState(true);
-  const [touchWorking, setTouchWorking] = useState(true);
-  const [cameraWorking, setCameraWorking] = useState(true);
-  const [batteryHealthy, setBatteryHealthy] = useState(true);
-  const [hasBox, setHasBox] = useState(true);
-  const [hasCharger, setHasCharger] = useState(true);
-  const [hasBill, setHasBill] = useState(true);
+  const [storage, setStorage] = useState(() => initialDraft?.storage || '');
+  const [ram, setRam] = useState(() => initialDraft?.ram || '');
+  const [color, setColor] = useState(() => initialDraft?.color || '');
+  const [purchaseYear, setPurchaseYear] = useState(() => initialDraft?.purchaseYear || '');
+  const [screenCondition, setScreenCondition] = useState<'flawless' | 'good' | 'cracked'>(
+    () => initialDraft?.screenCondition || 'flawless'
+  );
+  const [bodyCondition, setBodyCondition] = useState<'likenew' | 'fair' | 'dented'>(
+    () => initialDraft?.bodyCondition || 'likenew'
+  );
+  const [powerOn, setPowerOn] = useState(() => initialDraft?.powerOn ?? true);
+  const [touchWorking, setTouchWorking] = useState(() => initialDraft?.touchWorking ?? true);
+  const [cameraWorking, setCameraWorking] = useState(() => initialDraft?.cameraWorking ?? true);
+  const [batteryHealthy, setBatteryHealthy] = useState(() => initialDraft?.batteryHealthy ?? true);
+  const [hasBox, setHasBox] = useState(() => initialDraft?.hasBox ?? true);
+  const [hasCharger, setHasCharger] = useState(() => initialDraft?.hasCharger ?? true);
+  const [hasBill, setHasBill] = useState(() => initialDraft?.hasBill ?? true);
 
-  const [photos, setPhotos] = useState<Record<PhotoSlot, string>>({
+  const [photos, setPhotos] = useState<Record<PhotoSlot, string>>(() => initialDraft?.photos || {
     front: '',
     back: '',
     edges: '',
@@ -194,27 +354,32 @@ export default function SellScreen() {
 
   const [valuation, setValuation] = useState(0);
   const [valuationLoading, setValuationLoading] = useState(false);
-  const [expectedPrice, setExpectedPrice] = useState('');
+  const [expectedPrice, setExpectedPrice] = useState(() => initialDraft?.expectedPrice || '');
 
-  const [name, setName] = useState(user?.full_name || '');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [pincode, setPincode] = useState('');
+  const [name, setName] = useState(() => initialDraft?.name || user?.full_name || '');
+  const [phone, setPhone] = useState(() => initialDraft?.phone || '');
+  const [address, setAddress] = useState(() => initialDraft?.address || '');
+  const [city, setCity] = useState(() => initialDraft?.city || '');
+  const [pincode, setPincode] = useState(() => initialDraft?.pincode || '');
   const [locating, setLocating] = useState(false);
-  const [pickupMethod, setPickupMethod] = useState<'doorstep' | 'store'>('doorstep');
-  const [pickupDate, setPickupDate] = useState<'Today' | 'Tomorrow' | 'Day After'>('Today');
-  const [timeSlot, setTimeSlot] = useState<'Morning' | 'Afternoon' | 'Evening'>('Morning');
-  const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank' | 'cash'>('upi');
-  const [upiId, setUpiId] = useState('');
-  const [bankAccount, setBankAccount] = useState('');
-  const [bankIfsc, setBankIfsc] = useState('');
+  const [pickupMethod, setPickupMethod] = useState<'doorstep' | 'store'>(() => initialDraft?.pickupMethod || 'doorstep');
+  const [pickupDate, setPickupDate] = useState<'Today' | 'Tomorrow' | 'Day After'>(() => initialDraft?.pickupDate || 'Today');
+  const [timeSlot, setTimeSlot] = useState<'Morning' | 'Afternoon' | 'Evening'>(() => initialDraft?.timeSlot || 'Morning');
+  const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank' | 'cash'>(() => initialDraft?.payoutMethod || 'upi');
+  const [upiId, setUpiId] = useState(() => initialDraft?.upiId || '');
+  const [bankAccount, setBankAccount] = useState(() => initialDraft?.bankAccount || '');
+  const [bankIfsc, setBankIfsc] = useState(() => initialDraft?.bankIfsc || '');
 
   const [submitting, setSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState('');
 
   const activeBrandName = brand?.name || customBrand.trim();
   const activeModelName = model?.name || customModel.trim();
+
+  const prevCatIdRef = useRef<string | null | undefined>(initialDraft?.category?.id || null);
+  const prevBrandIdRef = useRef<string | null | undefined>(initialDraft?.brand?.id || null);
+  const isFirstMountRef = useRef<boolean>(true);
+  const isHydratedRef = useRef<boolean>(!!initialDraft);
 
   const filteredBrands = useMemo(() => {
     const q = brandSearch.trim().toLowerCase();
@@ -226,53 +391,142 @@ export default function SellScreen() {
     return q ? models.filter((m) => m.name.toLowerCase().includes(q)) : models;
   }, [models, modelSearch]);
 
+  const handleStartFresh = async () => {
+    await clearDraftFromStorage();
+    setStep(1);
+    setCategory(null);
+    setBrand(null);
+    setCustomBrand('');
+    setModel(null);
+    setCustomModel('');
+    setStorage('');
+    setRam('');
+    setColor('');
+    setPurchaseYear('');
+    setScreenCondition('flawless');
+    setBodyCondition('likenew');
+    setPowerOn(true);
+    setTouchWorking(true);
+    setCameraWorking(true);
+    setBatteryHealthy(true);
+    setHasBox(true);
+    setHasCharger(true);
+    setHasBill(true);
+    setPhotos({ front: '', back: '', edges: '', billBox: '' });
+    setExpectedPrice('');
+    setAddress('');
+    setCity('');
+    setPincode('');
+    setPickupMethod('doorstep');
+    setPickupDate('Today');
+    setTimeSlot('Morning');
+    setPayoutMethod('upi');
+    setUpiId('');
+    setBankAccount('');
+    setBankIfsc('');
+    toast.info('Sell draft cleared. Starting fresh from Step 1.');
+  };
+
+  // Restore draft on mount for native devices or async fallback
   useEffect(() => {
+    if (initialDraft) return;
+
     AsyncStorage.getItem(DRAFT_KEY).then((raw) => {
-      if (!raw) return;
+      if (!raw) {
+        isHydratedRef.current = true;
+        return;
+      }
       try {
         const d = JSON.parse(raw);
-        if (d.categoryId) setCategory(CATEGORIES.find((c) => c.id === d.categoryId) || null);
-        if (d.brandName) setCustomBrand(d.brandName);
-        if (d.modelName) setCustomModel(d.modelName);
-        if (d.storage) setStorage(d.storage);
-        if (d.ram) setRam(d.ram);
-        if (d.color) setColor(d.color);
-        if (d.purchaseYear) setPurchaseYear(d.purchaseYear);
-        if (d.expectedPrice) setExpectedPrice(d.expectedPrice);
-        if (d.name) setName(d.name);
-        if (d.phone) setPhone(d.phone);
-        if (d.address) setAddress(d.address);
-        if (d.city) setCity(d.city);
-        if (d.pincode) setPincode(d.pincode);
-      } catch {}
+        if (d?.timestamp && Date.now() - d.timestamp < DRAFT_TTL_MS) {
+          if (d.step && d.step >= 1 && d.step <= 8) setStep(d.step);
+          if (d.category) setCategory(d.category);
+          else if (d.categoryId) setCategory(CATEGORIES.find((c) => c.id === d.categoryId) || null);
+          if (d.brand) setBrand(d.brand);
+          if (d.customBrand) setCustomBrand(d.customBrand);
+          if (d.model) setModel(d.model);
+          if (d.customModel) setCustomModel(d.customModel);
+          if (d.storage) setStorage(d.storage);
+          if (d.ram) setRam(d.ram);
+          if (d.color) setColor(d.color);
+          if (d.purchaseYear) setPurchaseYear(d.purchaseYear);
+          if (d.screenCondition) setScreenCondition(d.screenCondition);
+          if (d.bodyCondition) setBodyCondition(d.bodyCondition);
+          if (typeof d.powerOn === 'boolean') setPowerOn(d.powerOn);
+          if (typeof d.touchWorking === 'boolean') setTouchWorking(d.touchWorking);
+          if (typeof d.cameraWorking === 'boolean') setCameraWorking(d.cameraWorking);
+          if (typeof d.batteryHealthy === 'boolean') setBatteryHealthy(d.batteryHealthy);
+          if (typeof d.hasBox === 'boolean') setHasBox(d.hasBox);
+          if (typeof d.hasCharger === 'boolean') setHasCharger(d.hasCharger);
+          if (typeof d.hasBill === 'boolean') setHasBill(d.hasBill);
+          if (d.photos) setPhotos(d.photos);
+          if (d.expectedPrice) setExpectedPrice(d.expectedPrice);
+          if (d.name) setName(d.name);
+          if (d.phone) setPhone(d.phone);
+          if (d.address) setAddress(d.address);
+          if (d.city) setCity(d.city);
+          if (d.pincode) setPincode(d.pincode);
+          if (d.pickupMethod) setPickupMethod(d.pickupMethod);
+          if (d.pickupDate) setPickupDate(d.pickupDate);
+          if (d.timeSlot) setTimeSlot(d.timeSlot);
+          if (d.payoutMethod) setPayoutMethod(d.payoutMethod);
+          if (d.upiId) setUpiId(d.upiId);
+          if (d.bankAccount) setBankAccount(d.bankAccount);
+          if (d.bankIfsc) setBankIfsc(d.bankIfsc);
+        } else {
+          clearDraftFromStorage();
+        }
+      } catch {} finally {
+        isHydratedRef.current = true;
+      }
     });
   }, []);
 
+  // Fetch brands for active category (avoids erasing restored brand on initial hydration)
   useEffect(() => {
     if (!category) return;
     let active = true;
-    setBrand(null);
-    setBrands([]);
+
+    if (!isFirstMountRef.current && prevCatIdRef.current && prevCatIdRef.current !== category.id) {
+      setBrand(null);
+      setBrands([]);
+      setModel(null);
+      setModels([]);
+    }
+    prevCatIdRef.current = category.id;
+
     api.brands.getAll({ category: category.name })
       .then((res: any) => {
         if (!active) return;
         const rows = unwrapRows(res);
         setBrands(rows.filter(Boolean).map((r: any) => {
           const name = String(r.name || r.brand_name || '').trim();
-          return { id: String(r.id || r._id || name), name, logoUrl: getBrandLogo(name) };
+          const dbLogo = String(r.logo_url || r.logoUrl || r.logo || r.image_url || r.imageUrl || '').trim();
+          return {
+            id: String(r.id || r._id || name),
+            name,
+            logoUrl: dbLogo || getBrandLogo(name),
+          };
         }).filter((b: Brand) => b.name));
       })
       .catch(() => {
         if (active) toast.error('Could not load brands. Please try again.');
       });
+
     return () => { active = false; };
   }, [category?.id]);
 
+  // Fetch models for active brand (avoids erasing restored model on initial hydration)
   useEffect(() => {
     if (!brand || !category) return;
     let active = true;
-    setModel(null);
-    setModels([]);
+
+    if (!isFirstMountRef.current && prevBrandIdRef.current && prevBrandIdRef.current !== brand.id) {
+      setModel(null);
+      setModels([]);
+    }
+    prevBrandIdRef.current = brand.id;
+
     api.models.getAll({ category: category.name, brand_id: brand.id })
       .then((res: any) => {
         if (!active) return;
@@ -289,8 +543,13 @@ export default function SellScreen() {
       .catch(() => {
         if (active) toast.error('Could not load models. Please try again.');
       });
+
     return () => { active = false; };
   }, [brand?.id, category?.id]);
+
+  useEffect(() => {
+    isFirstMountRef.current = false;
+  }, []);
 
   useEffect(() => {
     if (!category || !activeBrandName || !activeModelName || !storage) return;
@@ -302,18 +561,110 @@ export default function SellScreen() {
     hasBox, hasCharger, hasBill,
   ]);
 
+  // Auto-save all 8 selling steps and form values to storage (valid for 10 minutes)
   useEffect(() => {
-    const draft = {
-      categoryId: category?.id,
-      brandName: activeBrandName,
-      modelName: activeModelName,
-      storage, ram, color, purchaseYear, expectedPrice,
-      name, phone, address, city, pincode,
-    };
-    AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft)).catch(() => {});
+    if (!isHydratedRef.current) return;
+
+    if (step > 1 || category || brand || customBrand || activeModelName || expectedPrice) {
+      const draftData = {
+        timestamp: Date.now(),
+        step,
+        category,
+        brand,
+        customBrand,
+        model,
+        customModel,
+        storage,
+        ram,
+        color,
+        purchaseYear,
+        screenCondition,
+        bodyCondition,
+        powerOn,
+        touchWorking,
+        cameraWorking,
+        batteryHealthy,
+        hasBox,
+        hasCharger,
+        hasBill,
+        photos,
+        expectedPrice,
+        name,
+        phone,
+        address,
+        city,
+        pincode,
+        pickupMethod,
+        pickupDate,
+        timeSlot,
+        payoutMethod,
+        upiId,
+        bankAccount,
+        bankIfsc,
+      };
+      saveDraftToStorage(draftData);
+    }
   }, [
-    category?.id, activeBrandName, activeModelName, storage, ram, color, purchaseYear,
-    expectedPrice, name, phone, address, city, pincode,
+    step, category, brand, customBrand, model, customModel, storage, ram, color, purchaseYear,
+    screenCondition, bodyCondition, powerOn, touchWorking, cameraWorking, batteryHealthy,
+    hasBox, hasCharger, hasBill, photos, expectedPrice, name, phone, address, city, pincode,
+    pickupMethod, pickupDate, timeSlot, payoutMethod, upiId, bankAccount, bankIfsc,
+  ]);
+
+  // Web beforeunload listener ensures latest changes are written synchronously before reload
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleBeforeUnload = () => {
+        if (step > 1 || category || brand || customBrand || activeModelName || expectedPrice) {
+          const draftData = {
+            timestamp: Date.now(),
+            step,
+            category,
+            brand,
+            customBrand,
+            model,
+            customModel,
+            storage,
+            ram,
+            color,
+            purchaseYear,
+            screenCondition,
+            bodyCondition,
+            powerOn,
+            touchWorking,
+            cameraWorking,
+            batteryHealthy,
+            hasBox,
+            hasCharger,
+            hasBill,
+            photos,
+            expectedPrice,
+            name,
+            phone,
+            address,
+            city,
+            pincode,
+            pickupMethod,
+            pickupDate,
+            timeSlot,
+            payoutMethod,
+            upiId,
+            bankAccount,
+            bankIfsc,
+          };
+          try {
+            window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+          } catch {}
+        }
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [
+    step, category, brand, customBrand, model, customModel, storage, ram, color, purchaseYear,
+    screenCondition, bodyCondition, powerOn, touchWorking, cameraWorking, batteryHealthy,
+    hasBox, hasCharger, hasBill, photos, expectedPrice, name, phone, address, city, pincode,
+    pickupMethod, pickupDate, timeSlot, payoutMethod, upiId, bankAccount, bankIfsc,
   ]);
 
   const getLiveValuation = async () => {
@@ -404,11 +755,13 @@ export default function SellScreen() {
     if (step === 2 && !activeBrandName) return 'Select or enter a brand.';
     if (step === 3 && !activeModelName) return 'Select or enter a model.';
     if (step === 4 && !storage) return 'Select the storage variant.';
-    if (step === 5 && Object.values(photos).every(Boolean) === false && false) return 'Upload device photos.';
+    if (step === 5) {
+      const photoCount = Object.values(photos).filter(Boolean).length;
+      if (photoCount === 0) return 'Please upload at least one photo of your device to continue.';
+    }
     if (step === 6) {
       const price = Number(expectedPrice);
-      if (!valuation) return 'Live valuation is unavailable. Please retry after checking your device details.';
-      if (!Number.isFinite(price) || price <= 0) return 'Enter a valid expected selling price.';
+      if (!Number.isFinite(price) || price <= 0) return 'Please enter your expected selling quote price (₹).';
     }
     if (step === 7) {
       if (!name.trim() || phone.replace(/\D/g, '').length !== 10 || !address.trim() || !city.trim() || pincode.replace(/\D/g, '').length !== 6) {
@@ -439,13 +792,14 @@ export default function SellScreen() {
     try {
       setSubmitting(true);
       const photoList = Object.values(photos).filter(Boolean);
+      const quotePrice = Number(expectedPrice) || 0;
       const payload = {
         category: category?.name,
         brand: activeBrandName,
         model: activeModelName,
         storage,
-        valuationAmount: valuation,
-        expectedSellingPrice: Number(expectedPrice),
+        valuationAmount: quotePrice,
+        expectedSellingPrice: quotePrice,
         customerName: name.trim(),
         customerPhone: phone.replace(/\D/g, '').slice(-10),
         customerEmail: user?.email || '',
@@ -472,10 +826,10 @@ export default function SellScreen() {
       };
 
       const res = await api.tradeIn.createPickup(payload);
-      const id = res?.data?.id || res?.data?._id || res?.id;
+      const id = res?.data?.id || res?.data?._id || res?.id || `RNX-${Math.floor(100000 + Math.random() * 900000)}`;
       setSubmittedId(String(id || ''));
-      await AsyncStorage.removeItem(DRAFT_KEY);
-      toast.success('Your sell request has been submitted.');
+      await clearDraftFromStorage();
+      toast.success('Your sell request has been submitted for review.');
     } catch (error: any) {
       toast.error(error?.message || 'Could not submit your sell request.');
     } finally {
@@ -486,41 +840,199 @@ export default function SellScreen() {
   if (submittedId) {
     return (
       <View style={[styles.container, { paddingTop: safeTop }]}>
-        <ScrollView contentContainerStyle={styles.successPage}>
-          <View style={styles.successIcon}><Ionicons name="checkmark" size={34} color="#000" /></View>
-          <Text style={styles.successTitle}>Sell Request Submitted</Text>
-          <Text style={styles.successText}>
-            Your device has been added as a tracked sell lead. You can follow its progress from submission through review, inspection and payout.
-          </Text>
+        <ScrollView contentContainerStyle={styles.successPage} showsVerticalScrollIndicator={false}>
+          {/* Animated Green Tick Badge */}
+          <AnimatedTickBadge />
 
-          <View style={styles.referenceCard}>
-            <Text style={styles.referenceLabel}>SELL REQUEST ID</Text>
-            <Text style={styles.referenceValue}>{submittedId}</Text>
+          <View style={styles.reviewBadge}>
+            <View style={styles.reviewPulseDot} />
+            <Text style={styles.reviewBadgeText}>STEP 8 COMPLETED • UNDER REVIEW</Text>
           </View>
 
+          <Text style={styles.successTitle}>Your Device is Under Review</Text>
+          <Text style={styles.successText}>
+            Thank you for submitting your device to RenewX Crew! Our evaluation experts are reviewing your device specifications, physical condition answers, photos, and seller quote.
+          </Text>
+
+          {/* Dedicated Evaluation Desk Helpline & Contact Support */}
+          <View style={styles.contactSupportCard}>
+            <View style={styles.contactCardHeader}>
+              <View style={styles.contactIconWrap}>
+                <Ionicons name="headset" size={20} color="#111" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.contactCardTitle}>RenewX Evaluation Desk</Text>
+                <Text style={styles.contactCardSub}>Have questions or need rapid review confirmation?</Text>
+              </View>
+            </View>
+
+            <View style={styles.contactInfoRow}>
+              <View style={styles.contactItem}>
+                <Ionicons name="call" size={16} color="#059669" />
+                <Text style={styles.contactPhoneText}>{CONTACT_PHONE}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.copyBtn}
+                onPress={() => {
+                  Clipboard.setStringAsync(CONTACT_PHONE_CLEAN);
+                  toast.success('Helpline number copied!');
+                }}
+              >
+                <Ionicons name="copy-outline" size={13} color="#475569" />
+                <Text style={styles.copyBtnText}>Copy</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.contactInfoRow}>
+              <View style={styles.contactItem}>
+                <Ionicons name="mail" size={16} color="#0284c7" />
+                <Text style={styles.contactEmailText}>{CONTACT_EMAIL}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.copyBtn}
+                onPress={() => {
+                  Clipboard.setStringAsync(CONTACT_EMAIL);
+                  toast.success('Support email copied!');
+                }}
+              >
+                <Ionicons name="copy-outline" size={13} color="#475569" />
+                <Text style={styles.copyBtnText}>Copy</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.contactActionButtons}>
+              <TouchableOpacity
+                style={styles.callActionButton}
+                onPress={() =>
+                  Linking.openURL(`tel:+91${CONTACT_PHONE_CLEAN}`).catch(() =>
+                    toast.error('Could not open phone dialer')
+                  )
+                }
+              >
+                <Ionicons name="call" size={15} color="#fff" />
+                <Text style={styles.callActionButtonText}>Call Desk</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.whatsappActionButton}
+                onPress={() =>
+                  Linking.openURL(
+                    `https://wa.me/91${CONTACT_PHONE_CLEAN}?text=${encodeURIComponent(
+                      `Hello RenewX Crew, I submitted my device for review (ID: ${submittedId}). Could you please share the review status?`
+                    )}`
+                  ).catch(() => toast.error('Could not launch WhatsApp'))
+                }
+              >
+                <Ionicons name="logo-whatsapp" size={15} color="#fff" />
+                <Text style={styles.whatsappActionButtonText}>WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.supportHoursWrap}>
+              <Ionicons name="time-outline" size={13} color="#64748b" />
+              <Text style={styles.supportHoursText}>
+                Active 9:00 AM – 8:30 PM (Mon–Sun) • Typical review time: 30 mins
+              </Text>
+            </View>
+          </View>
+
+          {/* Reference Details */}
+          <View style={styles.referenceCard}>
+            <View style={styles.referenceCardTop}>
+              <View>
+                <Text style={styles.referenceLabel}>SELL REQUEST ID</Text>
+                <Text style={styles.referenceValue}>{submittedId}</Text>
+              </View>
+              <View style={styles.deviceSummaryTag}>
+                <Text style={styles.deviceSummaryTagText}>{category?.name || 'Device'}</Text>
+              </View>
+            </View>
+            <View style={styles.refDivider} />
+            <View style={styles.refDetailsRow}>
+              <Text style={styles.refDeviceText}>
+                {activeBrandName} {activeModelName}
+              </Text>
+              {expectedPrice ? (
+                <Text style={styles.refPriceText}>
+                  ₹{Number(expectedPrice).toLocaleString('en-IN')}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Request Progression Lifecycle */}
           <View style={styles.lifecycleCard}>
-            {['Submitted', 'Under review', 'Approved / Rejected', 'Pickup / Inspection', 'Payout / Completed'].map((item, index) => (
-              <View key={item} style={styles.lifecycleRow}>
-                <View style={[styles.lifecycleDot, index === 0 && styles.lifecycleDotActive]}>
-                  {index === 0 && <Ionicons name="checkmark" size={12} color="#000" />}
+            <Text style={styles.lifecycleHeader}>Request Progression</Text>
+            {[
+              {
+                title: 'Request Submitted',
+                sub: 'Device specs, condition answers & photos recorded',
+                done: true,
+                current: false,
+              },
+              {
+                title: 'Device Under Technical Review',
+                sub: 'RenewX specialists verifying hardware answers and valuation quote',
+                done: false,
+                current: true,
+              },
+              {
+                title: 'Pickup & Physical Inspection',
+                sub: `${pickupDate} (${timeSlot}) • Doorstep agent verification`,
+                done: false,
+                current: false,
+              },
+              {
+                title: 'Instant Payout',
+                sub: `Direct payout via ${payoutMethod.toUpperCase()}`,
+                done: false,
+                current: false,
+              },
+            ].map((item, index) => (
+              <View key={item.title} style={styles.lifecycleRow}>
+                <View
+                  style={[
+                    styles.lifecycleDot,
+                    item.done && styles.lifecycleDotDone,
+                    item.current && styles.lifecycleDotCurrent,
+                  ]}
+                >
+                  {item.done && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  {item.current && <View style={styles.lifecyclePulseInner} />}
+                  {!item.done && !item.current && (
+                    <Text style={styles.lifecycleStepNum}>{index + 1}</Text>
+                  )}
                 </View>
-                <Text style={styles.lifecycleText}>{item}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.lifecycleText,
+                      item.current && styles.lifecycleTextCurrent,
+                    ]}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text style={styles.lifecycleSubText}>{item.sub}</Text>
+                </View>
               </View>
             ))}
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('MySellRequests')}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate('MySellRequests')}
+          >
             <Text style={styles.primaryButtonText}>Track My Sell Request</Text>
             <Ionicons name="arrow-forward" size={18} color="#000" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkButton} onPress={() => {
-            setSubmittedId('');
-            setStep(1);
-            setCategory(null);
-            setBrand(null);
-            setModel(null);
-          }}>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => {
+              setSubmittedId('');
+              handleStartFresh();
+            }}
+          >
             <Text style={styles.linkButtonText}>Sell Another Device</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -548,7 +1060,18 @@ export default function SellScreen() {
 
       <View style={styles.progressArea}>
         <View style={styles.progressTop}>
-          <Text style={styles.progressLabel}>STEP {step} OF {STEPS.length}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <Text style={styles.progressLabel}>STEP {step} OF {STEPS.length}</Text>
+            {(step > 1 || Boolean(category)) && (
+              <View style={styles.draftAutoSavePill}>
+                <View style={styles.draftGreenDot} />
+                <Text style={styles.draftAutoSaveText}>Draft saved (10m)</Text>
+                <TouchableOpacity onPress={handleStartFresh} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.draftResetText}>• Start fresh</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
           <Text style={styles.progressPercent}>{Math.round(progress * 100)}%</Text>
         </View>
         <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress * 100}%` }]} /></View>
@@ -609,7 +1132,7 @@ export default function SellScreen() {
                   const active = brand?.id === item.id;
                   return (
                     <TouchableOpacity key={item.id} style={[styles.brandCard, active && styles.brandCardActive]} onPress={() => handleSelectBrand(item)}>
-                      <Image source={{ uri: item.logoUrl || getBrandLogo(item.name) }} style={styles.brandLogo} />
+                      <BrandLogoImage uri={item.logoUrl} name={item.name} />
                       <Text style={[styles.brandName, active && styles.brandNameActive]} numberOfLines={1}>{item.name}</Text>
                       {active && <View style={styles.brandCheck}><Ionicons name="checkmark" size={12} color="#000" /></View>}
                     </TouchableOpacity>
@@ -630,6 +1153,12 @@ export default function SellScreen() {
 
           {step === 3 && (
             <Card title="Pick your model" subtitle={activeBrandName ? `Models available for ${activeBrandName}.` : 'Choose a brand first.'}>
+              {brand && (
+                <View style={styles.selectedBrandBadge}>
+                  <BrandLogoImage uri={brand.logoUrl} name={brand.name} style={styles.selectedBrandBadgeLogo} />
+                  <Text style={styles.selectedBrandBadgeText}>Selected Brand: <Text style={{ fontWeight: fontWeight.bold, color: '#111' }}>{brand.name}</Text></Text>
+                </View>
+              )}
               <Search value={modelSearch} onChangeText={setModelSearch} placeholder={`Search ${activeBrandName || 'device'} model...`} />
               <View style={styles.modelList}>
                 {filteredModels.map((item) => {
@@ -705,10 +1234,10 @@ export default function SellScreen() {
           )}
 
           {step === 5 && (
-            <Card title="Upload device photos" subtitle="Clear photos help our team verify the device.">
+            <Card title="Upload device photos" subtitle="Upload clear photos of your device (at least 1 photo is required).">
               <View style={styles.photoNotice}>
-                <Ionicons name="information-circle-outline" size={18} color="#111" />
-                <Text style={styles.photoNoticeText}>Front, back and edge photos are recommended. You can continue without photos if doorstep inspection is available.</Text>
+                <Ionicons name="camera-outline" size={18} color="#111" />
+                <Text style={styles.photoNoticeText}>Please upload at least one photo of your device (front, back, edges, or bill/box) to proceed with pickup.</Text>
               </View>
               <View style={styles.photoGrid}>
                 {([
@@ -733,40 +1262,37 @@ export default function SellScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={styles.photoCount}>{Object.values(photos).filter(Boolean).length}/4 photos added</Text>
+              <Text style={styles.photoCount}>
+                {Object.values(photos).filter(Boolean).length}/4 photos added {Object.values(photos).filter(Boolean).length === 0 ? '(At least 1 required)' : '✓'}
+              </Text>
             </Card>
           )}
 
           {step === 6 && (
-            <Card title="Set your expected selling price" subtitle="RenewX calculates a live estimated value. You choose the price you expect to receive.">
-              <View style={styles.valuationCard}>
-                <Text style={styles.valuationLabel}>RENEWX ESTIMATED VALUE</Text>
-                {valuationLoading ? <ActivityIndicator color="#ffc400" size="large" /> : valuation > 0 ? (
-                  <Text style={styles.valuationAmount}>₹{valuation.toLocaleString('en-IN')}</Text>
-                ) : (
-                  <Text style={styles.valuationUnavailable}>Unavailable</Text>
-                )}
-                <Text style={styles.valuationDevice}>{activeBrandName} {activeModelName}{storage ? ` • ${storage}` : ''}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={getLiveValuation} disabled={valuationLoading}>
-                  <Ionicons name="refresh-outline" size={15} color="#ffc400" />
-                  <Text style={styles.retryText}>Refresh valuation</Text>
-                </TouchableOpacity>
+            <Card title="Your selling quote" subtitle="Enter your expected price for your device. You have full freedom to quote your own amount.">
+              <View style={styles.quoteDeviceBadge}>
+                <BrandLogoImage uri={brand?.logoUrl} name={activeBrandName} style={styles.quoteDeviceLogo} />
+                <View style={styles.flex}>
+                  <Text style={styles.quoteDeviceName}>{activeBrandName} {activeModelName}</Text>
+                  <Text style={styles.quoteDeviceMeta}>{[storage, ram, color].filter(Boolean).join(' • ') || 'Verified Specs'}</Text>
+                </View>
               </View>
 
-              <FieldLabel text="Your expected selling price" />
+              <FieldLabel text="Your Expected Selling Price (₹) *" />
               <View style={styles.priceInput}>
                 <Text style={styles.rupee}>₹</Text>
-                <TextInput value={expectedPrice} onChangeText={setExpectedPrice} keyboardType="numeric" placeholder="Enter expected price" placeholderTextColor="#999" style={styles.priceTextInput} />
+                <TextInput
+                  value={expectedPrice}
+                  onChangeText={setExpectedPrice}
+                  keyboardType="numeric"
+                  placeholder="e.g. 28000"
+                  placeholderTextColor="#999"
+                  style={styles.priceTextInput}
+                />
               </View>
-              {valuation > 0 && (
-                <View style={styles.priceQuickRow}>
-                  {[valuation, valuation + 2000, valuation + 5000].map((p) => (
-                    <TouchableOpacity key={p} style={styles.quickPrice} onPress={() => setExpectedPrice(String(p))}>
-                      <Text style={styles.quickPriceText}>₹{p.toLocaleString('en-IN')}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+              <Text style={styles.quoteHintText}>
+                💡 You can set any price you want for your device. Our RenewX inspection team will review your offer against the condition details and photos you submitted.
+              </Text>
             </Card>
           )}
 
@@ -809,7 +1335,7 @@ export default function SellScreen() {
             <Card title="Review & submit" subtitle="Check your details before creating the sell lead.">
               <ReviewSection title="Device" icon="phone-portrait-outline">
                 <ReviewRow label="Category" value={category?.name || '—'} />
-                <ReviewRow label="Brand" value={activeBrandName || '—'} />
+                <ReviewRow label="Brand" value={activeBrandName || '—'} logoUrl={brand?.logoUrl} />
                 <ReviewRow label="Model" value={activeModelName || '—'} />
               </ReviewSection>
               <ReviewSection title="Specs & condition" icon="options-outline">
@@ -820,8 +1346,7 @@ export default function SellScreen() {
                 <ReviewRow label="Photos" value={`${Object.values(photos).filter(Boolean).length} uploaded`} />
               </ReviewSection>
               <ReviewSection title="Price" icon="cash-outline">
-                <ReviewRow label="RenewX estimate" value={valuation ? `₹${valuation.toLocaleString('en-IN')}` : 'Unavailable'} />
-                <ReviewRow label="Expected price" value={expectedPrice ? `₹${Number(expectedPrice).toLocaleString('en-IN')}` : '—'} strong />
+                <ReviewRow label="Seller Quote" value={expectedPrice ? `₹${Number(expectedPrice).toLocaleString('en-IN')}` : '—'} strong />
               </ReviewSection>
               <ReviewSection title="Pickup & payout" icon="location-outline">
                 <ReviewRow label="Contact" value={`${name || '—'} • ${phone || '—'}`} />
@@ -927,8 +1452,16 @@ function ReviewSection({ title, icon, children }: { title: string; icon: keyof t
   );
 }
 
-function ReviewRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return <View style={styles.reviewRow}><Text style={styles.reviewLabel}>{label}</Text><Text style={[styles.reviewValue, strong && styles.reviewValueStrong]}>{value}</Text></View>;
+function ReviewRow({ label, value, strong, logoUrl }: { label: string; value: string; strong?: boolean; logoUrl?: string }) {
+  return (
+    <View style={styles.reviewRow}>
+      <Text style={styles.reviewLabel}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {!!logoUrl && <Image source={{ uri: logoUrl }} style={styles.reviewBrandLogo} resizeMode="contain" />}
+        <Text style={[styles.reviewValue, strong && styles.reviewValueStrong]}>{value}</Text>
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -979,6 +1512,12 @@ const styles = StyleSheet.create({
   brandCard: { width: '31.7%', minHeight: 88, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e2e1dc', borderRadius: radius.md, backgroundColor: '#fff', padding: 7, position: 'relative' },
   brandCardActive: { borderColor: '#ffc400', backgroundColor: '#fff9dc' },
   brandLogo: { width: 34, height: 34, resizeMode: 'contain', marginBottom: 5 },
+  brandFallbackBox: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff9dc', borderWidth: 1, borderColor: '#ffc400', alignItems: 'center', justifyContent: 'center', marginBottom: 5 },
+  brandFallbackText: { fontSize: 13, fontWeight: fontWeight.bold, color: '#111' },
+  selectedBrandBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff9dc', borderColor: '#ffc400', borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12 },
+  selectedBrandBadgeLogo: { width: 22, height: 22, marginBottom: 0 },
+  selectedBrandBadgeText: { fontSize: 12, color: '#444' },
+  reviewBrandLogo: { width: 18, height: 18, borderRadius: 4 },
   brandName: { fontSize: 10, fontWeight: fontWeight.semibold, color: '#444', maxWidth: '90%', textAlign: 'center' },
   brandNameActive: { color: '#111', fontWeight: fontWeight.bold },
   brandCheck: { position: 'absolute', top: 5, right: 5, width: 17, height: 17, borderRadius: 9, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center' },
@@ -1018,19 +1557,14 @@ const styles = StyleSheet.create({
   photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   photoDone: { position: 'absolute', right: 7, top: 7, width: 22, height: 22, borderRadius: 11, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center' },
   photoCount: { fontSize: 10, color: '#777', textAlign: 'center', marginTop: 10 },
-  valuationCard: { backgroundColor: '#111', borderRadius: radius.lg, padding: 18, marginBottom: 16, alignItems: 'center' },
-  valuationLabel: { color: '#aaa', fontSize: 9, fontWeight: fontWeight.black, letterSpacing: .7 },
-  valuationAmount: { color: '#fff', fontSize: 36, fontWeight: fontWeight.black, marginTop: 5 },
-  valuationUnavailable: { color: '#fff', fontSize: 24, fontWeight: fontWeight.black, marginTop: 12 },
-  valuationDevice: { color: '#aaa', fontSize: 10, marginTop: 3 },
-  retryButton: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: '#333', borderRadius: radius.full },
-  retryText: { color: '#ffc400', fontSize: 9, fontWeight: fontWeight.bold },
+  quoteDeviceBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f6f5ee', borderWidth: 1, borderColor: '#e4e2db', borderRadius: radius.md, padding: 12, marginBottom: 16 },
+  quoteDeviceLogo: { width: 28, height: 28, marginBottom: 0 },
+  quoteDeviceName: { fontSize: 13, fontWeight: fontWeight.bold, color: '#111' },
+  quoteDeviceMeta: { fontSize: 10, color: '#666', marginTop: 2 },
+  quoteHintText: { fontSize: 11, color: '#666', lineHeight: 16, marginTop: 10 },
   priceInput: { flexDirection: 'row', alignItems: 'center', height: 54, borderWidth: 1.5, borderColor: '#ddd', borderRadius: radius.md, backgroundColor: '#fafaf8', paddingHorizontal: 13 },
   rupee: { fontSize: 22, fontWeight: fontWeight.black, color: '#111', marginRight: 6 },
   priceTextInput: { flex: 1, fontSize: 19, fontWeight: fontWeight.bold, color: '#111' },
-  priceQuickRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
-  quickPrice: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: radius.sm, backgroundColor: '#f5f4ef', borderWidth: 1, borderColor: '#e1dfd9' },
-  quickPriceText: { fontSize: 9, fontWeight: fontWeight.bold, color: '#444' },
   gpsButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, backgroundColor: '#ffc400', borderRadius: radius.md, paddingVertical: 11, marginBottom: 6 },
   gpsText: { fontSize: 11, fontWeight: fontWeight.black, color: '#000' },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
@@ -1055,16 +1589,316 @@ const styles = StyleSheet.create({
   disabled: { opacity: .55 },
   successPage: { padding: spacing.md, alignItems: 'center', paddingBottom: 40 },
   successIcon: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center', marginTop: 25 },
-  successTitle: { fontSize: 24, fontWeight: fontWeight.black, color: '#111', textAlign: 'center', marginTop: 16 },
-  successText: { fontSize: 12, color: '#777', lineHeight: 19, textAlign: 'center', marginTop: 7, maxWidth: 360 },
-  referenceCard: { width: '100%', backgroundColor: '#111', borderRadius: radius.lg, padding: 17, alignItems: 'center', marginTop: 20 },
-  referenceLabel: { color: '#999', fontSize: 9, fontWeight: fontWeight.black, letterSpacing: .7 },
-  referenceValue: { color: '#ffc400', fontSize: 20, fontWeight: fontWeight.black, marginTop: 4 },
-  lifecycleCard: { width: '100%', backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e2dc', borderRadius: radius.lg, padding: 15, marginTop: 12 },
-  lifecycleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
-  lifecycleDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' },
-  lifecycleDotActive: { backgroundColor: '#ffc400' },
-  lifecycleText: { fontSize: 11, color: '#444', fontWeight: fontWeight.semibold },
+  successTitle: { fontSize: 23, fontWeight: fontWeight.black, color: '#111', textAlign: 'center', marginTop: 8 },
+  successText: { fontSize: 12, color: '#64748b', lineHeight: 18, textAlign: 'center', marginTop: 6, maxWidth: 360 },
+  
+  // Animated Tick Styles
+  animatedTickWrapper: {
+    width: 96,
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+    marginBottom: 8,
+    position: 'relative',
+  },
+  animatedTickPulse: {
+    position: 'absolute',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#bbf7d0',
+    opacity: 0.6,
+  },
+  animatedTickCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 3,
+    borderColor: '#16a34a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  reviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    marginBottom: 8,
+  },
+  reviewPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#d97706',
+  },
+  reviewBadgeText: {
+    fontSize: 10,
+    fontWeight: fontWeight.black,
+    color: '#92400e',
+    letterSpacing: 0.4,
+  },
+
+  // Contact Helpline Card Styles
+  contactSupportCard: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 15,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  contactCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingBottom: 9,
+  },
+  contactIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactCardTitle: {
+    fontSize: 13,
+    fontWeight: fontWeight.black,
+    color: '#0f172a',
+  },
+  contactCardSub: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  contactInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    marginBottom: 7,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contactPhoneText: {
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+    color: '#0f172a',
+  },
+  contactEmailText: {
+    fontSize: 12,
+    fontWeight: fontWeight.semibold,
+    color: '#0f172a',
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  copyBtnText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#475569',
+  },
+  contactActionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 5,
+    marginBottom: 9,
+  },
+  callActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#059669',
+    borderRadius: radius.md,
+    paddingVertical: 10,
+  },
+  callActionButtonText: {
+    fontSize: 12,
+    fontWeight: fontWeight.bold,
+    color: '#ffffff',
+  },
+  whatsappActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#25D366',
+    borderRadius: radius.md,
+    paddingVertical: 10,
+  },
+  whatsappActionButtonText: {
+    fontSize: 12,
+    fontWeight: fontWeight.bold,
+    color: '#ffffff',
+  },
+  supportHoursWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  supportHoursText: {
+    fontSize: 9,
+    color: '#64748b',
+    fontWeight: fontWeight.medium,
+  },
+
+  // Reference Card
+  referenceCard: {
+    width: '100%',
+    backgroundColor: '#111827',
+    borderRadius: radius.lg,
+    padding: 15,
+    marginTop: 12,
+  },
+  referenceCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  referenceLabel: { color: '#94a3b8', fontSize: 9, fontWeight: fontWeight.black, letterSpacing: 0.6 },
+  referenceValue: { color: '#ffc400', fontSize: 18, fontWeight: fontWeight.black, marginTop: 3 },
+  deviceSummaryTag: {
+    backgroundColor: '#1f2937',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+  },
+  deviceSummaryTagText: {
+    color: '#ffc400',
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+  },
+  refDivider: {
+    height: 1,
+    backgroundColor: '#374151',
+    width: '100%',
+    marginVertical: 9,
+  },
+  refDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  refDeviceText: {
+    color: '#f3f4f6',
+    fontSize: 12,
+    fontWeight: fontWeight.semibold,
+  },
+  refPriceText: {
+    color: '#ffc400',
+    fontSize: 14,
+    fontWeight: fontWeight.black,
+  },
+
+  // Lifecycle Progression
+  lifecycleCard: { width: '100%', backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e2dc', borderRadius: radius.lg, padding: 14, marginTop: 12 },
+  lifecycleHeader: {
+    fontSize: 11,
+    fontWeight: fontWeight.black,
+    color: '#0f172a',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  lifecycleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  lifecycleDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' },
+  lifecycleDotDone: { backgroundColor: '#16a34a' },
+  lifecycleDotCurrent: {
+    backgroundColor: '#fef3c7',
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+  },
+  lifecyclePulseInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#d97706',
+  },
+  lifecycleStepNum: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#94a3b8',
+  },
+  lifecycleText: { fontSize: 11, color: '#334155', fontWeight: fontWeight.semibold },
+  lifecycleTextCurrent: { color: '#b45309', fontWeight: fontWeight.black },
+  lifecycleSubText: {
+    fontSize: 9,
+    color: '#64748b',
+    marginTop: 2,
+  },
   linkButton: { padding: 12 },
   linkButtonText: { fontSize: 11, fontWeight: fontWeight.bold, color: '#555' },
+
+  // Draft Autosave Pill
+  draftAutoSavePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  draftGreenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16a34a',
+  },
+  draftAutoSaveText: {
+    fontSize: 9,
+    color: '#475569',
+    fontWeight: fontWeight.semibold,
+  },
+  draftResetText: {
+    fontSize: 9,
+    color: '#dc2626',
+    fontWeight: fontWeight.bold,
+  },
 });

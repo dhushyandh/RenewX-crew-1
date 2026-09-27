@@ -15,7 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '@/App';
@@ -35,6 +35,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type AnyProduct = Product & Record<string, any>;
 
 const PRODUCTS_CACHE_KEY = '@renewx_products_cache';
+const AUTO_SLIDE_INTERVAL = 3000; // 3 seconds auto-slide
 
 function getResponsiveMetrics(width: number) {
   const isSmall = width < 360;
@@ -307,11 +308,14 @@ export default function HomeScreen() {
 
   const responsive = useMemo(() => getResponsiveMetrics(screenWidth), [screenWidth]);
 
+  const isFocused = useIsFocused();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [productList, setProductList] = useState<Product[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [autoSlideTrigger, setAutoSlideTrigger] = useState(0);
 
+  const isInteractingRef = useRef(false);
   const heroScrollRef = useRef<ScrollView>(null);
   const listRef = useRef<FlatList>(null);
 
@@ -435,34 +439,56 @@ export default function HomeScreen() {
       .slice(0, 10);
   }, [productList]);
 
+  const resetAutoSlide = useCallback(() => {
+    setAutoSlideTrigger((prev) => prev + 1);
+  }, []);
+
+  const goToHero = useCallback(
+    (index: number) => {
+      if (!heroProducts.length) return;
+
+      const nextIndex =
+        index < 0
+          ? heroProducts.length - 1
+          : index >= heroProducts.length
+            ? 0
+            : index;
+
+      heroScrollRef.current?.scrollTo({
+        x: nextIndex * Math.max(screenWidth, 1),
+        animated: true,
+      });
+      setHeroIndex(nextIndex);
+    },
+    [heroProducts.length, screenWidth],
+  );
+
   const handleHeroScroll = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
+    isInteractingRef.current = false;
     const nextIndex = Math.round(
       event.nativeEvent.contentOffset.x / Math.max(screenWidth, 1),
     );
 
     if (nextIndex !== heroIndex) {
       setHeroIndex(Math.max(0, Math.min(nextIndex, heroProducts.length - 1)));
+    } else {
+      resetAutoSlide();
     }
   };
 
-  const goToHero = (index: number) => {
-    if (!heroProducts.length) return;
+  useEffect(() => {
+    if (!isFocused || heroProducts.length <= 1) return;
 
-    const nextIndex =
-      index < 0
-        ? heroProducts.length - 1
-        : index >= heroProducts.length
-          ? 0
-          : index;
+    const timer = setTimeout(() => {
+      if (isInteractingRef.current) return;
+      const nextIndex = (heroIndex + 1) % heroProducts.length;
+      goToHero(nextIndex);
+    }, AUTO_SLIDE_INTERVAL);
 
-    heroScrollRef.current?.scrollTo({
-      x: nextIndex * Math.max(screenWidth, 1),
-      animated: true,
-    });
-    setHeroIndex(nextIndex);
-  };
+    return () => clearTimeout(timer);
+  }, [heroIndex, isFocused, heroProducts.length, autoSlideTrigger, goToHero]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -535,6 +561,13 @@ export default function HomeScreen() {
                   horizontal
                   pagingEnabled
                   showsHorizontalScrollIndicator={false}
+                  onScrollBeginDrag={() => {
+                    isInteractingRef.current = true;
+                  }}
+                  onScrollEndDrag={() => {
+                    isInteractingRef.current = false;
+                    resetAutoSlide();
+                  }}
                   onMomentumScrollEnd={handleHeroScroll}
                   scrollEventThrottle={16}
                 >
@@ -558,7 +591,10 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   accessibilityLabel="Previous featured product"
                   style={[styles.heroExternalArrow, styles.heroExternalLeft]}
-                  onPress={() => goToHero(heroIndex - 1)}
+                  onPress={() => {
+                    goToHero(heroIndex - 1);
+                    resetAutoSlide();
+                  }}
                 >
                   <Ionicons name="chevron-back" size={25} color={colors.text} />
                 </TouchableOpacity>
@@ -566,7 +602,10 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   accessibilityLabel="Next featured product"
                   style={[styles.heroExternalArrow, styles.heroExternalRight]}
-                  onPress={() => goToHero(heroIndex + 1)}
+                  onPress={() => {
+                    goToHero(heroIndex + 1);
+                    resetAutoSlide();
+                  }}
                 >
                   <Ionicons name="chevron-forward" size={25} color={colors.text} />
                 </TouchableOpacity>

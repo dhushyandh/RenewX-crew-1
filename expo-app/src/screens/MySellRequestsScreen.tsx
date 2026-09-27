@@ -89,7 +89,7 @@ export default function MySellRequestsScreen() {
     const id = String(item.id || item._id);
     const status = String(item.status || 'pending');
     const meta = formatStatus(status);
-    const amount = Number(item.valuation_amount || 0);
+    const amount = Number(item.expected_price || item.valuation_amount || 0);
     const canCancel = ['pending', 'approved', 'scheduled'].includes(status);
     const isCancelling = cancellingId === id;
 
@@ -111,7 +111,7 @@ export default function MySellRequestsScreen() {
 
         <View style={styles.divider} />
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Current value</Text>
+          <Text style={styles.label}>Seller quote</Text>
           <Text style={styles.amount}>₹{amount.toLocaleString('en-IN')}</Text>
         </View>
         <View style={styles.infoRow}>

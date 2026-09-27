@@ -12,6 +12,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -39,11 +40,37 @@ const categories = [
   'Accessories',
 ];
 
-const sortOptions = [
-  { label: 'Featured', value: 'featured' },
-  { label: 'Price: Low to High', value: 'price_asc' },
-  { label: 'Price: High to Low', value: 'price_desc' },
-  { label: 'Highest Rated', value: 'rating' },
+const sortOptions: { label: string; value: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { label: 'Featured', value: 'featured', icon: 'sparkles-outline' },
+  { label: 'Price: Low to High', value: 'price_asc', icon: 'trending-up-outline' },
+  { label: 'Price: High to Low', value: 'price_desc', icon: 'trending-down-outline' },
+  { label: 'Highest Rated', value: 'rating', icon: 'star-outline' },
+  { label: 'Biggest % Off', value: 'discount', icon: 'pricetag-outline' },
+];
+
+const priceRangeOptions = [
+  { label: 'All Prices', value: 'all' },
+  { label: 'Under ₹20,000', value: 'under20k' },
+  { label: '₹20K – ₹40K', value: '20k-40k' },
+  { label: '₹40K – ₹70K', value: '40k-70k' },
+  { label: 'Above ₹70,000', value: 'above70k' },
+];
+
+const conditionOptions = [
+  { label: 'All Conditions', value: 'all' },
+  { label: 'Like New (Flawless)', value: 'Like New' },
+  { label: 'Excellent', value: 'Excellent' },
+  { label: 'Good', value: 'Good' },
+  { label: 'Fair', value: 'Fair' },
+];
+
+const storageOptions = [
+  { label: 'All Storages', value: 'all' },
+  { label: '64 GB', value: '64gb' },
+  { label: '128 GB', value: '128gb' },
+  { label: '256 GB', value: '256gb' },
+  { label: '512 GB', value: '512gb' },
+  { label: '1 TB+', value: '1tb+' },
 ];
 
 type ProductListResponse = unknown;
@@ -120,7 +147,15 @@ export default function ShopScreen() {
   const [selectedBrand, setSelectedBrand] = useState('All Brands');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('featured');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [priceRange, setPriceRange] = useState('all');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [selectedCondition, setSelectedCondition] = useState('all');
+  const [selectedStorage, setSelectedStorage] = useState('all');
+  const [onlyDiscounts, setOnlyDiscounts] = useState(false);
+  const [onlyWarranty, setOnlyWarranty] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(false);
   const [favorites, setFavorites] = useState<Record<string | number, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -155,7 +190,6 @@ export default function ShopScreen() {
 
       setProducts(mapped);
     } catch (err: any) {
-      // Keep already-loaded products visible if a background refresh fails.
       setLoadError(err?.message || 'Unable to load products. Please try again.');
     } finally {
       if (initial) setIsInitialLoading(false);
@@ -182,6 +216,17 @@ export default function ShopScreen() {
     });
 
     return ['All Brands', ...Array.from(values).sort((a, b) => a.localeCompare(b))];
+  }, [products]);
+
+  const brandCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    products.forEach((p) => {
+      const b = getProductBrand(p);
+      if (b) {
+        counts[b] = (counts[b] || 0) + 1;
+      }
+    });
+    return counts;
   }, [products]);
 
   useEffect(() => {
@@ -221,6 +266,7 @@ export default function ShopScreen() {
   const filteredProducts = useMemo(() => {
     return products
       .filter((product) => {
+        // Category filter
         if (selectedCategory !== 'All Devices') {
           const catStr = getProductCategory(product).toLowerCase();
           const nameStr = String(product.name || '').toLowerCase();
@@ -250,6 +296,7 @@ export default function ShopScreen() {
           if (!matchCat) return false;
         }
 
+        // Brand filter
         if (selectedBrand !== 'All Brands') {
           const brand = getProductBrand(product).toLowerCase();
           const name = String(product.name || '').toLowerCase();
@@ -260,6 +307,7 @@ export default function ShopScreen() {
           }
         }
 
+        // Search query filter
         if (searchQuery.trim()) {
           const query = searchQuery.trim().toLowerCase();
           const name = String(product.name || '').toLowerCase();
@@ -277,25 +325,104 @@ export default function ShopScreen() {
           }
         }
 
+        // Price range filter
+        const price = Number(product.price || 0);
+        if (priceRange === 'under20k' && price >= 20000) return false;
+        if (priceRange === '20k-40k' && (price < 20000 || price > 40000)) return false;
+        if (priceRange === '40k-70k' && (price < 40000 || price > 70000)) return false;
+        if (priceRange === 'above70k' && price <= 70000) return false;
+        if (minPrice && price < Number(minPrice)) return false;
+        if (maxPrice && price > Number(maxPrice)) return false;
+
+        // Condition filter
+        if (selectedCondition !== 'all') {
+          const prodCond = String(product.condition || (product as any).grade || '').toLowerCase();
+          if (!prodCond.includes(selectedCondition.toLowerCase())) return false;
+        }
+
+        // Storage filter
+        if (selectedStorage !== 'all') {
+          const target = selectedStorage.toLowerCase().replace(/\s+/g, '');
+          const searchStr = `${product.name} ${product.description || ''} ${(product.specs || []).join(' ')}`.toLowerCase().replace(/\s+/g, '');
+          const matches = target === '1tb+' ? (searchStr.includes('1tb') || searchStr.includes('2tb')) : searchStr.includes(target);
+          if (!matches) return false;
+        }
+
+        // Discounts filter
+        if (onlyDiscounts && getDiscountPercent(product) <= 0) return false;
+
+        // Warranty filter
+        if (onlyWarranty && Number(product.warrantyMonths || 0) < 6) return false;
+
+        // Stock filter
+        if (inStockOnly && Number(product.stock ?? 1) <= 0) return false;
+
         return true;
       })
       .sort((a, b) => {
         if (sortBy === 'price_asc') return Number(a.price || 0) - Number(b.price || 0);
         if (sortBy === 'price_desc') return Number(b.price || 0) - Number(a.price || 0);
         if (sortBy === 'rating') return Number((b as any).rating || 0) - Number((a as any).rating || 0);
+        if (sortBy === 'discount') return getDiscountPercent(b) - getDiscountPercent(a);
         return 0;
       });
-  }, [products, selectedCategory, selectedBrand, searchQuery, sortBy]);
+  }, [
+    products,
+    selectedCategory,
+    selectedBrand,
+    searchQuery,
+    sortBy,
+    priceRange,
+    minPrice,
+    maxPrice,
+    selectedCondition,
+    selectedStorage,
+    onlyDiscounts,
+    onlyWarranty,
+    inStockOnly,
+  ]);
 
-  const hasActiveFilters =
-    selectedCategory !== 'All Devices' ||
-    selectedBrand !== 'All Brands' ||
-    searchQuery.trim().length > 0;
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategory !== 'All Devices') count++;
+    if (selectedBrand !== 'All Brands') count++;
+    if (priceRange !== 'all' || minPrice || maxPrice) count++;
+    if (selectedCondition !== 'all') count++;
+    if (selectedStorage !== 'all') count++;
+    if (onlyDiscounts) count++;
+    if (onlyWarranty) count++;
+    if (inStockOnly) count++;
+    if (sortBy !== 'featured') count++;
+    return count;
+  }, [
+    selectedCategory,
+    selectedBrand,
+    priceRange,
+    minPrice,
+    maxPrice,
+    selectedCondition,
+    selectedStorage,
+    onlyDiscounts,
+    onlyWarranty,
+    inStockOnly,
+    sortBy,
+  ]);
+
+  const hasActiveFilters = activeFiltersCount > 0 || searchQuery.trim().length > 0;
 
   const clearFilters = () => {
     setSelectedCategory('All Devices');
     setSelectedBrand('All Brands');
     setSearchQuery('');
+    setSortBy('featured');
+    setPriceRange('all');
+    setMinPrice('');
+    setMaxPrice('');
+    setSelectedCondition('all');
+    setSelectedStorage('all');
+    setOnlyDiscounts(false);
+    setOnlyWarranty(false);
+    setInStockOnly(false);
   };
 
   const renderProductItem = ({ item: product }: { item: Product }) => {
@@ -446,7 +573,7 @@ export default function ShopScreen() {
 
   const renderListHeader = () => (
     <View>
-      {loadError && products.length > 0 && (
+      {Boolean(loadError) && products.length > 0 && (
         <View style={styles.refreshErrorBanner}>
           <Ionicons name="cloud-offline-outline" size={16} color="#92400e" />
           <View style={styles.refreshErrorContent}>
@@ -556,80 +683,477 @@ export default function ShopScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.filterToggleBtn, showFilters && styles.filterToggleBtnActive]}
-          onPress={() => setShowFilters((value) => !value)}
+          style={[styles.filterToggleBtn, activeFiltersCount > 0 && styles.filterToggleBtnActive]}
+          onPress={() => setShowFilterModal(true)}
         >
           <Ionicons
-            name="options-outline"
+            name="options"
             size={16}
-            color={showFilters ? '#ffffff' : '#111827'}
+            color={activeFiltersCount > 0 ? '#111827' : '#111827'}
           />
           <Text
             style={[
               styles.filterToggleText,
-              showFilters && styles.filterToggleTextActive,
+              activeFiltersCount > 0 && styles.filterToggleTextActive,
             ]}
           >
             Filters
           </Text>
+          {activeFiltersCount > 0 && (
+            <View style={styles.filterCountBadge}>
+              <Text style={styles.filterCountBadgeText}>{activeFiltersCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
-      {showFilters && (
-        <View style={styles.expandedFiltersBox}>
-          <Text style={styles.filterGroupTitle}>Brand</Text>
-
+      {/* Active Filter Removable Tags Strip */}
+      {activeFiltersCount > 0 && (
+        <View style={styles.activeFiltersStrip}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.brandRowScroll}
+            contentContainerStyle={styles.activeFiltersScroll}
           >
-            {brands.map((brand) => (
+            {selectedCategory !== 'All Devices' && (
               <TouchableOpacity
-                key={brand}
-                style={[
-                  styles.brandChip,
-                  selectedBrand === brand && styles.brandChipActive,
-                ]}
-                onPress={() => setSelectedBrand(brand)}
+                style={styles.activeFilterTag}
+                onPress={() => setSelectedCategory('All Devices')}
               >
-                <Text
-                  style={[
-                    styles.brandChipText,
-                    selectedBrand === brand && styles.brandChipTextActive,
-                  ]}
-                >
-                  {brand}
-                </Text>
+                <Text style={styles.activeFilterTagText}>{selectedCategory}</Text>
+                <Ionicons name="close" size={13} color="#475569" />
               </TouchableOpacity>
-            ))}
+            )}
+            {selectedBrand !== 'All Brands' && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => setSelectedBrand('All Brands')}
+              >
+                <Text style={styles.activeFilterTagText}>{selectedBrand}</Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            {Boolean(priceRange !== 'all' || minPrice || maxPrice) && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => {
+                  setPriceRange('all');
+                  setMinPrice('');
+                  setMaxPrice('');
+                }}
+              >
+                <Text style={styles.activeFilterTagText}>
+                  {priceRange === 'under20k'
+                    ? '< ₹20K'
+                    : priceRange === '20k-40k'
+                    ? '₹20K–₹40K'
+                    : priceRange === '40k-70k'
+                    ? '₹40K–₹70K'
+                    : priceRange === 'above70k'
+                    ? '> ₹70K'
+                    : `₹${minPrice || '0'}–₹${maxPrice || '∞'}`}
+                </Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            {selectedCondition !== 'all' && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => setSelectedCondition('all')}
+              >
+                <Text style={styles.activeFilterTagText}>{selectedCondition}</Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            {selectedStorage !== 'all' && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => setSelectedStorage('all')}
+              >
+                <Text style={styles.activeFilterTagText}>{selectedStorage}</Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            {onlyDiscounts && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => setOnlyDiscounts(false)}
+              >
+                <Text style={styles.activeFilterTagText}>Deals Only</Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            {onlyWarranty && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => setOnlyWarranty(false)}
+              >
+                <Text style={styles.activeFilterTagText}>6M+ Warranty</Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            {inStockOnly && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => setInStockOnly(false)}
+              >
+                <Text style={styles.activeFilterTagText}>In Stock</Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            {sortBy !== 'featured' && (
+              <TouchableOpacity
+                style={styles.activeFilterTag}
+                onPress={() => setSortBy('featured')}
+              >
+                <Text style={styles.activeFilterTagText}>
+                  {sortOptions.find((s) => s.value === sortBy)?.label || 'Sorted'}
+                </Text>
+                <Ionicons name="close" size={13} color="#475569" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.clearAllFiltersTag} onPress={clearFilters}>
+              <Text style={styles.clearAllFiltersTagText}>Clear All</Text>
+            </TouchableOpacity>
           </ScrollView>
-
-          <Text style={[styles.filterGroupTitle, { marginTop: 8 }]}>Sort By</Text>
-
-          <View style={styles.sortRow}>
-            {sortOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.sortChip,
-                  sortBy === option.value && styles.sortChipActive,
-                ]}
-                onPress={() => setSortBy(option.value)}
-              >
-                <Text
-                  style={[
-                    styles.sortChipText,
-                    sortBy === option.value && styles.sortChipTextActive,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
       )}
+
+      {/* Comprehensive Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowFilterModal(false)}
+          />
+          <View style={styles.modalSheet}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitleWrap}>
+                <Ionicons name="options" size={20} color="#111827" />
+                <Text style={styles.modalTitle}>Filters & Sort</Text>
+                {activeFiltersCount > 0 && (
+                  <View style={styles.modalActiveBadge}>
+                    <Text style={styles.modalActiveBadgeText}>{activeFiltersCount} Active</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.modalHeaderActions}>
+                {activeFiltersCount > 0 && (
+                  <TouchableOpacity onPress={clearFilters} style={styles.modalResetBtn}>
+                    <Text style={styles.modalResetBtnText}>Reset</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => setShowFilterModal(false)}
+                  style={styles.modalCloseBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={20} color="#374151" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Scrollable Filters Content */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalContent}
+            >
+              {/* 1. Sort By */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionHeader}>
+                  <Ionicons name="swap-vertical" size={16} color="#0f172a" />
+                  <Text style={styles.filterSectionTitle}>Sort By</Text>
+                </View>
+                <View style={styles.chipGrid}>
+                  {sortOptions.map((opt) => {
+                    const isSelected = sortBy === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                        onPress={() => setSortBy(opt.value)}
+                      >
+                        <Ionicons
+                          name={opt.icon}
+                          size={14}
+                          color={isSelected ? '#000000' : '#64748b'}
+                        />
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            isSelected && styles.filterChipTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 2. Price Range */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionHeader}>
+                  <Ionicons name="cash-outline" size={16} color="#0f172a" />
+                  <Text style={styles.filterSectionTitle}>Price Range</Text>
+                </View>
+                <View style={styles.chipGrid}>
+                  {priceRangeOptions.map((opt) => {
+                    const isSelected = priceRange === opt.value && !minPrice && !maxPrice;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                        onPress={() => {
+                          setPriceRange(opt.value);
+                          setMinPrice('');
+                          setMaxPrice('');
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            isSelected && styles.filterChipTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Custom Min / Max input */}
+                <View style={styles.customPriceRow}>
+                  <View style={styles.customPriceInputWrap}>
+                    <Text style={styles.customPriceLabel}>Min (₹)</Text>
+                    <TextInput
+                      placeholder="e.g. 15000"
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="numeric"
+                      value={minPrice}
+                      onChangeText={(val) => {
+                        setMinPrice(val.replace(/[^0-9]/g, ''));
+                        setPriceRange('custom');
+                      }}
+                      style={styles.customPriceInput}
+                    />
+                  </View>
+                  <View style={styles.customPriceDivider}>
+                    <Text style={styles.customPriceDividerText}>to</Text>
+                  </View>
+                  <View style={styles.customPriceInputWrap}>
+                    <Text style={styles.customPriceLabel}>Max (₹)</Text>
+                    <TextInput
+                      placeholder="e.g. 60000"
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="numeric"
+                      value={maxPrice}
+                      onChangeText={(val) => {
+                        setMaxPrice(val.replace(/[^0-9]/g, ''));
+                        setPriceRange('custom');
+                      }}
+                      style={styles.customPriceInput}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* 3. Brand */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionHeader}>
+                  <Ionicons name="pricetag-outline" size={16} color="#0f172a" />
+                  <Text style={styles.filterSectionTitle}>Brand</Text>
+                </View>
+                <View style={styles.chipGrid}>
+                  {brands.map((brand) => {
+                    const isSelected = selectedBrand === brand;
+                    const count =
+                      brand === 'All Brands' ? products.length : brandCounts[brand] || 0;
+                    return (
+                      <TouchableOpacity
+                        key={brand}
+                        style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                        onPress={() => setSelectedBrand(brand)}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            isSelected && styles.filterChipTextActive,
+                          ]}
+                        >
+                          {brand}
+                        </Text>
+                        <View style={[styles.countPill, isSelected && styles.countPillActive]}>
+                          <Text
+                            style={[
+                              styles.countPillText,
+                              isSelected && styles.countPillTextActive,
+                            ]}
+                          >
+                            {count}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 4. Device Condition */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionHeader}>
+                  <Ionicons name="shield-checkmark-outline" size={16} color="#0f172a" />
+                  <Text style={styles.filterSectionTitle}>Condition / Grade</Text>
+                </View>
+                <View style={styles.chipGrid}>
+                  {conditionOptions.map((opt) => {
+                    const isSelected = selectedCondition === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                        onPress={() => setSelectedCondition(opt.value)}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            isSelected && styles.filterChipTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 5. Storage Capacity */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionHeader}>
+                  <Ionicons name="server-outline" size={16} color="#0f172a" />
+                  <Text style={styles.filterSectionTitle}>Storage</Text>
+                </View>
+                <View style={styles.chipGrid}>
+                  {storageOptions.map((opt) => {
+                    const isSelected = selectedStorage === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                        onPress={() => setSelectedStorage(opt.value)}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            isSelected && styles.filterChipTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 6. Special Highlights */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionHeader}>
+                  <Ionicons name="ribbon-outline" size={16} color="#0f172a" />
+                  <Text style={styles.filterSectionTitle}>Special Highlights</Text>
+                </View>
+                <View style={styles.chipGrid}>
+                  <TouchableOpacity
+                    style={[styles.filterChip, onlyDiscounts && styles.filterChipActive]}
+                    onPress={() => setOnlyDiscounts((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name="flame"
+                      size={14}
+                      color={onlyDiscounts ? '#dc2626' : '#64748b'}
+                    />
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        onlyDiscounts && styles.filterChipTextActive,
+                      ]}
+                    >
+                      On Sale / Discounted
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, onlyWarranty && styles.filterChipActive]}
+                    onPress={() => setOnlyWarranty((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={14}
+                      color={onlyWarranty ? '#059669' : '#64748b'}
+                    />
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        onlyWarranty && styles.filterChipTextActive,
+                      ]}
+                    >
+                      6+ Months Warranty
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, inStockOnly && styles.filterChipActive]}
+                    onPress={() => setInStockOnly((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color={inStockOnly ? '#0284c7' : '#64748b'}
+                    />
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        inStockOnly && styles.filterChipTextActive,
+                      ]}
+                    >
+                      In Stock Only
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Sticky Bottom Actions */}
+            <View style={styles.modalBottomBar}>
+              <TouchableOpacity
+                style={styles.modalClearBtn}
+                onPress={clearFilters}
+              >
+                <Text style={styles.modalClearBtnText}>Reset All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalApplyBtn}
+                onPress={() => setShowFilterModal(false)}
+              >
+                <Text style={styles.modalApplyBtnText}>
+                  Show {filteredProducts.length} {filteredProducts.length === 1 ? 'Device' : 'Devices'}
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color="#000000" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {isInitialLoading ? (
         <FlatList
@@ -873,8 +1397,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e2d8',
   },
   filterToggleBtnActive: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: '#ffc400',
+    borderColor: '#ffc400',
   },
   filterToggleText: {
     fontSize: 12,
@@ -882,69 +1406,290 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   filterToggleTextActive: {
-    color: '#ffffff',
+    color: '#000000',
   },
-  expandedFiltersBox: {
+  filterCountBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 3,
+  },
+  filterCountBadgeText: {
+    color: '#ffc400',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  // Active Filters Tags Strip
+  activeFiltersStrip: {
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+  },
+  activeFiltersScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  activeFilterTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: '#ffffff',
-    marginHorizontal: 16,
-    padding: 12,
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e2d8',
-    marginBottom: 8,
+    borderColor: '#cbd5e1',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  filterGroupTitle: {
+  activeFilterTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  clearAllFiltersTag: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: '#fee2e2',
+  },
+  clearAllFiltersTagText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#6b7280',
+    color: '#dc2626',
+  },
+
+  // Filter Modal / Bottom Sheet
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalSheet: {
+    width: '100%',
+    maxWidth: 620,
+    maxHeight: '88%',
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalHeaderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  modalActiveBadge: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  modalActiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#b45309',
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalResetBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  modalResetBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalContent: {
+    padding: 18,
+    paddingBottom: 30,
+    gap: 18,
+  },
+  filterSection: {
+    gap: 10,
+  },
+  filterSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
   },
-  brandRowScroll: {
-    marginBottom: 4,
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  brandChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    backgroundColor: '#f3f4f6',
-    marginRight: 6,
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  brandChipActive: {
+  filterChipActive: {
     backgroundColor: '#ffc400',
+    borderColor: '#ffc400',
   },
-  brandChipText: {
-    fontSize: 11,
+  filterChipText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
   },
-  brandChipTextActive: {
+  filterChipTextActive: {
     color: '#000000',
     fontWeight: '800',
   },
-  sortRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+  countPill: {
+    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
   },
-  sortChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    backgroundColor: '#f3f4f6',
-  },
-  sortChipActive: {
+  countPillActive: {
     backgroundColor: '#0f172a',
   },
-  sortChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  sortChipTextActive: {
-    color: '#ffffff',
+  countPillText: {
+    fontSize: 10,
     fontWeight: '700',
+    color: '#475569',
+  },
+  countPillTextActive: {
+    color: '#ffc400',
+  },
+  customPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  customPriceInputWrap: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  customPriceLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+  },
+  customPriceInput: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+    paddingVertical: 2,
+  },
+  customPriceDivider: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customPriceDividerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  modalBottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+  modalClearBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalClearBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  modalApplyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#ffc400',
+  },
+  modalApplyBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#000000',
   },
   guaranteeRibbon: {
     flexDirection: 'row',
