@@ -123,6 +123,52 @@ async function sendViaResend(params: {
   }
 }
 
+async function sendViaBrevo(params: {
+  to: string;
+  subject: string;
+  text?: string;
+  html: string;
+  from?: string;
+}): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const apiKey = cleanEnv(process.env.BREVO_API_KEY);
+  if (!apiKey) return { success: false, error: 'No BREVO_API_KEY configured' };
+
+  const senderEmail = cleanEnv(process.env.BREVO_SENDER_EMAIL) || cleanEnv(process.env.SMTP_USER) || 'dhushyandhneduncheziyan4896@gmail.com';
+  const senderName = 'RenewX Crew';
+
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: {
+          name: senderName,
+          email: senderEmail,
+        },
+        to: [{ email: params.to }],
+        subject: params.subject,
+        htmlContent: params.html,
+        textContent: params.text,
+      }),
+    });
+
+    const data = (await res.json()) as any;
+    if (!res.ok) {
+      console.error('[Brevo] API Error:', data);
+      return { success: false, error: data?.message || JSON.stringify(data) };
+    }
+
+    console.log(`[Brevo] Delivered email to ${params.to} (MessageID: ${data?.messageId})`);
+    return { success: true, messageId: data?.messageId };
+  } catch (err: any) {
+    console.error('[Brevo] Request failed:', err?.message || err);
+    return { success: false, error: err?.message || String(err) };
+  }
+}
+
 interface DispatchOptions {
   to: string;
   subject: string;
@@ -133,7 +179,21 @@ interface DispatchOptions {
 }
 
 async function dispatchEmail(options: DispatchOptions): Promise<{ success: boolean; simulated?: boolean; messageId?: string }> {
-  // 1. Try Resend HTTP API (Fast HTTPS, works on Render free tier, no SMTP port blocks)
+  // 1. Try Brevo HTTP API (Allows sending to ANY recipient over HTTPS)
+  if (process.env.BREVO_API_KEY) {
+    const brevoResult = await sendViaBrevo({
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+      from: options.from,
+    });
+    if (brevoResult.success) {
+      return { success: true, messageId: brevoResult.messageId };
+    }
+  }
+
+  // 2. Try Resend HTTP API (Fast HTTPS, works on Render free tier, no SMTP port blocks)
   if (process.env.RESEND_API_KEY) {
     const resendResult = await sendViaResend({
       to: options.to,
