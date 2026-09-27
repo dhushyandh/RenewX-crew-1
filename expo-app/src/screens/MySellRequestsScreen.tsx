@@ -90,7 +90,7 @@ export default function MySellRequestsScreen() {
     const status = String(item.status || 'pending');
     const meta = formatStatus(status);
     const amount = Number(item.expected_price || item.valuation_amount || 0);
-    const canCancel = ['pending', 'approved', 'scheduled'].includes(status);
+    const canCancel = status === 'pending';
     const isCancelling = cancellingId === id;
 
     return (
@@ -127,8 +127,8 @@ export default function MySellRequestsScreen() {
           <View style={styles.approvedBox}>
             <Ionicons name="checkmark-circle" size={18} color="#047857" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.approvedTitle}>Your sell request is approved</Text>
-              <Text style={styles.approvedSub}>RenewX will proceed with the next pickup/inspection step.</Text>
+              <Text style={styles.approvedTitle}>Sell request approved</Text>
+              <Text style={styles.approvedSub}>Your sell request has been approved by admin and confirmed. Cancellation is no longer available.</Text>
             </View>
           </View>
         )}

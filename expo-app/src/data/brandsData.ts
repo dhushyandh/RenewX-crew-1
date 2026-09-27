@@ -4,6 +4,9 @@ export interface BrandItem {
   logo: string;
   category: string;
   description: string;
+  imageUrl?: string;
+  image_url?: string;
+  logo_url?: string;
 }
 
 export interface DeviceModelItem {
@@ -16,6 +19,8 @@ export interface DeviceModelItem {
   basePrice: number;
   storageOptions: string[];
   isFeatured: boolean;
+  imageUrl?: string;
+  image_url?: string;
 }
 
 export const initialBrands: BrandItem[] = [

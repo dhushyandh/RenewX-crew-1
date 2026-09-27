@@ -76,8 +76,10 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
               category: m.category,
               releaseYear: m.release_year || m.releaseYear || 2024,
               basePrice: m.base_price || m.basePrice || 50000,
-              storageOptions: Array.isArray(m.storage_options) ? m.storage_options : ['128GB', '256GB'],
+              storageOptions: Array.isArray(m.storage_options) && m.storage_options.length > 0 ? m.storage_options : ['64GB', '128GB', '256GB'],
               isFeatured: m.is_featured ?? m.isFeatured ?? true,
+              imageUrl: m.image_url || m.imageUrl || '',
+              image_url: m.image_url || m.imageUrl || '',
             }))
           : []
       );
@@ -173,20 +175,19 @@ const handleSaveBrand = async (b: BrandItem) => {
     setEditingBrand(null);
 
     try {
+      const brandPayload = {
+        name: b.name,
+        category: b.category,
+        logo_url: b.logo || b.logo_url || b.image_url || b.imageUrl || '',
+        image_url: b.logo || b.logo_url || b.image_url || b.imageUrl || '',
+        description: b.description,
+      };
       if (isEdit) {
-        await api.brands.update(b.id, {
-          name: b.name,
-          category: b.category,
-          logo_url: b.logo,
-          description: b.description,
-        });
+        await api.brands.update(b.id, brandPayload);
       } else {
         await api.brands.create({
           id: b.id,
-          name: b.name,
-          category: b.category,
-          logo_url: b.logo,
-          description: b.description,
+          ...brandPayload,
         });
       }
     } catch (err: any) {
@@ -242,6 +243,7 @@ const handleSaveBrand = async (b: BrandItem) => {
         base_price: m.basePrice,
         storage_options: m.storageOptions,
         is_featured: m.isFeatured,
+        image_url: m.imageUrl || m.image_url || '',
       };
       if (isEdit) {
         await api.models.update(m.id, payload);
@@ -638,7 +640,15 @@ function ManageModelsModal({
                 <View key={String(model.id || `model-${model.name || 'item'}-${index}`)} style={modalStyles.modelCard}>
                   <View style={modalStyles.modelCardLeft}>
                     <View style={modalStyles.cubeBox}>
-                      <Ionicons name="cube-outline" size={22} color="#94a3b8" />
+                      {Boolean(model.imageUrl || model.image_url) ? (
+                        <Image
+                          source={{ uri: model.imageUrl || model.image_url }}
+                          style={{ width: 38, height: 38, borderRadius: 6 }}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <Ionicons name="cube-outline" size={22} color="#94a3b8" />
+                      )}
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -725,6 +735,9 @@ function BrandFormModal({
       category: category.trim().toUpperCase(),
       logo: logo.trim(),
       description: description.trim(),
+      imageUrl: logo.trim(),
+      image_url: logo.trim(),
+      logo_url: logo.trim(),
     });
   };
 
@@ -888,8 +901,9 @@ function ModelFormModal({
   const [releaseYear, setReleaseYear] = useState((model?.releaseYear || 2024).toString());
   const [basePrice, setBasePrice] = useState((model?.basePrice || 50000).toString());
   const [isFeatured, setIsFeatured] = useState(model?.isFeatured ?? true);
+  const [imageUrl, setImageUrl] = useState(model?.imageUrl || model?.image_url || '');
   const [storageInput, setStorageInput] = useState(
-    model?.storageOptions.join(', ') || '128GB, 256GB, 512GB'
+    model?.storageOptions.join(', ') || '64GB, 128GB, 256GB, 512GB'
   );
 
   const handleSave = () => {
@@ -913,6 +927,8 @@ function ModelFormModal({
       basePrice: Number(basePrice) || 50000,
       storageOptions: storageOptions.length > 0 ? storageOptions : ['Standard'],
       isFeatured,
+      imageUrl: imageUrl.trim(),
+      image_url: imageUrl.trim(),
     });
   };
 
@@ -1004,7 +1020,7 @@ function ModelFormModal({
             <TextInput
               value={storageInput}
               onChangeText={setStorageInput}
-              placeholder="e.g. 128GB, 256GB, 512GB"
+              placeholder="e.g. 64GB, 128GB, 256GB, 512GB"
               style={formStyles.input}
             />
 
@@ -1019,6 +1035,37 @@ function ModelFormModal({
               />
               <Text style={formStyles.checkboxLabel}>Featured Device (Highlights in Shop)</Text>
             </TouchableOpacity>
+
+            <Text style={formStyles.label}>Model Image</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  placeholder="Image URL or pick from gallery/camera"
+                  value={imageUrl}
+                  onChangeText={setImageUrl}
+                  style={formStyles.input}
+                />
+              </View>
+              <ImagePickerButton
+                onImageUploaded={(url) => setImageUrl(url)}
+                label="Pick"
+                aspect={[1, 1]}
+                buttonStyle={{ paddingVertical: 9, paddingHorizontal: 14 }}
+              />
+            </View>
+
+            {Boolean(imageUrl) && (
+              <View style={{ marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={{ width: 48, height: 48, borderRadius: 8, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' }}
+                  resizeMode="contain"
+                />
+                <TouchableOpacity onPress={() => setImageUrl('')} style={{ padding: 4 }}>
+                  <Text style={{ fontSize: 12, color: '#ef4444', fontWeight: '600' }}>Remove Image</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={formStyles.btnRow}>
               {model && onDelete ? (

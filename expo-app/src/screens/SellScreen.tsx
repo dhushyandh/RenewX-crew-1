@@ -39,12 +39,15 @@ type Brand = {
   id: string;
   name: string;
   logoUrl?: string;
+  imageUrl?: string;
 };
 
 type Model = {
   id: string;
   name: string;
   storage_options?: string[];
+  imageUrl?: string;
+  image_url?: string;
 };
 
 type PhotoSlot = 'front' | 'back' | 'edges' | 'billBox';
@@ -377,6 +380,62 @@ export default function SellScreen() {
   const activeBrandName = brand?.name || customBrand.trim();
   const activeModelName = model?.name || customModel.trim();
 
+  const [addingModel, setAddingModel] = useState(false);
+
+  const handleAddCustomModel = async (modelNameToAdd?: string): Promise<Model | null> => {
+    const trimmed = (typeof modelNameToAdd === 'string' ? modelNameToAdd : customModel).trim();
+    if (!trimmed) {
+      toast.warning('Please enter a model name first.');
+      return null;
+    }
+    setAddingModel(true);
+    try {
+      const brandId = brand?.id || 'other';
+      const brandName = activeBrandName || 'Other';
+      const cat = category?.name?.toLowerCase() || 'smartphones';
+
+      const res = await api.models.create({
+        brand_id: brandId,
+        brand_name: brandName,
+        name: trimmed,
+        category: cat,
+        base_price: 25000,
+        storage_options: ['64GB', '128GB', '256GB', '512GB'],
+      });
+
+      const created = (res as any)?.data || res;
+      const newModelObj: Model = {
+        id: String(created?.id || created?._id || trimmed),
+        name: trimmed,
+        storage_options: created?.storage_options || ['64GB', '128GB', '256GB', '512GB'],
+        imageUrl: created?.image_url || '',
+        image_url: created?.image_url || '',
+      };
+
+      setModels((prev) => {
+        const exists = prev.some((m) => m.name.toLowerCase() === trimmed.toLowerCase());
+        return exists ? prev : [newModelObj, ...prev];
+      });
+      setModel(newModelObj);
+      setCustomModel('');
+      toast.success(`"${trimmed}" added to RenewX database & selected!`);
+      return newModelObj;
+    } catch {
+      const fallbackObj: Model = {
+        id: trimmed.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        name: trimmed,
+        storage_options: ['64GB', '128GB', '256GB', '512GB'],
+      };
+      setModels((prev) => [fallbackObj, ...prev]);
+      setModel(fallbackObj);
+      setCustomModel('');
+      toast.info(`Selected "${trimmed}".`);
+      return fallbackObj;
+    } finally {
+      setAddingModel(false);
+    }
+  };
+
   const prevCatIdRef = useRef<string | null | undefined>(initialDraft?.category?.id || null);
   const prevBrandIdRef = useRef<string | null | undefined>(initialDraft?.brand?.id || null);
   const isFirstMountRef = useRef<boolean>(true);
@@ -502,11 +561,12 @@ export default function SellScreen() {
         const rows = unwrapRows(res);
         setBrands(rows.filter(Boolean).map((r: any) => {
           const name = String(r.name || r.brand_name || '').trim();
-          const dbLogo = String(r.logo_url || r.logoUrl || r.logo || r.image_url || r.imageUrl || '').trim();
+          const dbLogo = String(r.image_url || r.imageUrl || r.logo_url || r.logoUrl || r.logo || '').trim();
           return {
             id: String(r.id || r._id || name),
             name,
             logoUrl: dbLogo || getBrandLogo(name),
+            imageUrl: dbLogo || getBrandLogo(name),
           };
         }).filter((b: Brand) => b.name));
       })
@@ -538,6 +598,8 @@ export default function SellScreen() {
           storage_options: Array.isArray(r.storage_options || r.storages)
             ? (r.storage_options || r.storages)
             : [],
+          imageUrl: r.image_url || r.imageUrl || '',
+          image_url: r.image_url || r.imageUrl || '',
         })).filter((m: Model) => m.name);
         setModels(mapped);
       })
@@ -773,12 +835,18 @@ export default function SellScreen() {
     return '';
   };
 
-  const next = () => {
+  const next = async () => {
     const error = validateStep();
     if (error) {
       toast.warning(error);
       return;
     }
+
+    // If on Step 3 and seller typed a custom model that isn't saved yet, auto-save it to database
+    if (step === 3 && !model && customModel.trim()) {
+      await handleAddCustomModel(customModel.trim());
+    }
+
     if (step < 8) setStep(step + 1);
   };
 
@@ -1163,9 +1231,23 @@ export default function SellScreen() {
               <View style={styles.modelList}>
                 {filteredModels.map((item) => {
                   const active = model?.id === item.id;
+                  const itemImg = item.imageUrl || item.image_url;
                   return (
                     <TouchableOpacity key={item.id} style={[styles.modelRow, active && styles.modelRowActive]} onPress={() => { setModel(item); setCustomModel(''); }}>
                       <View style={[styles.radio, active && styles.radioActive]}>{active && <View style={styles.radioDot} />}</View>
+                      
+                      {Boolean(itemImg) ? (
+                        <Image
+                          source={{ uri: itemImg }}
+                          style={styles.modelThumbImg}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <View style={styles.modelThumbFallback}>
+                          <Ionicons name="hardware-chip-outline" size={17} color="#64748b" />
+                        </View>
+                      )}
+
                       <View style={styles.flex}>
                         <Text style={[styles.modelName, active && styles.modelNameActive]}>{item.name}</Text>
                         {!!item.storage_options?.length && <Text style={styles.modelMeta}>{item.storage_options.join(' • ')}</Text>}
@@ -1175,15 +1257,43 @@ export default function SellScreen() {
                   );
                 })}
               </View>
-              {filteredModels.length === 0 && <EmptyState text="No model found. Enter your exact model manually." />}
-              <Text style={styles.orLabel}>MODEL NOT LISTED?</Text>
-              <TextInput
-                value={customModel}
-                onChangeText={(v) => { setCustomModel(v); if (v) setModel(null); }}
-                placeholder="e.g. iPhone 14 Pro Max 256GB"
-                placeholderTextColor="#999"
-                style={styles.input}
-              />
+              {filteredModels.length === 0 && <EmptyState text="No model found. Enter your exact model manually below." />}
+              
+              <View style={styles.addCustomModelBox}>
+                <Text style={styles.orLabel}>MODEL NOT LISTED?</Text>
+                <Text style={styles.customModelHint}>
+                  Can't find your model? Enter it below to auto-add it to the RenewX catalog:
+                </Text>
+                <View style={styles.addCustomModelRow}>
+                  <TextInput
+                    value={customModel}
+                    onChangeText={(v) => { setCustomModel(v); if (v) setModel(null); }}
+                    placeholder="e.g. iPhone 15 Pro Max 256GB"
+                    placeholderTextColor="#999"
+                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    returnKeyType="done"
+                    onSubmitEditing={() => handleAddCustomModel()}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.addCustomModelBtn,
+                      (!customModel.trim() || addingModel) && styles.addCustomModelBtnDisabled,
+                    ]}
+                    disabled={!customModel.trim() || addingModel}
+                    onPress={() => handleAddCustomModel()}
+                    activeOpacity={0.8}
+                  >
+                    {addingModel ? (
+                      <ActivityIndicator size="small" color="#0f172a" />
+                    ) : (
+                      <>
+                        <Ionicons name="add-circle" size={16} color="#0f172a" />
+                        <Text style={styles.addCustomModelBtnText}>Add Model</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
             </Card>
           )}
 
@@ -1900,5 +2010,62 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#dc2626',
     fontWeight: fontWeight.bold,
+  },
+
+  // Custom Model & Model Thumbnails
+  modelThumbImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 7,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  modelThumbFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 7,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  addCustomModelBox: {
+    marginTop: 18,
+    backgroundColor: '#f8fafc',
+    padding: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  customModelHint: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 10,
+    marginTop: -2,
+  },
+  addCustomModelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addCustomModelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ffc400',
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+  },
+  addCustomModelBtnDisabled: {
+    opacity: 0.5,
+  },
+  addCustomModelBtnText: {
+    fontSize: 12,
+    fontWeight: fontWeight.bold,
+    color: '#0f172a',
   },
 });

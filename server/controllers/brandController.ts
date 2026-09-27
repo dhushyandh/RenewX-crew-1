@@ -77,9 +77,11 @@ export async function createBrand(req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    const imgUrl = payload.logo_url?.trim() || payload.image_url?.trim() || payload.imageUrl?.trim() || '';
     const newBrand = await BrandModel.create({
       name: brandName,
-      logo_url: payload.logo_url?.trim() || '',
+      logo_url: imgUrl,
+      image_url: imgUrl,
       category: payload.category?.trim().toUpperCase() || 'SMARTPHONES',
       description: payload.description?.trim() || '',
     });
@@ -96,6 +98,12 @@ export async function updateBrand(req: Request, res: Response, next: NextFunctio
   try {
     const { id } = req.params;
     const updates: UpdateBrandDTO = req.body;
+
+    const imgUrl = updates.logo_url?.trim() || updates.image_url?.trim() || updates.imageUrl?.trim();
+    if (imgUrl !== undefined) {
+      updates.logo_url = imgUrl;
+      updates.image_url = imgUrl;
+    }
 
     let updated = null;
     if (mongoose.Types.ObjectId.isValid(id)) {

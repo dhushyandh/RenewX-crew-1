@@ -63,24 +63,59 @@ export async function createModel(req: Request, res: Response, next: NextFunctio
   try {
     const payload: CreateDeviceModelDTO = req.body;
 
-    const brandId = payload.brand_id || (payload as any).brandId;
-    let brandName = payload.brand_name || (payload as any).brandName;
+    let brandId = payload.brand_id || (payload as any).brandId || '';
+    let brandName = payload.brand_name || (payload as any).brandName || '';
 
-    if (!brandName) {
-      const brand = await BrandModel.findById(brandId).catch(() => null) ||
-                    await BrandModel.findOne({ name: brandId }).catch(() => null);
+    if (!brandName && brandId) {
+      const brand =
+        (await BrandModel.findById(brandId).catch(() => null)) ||
+        (await BrandModel.findOne({ name: new RegExp(`^${brandId}$`, 'i') }).catch(() => null));
       brandName = brand ? brand.name : brandId;
+    } else if (brandName && !brandId) {
+      const brand = await BrandModel.findOne({ name: new RegExp(`^${brandName}$`, 'i') }).catch(() => null);
+      brandId = brand ? brand.id : brandName.toLowerCase().replace(/[^a-z0-9]/g, '-');
     }
+
+    if (!brandId) brandId = 'other';
+    if (!brandName) brandName = 'Other';
+
+    const modelName = payload.name.trim();
+
+    // Check if model already exists (prevent duplicate insertions)
+    const existing = await DeviceModelModel.findOne({
+      $or: [
+        { brand_id: brandId, name: new RegExp(`^${modelName}$`, 'i') },
+        { brand_name: new RegExp(`^${brandName}$`, 'i'), name: new RegExp(`^${modelName}$`, 'i') },
+      ],
+    });
+
+    if (existing) {
+      const incomingImg = payload.image_url?.trim() || (payload as any).imageUrl?.trim();
+      if (incomingImg && !existing.image_url) {
+        existing.image_url = incomingImg;
+        await existing.save();
+        invalidateCachePrefix('models');
+        invalidateCachePrefix('brand_models');
+      }
+      res.status(200).json({ success: true, data: existing, message: 'Model already exists in catalog' });
+      return;
+    }
+
+    const imgUrl = payload.image_url?.trim() || (payload as any).imageUrl?.trim() || '';
 
     const newModel = await DeviceModelModel.create({
       brand_id: brandId,
       brand_name: brandName,
-      name: payload.name.trim(),
+      name: modelName,
       category: payload.category?.trim().toLowerCase() || 'smartphones',
       release_year: payload.release_year ? Number(payload.release_year) : new Date().getFullYear(),
-      base_price: Number(payload.base_price) || 50000,
-      storage_options: Array.isArray(payload.storage_options) ? payload.storage_options : ['128GB', '256GB'],
+      base_price: Number(payload.base_price) || 25000,
+      storage_options:
+        Array.isArray(payload.storage_options) && payload.storage_options.length > 0
+          ? payload.storage_options
+          : ['64GB', '128GB', '256GB', '512GB'],
       is_featured: Boolean(payload.is_featured),
+      image_url: imgUrl,
     });
 
     invalidateCachePrefix('models');
@@ -96,6 +131,11 @@ export async function updateModel(req: Request, res: Response, next: NextFunctio
   try {
     const { id } = req.params;
     const updates: UpdateDeviceModelDTO = req.body;
+
+    const imgUrl = updates.image_url?.trim() || (updates as any).imageUrl?.trim();
+    if (imgUrl !== undefined) {
+      updates.image_url = imgUrl;
+    }
 
     let updated = null;
     if (mongoose.Types.ObjectId.isValid(id)) {

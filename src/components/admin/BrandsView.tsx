@@ -607,7 +607,7 @@ function ModelFormModal({
   const [basePrice, setBasePrice] = useState(model?.basePrice || 50000);
   const [isFeatured, setIsFeatured] = useState(model?.isFeatured ?? true);
   const [storageInput, setStorageInput] = useState(
-    model?.storageOptions.join(', ') || '128GB, 256GB, 512GB'
+    model?.storageOptions.join(', ') || '64GB, 128GB, 256GB, 512GB'
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -729,7 +729,7 @@ function ModelFormModal({
               type="text"
               value={storageInput}
               onChange={(e) => setStorageInput(e.target.value)}
-              placeholder="e.g. 128GB, 256GB, 512GB, 1TB"
+              placeholder="e.g. 64GB, 128GB, 256GB, 512GB, 1TB"
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>

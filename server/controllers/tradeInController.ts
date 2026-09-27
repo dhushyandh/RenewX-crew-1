@@ -8,6 +8,9 @@ import {
 import { AuthenticatedRequest } from '../middleware/auth';
 import { createUserNotification, notifyUserEvent, notifyAdminsNewTradeIn } from '../services/notificationService';
 import { User } from '../models/User';
+import { DeviceModelModel } from '../models/DeviceModel';
+import { BrandModel } from '../models/Brand';
+import { invalidateCachePrefix } from '../utils/cache';
 
 export async function getValuationQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -79,6 +82,36 @@ export async function createPickupRequest(req: AuthenticatedRequest, res: Respon
     }
 
     const quoteAmount = Number(payload.expectedSellingPrice || payload.valuationAmount || 0);
+
+    // Auto-register model in catalog database if not already present
+    if (payload.model && payload.brand) {
+      try {
+        const cleanModelName = payload.model.trim();
+        const existingModel = await DeviceModelModel.findOne({
+          name: new RegExp(`^${cleanModelName}$`, 'i'),
+        });
+        if (!existingModel) {
+          const brandDoc = await BrandModel.findOne({
+            name: new RegExp(`^${payload.brand.trim()}$`, 'i'),
+          });
+          await DeviceModelModel.create({
+            brand_id: brandDoc ? brandDoc.id : payload.brand.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            brand_name: brandDoc ? brandDoc.name : payload.brand,
+            name: cleanModelName,
+            category: payload.category?.trim().toLowerCase() || 'smartphones',
+            release_year: new Date().getFullYear(),
+            storage_options: payload.storage
+              ? Array.from(new Set(['64GB', payload.storage.replace(/\s+/g, ''), '128GB', '256GB']))
+              : ['64GB', '128GB', '256GB', '512GB'],
+            image_url: photosList[0] || '',
+          });
+          invalidateCachePrefix('models');
+          invalidateCachePrefix('brand_models');
+        }
+      } catch (err) {
+        console.warn('[TradeInController] Auto-add model error:', err);
+      }
+    }
 
     const newRequest = await TradeInModel.create({
       user_id: req.user.id,
@@ -311,13 +344,25 @@ export async function cancelMyTradeInRequest(
       return;
     }
 
+    if (request.status === 'cancelled') {
+      res.json({ success: true, message: 'Sell request is already cancelled', data: request });
+      return;
+    }
+
     if (request.status === 'completed') {
       res.status(400).json({ success: false, error: { message: 'Completed sell requests cannot be cancelled' } });
       return;
     }
 
-    if (request.status === 'cancelled') {
-      res.json({ success: true, message: 'Sell request is already cancelled', data: request });
+    // Once a sell request is approved by admin (or progressed beyond pending), seller cannot cancel it
+    if (req.user.role !== 'admin' && request.status !== 'pending') {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'This sell request has already been approved by an admin and cannot be cancelled.',
+          code: 'CANNOT_CANCEL_APPROVED',
+        },
+      });
       return;
     }
 

@@ -10,6 +10,7 @@ export interface DeviceModel {
   base_price: number;
   storage_options: string[];
   is_featured: boolean;
+  image_url?: string;
   created_at?: string;
 }
 
@@ -23,20 +24,25 @@ export interface IDeviceModel {
   base_price: number;
   storage_options: string[];
   is_featured: boolean;
+  image_url: string;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface CreateDeviceModelDTO {
   id?: string;
-  brand_id: string;
+  brand_id?: string;
+  brandId?: string;
   brand_name?: string;
+  brandName?: string;
   name: string;
-  category: string;
+  category?: string;
   release_year?: number;
-  base_price: number;
+  base_price?: number;
   storage_options?: string[];
   is_featured?: boolean;
+  image_url?: string;
+  imageUrl?: string;
 }
 
 export interface UpdateDeviceModelDTO {
@@ -46,6 +52,8 @@ export interface UpdateDeviceModelDTO {
   base_price?: number;
   storage_options?: string[];
   is_featured?: boolean;
+  image_url?: string;
+  imageUrl?: string;
 }
 
 export function validateDeviceModelInput(data: any): { valid: boolean; errors: string[] } {
@@ -56,8 +64,8 @@ export function validateDeviceModelInput(data: any): { valid: boolean; errors: s
   if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
     errors.push('Device model name is required');
   }
-  if (!data.brand_id && !data.brandId) {
-    errors.push('brand_id is required');
+  if (!data.brand_id && !data.brandId && !data.brand_name && !data.brandName) {
+    errors.push('Brand identifier or brand name is required');
   }
   if (data.base_price !== undefined && (typeof Number(data.base_price) !== 'number' || Number(data.base_price) < 0)) {
     errors.push('base_price must be a positive number');
@@ -72,9 +80,10 @@ const DeviceModelSchema = new Schema<IDeviceModel>(
     name: { type: String, required: true, trim: true },
     category: { type: String, default: 'smartphones', index: true },
     release_year: { type: Number, default: 2024 },
-    base_price: { type: Number, required: true, default: 50000 },
-    storage_options: { type: [String], default: ['128GB', '256GB', '512GB'] },
+    base_price: { type: Number, required: true, default: 35000 },
+    storage_options: { type: [String], default: ['64GB', '128GB', '256GB', '512GB'] },
     is_featured: { type: Boolean, default: false },
+    image_url: { type: String, default: '' },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
@@ -92,6 +101,7 @@ const DeviceModelSchema = new Schema<IDeviceModel>(
 
 DeviceModelSchema.index({ brand_id: 1, category: 1 });
 DeviceModelSchema.index({ category: 1, is_featured: 1 });
+DeviceModelSchema.index({ brand_name: 1, name: 1 });
 
 export const DeviceModelModel =
   (mongoose.models.DeviceModel as mongoose.Model<IDeviceModel>) || mongoose.model<IDeviceModel>('DeviceModel', DeviceModelSchema);

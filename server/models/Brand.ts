@@ -4,6 +4,8 @@ export interface Brand {
   id: string;
   name: string;
   logo_url?: string;
+  image_url?: string;
+  imageUrl?: string;
   category: string;
   description: string;
   created_at?: string;
@@ -13,6 +15,7 @@ export interface IBrand {
   id: string;
   name: string;
   logo_url?: string;
+  image_url?: string;
   category: string;
   description: string;
   created_at: Date;
@@ -23,6 +26,8 @@ export interface CreateBrandDTO {
   id?: string;
   name: string;
   logo_url?: string;
+  image_url?: string;
+  imageUrl?: string;
   category?: string;
   description?: string;
 }
@@ -30,6 +35,8 @@ export interface CreateBrandDTO {
 export interface UpdateBrandDTO {
   name?: string;
   logo_url?: string;
+  image_url?: string;
+  imageUrl?: string;
   category?: string;
   description?: string;
 }
@@ -52,6 +59,7 @@ const BrandSchema = new Schema<IBrand>(
   {
     name: { type: String, required: true, unique: true, trim: true },
     logo_url: { type: String, default: '' },
+    image_url: { type: String, default: '' },
     category: { type: String, default: 'SMARTPHONES' },
     description: { type: String, default: '' },
   },
@@ -61,6 +69,12 @@ const BrandSchema = new Schema<IBrand>(
       virtuals: true,
       transform: (_doc, ret: any) => {
         ret.id = ret._id.toString();
+        // Keep image_url and logo_url in sync
+        const img = ret.image_url || ret.logo_url || '';
+        ret.image_url = img;
+        ret.imageUrl = img;
+        ret.logo_url = img;
+        ret.logo = img;
         delete ret._id;
         delete ret.__v;
         return ret;
