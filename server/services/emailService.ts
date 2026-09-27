@@ -8,6 +8,23 @@ interface PasswordResetEmailOptions {
   resetUrl: string;
 }
 
+interface EmailVerificationCodeOptions {
+  email: string;
+  name?: string;
+  code: string;
+}
+
+export interface AdminOrderAlertEmailOptions {
+  email: string;
+  orderId: string;
+  subtotal: number;
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  paymentMethod: string;
+  items: Array<{ name: string; quantity: number; price: number }>;
+}
+
 let transporter: Transporter | null = null;
 
 const cleanEnv = (val?: string) => val?.trim().replace(/^['"]|['"]$/g, '');
@@ -37,6 +54,123 @@ function getTransporter(): Transporter | null {
   return null;
 }
 
+async function sendViaResend(params: {
+  to: string;
+  subject: string;
+  text?: string;
+  html: string;
+  from?: string;
+}): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const apiKey = cleanEnv(process.env.RESEND_API_KEY);
+  if (!apiKey) return { success: false, error: 'No RESEND_API_KEY configured' };
+
+  const preferredFrom = cleanEnv(process.env.RESEND_FROM) || cleanEnv(params.from) || cleanEnv(process.env.SMTP_FROM);
+  const initialFrom = preferredFrom || 'RenewX <onboarding@resend.dev>';
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: initialFrom,
+        to: [params.to],
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+      }),
+    });
+
+    const data = (await res.json()) as any;
+    if (!res.ok) {
+      // If error is 403 (unverified domain), retry once with Resend's default onboarding sender
+      if (res.status === 403 && initialFrom !== 'RenewX <onboarding@resend.dev>') {
+        console.warn(`[Resend] Custom sender domain not verified ('${initialFrom}'). Retrying via 'RenewX <onboarding@resend.dev>'...`);
+        const retryRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'RenewX <onboarding@resend.dev>',
+            to: [params.to],
+            subject: params.subject,
+            html: params.html,
+            text: params.text,
+          }),
+        });
+        const retryData = (await retryRes.json()) as any;
+        if (retryRes.ok) {
+          console.log(`[Resend] Delivered email to ${params.to} (ID: ${retryData?.id})`);
+          return { success: true, messageId: retryData?.id };
+        }
+        console.error('[Resend] Retry failed:', retryData);
+        return { success: false, error: retryData?.message || JSON.stringify(retryData) };
+      }
+
+      console.error('[Resend] API error:', data);
+      return { success: false, error: data?.message || JSON.stringify(data) };
+    }
+
+    console.log(`[Resend] Delivered email to ${params.to} (ID: ${data?.id})`);
+    return { success: true, messageId: data?.id };
+  } catch (err: any) {
+    console.error('[Resend] Request failed:', err?.message || err);
+    return { success: false, error: err?.message || String(err) };
+  }
+}
+
+interface DispatchOptions {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  from?: string;
+  onSimulate: () => void;
+}
+
+async function dispatchEmail(options: DispatchOptions): Promise<{ success: boolean; simulated?: boolean; messageId?: string }> {
+  // 1. Try Resend HTTP API (Fast HTTPS, works on Render free tier, no SMTP port blocks)
+  if (process.env.RESEND_API_KEY) {
+    const resendResult = await sendViaResend({
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+      from: options.from,
+    });
+    if (resendResult.success) {
+      return { success: true, messageId: resendResult.messageId };
+    }
+  }
+
+  // 2. Try SMTP via Nodemailer (e.g. for local dev or paid instances)
+  const activeTransporter = getTransporter();
+  if (activeTransporter) {
+    try {
+      const fromAddress = options.from || process.env.SMTP_FROM?.trim() || '"RenewX Security" <security@renewx.com>';
+      const info = await activeTransporter.sendMail({
+        from: fromAddress,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+      });
+      console.log(`[Email] Delivered email via SMTP to ${options.to} (MessageID: ${info.messageId})`);
+      return { success: true, messageId: info.messageId };
+    } catch (err) {
+      console.error('[Email] Failed to send via SMTP, falling back to simulated log:', err);
+    }
+  }
+
+  // 3. Fallback to console simulation (ensures OTPs and tokens are always accessible in logs)
+  options.onSimulate();
+  return { success: true, simulated: true };
+}
+
 export async function sendPasswordResetEmail({
   email,
   name,
@@ -46,11 +180,8 @@ export async function sendPasswordResetEmail({
   const clientName = name || email.split('@')[0] || 'Valued Member';
   const fromAddress = process.env.SMTP_FROM?.trim() || '"RenewX Crew Security" <security@renewx.com>';
 
-  const mailOptions = {
-    from: fromAddress,
-    to: email,
-    subject: 'RenewX Crew • Password Reset Verification Link',
-    text: `Hello ${clientName},
+  const subject = 'RenewX Crew • Password Reset Verification Link';
+  const text = `Hello ${clientName},
 
 We received a request to change or reset your RenewX account password.
 
@@ -61,8 +192,9 @@ This verification link will expire in 30 minutes.
 
 If you did not request a password change, please ignore this email or review your account security immediately.
 
-— RenewX Crew Security Team`,
-    html: `
+— RenewX Crew Security Team`;
+
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -114,36 +246,23 @@ If you did not request a password change, please ignore this email or review you
   </div>
 </body>
 </html>
-    `,
-  };
+`;
 
-  const activeTransporter = getTransporter();
-
-  if (activeTransporter) {
-    try {
-      const info = await activeTransporter.sendMail(mailOptions);
-      console.log(`[Email] Sent password reset email to ${email} (MessageID: ${info.messageId})`);
-      return { success: true, messageId: info.messageId };
-    } catch (err) {
-      console.error('[Email] Failed to send via SMTP, falling back to simulated log:', err);
-    }
-  }
-
-  // Development / fallback simulation
-  console.log('\n=============================================================');
-  console.log('📧 [RENEWX EMAIL DISPATCH] Password Reset Verification Link');
-  console.log(`To: ${email}`);
-  console.log(`Verification Token: ${token}`);
-  console.log(`Verification Link: ${resetUrl}`);
-  console.log('=============================================================\n');
-
-  return { success: true, simulated: true };
-}
-
-interface EmailVerificationCodeOptions {
-  email: string;
-  name?: string;
-  code: string;
+  return dispatchEmail({
+    to: email,
+    subject,
+    text,
+    html,
+    from: fromAddress,
+    onSimulate: () => {
+      console.log('\n=============================================================');
+      console.log('📧 [RENEWX EMAIL DISPATCH] Password Reset Verification Link');
+      console.log(`To: ${email}`);
+      console.log(`Verification Token: ${token}`);
+      console.log(`Verification Link: ${resetUrl}`);
+      console.log('=============================================================\n');
+    },
+  });
 }
 
 export async function sendEmailVerificationCode({
@@ -154,11 +273,8 @@ export async function sendEmailVerificationCode({
   const clientName = name || email.split('@')[0] || 'Valued Member';
   const fromAddress = process.env.SMTP_FROM?.trim() || '"RenewX Security" <security@renewx.com>';
 
-  const mailOptions = {
-    from: fromAddress,
-    to: email,
-    subject: 'RenewX • Your 6-Digit Verification Code',
-    text: `Hello ${clientName},
+  const subject = 'RenewX • Your 6-Digit Verification Code';
+  const text = `Hello ${clientName},
 
 Your 6-digit RenewX verification code is:
 
@@ -166,8 +282,9 @@ ${code}
 
 This code will expire in 15 minutes. If you did not request this verification, please ignore this message.
 
-— RenewX Crew Team`,
-    html: `
+— RenewX Crew Team`;
+
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -207,40 +324,22 @@ This code will expire in 15 minutes. If you did not request this verification, p
   </div>
 </body>
 </html>
-    `,
-  };
+`;
 
-  const activeTransporter = getTransporter();
-
-  if (activeTransporter) {
-    try {
-      const info = await activeTransporter.sendMail(mailOptions);
-      console.log(`[Email] Sent email verification code to ${email} (MessageID: ${info.messageId})`);
-      return { success: true, messageId: info.messageId };
-    } catch (err) {
-      console.error('[Email] Failed to send via SMTP, falling back to simulated log:', err);
-    }
-  }
-
-  // Development / fallback simulation
-  console.log('\n=============================================================');
-  console.log('📧 [RENEWX EMAIL DISPATCH] New Email Verification Code');
-  console.log(`To: ${email}`);
-  console.log(`Verification Code: ${code}`);
-  console.log('=============================================================\n');
-
-  return { success: true, simulated: true };
-}
-
-export interface AdminOrderAlertEmailOptions {
-  email: string;
-  orderId: string;
-  subtotal: number;
-  customerName: string;
-  customerPhone?: string;
-  customerAddress?: string;
-  paymentMethod: string;
-  items: Array<{ name: string; quantity: number; price: number }>;
+  return dispatchEmail({
+    to: email,
+    subject,
+    text,
+    html,
+    from: fromAddress,
+    onSimulate: () => {
+      console.log('\n=============================================================');
+      console.log('📧 [RENEWX EMAIL DISPATCH] New Email Verification Code');
+      console.log(`To: ${email}`);
+      console.log(`Verification Code: ${code}`);
+      console.log('=============================================================\n');
+    },
+  });
 }
 
 export async function sendAdminOrderAlertEmail({
@@ -265,19 +364,17 @@ export async function sendAdminOrderAlertEmail({
     </tr>`
   ).join('');
 
-  const mailOptions = {
-    from: fromAddress,
-    to: email,
-    subject: `🛍️ New Order Alert: #${orderShort} (${formattedAmount}) from ${customerName}`,
-    text: `New order received on RenewX!
+  const subject = `🛍️ New Order Alert: #${orderShort} (${formattedAmount}) from ${customerName}`;
+  const text = `New order received on RenewX!
 Order ID: #${orderShort}
 Customer: ${customerName}
 Phone: ${customerPhone || 'N/A'}
 Address: ${customerAddress || 'N/A'}
 Payment Method: ${paymentMethod}
 Total Amount: ${formattedAmount}
-Items: ${items.map((i) => `${i.name} (x${i.quantity})`).join(', ')}`,
-    html: `
+Items: ${items.map((i) => `${i.name} (x${i.quantity})`).join(', ')}`;
+
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -337,26 +434,19 @@ Items: ${items.map((i) => `${i.name} (x${i.quantity})`).join(', ')}`,
   </div>
 </body>
 </html>
-    `,
-  };
+`;
 
-  const activeTransporter = getTransporter();
-
-  if (activeTransporter) {
-    try {
-      const info = await activeTransporter.sendMail(mailOptions);
-      console.log(`[Email] Sent new order alert email to ${email} (MessageID: ${info.messageId})`);
-      return { success: true, messageId: info.messageId };
-    } catch (err) {
-      console.error('[Email] Failed sending admin order email via SMTP:', err);
-    }
-  }
-
-  console.log('\n=============================================================');
-  console.log(`🛍️ [ADMIN ORDER EMAIL DISPATCH] To: ${email}`);
-  console.log(`Order: #${orderShort} | Total: ${formattedAmount} | Customer: ${customerName}`);
-  console.log('=============================================================\n');
-
-  return { success: true, simulated: true };
+  return dispatchEmail({
+    to: email,
+    subject,
+    text,
+    html,
+    from: fromAddress,
+    onSimulate: () => {
+      console.log('\n=============================================================');
+      console.log(`🛍️ [ADMIN ORDER EMAIL DISPATCH] To: ${email}`);
+      console.log(`Order: #${orderShort} | Total: ${formattedAmount} | Customer: ${customerName}`);
+      console.log('=============================================================\n');
+    },
+  });
 }
-
