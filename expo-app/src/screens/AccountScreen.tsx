@@ -1,13 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/services/api';
-import { confirmAction } from '@/lib/confirmAction';
+import { useToast } from '@/context/ToastContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { fontFamily } from '@/theme';
 
@@ -19,9 +19,21 @@ const WHATSAPP_COMMUNITY_URL =
 export default function AccountScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
-  const { user, isAdmin, signOut } = useAuth();
+  const toast = useToast();
+  const { user, isAdmin, signOut, refreshUser } = useAuth();
   const [sellCount, setSellCount] = useState(0);
   const [tradeInValue, setTradeInValue] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+      refreshUser().catch(() => {});
+    }, [refreshUser])
+  );
 
   useEffect(() => {
     let active = true;
@@ -33,15 +45,21 @@ export default function AccountScreen() {
     return () => { active = false; };
   }, []);
 
-  const handleSignOut = () => {
-    confirmAction(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      async () => {
-        await signOut();
-      },
-      'Sign Out'
-    );
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      try {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Auth' }],
+        });
+      } catch {
+        navigation.navigate('Auth');
+      }
+      toast.success('Signed out successfully.');
+    } catch (err) {
+      console.error('[AccountScreen] Sign out error:', err);
+    }
   };
 
   return (
@@ -61,6 +79,7 @@ export default function AccountScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
       >
@@ -328,7 +347,7 @@ export default function AccountScreen() {
         {/* Discreet Footer */}
         <View style={styles.footerContainer}>
           <Text style={styles.footerBrand}>RenewX Crew Mobile</Text>
-          <Text style={styles.footerVersion}>Version 2.4.0 • Certified Tested Tech</Text>
+          <Text style={styles.footerVersion}>Version 1.0.0 • Certified Tested Tech</Text>
         </View>
       </ScrollView>
     </View>

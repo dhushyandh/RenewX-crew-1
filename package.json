@@ -17,16 +17,21 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "@types/pdfkit": "^0.17.6",
     "bcryptjs": "^3.0.3",
     "caniuse-lite": "^1.0.30001810",
+    "compression": "^1.8.2",
     "cors": "^2.8.6",
     "dotenv": "^18.0.1",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.446.0",
     "mongoose": "^8.18.0",
     "multer": "^2.4.0",
     "nodemailer": "^10.0.10",
+    "pdfkit": "^0.20.2",
     "razorpay": "^2.9.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -36,6 +41,7 @@
   "devDependencies": {
     "@eslint/js": "^9.9.1",
     "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
@@ -44,6 +50,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
     "esbuild": "^0.25.9",
@@ -55,8 +62,7 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.23.13",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^8.3.0",
-    "@types/ws": "^8.18.1"
+    "typescript-eslint": "^8.3.0"
   },
   "engines": {
     "node": ">=22"

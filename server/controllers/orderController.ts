@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+import PDFDocument from 'pdfkit';
 import { OrderModel, CreateOrderDTO, IOrder } from '../models/Order';
 import { ProductModel } from '../models/Product';
 import { AuthenticatedRequest } from '../middleware/auth';
@@ -141,12 +142,17 @@ function parseOrderPayload(payload: CreateOrderDTO) {
 
 export async function getOrders(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
     const { status, limit, user_id } = req.query;
     const filter: mongoose.FilterQuery<IOrder> = {};
 
     if (status && typeof status === 'string') filter.status = status;
 
-    if (req.user && req.user.role !== 'admin') {
+    if (req.user.role !== 'admin') {
       filter.user_id = req.user.id;
     } else if (user_id && typeof user_id === 'string') {
       filter.user_id = user_id;
@@ -154,15 +160,50 @@ export async function getOrders(req: AuthenticatedRequest, res: Response, next: 
 
     const parsedLimit = Number(limit);
     const safeLimit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 20;
-    const orders = await OrderModel.find(filter).sort({ created_at: -1 }).limit(safeLimit).exec();
+    const orders = await OrderModel.find(filter).sort({ created_at: -1 }).limit(safeLimit).lean().exec();
+    const normalizedOrders = orders.map(({ _id, ...order }: any) => ({
+      ...order,
+      id: _id ? _id.toString() : order.id,
+    }));
 
-    res.json({ success: true, count: orders.length, data: orders });
+    res.json({ success: true, count: normalizedOrders.length, data: normalizedOrders });
   } catch (err) {
     next(err);
   }
 }
 
 export async function getOrderById(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const id = String(req.params.id ?? '');
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, error: { message: 'Invalid order ID', code: 'INVALID_ID' } });
+      return;
+    }
+
+    const order = await OrderModel.findById(id).lean();
+    if (!order) {
+      res.status(404).json({ success: false, error: { message: 'Order not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+      res.status(403).json({ success: false, error: { message: 'You cannot access this order', code: 'FORBIDDEN' } });
+      return;
+    }
+
+    const { _id, ...orderData } = order as any;
+    res.json({ success: true, data: { ...orderData, id: _id ? _id.toString() : orderData.id } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getOrderInvoice(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) {
       res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
@@ -186,9 +227,341 @@ export async function getOrderById(req: AuthenticatedRequest, res: Response, nex
       return;
     }
 
-    res.json({ success: true, data: order });
+    const user = await User.findById(order.user_id).select('full_name email phone');
+    const orderId = order.id || id;
+    const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }) : new Date().toLocaleDateString('en-IN');
+
+    const customerName = order.customer_info?.name || user?.full_name || 'Valued Customer';
+    const customerPhone = order.customer_info?.phone || user?.phone || 'Not provided';
+    const customerEmail = user?.email || '';
+    const address = order.customer_info?.address || 'Standard Delivery Address';
+    const pincode = order.customer_info?.pincode || '';
+
+    const items = (order.order_items && order.order_items.length > 0)
+      ? order.order_items
+      : [{ product_name: 'Certified RenewX Tech Device', quantity: 1, price: order.subtotal }];
+
+    const itemsHtml = items.map((item: any, idx: number) => {
+      const quantity = item.quantity || 1;
+      const price = item.price || 0;
+      const lineTotal = quantity * price;
+      return `
+        <tr>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; text-align: center;">${idx + 1}</td>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; color: #0f172a;">
+            ${item.product_name || 'Certified RenewX Device'}
+            <div style="font-size: 11px; font-weight: 600; color: #16a34a; margin-top: 3px;">
+              ✓ 6-Month RenewX Certified Warranty Included
+            </div>
+          </td>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #334155;">${quantity}</td>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; color: #334155;">₹${price.toLocaleString('en-IN')}</td>
+          <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; text-align: right; color: #0f172a;">₹${lineTotal.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>RenewX Invoice #${orderId}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 32px 24px; color: #0f172a; background: #f8fafc; }
+    .invoice-card { max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; padding: 40px 36px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+    .header-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 24px; margin-bottom: 28px; }
+    .brand-title { font-size: 28px; font-weight: 900; letter-spacing: -0.8px; color: #0f172a; margin: 0; }
+    .brand-title span { color: #f59e0b; }
+    .brand-subtitle { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #64748b; margin-top: 4px; }
+    .badge-tax { display: inline-block; background: #0f172a; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 6px; }
+    .invoice-id { font-size: 17px; font-weight: 800; color: #0f172a; margin: 0; }
+    .invoice-date { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .grid-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 28px; }
+    .party-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; }
+    .party-name { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .party-detail { font-size: 13px; line-height: 1.5; color: #475569; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+    th { background: #f1f5f9; padding: 12px 14px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #334155; border-bottom: 2px solid #cbd5e1; }
+    .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 32px; }
+    .totals-box { width: 320px; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; }
+    .totals-row { display: flex; justify-content: space-between; font-size: 13px; color: #475569; margin-bottom: 10px; }
+    .totals-row.grand { border-top: 2px solid #0f172a; padding-top: 10px; margin-top: 10px; font-size: 17px; font-weight: 900; color: #0f172a; margin-bottom: 0; }
+    .guarantee-box { display: flex; align-items: center; gap: 14px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 16px 20px; margin-bottom: 28px; }
+    .guarantee-badge { background: #10b981; color: #ffffff; width: 38px; height: 38px; border-radius: 19px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; flex-shrink: 0; }
+    .guarantee-title { font-size: 14px; font-weight: 800; color: #065f46; }
+    .guarantee-sub { font-size: 12px; color: #047857; margin-top: 2px; }
+    .footer { border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.6; }
+    .actions-bar { margin-bottom: 20px; text-align: right; }
+    .download-btn { display: inline-flex; align-items: center; gap: 8px; background: #0f172a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15); transition: background 0.2s; }
+    .download-btn:hover { background: #1e293b; }
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .invoice-card { box-shadow: none; border: none; padding: 0; }
+      .actions-bar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions-bar">
+    <a class="download-btn" href="/api/orders/${orderId}/invoice/pdf${req.query.token ? `?token=${encodeURIComponent(String(req.query.token))}` : ''}" download>⬇️ Download Tax Invoice (PDF)</a>
+  </div>
+  <div class="invoice-card">
+    <div class="header-row">
+      <div>
+        <h1 class="brand-title">Renew<span>X</span></h1>
+        <div class="brand-subtitle">Certified Pre-Owned Tech Crew</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="badge-tax">Tax Invoice / Bill of Supply</div>
+        <div class="invoice-id">Invoice #${orderId}</div>
+        <div class="invoice-date">Date: ${orderDate}</div>
+      </div>
+    </div>
+    <div class="grid-parties">
+      <div>
+        <div class="party-title">Sold By (Seller)</div>
+        <div class="party-name">RenewX Crew India Pvt Ltd</div>
+        <div class="party-detail">
+          Certified Refurbished Technology Hub<br />
+          Email: support@renewx.in<br />
+          Web: https://renewx.in<br />
+          GSTIN: 33AAACR2938L1Z8
+        </div>
+      </div>
+      <div>
+        <div class="party-title">Billed & Shipped To (Customer)</div>
+        <div class="party-name">${customerName}</div>
+        <div class="party-detail">
+          ${address}${pincode ? ` - ${pincode}` : ''}<br />
+          Phone: ${customerPhone}<br />
+          ${customerEmail ? `Email: ${customerEmail}<br />` : ''}
+          Order Status: <strong>${(order.status || 'Confirmed').toUpperCase()}</strong>
+        </div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 40px; text-align: center;">#</th>
+          <th style="text-align: left;">Item Description & Coverage</th>
+          <th style="width: 60px; text-align: center;">Qty</th>
+          <th style="width: 120px; text-align: right;">Unit Price</th>
+          <th style="width: 120px; text-align: right;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+    </table>
+    <div class="totals-wrap">
+      <div class="totals-box">
+        <div class="totals-row">
+          <span>Subtotal</span>
+          <span>₹${order.subtotal.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="totals-row">
+          <span>Certified Express Shipping</span>
+          <span style="color: #16a34a; font-weight: 700;">FREE</span>
+        </div>
+        ${order.savings > 0 ? `
+        <div class="totals-row">
+          <span>Special Savings</span>
+          <span style="color: #16a34a; font-weight: 700;">-₹${order.savings.toLocaleString('en-IN')}</span>
+        </div>` : ''}
+        <div class="totals-row">
+          <span>Payment Method</span>
+          <span style="font-weight: 600;">${(order.payment_method || 'Online').toUpperCase()}</span>
+        </div>
+        <div class="totals-row">
+          <span>Payment Status</span>
+          <span style="color: #16a34a; font-weight: 700;">${(order.payment_status || 'Paid').toUpperCase()}</span>
+        </div>
+        <div class="totals-row grand">
+          <span>Total Paid</span>
+          <span>₹${order.subtotal.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+    </div>
+    <div class="guarantee-box">
+      <div class="guarantee-badge">✓</div>
+      <div>
+        <div class="guarantee-title">RenewX 6-Month Comprehensive Warranty Active</div>
+        <div class="guarantee-sub">
+          This certified unit passed our multi-point rigorous hardware diagnostics. Keep this tax invoice as valid proof of warranty.
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      Questions about your order or warranty? Reach out at <strong>support@renewx.in</strong> or through the RenewX app.<br />
+      Thank you for championing sustainable, circular electronics with RenewX Crew.
+    </div>
+  </div>
+</body>
+</html>`;
+
+    if (req.query.format === 'json') {
+      res.json({
+        success: true,
+        data: {
+          order_id: orderId,
+          order,
+          invoice_html: html,
+        },
+      });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `inline; filename="invoice-${orderId}.html"`);
+    res.send(html);
   } catch (err) {
     next(err);
+  }
+}
+
+export async function downloadOrderInvoicePdfController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const id = String(req.params.id ?? '');
+    let order: any = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      order = await OrderModel.findById(id);
+    }
+    if (!order) {
+      order = await OrderModel.findOne({
+        $or: [{ id }, { razorpay_order_id: id }, { order_number: id }],
+      });
+    }
+
+    if (!order) {
+      res.status(404).json({ success: false, error: { message: 'Order not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    if (req.user && req.user.role !== 'admin' && String(order.user_id) !== String(req.user.id)) {
+      res.status(403).json({ success: false, error: { message: 'You cannot access this order', code: 'FORBIDDEN' } });
+      return;
+    }
+
+    const user = await User.findById(order.user_id).select('full_name email phone');
+    const orderId = String(order.order_number || order.id || id).replace(/[^a-zA-Z0-9-_]/g, '_');
+    const filename = `RenewX_Tax_Invoice_${orderId}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    doc.pipe(res);
+
+    // Header: RenewX Brand
+    doc.fillColor('#0f172a').fontSize(22).font('Helvetica-Bold').text('RenewX', 40, 40, { continued: true });
+    doc.fillColor('#f59e0b').text(' Crew');
+    doc.fillColor('#64748b').fontSize(8.5).font('Helvetica').text('CERTIFIED PRE-OWNED ELECTRONICS & CIRCULAR TECH', 40, 68);
+
+    // Invoice badge & details (right side)
+    doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text('TAX INVOICE / BILL OF SUPPLY', 300, 40, { align: 'right' });
+    doc.fillColor('#475569').fontSize(9).font('Helvetica').text(`Invoice #: ${order.order_number || order.id || id}`, 300, 56, { align: 'right' });
+    const orderDate = order.created_at
+      ? new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      : new Date().toLocaleDateString('en-IN');
+    doc.text(`Date: ${orderDate}`, 300, 70, { align: 'right' });
+    doc.text(`Status: ${(order.status || 'Confirmed').toUpperCase()}`, 300, 84, { align: 'right' });
+
+    doc.moveTo(40, 104).lineTo(555, 104).strokeColor('#e2e8f0').lineWidth(1).stroke();
+
+    // Seller & Customer Info
+    const startY = 116;
+    doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold').text('SOLD BY (SELLER)', 40, startY);
+    doc.fillColor('#0f172a').fontSize(9.5).font('Helvetica-Bold').text('RenewX Crew India Pvt Ltd', 40, startY + 12);
+    doc.fillColor('#475569').fontSize(8.5).font('Helvetica').text('Certified Hub, GSTIN: 33AAACR2938L1Z8\nEmail: support@renewx.in\nWeb: https://renewx.in', 40, startY + 26);
+
+    const customerName = order.customer_info?.name || user?.full_name || 'Valued Customer';
+    const customerPhone = order.customer_info?.phone || user?.phone || 'Not provided';
+    const customerEmail = user?.email || order.customer_info?.email || '';
+    const address = order.customer_info?.address || 'Standard Delivery Address';
+    const pincode = order.customer_info?.pincode ? ` - ${order.customer_info.pincode}` : '';
+
+    doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold').text('BILLED & SHIPPED TO (CUSTOMER)', 320, startY);
+    doc.fillColor('#0f172a').fontSize(9.5).font('Helvetica-Bold').text(customerName, 320, startY + 12);
+    doc.fillColor('#475569').fontSize(8.5).font('Helvetica').text(`${address}${pincode}\nPhone: ${customerPhone}${customerEmail ? `\nEmail: ${customerEmail}` : ''}`, 320, startY + 26);
+
+    // Table Header
+    const tableTop = 195;
+    doc.rect(40, tableTop, 515, 20).fill('#f1f5f9');
+    doc.fillColor('#334155').fontSize(8.5).font('Helvetica-Bold');
+    doc.text('#', 50, tableTop + 5);
+    doc.text('ITEM DESCRIPTION & COVERAGE', 80, tableTop + 5);
+    doc.text('QTY', 370, tableTop + 5, { width: 35, align: 'center' });
+    doc.text('PRICE', 415, tableTop + 5, { width: 60, align: 'right' });
+    doc.text('TOTAL', 485, tableTop + 5, { width: 60, align: 'right' });
+
+    let currentY = tableTop + 24;
+    const items = (order.order_items && order.order_items.length > 0)
+      ? order.order_items
+      : [{ product_name: 'Certified RenewX Tech Device', quantity: 1, price: order.subtotal }];
+
+    items.forEach((item: any, idx: number) => {
+      const qty = item.quantity || 1;
+      const price = item.price || 0;
+      const total = qty * price;
+
+      doc.fillColor('#64748b').fontSize(8.5).font('Helvetica').text(String(idx + 1), 50, currentY + 5);
+      doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold').text(item.product_name || 'Certified RenewX Device', 80, currentY + 5);
+      doc.fillColor('#16a34a').fontSize(7.5).font('Helvetica').text('✓ 6-Month RenewX Certified Warranty Included', 80, currentY + 17);
+
+      doc.fillColor('#334155').fontSize(8.5).font('Helvetica').text(String(qty), 370, currentY + 5, { width: 35, align: 'center' });
+      doc.text(`₹${Number(price).toLocaleString('en-IN')}`, 415, currentY + 5, { width: 60, align: 'right' });
+      doc.fillColor('#0f172a').font('Helvetica-Bold').text(`₹${Number(total).toLocaleString('en-IN')}`, 485, currentY + 5, { width: 60, align: 'right' });
+
+      doc.moveTo(40, currentY + 32).lineTo(555, currentY + 32).strokeColor('#f1f5f9').lineWidth(0.5).stroke();
+      currentY += 34;
+    });
+
+    // Totals Box
+    const totalsY = currentY + 12;
+    doc.rect(340, totalsY, 215, 82).fillAndStroke('#f8fafc', '#e2e8f0');
+    doc.fillColor('#475569').fontSize(8.5).font('Helvetica');
+    doc.text('Subtotal:', 355, totalsY + 8);
+    doc.text(`₹${Number(order.subtotal || 0).toLocaleString('en-IN')}`, 450, totalsY + 8, { width: 95, align: 'right' });
+
+    doc.text('Express Shipping:', 355, totalsY + 22);
+    doc.text(Number(order.shipping_fee) > 0 ? `₹${Number(order.shipping_fee).toLocaleString('en-IN')}` : 'FREE', 450, totalsY + 22, { width: 95, align: 'right' });
+
+    doc.text('GST / Taxes (18% Incl.):', 355, totalsY + 36);
+    doc.text('Included', 450, totalsY + 36, { width: 95, align: 'right' });
+
+    doc.moveTo(340, totalsY + 52).lineTo(555, totalsY + 52).strokeColor('#0f172a').lineWidth(1).stroke();
+    doc.fillColor('#0f172a').fontSize(10.5).font('Helvetica-Bold');
+    doc.text('Grand Total:', 355, totalsY + 58);
+    doc.text(`₹${Number(order.total_amount || order.subtotal || 0).toLocaleString('en-IN')}`, 450, totalsY + 58, { width: 95, align: 'right' });
+
+    // Guarantee & Warranty Box
+    const guaranteeY = totalsY + 95;
+    doc.rect(40, guaranteeY, 515, 42).fillAndStroke('#ecfdf5', '#a7f3d0');
+    doc.fillColor('#065f46').fontSize(9.5).font('Helvetica-Bold').text('🛡️ Official 6-Month Comprehensive Warranty', 55, guaranteeY + 9);
+    doc.fillColor('#047857').fontSize(8).font('Helvetica').text('Certified multi-point hardware diagnostics passed. Keep this tax invoice as valid proof of warranty.', 55, guaranteeY + 23);
+
+    // Payment details & Footer
+    const footerY = guaranteeY + 56;
+    doc.fillColor('#64748b').fontSize(8).font('Helvetica');
+    if (order.razorpay_payment_id) {
+      doc.text(`Payment ID: ${order.razorpay_payment_id} | Paid via Razorpay Secure Gateway`, 40, footerY, { align: 'center' });
+    }
+    doc.text('This is a computer-generated tax invoice and requires no physical signature.', 40, footerY + 13, { align: 'center' });
+    doc.text('RenewX Crew • Circular Economy Electronics • support@renewx.in', 40, footerY + 25, { align: 'center' });
+
+    doc.end();
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -745,6 +1118,9 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
       return;
     }
 
+    const previousStatus = order.status;
+    const previousTracking = order.tracking_number;
+
     if (status) order.status = status;
     if (courier !== undefined) order.courier = String(courier).trim();
     if (courier_phone !== undefined) {
@@ -760,8 +1136,11 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
 
     await order.save();
 
-    if (status && order.user_id) {
-      if (status === 'shipped') {
+    const statusChanged = Boolean(status && status !== previousStatus);
+    const trackingChanged = Boolean(tracking_number !== undefined && tracking_number !== previousTracking);
+
+    if (order.user_id && (statusChanged || trackingChanged)) {
+      if (order.status === 'shipped') {
         await notifyUserEvent({
           action: 'order_shipped',
           userId: order.user_id,
@@ -769,31 +1148,31 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
           courier: order.courier,
           trackingNumber: order.tracking_number,
         });
-      } else if (status === 'out_for_delivery') {
+      } else if (order.status === 'out_for_delivery') {
         await notifyUserEvent({
           action: 'out_for_delivery',
           userId: order.user_id,
           orderId: order.id,
           courier: order.courier,
         });
-      } else if (status === 'delivered') {
+      } else if (order.status === 'delivered') {
         await notifyUserEvent({
           action: 'order_delivered',
           userId: order.user_id,
           orderId: order.id,
         });
-      } else if (status === 'cancelled') {
+      } else if (order.status === 'cancelled') {
         await notifyUserEvent({
           action: 'order_cancelled',
           userId: order.user_id,
           orderId: order.id,
         });
-      } else {
+      } else if (statusChanged) {
         await notifyUserEvent({
           action: 'order_status_changed',
           userId: order.user_id,
           orderId: order.id,
-          status,
+          status: order.status,
           courier: order.courier,
           trackingNumber: order.tracking_number,
         });

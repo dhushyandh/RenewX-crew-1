@@ -7,16 +7,19 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { useToast } from '@/context/ToastContext';
+import { shareProduct } from '@/services/shareService';
 import { api } from '@/services/api';
 import { mapProductRow } from '@/lib/productMapper';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   colors,
   fontSize,
@@ -49,6 +52,33 @@ export default function ProductDetailScreen() {
   const [notFound, setNotFound] = useState(false);
 
   const { addToCart } = useCart();
+  const toast = useToast();
+  const scrollRef = useRef<ScrollView>(null);
+
+  const handleShare = useCallback(async () => {
+    if (!product) return;
+    await shareProduct(product, {
+      onSuccessToast: (msg) => {
+        toast?.success?.(msg, 'Link Copied');
+      },
+    });
+  }, [product, toast]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+    }
+  }, [params?.id, product?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -196,6 +226,7 @@ export default function ProductDetailScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         refreshControl={
           params?.id ? (
@@ -227,7 +258,7 @@ export default function ProductDetailScreen() {
           )}
 
           {discount > 0 ? (
-            <View style={[styles.discountBadge, { top: safeTop }]}>
+            <View style={[styles.discountBadge, { top: safeTop + 46 }]}>
               <Text style={styles.discountText}>-{discount}%</Text>
             </View>
           ) : null}
@@ -241,6 +272,16 @@ export default function ProductDetailScreen() {
           >
             <Ionicons name="arrow-back" size={20} color={colors.text} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.shareButton, { top: safeTop }]}
+            onPress={handleShare}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Share product"
+          >
+            <Ionicons name="share-social-outline" size={19} color={colors.text} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
@@ -248,42 +289,39 @@ export default function ProductDetailScreen() {
 
           <Text style={styles.name}>{product.name}</Text>
 
-          <View style={styles.ratingRow}>
-            <View style={styles.stars}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <Ionicons
-                  key={n}
-                  name="star"
-                  size={15}
-                  color={
-                    n <= Math.round(Number(product.rating) || 0)
-                      ? '#f59e0b'
-                      : '#e5e7eb'
-                  }
-                />
-              ))}
-            </View>
-
-            <Text style={styles.ratingText}>
-              {Number(product.rating || 0).toFixed(1)}
-            </Text>
-
-            <Text style={styles.reviewsText}>
-              ({Number(product.reviews || 0).toLocaleString('en-IN')} reviews)
-            </Text>
-
+          <View style={styles.conditionRow}>
             <View
               style={[
                 styles.conditionBadge,
                 { backgroundColor: condition.bg },
               ]}
             >
-              <Text
-                style={[styles.conditionText, { color: condition.text }]}
-              >
+              <Text style={[styles.conditionText, { color: condition.text }]}>
                 {product.condition}
               </Text>
             </View>
+
+            {!isOutOfStock ? (
+              <View style={styles.inStockBadge}>
+                <View style={styles.inStockDot} />
+                <Text style={styles.inStockText}>In stock</Text>
+              </View>
+            ) : (
+              <View style={styles.outOfStockBadge}>
+                <Text style={styles.outOfStockText}>Out of stock</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.inlineShareBtn}
+              onPress={handleShare}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Share this deal"
+            >
+              <Ionicons name="share-social-outline" size={14} color="#334155" />
+              <Text style={styles.inlineShareBtnText}>Share</Text>
+            </TouchableOpacity>
           </View>
 
           {!!product.description && (
@@ -291,22 +329,37 @@ export default function ProductDetailScreen() {
           )}
 
           {hasSpecs ? (
-            <>
-              <Text style={styles.sectionLabel}>Key Specifications</Text>
+            <View style={styles.specSection}>
+              <View style={styles.specSectionHeader}>
+                <View>
+                  <Text style={styles.specSectionTitle}>Key Specifications</Text>
+                  <Text style={styles.specSectionSubtitle}>
+                    Everything you need to know before you buy
+                  </Text>
+                </View>
+                <View style={styles.specCountBadge}>
+                  <Text style={styles.specCountText}>{product.specs!.length}</Text>
+                </View>
+              </View>
 
-              <View style={styles.specsContainer}>
+              <View style={styles.specsGrid}>
                 {product.specs!.map((spec, index) => (
-                  <View key={`${spec}-${index}`} style={styles.specRow}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color="#10b981"
-                    />
-                    <Text style={styles.specText}>{spec}</Text>
+                  <View key={`${spec}-${index}`} style={styles.specCard}>
+                    <View style={styles.specIconBox}>
+                      <Ionicons
+                        name="checkmark"
+                        size={17}
+                        color="#000000"
+                      />
+                    </View>
+                    <View style={styles.specCardContent}>
+                      <Text style={styles.specIndex}>SPEC {String(index + 1).padStart(2, '0')}</Text>
+                      <Text style={styles.specTextLarge}>{spec}</Text>
+                    </View>
                   </View>
                 ))}
               </View>
-            </>
+            </View>
           ) : null}
 
           <View style={styles.featuresGrid}>
@@ -324,13 +377,13 @@ export default function ProductDetailScreen() {
 
             <View style={styles.featureCard}>
               <Ionicons
-                name="refresh"
+                name="shield-checkmark-outline"
                 size={20}
                 color={colors.text}
               />
               <View style={styles.featureCopy}>
-                <Text style={styles.featureCardTitle}>Returns</Text>
-                <Text style={styles.featureCardText}>See return policy</Text>
+                <Text style={styles.featureCardTitle}>Secure Checkout</Text>
+                <Text style={styles.featureCardText}>Protected payment flow</Text>
               </View>
             </View>
 
@@ -551,6 +604,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#e5e1d8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  shareButton: {
+    position: 'absolute',
+    top: spacing.lg + 10,
+    right: spacing.md,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e1d8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  inlineShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginLeft: 'auto',
+  },
+
+  inlineShareBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#334155',
   },
 
   content: {
@@ -574,34 +670,53 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  ratingRow: {
+  conditionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: spacing.md,
-  },
-
-  stars: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-
-  ratingText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-  },
-
-  reviewsText: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
+    gap: 8,
+    marginBottom: spacing.lg,
   },
 
   conditionBadge: {
-    marginLeft: 'auto',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: radius.full,
+  },
+
+  inStockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: '#ecfdf5',
+  },
+
+  inStockDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#10b981',
+  },
+
+  inStockText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#047857',
+  },
+
+  outOfStockBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: '#fef2f2',
+  },
+
+  outOfStockText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#dc2626',
   },
 
   conditionText: {
@@ -616,29 +731,95 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
 
-  sectionLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    marginBottom: 10,
-  },
-
-  specsContainer: {
-    gap: 8,
+  specSection: {
     marginBottom: spacing.lg,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e7e5df',
   },
 
-  specRow: {
+  specSectionHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
 
-  specText: {
+  specSectionTitle: {
+    fontSize: 20,
+    fontWeight: fontWeight.black,
+    color: colors.text,
+    letterSpacing: -0.4,
+  },
+
+  specSectionSubtitle: {
+    marginTop: 3,
+    fontSize: 11,
+    color: colors.textMuted,
+    lineHeight: 16,
+  },
+
+  specCountBadge: {
+    minWidth: 34,
+    height: 34,
+    paddingHorizontal: 9,
+    borderRadius: 17,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  specCountText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: fontWeight.black,
+  },
+
+  specsGrid: {
+    gap: 10,
+  },
+
+  specCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 72,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#f8f7f2',
+    borderWidth: 1,
+    borderColor: '#ece8dc',
+  },
+
+  specIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  specCardContent: {
     flex: 1,
-    fontSize: fontSize.xs,
-    color: '#374151',
-    lineHeight: 18,
+  },
+
+  specIndex: {
+    fontSize: 9,
+    fontWeight: fontWeight.black,
+    color: '#9a9487',
+    letterSpacing: 1,
+    marginBottom: 3,
+  },
+
+  specTextLarge: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: fontWeight.bold,
+    color: '#171717',
   },
 
   featuresGrid: {

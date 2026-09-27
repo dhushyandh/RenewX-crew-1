@@ -24,7 +24,7 @@ export async function authenticateToken(
   next: NextFunction
 ): Promise<void> {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = (authHeader && authHeader.split(' ')[1]) || (typeof req.query.token === 'string' ? req.query.token : undefined);
 
   if (!token) {
     // If no token, proceed as guest

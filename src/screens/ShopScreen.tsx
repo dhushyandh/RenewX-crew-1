@@ -132,18 +132,8 @@ export default function ShopScreen({
       {/* Top Header Bar */}
       <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between sticky top-0 z-20 shadow-xs">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center text-[#ffc400] font-black text-sm shadow-sm">
-            <Smartphone className="w-4 h-4 text-[#ffc400]" />
-          </div>
-          <div>
-            <div className="flex items-center text-sm font-black text-gray-900 leading-none">
-              Renew<span className="text-[#ffc400]">X</span>
-            </div>
-            <span className="text-[9px] font-black tracking-widest text-gray-500 uppercase">
-              CREW
-            </span>
-          </div>
+        <div className="flex items-center">
+          <img src="/images/logo.png" alt="RenewX Crew" className="h-9 w-auto object-contain" />
         </div>
 
         {/* Header Icons */}

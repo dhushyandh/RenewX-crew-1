@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { generateToken, AuthenticatedRequest } from '../middleware/auth';
 import { env } from '../config/env';
-import { sendPasswordResetEmail } from '../services/emailService';
+import { sendPasswordResetEmail, sendEmailVerificationCode } from '../services/emailService';
 import { notifyUserEvent } from '../services/notificationService';
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -109,6 +109,18 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       res.status(401).json({
         success: false,
         error: { message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' },
+      });
+      return;
+    }
+
+    // Require email verification for unverified accounts
+    if (user.is_email_verified === false) {
+      res.status(403).json({
+        success: false,
+        error: {
+          message: 'Your email has not been verified yet. Please enter the verification code sent to your email.',
+          code: 'EMAIL_NOT_VERIFIED',
+        },
       });
       return;
     }
@@ -292,31 +304,81 @@ async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdTokenPayloa
   return payload;
 }
 
+async function verifyGoogleAccessToken(accessToken: string): Promise<GoogleIdTokenPayload> {
+  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken.trim()}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Google userinfo returned HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as any;
+  if (!data.email) {
+    throw new Error('Google user profile does not contain an email address');
+  }
+  return {
+    email: data.email,
+    email_verified: data.email_verified === true || data.email_verified === 'true',
+    name: data.name || data.given_name || '',
+    picture: data.picture || '',
+    sub: data.sub,
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  };
+}
+
 export async function googleAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { idToken } = req.body;
+    const { idToken, accessToken } = req.body;
+    const token = idToken || accessToken;
 
-    if (!idToken || typeof idToken !== 'string') {
+    if (!token || typeof token !== 'string') {
       res.status(400).json({
         success: false,
-        error: { message: 'Google ID token is required', code: 'VALIDATION_ERROR' },
+        error: { message: 'Google authentication token (idToken or accessToken) is required', code: 'VALIDATION_ERROR' },
       });
       return;
     }
 
-    let payload: GoogleIdTokenPayload;
-    try {
-      payload = await verifyGoogleIdToken(idToken.trim());
-    } catch (error) {
-      console.warn('[Auth] Google ID token verification failed:', error instanceof Error ? error.message : error);
+    let payload: GoogleIdTokenPayload | null = null;
+    let lastError: string = '';
+
+    // 1. If accessToken provided or token starts with 'ya29.', verify with Google userinfo
+    if (accessToken || token.startsWith('ya29.')) {
+      try {
+        payload = await verifyGoogleAccessToken(accessToken || token);
+      } catch (accessErr: any) {
+        lastError = accessErr?.message || 'Access token verification failed';
+        console.warn('[Auth] Google accessToken verification failed:', lastError);
+      }
+    }
+
+    // 2. If payload not yet resolved and idToken provided, verify with ID token flow
+    if (!payload && idToken && !idToken.startsWith('ya29.')) {
+      try {
+        payload = await verifyGoogleIdToken(idToken.trim());
+      } catch (idErr: any) {
+        lastError = idErr?.message || 'ID token verification failed';
+        console.warn('[Auth] Google ID token verification failed:', lastError);
+      }
+    }
+
+    // 3. Fallback: try userinfo with any token provided
+    if (!payload) {
+      try {
+        payload = await verifyGoogleAccessToken(token);
+      } catch (fbErr: any) {
+        lastError = fbErr?.message || lastError;
+      }
+    }
+
+    if (!payload || !payload.email) {
       res.status(401).json({
         success: false,
-        error: { message: 'Invalid Google authentication token', code: 'INVALID_GOOGLE_TOKEN' },
+        error: { message: 'Invalid or expired Google authentication token', code: 'INVALID_GOOGLE_TOKEN', details: lastError },
       });
       return;
     }
 
-    const normalizedEmail = payload.email!.trim().toLowerCase();
+    const normalizedEmail = payload.email.trim().toLowerCase();
 
     let user = await User.findOne({ email: normalizedEmail });
 
@@ -329,11 +391,11 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
         full_name: payload.name?.trim() || '',
         avatar_url: payload.picture || '',
         role,
-        // Google-authenticated accounts still need a password field for the existing schema.
         password: crypto.randomBytes(32).toString('hex'),
+        is_email_verified: true,
       });
     } else {
-      // Keep the existing account/role and only fill missing profile data from Google.
+      user.is_email_verified = true;
       let changed = false;
       if (!user.full_name && payload.name) {
         user.full_name = payload.name.trim();
@@ -343,10 +405,10 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
         user.avatar_url = payload.picture;
         changed = true;
       }
-      if (changed) await user.save();
+      await user.save();
     }
 
-    const token = generateToken({
+    const authToken = generateToken({
       id: user.id,
       email: user.email,
       role: user.role,
@@ -356,7 +418,7 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
       success: true,
       message: 'Signed in with Google successfully',
       data: {
-        token,
+        token: authToken,
         user: {
           id: user.id,
           email: user.email,
@@ -451,7 +513,7 @@ export async function requestPasswordReset(req: Request, res: Response, next: Ne
       'http://localhost:8081';
 
     const cleanOrigin = origin.split('#')[0].replace(/\/$/, '');
-    const resetUrl = `${cleanOrigin}/security?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+    const resetUrl = `${cleanOrigin}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
     // Dispatch verification email
     const emailPromise = sendPasswordResetEmail({
@@ -685,6 +747,223 @@ export async function changePassword(req: AuthenticatedRequest, res: Response, n
     res.json({
       success: true,
       message: 'Password updated successfully.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * 5. Send 6-Digit Email Verification Code (OTP) for Clean Onboarding
+ */
+export async function sendAuthOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email, intent, password, full_name } = req.body;
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ success: false, error: { message: 'Valid email address is required', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    let user = await User.findOne({ email: normalizedEmail }).select('+password +email_verification_code +email_verification_expires');
+
+    // Check if user already exists when attempting to create a new account
+    if (intent === 'sign_up') {
+      // If user exists and is already verified
+      if (user && user.is_email_verified !== false) {
+        res.status(409).json({
+          success: false,
+          error: {
+            message: 'An account with this email already exists. Please sign in instead.',
+            code: 'EMAIL_ALREADY_EXISTS',
+          },
+        });
+        return;
+      }
+
+      // If initial create account or password provided, validate password
+      if (!user && (!password || typeof password !== 'string' || password.length < 6)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            message: 'Password must be at least 6 characters long',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      if (password && (typeof password !== 'string' || password.length < 6)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            message: 'Password must be at least 6 characters long',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+      if (user && user.is_email_verified === false) {
+        // User already started sign up earlier; update password and send fresh code
+        if (password) {
+          user.password = password; // Hashed by UserSchema pre-save
+        }
+        if (full_name) {
+          user.full_name = full_name.trim();
+        }
+        user.email_verification_code = code;
+        user.email_verification_expires = expires;
+        await user.save();
+      } else {
+        // Create new unverified user with chosen password
+        user = await User.create({
+          email: normalizedEmail,
+          password,
+          full_name: full_name?.trim() || '',
+          role: normalizedEmail === env.ADMIN_EMAIL.toLowerCase() ? 'admin' : 'customer',
+          profile_completed: false,
+          is_email_verified: false,
+          email_verification_code: code,
+          email_verification_expires: expires,
+        });
+      }
+
+      await sendEmailVerificationCode({
+        email: normalizedEmail,
+        name: user.full_name || 'RenewX Member',
+        code,
+      });
+
+      console.log(`\n=============================================================`);
+      console.log(`🔑 [RENEWX AUTH OTP] Code: ${code} for ${normalizedEmail} (${intent})`);
+      console.log(`=============================================================\n`);
+
+      res.json({
+        success: true,
+        message: 'Verification code sent to your email',
+        data: {
+          email: normalizedEmail,
+          expiresInMinutes: 15,
+        },
+      });
+      return;
+    }
+
+    // Check if user does not exist when attempting to sign in
+    if (intent === 'sign_in' && !user) {
+      res.status(404).json({
+        success: false,
+        error: {
+          message: 'No account found with this email. Please create an account instead.',
+          code: 'USER_NOT_FOUND',
+        },
+      });
+      return;
+    }
+
+    if (!user) {
+      user = new User({
+        email: normalizedEmail,
+        password: crypto.randomBytes(16).toString('hex'),
+        role: normalizedEmail === env.ADMIN_EMAIL.toLowerCase() ? 'admin' : 'customer',
+        profile_completed: false,
+        is_email_verified: false,
+      });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    user.email_verification_code = code;
+    user.email_verification_expires = expires;
+    await user.save();
+
+    await sendEmailVerificationCode({
+      email: normalizedEmail,
+      name: user.full_name || 'RenewX Member',
+      code,
+    });
+
+    console.log(`\n=============================================================`);
+    console.log(`🔑 [RENEWX AUTH OTP] Code: ${code} for ${normalizedEmail}`);
+    console.log(`=============================================================\n`);
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email',
+      data: {
+        email: normalizedEmail,
+        expiresInMinutes: 15,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * 6. Verify 6-Digit Email Verification Code (OTP) & Log In / Sign Up
+ */
+export async function verifyAuthOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      res.status(400).json({ success: false, error: { message: 'Email and verification code are required', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const cleanCode = code.toString().trim();
+
+    const user = await User.findOne({ email: normalizedEmail }).select('+email_verification_code +email_verification_expires');
+    if (!user) {
+      res.status(404).json({ success: false, error: { message: 'Account not found. Please request a new code.', code: 'USER_NOT_FOUND' } });
+      return;
+    }
+
+    const isCodeValid = user.email_verification_code === cleanCode;
+    const isNotExpired = user.email_verification_expires && user.email_verification_expires.getTime() > Date.now();
+
+    if (!isCodeValid || !isNotExpired) {
+      res.status(400).json({ success: false, error: { message: 'Invalid or expired verification code', code: 'INVALID_CODE' } });
+      return;
+    }
+
+    user.is_email_verified = true;
+    user.email_verification_code = undefined;
+    user.email_verification_expires = undefined;
+    await user.save();
+
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully',
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          full_name: user.full_name,
+          avatar_url: user.avatar_url,
+          phone: user.phone,
+          address: user.address,
+          city: user.city,
+          state: user.state,
+          pincode: user.pincode,
+          bio: user.bio,
+          profile_completed: user.profile_completed ?? Boolean(user.full_name && user.phone),
+        },
+      },
     });
   } catch (err) {
     next(err);

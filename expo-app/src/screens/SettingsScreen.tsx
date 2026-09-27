@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { useToast } from '@/context/ToastContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -66,6 +67,7 @@ const preferenceMeta: Record<
 export default function SettingsScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
+  const toast = useToast();
   const { user, signOut } = useAuth();
 
   const [settings, setSettings] = useState<Settings>(defaults);
@@ -218,19 +220,21 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out of this RenewX account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: signOut,
-        },
-      ]
-    );
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      try {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Auth' }],
+        });
+      } catch {
+        navigation.navigate('Auth');
+      }
+      toast.success('Signed out successfully.');
+    } catch (err) {
+      console.error('[SettingsScreen] Sign out error:', err);
+    }
   };
 
   const openSupport = () => {

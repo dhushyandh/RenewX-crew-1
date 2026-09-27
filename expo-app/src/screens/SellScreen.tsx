@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
@@ -113,8 +113,52 @@ export default function SellScreen() {
   const navigation = useNavigation<any>();
   const toast = useToast();
   const { user } = useAuth();
+  const scrollRef = useRef<ScrollView>(null);
+  const stepTimerRef = useRef<any>(null);
 
   const [step, setStep] = useState(1);
+
+  // Clear pending transition timer on unmount
+  useEffect(() => {
+    return () => {
+      if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+    };
+  }, []);
+
+  const handleSelectCategory = (item: Category) => {
+    setCategory(item);
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+    stepTimerRef.current = setTimeout(() => {
+      setStep(2);
+    }, 120);
+  };
+
+  const handleSelectBrand = (item: Brand) => {
+    setBrand(item);
+    setCustomBrand('');
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+    stepTimerRef.current = setTimeout(() => {
+      setStep(3);
+    }, 120);
+  };
+
+  // Scroll to top whenever moving between steps in the sell flow
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+    }
+  }, [step]);
+
+  // Scroll to top whenever navigating or switching to Sell screen
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
   const [category, setCategory] = useState<Category | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [brand, setBrand] = useState<Brand | null>(null);
@@ -530,7 +574,12 @@ export default function SellScreen() {
       </View>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
 
           {step === 1 && (
             <Card title="Choose what you want to sell" subtitle="Start with the device category.">
@@ -538,7 +587,7 @@ export default function SellScreen() {
                 {CATEGORIES.map((item) => {
                   const active = category?.id === item.id;
                   return (
-                    <TouchableOpacity key={item.id} style={[styles.categoryCard, active && styles.categoryCardActive]} onPress={() => setCategory(item)}>
+                    <TouchableOpacity key={item.id} style={[styles.categoryCard, active && styles.categoryCardActive]} onPress={() => handleSelectCategory(item)}>
                       <View style={[styles.categoryIcon, active && styles.categoryIconActive]}>
                         <Ionicons name={item.icon} size={24} color={active ? '#000' : '#555'} />
                       </View>
@@ -559,7 +608,7 @@ export default function SellScreen() {
                 {filteredBrands.map((item) => {
                   const active = brand?.id === item.id;
                   return (
-                    <TouchableOpacity key={item.id} style={[styles.brandCard, active && styles.brandCardActive]} onPress={() => { setBrand(item); setCustomBrand(''); }}>
+                    <TouchableOpacity key={item.id} style={[styles.brandCard, active && styles.brandCardActive]} onPress={() => handleSelectBrand(item)}>
                       <Image source={{ uri: item.logoUrl || getBrandLogo(item.name) }} style={styles.brandLogo} />
                       <Text style={[styles.brandName, active && styles.brandNameActive]} numberOfLines={1}>{item.name}</Text>
                       {active && <View style={styles.brandCheck}><Ionicons name="checkmark" size={12} color="#000" /></View>}
@@ -910,7 +959,7 @@ const styles = StyleSheet.create({
   stepNumberTextActive: { color: '#000' },
   stepTabText: { fontSize: 9, color: '#777', fontWeight: fontWeight.semibold },
   stepTabTextActive: { color: '#fff', fontWeight: fontWeight.bold },
-  content: { padding: spacing.md, paddingBottom: 40 },
+  content: { padding: spacing.md, paddingBottom: 110 },
   card: { backgroundColor: '#fff', borderRadius: radius.lg, borderWidth: 1, borderColor: '#e7e5df', padding: spacing.md },
   cardTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.black, color: '#111' },
   cardSubtitle: { fontSize: fontSize.xs, color: '#777', marginTop: 3, lineHeight: 16 },

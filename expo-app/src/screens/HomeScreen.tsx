@@ -15,12 +15,14 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '@/App';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { useToast } from '@/context/ToastContext';
+import { shareProduct } from '@/services/shareService';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
@@ -300,6 +302,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart, totalItems } = useCart();
   const { isAdmin, signOut } = useAuth();
+  const toast = useToast();
   const [screenWidth, setScreenWidth] = useState(() => Dimensions.get('window').width);
 
   const responsive = useMemo(() => getResponsiveMetrics(screenWidth), [screenWidth]);
@@ -310,6 +313,16 @@ export default function HomeScreen() {
   const [heroIndex, setHeroIndex] = useState(0);
 
   const heroScrollRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlatList>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const saveProductsCache = useCallback(async (rows: any[]) => {
     try {
@@ -463,6 +476,14 @@ export default function HomeScreen() {
     });
   };
 
+  const handleShareProduct = useCallback(async (product: Product) => {
+    await shareProduct(product, {
+      onSuccessToast: (msg) => {
+        toast?.success?.(msg, 'Link Copied');
+      },
+    });
+  }, [toast]);
+
   const renderProduct = ({ item }: { item: Product }) => (
     <View style={styles.productWrapper}>
       <ProductCard
@@ -472,6 +493,7 @@ export default function HomeScreen() {
           addToCart(item);
           navigation.navigate('Cart');
         }}
+        onShare={() => handleShareProduct(item)}
       />
     </View>
   );
@@ -488,6 +510,7 @@ export default function HomeScreen() {
       />
 
       <FlatList
+        ref={listRef}
         data={loading ? [] : newArrivals}
         keyExtractor={(item, index) =>
           String((item as AnyProduct)._uuid ?? (item as AnyProduct).id ?? index)
@@ -708,7 +731,7 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: 110,
   },
 
   heroSection: {

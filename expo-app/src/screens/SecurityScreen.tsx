@@ -30,7 +30,7 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const toast = useToast();
-  const { user, token: authToken, loginWithToken } = useAuth();
+  const { user, token: authToken, loginWithToken, signOut } = useAuth();
 
   // Route / Query params (e.g. from /security?token=xyz&email=abc)
   const paramToken = route?.params?.token || '';
@@ -61,7 +61,6 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
   const [requestEmail, setRequestEmail] = useState(user?.email || initialUrlEmail || '');
   const [requestLoading, setRequestLoading] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
-  const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
 
   // Token verification & reset state
   const [resetToken, setResetToken] = useState(initialUrlToken);
@@ -114,7 +113,6 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
 
     try {
       setRequestLoading(true);
-      setDevResetUrl(null);
 
       // Determine clean redirect origin
       let redirectUrl: string | undefined;
@@ -122,18 +120,10 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
         redirectUrl = window.location.origin;
       }
 
-      const res = await api.auth.requestPasswordReset(targetEmail, redirectUrl);
+      await api.auth.requestPasswordReset(targetEmail, redirectUrl);
 
       setLinkSent(true);
       toast.success('Verification link dispatched to your email.');
-
-      if (res?.resetUrl) {
-        setDevResetUrl(res.resetUrl);
-      }
-      if (res?.token) {
-        // Offer instant testing mode shortcut
-        setResetToken(res.token);
-      }
     } catch (err: any) {
       toast.error(err?.message || 'Unable to send verification link.');
     } finally {
@@ -365,44 +355,6 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
                       </Text>
                     </View>
                   )}
-
-                  {/* Development mode direct shortcut */}
-                  {devResetUrl && (
-                    <View style={styles.devBox}>
-                      <Text style={styles.devBoxTitle}>Developer Verification Link</Text>
-                      <Text style={styles.devBoxUrl} numberOfLines={2}>
-                        {devResetUrl}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          const url = new URL(devResetUrl);
-                          const token = url.searchParams.get('token') || '';
-                          if (token) setResetToken(token);
-                        }}
-                        style={styles.devBoxBtn}
-                      >
-                        <Text style={styles.devBoxBtnText}>Test & Apply Link Now →</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {/* Manual token input toggle */}
-                  <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 14 }}>
-                    <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>
-                      Already have a verification code or link token?
-                    </Text>
-                    <View style={styles.inputWrap}>
-                      <Ionicons name="keypad-outline" size={16} color="#64748b" style={{ marginRight: 8 }} />
-                      <TextInput
-                        value={resetToken}
-                        onChangeText={setResetToken}
-                        placeholder="Paste verification token here"
-                        placeholderTextColor="#94a3b8"
-                        autoCapitalize="none"
-                        style={styles.textInput}
-                      />
-                    </View>
-                  </View>
                 </View>
               )}
 
@@ -614,6 +566,28 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
               <Text style={styles.checkText}>Automatic session token invalidation upon credential update</Text>
             </View>
           </View>
+
+          {user && (
+            <TouchableOpacity
+              style={styles.signOutCard}
+              onPress={async () => {
+                await signOut();
+                try {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Auth' }],
+                  });
+                } catch {
+                  navigation.navigate('Auth');
+                }
+                toast.success('Signed out successfully.');
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="log-out-outline" size={18} color="#dc2626" />
+              <Text style={styles.signOutCardText}>Sign Out of RenewX Account</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -884,5 +858,23 @@ const styles = StyleSheet.create({
     color: '#475569',
     flex: 1,
     lineHeight: 16,
+  },
+  signOutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 16,
+    marginBottom: 20,
+  },
+  signOutCardText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#dc2626',
   },
 });

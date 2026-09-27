@@ -43,16 +43,12 @@ export default function AuthScreen() {
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-slate-800 px-6 pt-16 pb-8 overflow-y-auto">
-      <div className="flex items-center gap-3 mb-10">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/30">
-          <RefreshCw className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-white">
-            Renew<span className="text-emerald-500">X</span>
-          </h1>
-          <p className="text-xs text-gray-400">Certified Refurbished Tech</p>
-        </div>
+      <div className="mb-10">
+        <img
+          src="/images/logo.png"
+          alt="RenewX Crew"
+          className="h-12 w-auto object-contain bg-white rounded-2xl px-3 py-2 shadow-lg"
+        />
       </div>
 
       <div className="mb-8">

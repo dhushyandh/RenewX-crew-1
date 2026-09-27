@@ -90,5 +90,8 @@ const DeviceModelSchema = new Schema<IDeviceModel>(
   }
 );
 
+DeviceModelSchema.index({ brand_id: 1, category: 1 });
+DeviceModelSchema.index({ category: 1, is_featured: 1 });
+
 export const DeviceModelModel =
   (mongoose.models.DeviceModel as mongoose.Model<IDeviceModel>) || mongoose.model<IDeviceModel>('DeviceModel', DeviceModelSchema);

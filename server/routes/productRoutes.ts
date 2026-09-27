@@ -10,12 +10,13 @@ import {
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { validateProductInput, validateProductUpdate } from '../models/Product';
+import { cacheResponse } from '../utils/cache';
 
 const router = Router();
 
-router.get('/', getProducts);
+router.get('/', cacheResponse(60, 'products'), getProducts);
 router.get('/alerts/low-stock', authenticateToken, requireAdmin, getLowStockAlerts);
-router.get('/:id', getProductById);
+router.get('/:id', cacheResponse(60, 'product'), getProductById);
 
 router.post(
   '/',

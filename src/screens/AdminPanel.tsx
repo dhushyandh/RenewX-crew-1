@@ -118,14 +118,12 @@ export default function AdminPanel({ onExit }: { onExit?: () => void }) {
           >
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-black text-white tracking-tight">RenewX Command</h1>
-              <span className="px-2 py-0.5 rounded-full bg-[#ffc400]/20 text-[#ffc400] text-[10px] font-black uppercase tracking-wider">
-                Admin
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium">Store Telemetry & Warehouse Management</p>
+          <div className="flex items-center">
+            <img
+              src="/images/logo-admin.png"
+              alt="RenewX Crew Admin"
+              className="h-9 w-auto object-contain bg-white rounded-lg px-2 py-0.5 shadow-sm"
+            />
           </div>
         </div>
 

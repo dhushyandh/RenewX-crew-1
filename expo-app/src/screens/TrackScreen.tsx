@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   Image,
   RefreshControl,
@@ -10,13 +11,16 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, getApiBaseUrl } from '@/services/api';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 
 type Order = Record<string, any>;
 type SearchMode = 'order' | 'phone';
@@ -192,12 +196,39 @@ export default function TrackScreen() {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const shouldReconnectRef = useRef(true);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const selectedOrder = useMemo(
     () =>
       orders.find((order) => String(order?.id) === String(selectedOrderId)) || null,
     [orders, selectedOrderId],
   );
+
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
+
+  const handleDownloadInvoice = async (orderToDownload: Order) => {
+    try {
+      setDownloadingInvoiceId(String(orderToDownload.id));
+      await downloadOrderInvoicePdf(orderToDownload as any, user);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Invoice Ready', `Tax invoice for order #${orderToDownload.id} is downloaded.`);
+      }
+    } catch (err: any) {
+      console.error('[TrackScreen] Error generating invoice:', err);
+      Alert.alert('Download Error', err?.message || 'Unable to download invoice. Please try again.');
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
+  };
 
   const upsertOrder = useCallback((nextOrder: Order) => {
     setOrders((current) => {
@@ -506,6 +537,7 @@ export default function TrackScreen() {
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={[styles.container, { paddingTop: safeTop }]}>
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -713,6 +745,37 @@ export default function TrackScreen() {
                   {formatMoney(selectedOrder?.total ?? selectedOrder?.subtotal)}
                 </Text>
               </View>
+
+              {/* Tax Invoice Download Button */}
+              <TouchableOpacity
+                style={styles.invoiceActionBtn}
+                onPress={() => handleDownloadInvoice(selectedOrder)}
+                disabled={downloadingInvoiceId === String(selectedOrder.id)}
+                activeOpacity={0.82}
+              >
+                {downloadingInvoiceId === String(selectedOrder.id) ? (
+                  <View style={styles.invoiceBtnLoading}>
+                    <ActivityIndicator size="small" color="#0f172a" />
+                    <Text style={styles.invoiceBtnLoadingText}>Generating official PDF...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.invoiceBtnLeft}>
+                      <View style={styles.invoiceIconCircle}>
+                        <Ionicons name="receipt-outline" size={16} color="#d97706" />
+                      </View>
+                      <View>
+                        <Text style={styles.invoiceBtnTitle}>Download Tax Invoice (PDF)</Text>
+                        <Text style={styles.invoiceBtnSub}>Official receipt & 6-month warranty certificate</Text>
+                      </View>
+                    </View>
+                    <View style={styles.invoicePill}>
+                      <Ionicons name="download-outline" size={13} color="#0f172a" />
+                      <Text style={styles.invoicePillText}>PDF</Text>
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
 
               <View style={styles.infoGrid}>
                 <View style={styles.infoItem}>
@@ -924,6 +987,21 @@ export default function TrackScreen() {
                       <Text style={styles.recentOrderPrice}>
                         {formatMoney(order?.total ?? order?.subtotal)}
                       </Text>
+                      <TouchableOpacity
+                        style={styles.recentInvoiceBtn}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleDownloadInvoice(order);
+                        }}
+                        disabled={downloadingInvoiceId === String(order.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        {downloadingInvoiceId === String(order.id) ? (
+                          <ActivityIndicator size="small" color="#0f172a" />
+                        ) : (
+                          <Ionicons name="receipt-outline" size={16} color="#d97706" />
+                        )}
+                      </TouchableOpacity>
                       <Ionicons name="chevron-forward" size={17} color="#9ca3af" />
                     </View>
                   </TouchableOpacity>
@@ -1420,4 +1498,77 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   footerText: { fontSize: 9, color: '#9ca3af' },
+
+  invoiceActionBtn: {
+    marginTop: spacing.md,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  invoiceBtnLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  invoiceBtnLoadingText: {
+    fontSize: 12,
+    fontWeight: fontWeight.semibold,
+    color: '#0f172a',
+  },
+  invoiceBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  invoiceIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  invoiceBtnTitle: {
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+    color: '#0f172a',
+  },
+  invoiceBtnSub: {
+    fontSize: 10,
+    color: '#78350f',
+    marginTop: 1,
+  },
+  invoicePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f59e0b',
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: radius.sm,
+    marginLeft: 8,
+  },
+  invoicePillText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: '#0f172a',
+  },
+  recentInvoiceBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
 });

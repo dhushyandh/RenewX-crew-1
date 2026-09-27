@@ -6,7 +6,7 @@ import {
   TradeInModel,
 } from '../models/TradeIn';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { createUserNotification, notifyUserEvent } from '../services/notificationService';
+import { createUserNotification, notifyUserEvent, notifyAdminsNewTradeIn } from '../services/notificationService';
 import { User } from '../models/User';
 
 export async function getValuationQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -100,6 +100,17 @@ export async function createPickupRequest(req: AuthenticatedRequest, res: Respon
       valuation: newRequest.valuation_amount,
     });
 
+    await notifyAdminsNewTradeIn({
+      tradeInId: newRequest.id,
+      customerName: newRequest.customer_name || req.user.full_name || 'Customer',
+      customerEmail: newRequest.customer_email || req.user.email,
+      customerPhone: newRequest.customer_phone,
+      brand: newRequest.brand,
+      model: newRequest.model,
+      valuation: newRequest.valuation_amount,
+      pickupAddress: newRequest.address,
+    });
+
     res.status(201).json({
       success: true,
       message: 'Sell request submitted successfully and is awaiting admin approval',
@@ -118,9 +129,13 @@ export async function getTradeInRequests(req: Request, res: Response, next: Next
     if (status && typeof status === 'string') filter.status = status;
     if (user_id && typeof user_id === 'string') filter.user_id = user_id;
 
-    const list = await TradeInModel.find(filter).sort({ created_at: -1 });
+    const list = await TradeInModel.find(filter).sort({ created_at: -1 }).lean();
+    const normalized = list.map(({ _id, ...item }: any) => ({
+      ...item,
+      id: _id ? _id.toString() : item.id,
+    }));
 
-    res.json({ success: true, count: list.length, data: list });
+    res.json({ success: true, count: normalized.length, data: normalized });
   } catch (err) {
     next(err);
   }
@@ -138,8 +153,13 @@ export async function getMyTradeInRequests(
       return;
     }
 
-    const list = await TradeInModel.find({ user_id: req.user.id }).sort({ created_at: -1 });
-    res.json({ success: true, count: list.length, data: list });
+    const list = await TradeInModel.find({ user_id: req.user.id }).sort({ created_at: -1 }).lean();
+    const normalized = list.map(({ _id, ...item }: any) => ({
+      ...item,
+      id: _id ? _id.toString() : item.id,
+    }));
+
+    res.json({ success: true, count: normalized.length, data: normalized });
   } catch (err) {
     next(err);
   }

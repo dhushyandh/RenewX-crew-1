@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { ProductModel, CreateProductDTO, UpdateProductDTO } from '../models/Product';
 import { broadcastNewProductArrival } from '../services/notificationService';
+import { invalidateCachePrefix } from '../utils/cache';
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -94,13 +95,14 @@ export async function getProductById(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const product = await ProductModel.findById(req.params.id);
+    const product = await ProductModel.findById(req.params.id).lean();
     if (!product) {
       res.status(404).json({ success: false, error: { message: 'Product not found', code: 'NOT_FOUND' } });
       return;
     }
 
-    res.json({ success: true, data: product });
+    const { _id, ...rest } = product as any;
+    res.json({ success: true, data: { ...rest, id: _id?.toString() } });
   } catch (err) {
     next(err);
   }
@@ -109,6 +111,7 @@ export async function getProductById(req: Request, res: Response, next: NextFunc
 export async function createProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const saved = await ProductModel.create(normalizeProductPayload(req.body));
+    invalidateCachePrefix('product');
     res.status(201).json({ success: true, data: saved });
 
     // Broadcast "New Arrival" notification to ALL users & devices
@@ -146,6 +149,7 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
       return;
     }
 
+    invalidateCachePrefix('product');
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
@@ -165,6 +169,7 @@ export async function deleteProduct(req: Request, res: Response, next: NextFunct
       return;
     }
 
+    invalidateCachePrefix('product');
     res.json({ success: true, message: 'Product deleted successfully', data: { id: deleted.id } });
   } catch (err) {
     next(err);

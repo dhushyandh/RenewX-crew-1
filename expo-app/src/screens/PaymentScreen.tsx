@@ -25,6 +25,7 @@ import RazorpayModal from '@/components/RazorpayModal';
 import CheckoutStepper from '@/components/CheckoutStepper';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { clientObservability } from '@/services/observability';
 
 type RouteParams = {
   Payment: {
@@ -242,6 +243,13 @@ export default function PaymentScreen() {
     setProcessing(false);
     const code = error?.code;
     const msg = error?.message || error?.description || '';
+
+    clientObservability.trackPaymentFailure({
+      orderId: checkoutOptions?.order_id,
+      paymentMethod: 'razorpay',
+      reason: msg || (code ? `Error code: ${code}` : 'Payment failed or cancelled'),
+      stage: 'gateway_open',
+    });
 
     if (code === 'PAYMENT_NOT_CONFIGURED') {
       Alert.alert('Payments unavailable', 'Payment gateway is being configured. Please use Cash on Delivery.');

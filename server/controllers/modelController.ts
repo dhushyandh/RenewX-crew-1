@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { DeviceModelModel, CreateDeviceModelDTO, UpdateDeviceModelDTO } from '../models/DeviceModel';
 import { BrandModel } from '../models/Brand';
+import { invalidateCachePrefix } from '../utils/cache';
 
 export async function getModels(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -25,7 +26,7 @@ export async function getModels(req: Request, res: Response, next: NextFunction)
       filter.name = new RegExp(search.trim(), 'i');
     }
 
-    const models = await DeviceModelModel.find(filter).sort({ release_year: -1, name: 1 });
+    const models = await DeviceModelModel.find(filter).sort({ release_year: -1, name: 1 }).lean();
 
     res.json({ success: true, count: models.length, data: models });
   } catch (err) {
@@ -39,12 +40,12 @@ export async function getModelById(req: Request, res: Response, next: NextFuncti
 
     let model = null;
     if (mongoose.Types.ObjectId.isValid(id)) {
-      model = await DeviceModelModel.findById(id);
+      model = await DeviceModelModel.findById(id).lean();
     }
     if (!model) {
       model = await DeviceModelModel.findOne({
         $or: [{ _id: id }, { name: new RegExp(`^${id}$`, 'i') }],
-      }).catch(() => null);
+      }).lean().catch(() => null);
     }
 
     if (!model) {
@@ -82,6 +83,9 @@ export async function createModel(req: Request, res: Response, next: NextFunctio
       is_featured: Boolean(payload.is_featured),
     });
 
+    invalidateCachePrefix('models');
+    invalidateCachePrefix('brand_models');
+
     res.status(201).json({ success: true, data: newModel });
   } catch (err) {
     next(err);
@@ -103,6 +107,9 @@ export async function updateModel(req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    invalidateCachePrefix('models');
+    invalidateCachePrefix('brand_models');
+
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
@@ -122,6 +129,9 @@ export async function deleteModel(req: Request, res: Response, next: NextFunctio
         $or: [{ name: new RegExp(`^${id}$`, 'i') }, { name: id }],
       });
     }
+
+    invalidateCachePrefix('models');
+    invalidateCachePrefix('brand_models');
 
     res.json({ success: true, message: 'Device model deleted successfully', data: deleted ? { id: deleted.id } : null });
   } catch (err) {

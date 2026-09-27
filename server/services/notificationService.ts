@@ -99,25 +99,63 @@ export async function createUserNotification(
     data?: Record<string, unknown>;
   }
 ): Promise<void> {
+  const cleanUserId = String(userId || '').trim();
+  if (!cleanUserId) {
+    console.warn('[Notifications] Cannot create notification: empty userId');
+    return;
+  }
+
+  // --- De-duplication Guard ---
+  // 1. One-time action de-duplication (e.g. order placed, payment confirmed, sell request submitted)
+  const isOneTimeEvent =
+    payload.title.toLowerCase().includes('order placed') ||
+    payload.title.toLowerCase().includes('payment confirmed') ||
+    payload.title.toLowerCase().includes('sell request submitted');
+
+  if (isOneTimeEvent && payload.reference_id) {
+    const existingOneTime = await NotificationModel.findOne({
+      user_id: cleanUserId,
+      reference_id: String(payload.reference_id),
+      title: payload.title,
+    });
+    if (existingOneTime) {
+      console.log(`[Notifications] Skipping duplicate one-time notification "${payload.title}" for user ${cleanUserId}`);
+      return;
+    }
+  }
+
+  // 2. Time-window de-duplication (last 10 minutes for identical title & body)
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+  const existingRecent = await NotificationModel.findOne({
+    user_id: cleanUserId,
+    title: payload.title,
+    body: payload.body,
+    created_at: { $gte: tenMinutesAgo },
+  });
+  if (existingRecent) {
+    console.log(`[Notifications] Skipping duplicate recent notification "${payload.title}" for user ${cleanUserId}`);
+    return;
+  }
+
   await NotificationModel.create({
-    user_id: userId,
+    user_id: cleanUserId,
     type: payload.type,
     title: payload.title,
     body: payload.body,
-    reference_id: payload.reference_id,
+    reference_id: payload.reference_id ? String(payload.reference_id) : undefined,
     reference_type: payload.reference_type,
   });
 
-  const user = await User.findById(userId).select('+push_tokens');
+  const user = await User.findById(cleanUserId).select('+push_tokens');
   const rawTokens = user?.push_tokens || [];
   const tokens = rawTokens.filter(isExpoPushToken);
 
   if (!tokens.length) {
-    console.warn(`[Notifications] Push skipped for user ${userId}: no valid Expo push tokens registered (raw tokens in DB: ${rawTokens.length})`);
+    console.log(`[Notifications] In-app notification created for user ${cleanUserId}. Push skipped (no device tokens).`);
     return;
   }
 
-  console.log(`[Notifications] Dispatching push notification "${payload.title}" to ${tokens.length} device(s) for user ${userId}...`);
+  console.log(`[Notifications] Dispatching push notification "${payload.title}" to ${tokens.length} device(s) for user ${cleanUserId}...`);
 
   await sendExpoPushMessages(
     tokens.map((to) => ({
@@ -457,10 +495,21 @@ export async function broadcastNewProductArrival(product: {
   image?: string;
 }): Promise<void> {
   try {
+    const productIdStr = String(product.id || '').trim();
+    if (!productIdStr) return;
+
     const brandPrefix = product.brand ? `${product.brand} ` : '';
     const priceStr = product.price ? ` starting at ₹${Number(product.price).toLocaleString('en-IN')}` : '';
     const title = `✨ New Arrival: ${brandPrefix}${product.name}`;
     const body = `Explore the newly added ${brandPrefix}${product.name}${priceStr}. Available in stock now!`;
+
+    // De-duplication: Find users who already received a notification for this product
+    const alreadyNotifiedUserIds = await NotificationModel.find({
+      type: 'product',
+      reference_id: productIdStr,
+    }).distinct('user_id');
+
+    const alreadyNotifiedSet = new Set(alreadyNotifiedUserIds.map((id) => String(id)));
 
     const allUsers = await User.find({}).select('_id notification_preferences +push_tokens').lean();
     if (!allUsers || !allUsers.length) return;
@@ -479,12 +528,22 @@ export async function broadcastNewProductArrival(product: {
     for (const u of allUsers) {
       const uId = u._id.toString();
 
+      // Skip users who have already received this product's notification
+      if (alreadyNotifiedSet.has(uId)) {
+        continue;
+      }
+
+      // Skip users who have opted out of promotional notifications
+      if (u.notification_preferences?.marketing === false) {
+        continue;
+      }
+
       notificationsToInsert.push({
         user_id: uId,
         type: 'product',
         title,
         body,
-        reference_id: String(product.id),
+        reference_id: productIdStr,
         reference_type: 'product',
       });
 
@@ -499,8 +558,8 @@ export async function broadcastNewProductArrival(product: {
           body,
           data: {
             screen: 'ProductDetail',
-            productId: String(product.id),
-            id: String(product.id),
+            productId: productIdStr,
+            id: productIdStr,
           },
           channelId: 'default',
         });
@@ -549,6 +608,16 @@ export interface AdminNewOrderNotificationPayload {
  */
 export async function notifyAdminsNewOrder(payload: AdminNewOrderNotificationPayload): Promise<void> {
   try {
+    // De-duplication check: if an admin notification already exists for this orderId
+    const existingAdminNotification = await NotificationModel.findOne({
+      type: 'admin_order',
+      reference_id: payload.orderId,
+    });
+    if (existingAdminNotification) {
+      console.log(`[Notifications] Skipping duplicate admin new order notification for #${payload.orderId}`);
+      return;
+    }
+
     const adminEmail = (env.ADMIN_EMAIL || 'admin@renewx.com').toLowerCase();
 
     // 1. Find all admin users by role or matching ADMIN_EMAIL
@@ -650,5 +719,110 @@ export async function notifyAdminsNewOrder(payload: AdminNewOrderNotificationPay
     console.error('[Notifications] Failed to notify admin of new order:', err);
   }
 }
+
+export interface AdminNewTradeInPayload {
+  tradeInId: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  brand?: string;
+  model?: string;
+  valuation?: number;
+  pickupAddress?: string;
+}
+
+/**
+ * Dispatches real-time alerts to Admin accounts and devices
+ * when a customer submits a new sell/trade-in request.
+ * - Saves in-app notification in MongoDB for admin users only
+ * - Dispatches push notification to all admin devices
+ */
+export async function notifyAdminsNewTradeIn(payload: AdminNewTradeInPayload): Promise<void> {
+  try {
+    const existing = await NotificationModel.findOne({
+      type: 'admin_trade_in',
+      reference_id: payload.tradeInId,
+    });
+    if (existing) {
+      console.log(`[Notifications] Skipping duplicate admin trade-in notification for #${payload.tradeInId}`);
+      return;
+    }
+
+    const adminEmail = (env.ADMIN_EMAIL || 'admin@renewx.com').toLowerCase();
+    const adminUsers = await User.find({
+      $or: [{ role: 'admin' }, { email: adminEmail }],
+    }).select('_id email full_name +push_tokens').lean();
+
+    if (!adminUsers || !adminUsers.length) {
+      console.warn('[Notifications] No admin accounts found to receive new trade-in alert');
+      return;
+    }
+
+    const deviceName = [payload.brand, payload.model].filter(Boolean).join(' ') || 'Device';
+    const valuationStr = payload.valuation ? ` (Est: ₹${Number(payload.valuation).toLocaleString('en-IN')})` : '';
+    const title = `📱 New Sell Request: ${deviceName}`;
+    const body = `${payload.customerName} submitted a sell request for ${deviceName}${valuationStr}. Review required.`;
+
+    const notificationsToInsert: Array<{
+      user_id: string;
+      type: string;
+      title: string;
+      body: string;
+      reference_id: string;
+      reference_type: string;
+    }> = [];
+
+    const pushMessages: Array<Record<string, unknown>> = [];
+
+    for (const admin of adminUsers) {
+      const adminId = admin._id.toString();
+
+      notificationsToInsert.push({
+        user_id: adminId,
+        type: 'admin_trade_in',
+        title,
+        body,
+        reference_id: payload.tradeInId,
+        reference_type: 'trade_in',
+      });
+
+      const rawTokens = (admin as any).push_tokens || [];
+      const validTokens = rawTokens.filter(isExpoPushToken);
+
+      for (const to of validTokens) {
+        pushMessages.push({
+          to,
+          sound: 'default',
+          title,
+          body,
+          data: {
+            screen: 'AdminTradeIn',
+            tradeInId: payload.tradeInId,
+            id: payload.tradeInId,
+          },
+          channelId: 'default',
+          priority: 'high',
+        });
+      }
+    }
+
+    if (notificationsToInsert.length) {
+      try {
+        await NotificationModel.insertMany(notificationsToInsert, { ordered: false });
+        console.log(`[Notifications] Saved new trade-in alert to ${notificationsToInsert.length} admin inbox(es).`);
+      } catch (insertErr) {
+        console.error('[Notifications] Failed saving admin trade-in in-app notification:', insertErr);
+      }
+    }
+
+    if (pushMessages.length) {
+      console.log(`[Notifications] Dispatching new trade-in push notification to ${pushMessages.length} admin device(s)...`);
+      await sendExpoPushMessages(pushMessages);
+    }
+  } catch (err) {
+    console.error('[Notifications] Failed to notify admin of new trade-in:', err);
+  }
+}
+
 
 

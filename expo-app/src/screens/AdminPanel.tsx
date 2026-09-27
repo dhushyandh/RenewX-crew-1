@@ -23,6 +23,7 @@ import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import { confirmAction } from '@/lib/confirmAction';
+import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import BrandsView from '@/components/admin/BrandsView';
@@ -268,8 +269,8 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
               route?.params?.screen === 'addBrand'
                 ? 'addBrand'
                 : route?.params?.screen === 'addModel'
-                ? 'addModel'
-                : undefined
+                  ? 'addModel'
+                  : undefined
             }
             preselectedBrandId={route?.params?.brandId}
           />
@@ -413,10 +414,10 @@ function TradeInsView() {
       item.approved_amount != null && item.approved_amount > 0
         ? String(item.approved_amount)
         : item.expected_price != null && item.expected_price > 0
-        ? String(item.expected_price)
-        : item.valuation_amount != null
-        ? String(item.valuation_amount)
-        : ''
+          ? String(item.expected_price)
+          : item.valuation_amount != null
+            ? String(item.valuation_amount)
+            : ''
     );
     setInspectionNote(item.admin_note || '');
     setShowAdvancedNotes(false);
@@ -514,8 +515,8 @@ function TradeInsView() {
         status === 'approved'
           ? 'Request approved and device added to inventory.'
           : status === 'rejected'
-          ? 'Sell request rejected and delisted from store.'
-          : `Sell request marked ${status.replace(/_/g, ' ')}`,
+            ? 'Sell request rejected and delisted from store.'
+            : `Sell request marked ${status.replace(/_/g, ' ')}`,
         status === 'approved' ? 'Inventory Updated' : status === 'rejected' ? 'Request Rejected' : 'Request Updated'
       );
     } catch (err: any) {
@@ -1806,16 +1807,17 @@ function DashboardView({
         {orders.length === 0 ? (
           <Text style={styles.emptyNote}>No orders recorded yet.</Text>
         ) : (
-          orders.slice(0, 5).map((order) => {
+          orders.slice(0, 5).map((order, orderIdx) => {
             const isCod = order.payment_method === 'cod';
             const dateStr = new Date(order.created_at || Date.now()).toLocaleDateString('en-IN', {
               month: 'short',
               day: 'numeric',
             });
             const statusMatch = STATUS_OPTIONS.find((s) => s.id === order.status);
+            const orderKey = String(order.id || (order as any)._id || orderIdx);
 
             return (
-              <View key={order.id} style={styles.recentOrderRow}>
+              <View key={orderKey} style={styles.recentOrderRow}>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={styles.orderIdText}>#{String(order.id).slice(-8).toUpperCase()}</Text>
@@ -1864,8 +1866,8 @@ function DashboardView({
               status === 'approved'
                 ? { color: '#15803d', backgroundColor: '#dcfce7' }
                 : status === 'rejected'
-                ? { color: '#b91c1c', backgroundColor: '#fee2e2' }
-                : { color: '#b45309', backgroundColor: '#fef3c7' };
+                  ? { color: '#b91c1c', backgroundColor: '#fee2e2' }
+                  : { color: '#b45309', backgroundColor: '#fef3c7' };
             return (
               <TouchableOpacity
                 key={String(item.id || item._id)}
@@ -2010,12 +2012,13 @@ function ProductsView({
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 10 }}>
-          {filtered.map((item) => {
+          {filtered.map((item, itemIdx) => {
             const isLow = Number(item.stock) <= 3;
             const isOut = Number(item.stock) === 0;
+            const productKey = String(item.id || (item as any)._id || itemIdx);
 
             return (
-              <View key={item.id} style={styles.productListItem}>
+              <View key={productKey} style={styles.productListItem}>
                 {item.image_url ? (
                   <Image source={{ uri: item.image_url }} style={styles.productThumb} resizeMode="cover" />
                 ) : (
@@ -2065,8 +2068,21 @@ function OrdersView() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
   const [shippingDrafts, setShippingDrafts] = useState<Record<string, { courier: string; courierPhone: string; tracking: string }>>({});
   const toast = useToast();
+
+  const handleDownloadInvoice = async (order: any) => {
+    try {
+      setDownloadingInvoiceId(String(order.id || order._id));
+      await downloadOrderInvoicePdf(order);
+      toast.success('Invoice downloaded successfully', 'PDF Generated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to download invoice', 'Error');
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
+  };
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -2220,7 +2236,34 @@ function OrdersView() {
               <View key={orderId} style={styles.orderCardBox}>
                 <View style={styles.orderCardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.orderNumberTitle}>Order #{orderId.slice(-8).toUpperCase()}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Text style={styles.orderNumberTitle}>Order #{orderId.slice(-8).toUpperCase()}</Text>
+                      <TouchableOpacity
+                        onPress={() => handleDownloadInvoice(order)}
+                        disabled={downloadingInvoiceId === orderId}
+                        activeOpacity={0.8}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          backgroundColor: '#fef3c7',
+                          borderWidth: 1,
+                          borderColor: '#fde68a',
+                          paddingVertical: 3,
+                          paddingHorizontal: 8,
+                          borderRadius: 6,
+                        }}
+                      >
+                        {downloadingInvoiceId === orderId ? (
+                          <ActivityIndicator size="small" color="#0f172a" />
+                        ) : (
+                          <>
+                            <Ionicons name="document-text-outline" size={13} color="#d97706" />
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400e' }}>Invoice PDF</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                     <Text style={styles.orderDateSubtitle}>
                       {new Date(order.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </Text>

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { BrandModel, CreateBrandDTO, UpdateBrandDTO } from '../models/Brand';
 import { DeviceModelModel } from '../models/DeviceModel';
+import { invalidateCachePrefix } from '../utils/cache';
 
 export async function getBrands(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -17,7 +18,7 @@ export async function getBrands(req: Request, res: Response, next: NextFunction)
       filter.name = new RegExp(search.trim(), 'i');
     }
 
-    const brands = await BrandModel.find(filter).sort({ name: 1 });
+    const brands = await BrandModel.find(filter).sort({ name: 1 }).lean();
 
     res.json({ success: true, count: brands.length, data: brands });
   } catch (err) {
@@ -31,12 +32,12 @@ export async function getBrandById(req: Request, res: Response, next: NextFuncti
 
     let brand = null;
     if (mongoose.Types.ObjectId.isValid(id)) {
-      brand = await BrandModel.findById(id);
+      brand = await BrandModel.findById(id).lean();
     }
     if (!brand) {
       brand = await BrandModel.findOne({
         $or: [{ _id: id }, { name: new RegExp(`^${id}$`, 'i') }],
-      }).catch(() => null);
+      }).lean().catch(() => null);
     }
 
     if (!brand) {
@@ -68,6 +69,8 @@ export async function createBrand(req: Request, res: Response, next: NextFunctio
       description: payload.description?.trim() || '',
     });
 
+    invalidateCachePrefix('brand');
+
     res.status(201).json({ success: true, data: newBrand });
   } catch (err) {
     next(err);
@@ -90,6 +93,8 @@ export async function updateBrand(req: Request, res: Response, next: NextFunctio
       res.status(404).json({ success: false, error: { message: 'Brand not found' } });
       return;
     }
+
+    invalidateCachePrefix('brand');
 
     res.json({ success: true, data: updated });
   } catch (err) {
@@ -119,6 +124,9 @@ export async function deleteBrand(req: Request, res: Response, next: NextFunctio
       });
     }
 
+    invalidateCachePrefix('brand');
+    invalidateCachePrefix('models');
+
     res.json({ success: true, message: 'Brand deleted successfully' });
   } catch (err) {
     next(err);
@@ -129,6 +137,10 @@ export async function seedBrandsController(_req: Request, res: Response, next: N
   try {
     const { seedBrandsAndModels } = await import('../seed');
     const result = await seedBrandsAndModels();
+
+    invalidateCachePrefix('brand');
+    invalidateCachePrefix('models');
+
     res.json({
       success: true,
       message: `Successfully populated database with ${result.brandsCount} brands and ${result.modelsCount} device models.`,

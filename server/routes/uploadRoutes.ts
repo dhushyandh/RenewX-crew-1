@@ -1,9 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { uploadFile, uploadBase64, uploadUrl } from '../controllers/uploadController';
+import { uploadFile, uploadBase64, uploadUrl, getUploadedFile } from '../controllers/uploadController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
+
+// 0. Public File Streaming Endpoint (from GridFS / local disk)
+router.get('/file/:filename', getUploadedFile);
 
 // Configure multer memory storage with no file type restrictions
 const storage = multer.memoryStorage();

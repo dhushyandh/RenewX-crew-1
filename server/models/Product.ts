@@ -178,6 +178,10 @@ const ProductSchema = new Schema<IProduct>(
 
 ProductSchema.index({ name: 'text', brand: 'text', description: 'text' });
 ProductSchema.index({ category: 1, brand: 1, price: 1 });
+ProductSchema.index({ category: 1, created_at: -1 });
+ProductSchema.index({ brand: 1, price: 1 });
+ProductSchema.index({ price: 1 });
+ProductSchema.index({ rating: -1, created_at: -1 });
 
 export const ProductModel =
   (mongoose.models.Product as mongoose.Model<IProduct>) || mongoose.model<IProduct>('Product', ProductSchema);

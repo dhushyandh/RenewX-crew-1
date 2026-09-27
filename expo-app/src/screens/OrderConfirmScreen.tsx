@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -14,6 +16,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import CheckoutStepper from '@/components/CheckoutStepper';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 
 type RouteParams = {
   OrderConfirm: {
@@ -77,6 +80,35 @@ export default function OrderConfirmScreen() {
       screen: 'Track',
       params: { search: String(orderId) },
     });
+  };
+
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+
+  const handleDownloadInvoice = async () => {
+    try {
+      setDownloadingInvoice(true);
+      const invoiceData = {
+        ...order,
+        id: String(orderId),
+        order_number: String(orderId),
+        customer_info: customerInfo,
+        items,
+        order_items: items,
+        total: totalAmount,
+        subtotal: totalAmount,
+        payment_method: paymentMethod,
+        payment_status: params.paymentStatus || order.payment_status || (isCod ? 'Pending on Delivery' : 'Paid'),
+      };
+      await downloadOrderInvoicePdf(invoiceData);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Invoice Ready', `Tax invoice for order #${orderId} is downloaded.`);
+      }
+    } catch (err: any) {
+      console.error('[OrderConfirmScreen] Failed to download invoice:', err);
+      Alert.alert('Download Error', err?.message || 'Unable to download invoice. Please try again.');
+    } finally {
+      setDownloadingInvoice(false);
+    }
   };
 
   const handleContinueShopping = () => {
@@ -306,6 +338,24 @@ export default function OrderConfirmScreen() {
             <Ionicons name="cube-outline" size={20} color="#0f172a" />
             <Text style={styles.primaryOrdersText}>Go to My Orders</Text>
             <Ionicons name="arrow-forward" size={18} color="#0f172a" />
+          </TouchableOpacity>
+
+          {/* Download Tax Invoice PDF Button */}
+          <TouchableOpacity
+            style={styles.invoiceBtn}
+            onPress={handleDownloadInvoice}
+            disabled={downloadingInvoice}
+            activeOpacity={0.85}
+          >
+            {downloadingInvoice ? (
+              <ActivityIndicator size="small" color="#0f172a" />
+            ) : (
+              <>
+                <Ionicons name="receipt-outline" size={19} color="#0f172a" />
+                <Text style={styles.invoiceBtnText}>Download Tax Invoice (PDF)</Text>
+                <Ionicons name="download-outline" size={18} color="#0f172a" />
+              </>
+            )}
           </TouchableOpacity>
 
           {/* Secondary Button: Continue Shopping */}
@@ -739,5 +789,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#334155',
+  },
+  invoiceBtn: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: '#fde68a',
+  },
+  invoiceBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#78350f',
   },
 });

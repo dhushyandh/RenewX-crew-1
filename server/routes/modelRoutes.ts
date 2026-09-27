@@ -8,11 +8,12 @@ import {
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { validateDeviceModelInput } from '../models/DeviceModel';
+import { cacheResponse } from '../utils/cache';
 
 const router = Router();
 
-// Public discovery routes
-router.get('/', getModels);
+// Public discovery routes (cached for 5 minutes)
+router.get('/', cacheResponse(300, 'models'), getModels);
 
 // Admin-only management routes
 router.post('/', authenticateToken, requireAdmin, validateRequest(validateDeviceModelInput), createModel);

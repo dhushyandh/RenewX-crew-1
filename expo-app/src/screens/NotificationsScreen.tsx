@@ -70,6 +70,38 @@ export default function NotificationsScreen() {
     setUnreadCount(0);
   };
 
+  const deleteItem = async (item: any) => {
+    try {
+      await api.notifications.delete(item.id);
+      setItems((current) => current.filter((n) => n.id !== item.id));
+      if (!item.read_at) {
+        setUnreadCount((c) => Math.max(0, c - 1));
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not delete notification');
+    }
+  };
+
+  const handleClearAll = () => {
+    if (!items.length) return;
+    Alert.alert('Clear All', 'Are you sure you want to remove all notifications?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear All',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.notifications.clearAll();
+            setItems([]);
+            setUnreadCount(0);
+          } catch (err: any) {
+            Alert.alert('Error', err?.message || 'Could not clear notifications');
+          }
+        },
+      },
+    ]);
+  };
+
   const [testing, setTesting] = useState(false);
 
   const triggerTest = async (action: string) => {
@@ -90,6 +122,7 @@ export default function NotificationsScreen() {
       'Select which event notification to send directly to your phone:',
       [
         { text: '🛍️ Admin: New Order Received', onPress: () => triggerTest('admin_new_order') },
+        { text: '📱 Admin: New Sell Request', onPress: () => triggerTest('admin_trade_in') },
         { text: '✨ New Arrival (All Users)', onPress: () => triggerTest('new_arrival') },
         { text: '🚚 Order Shipped', onPress: () => triggerTest('order_shipped') },
         { text: '🏠 Out for Delivery', onPress: () => triggerTest('out_for_delivery') },
@@ -108,6 +141,10 @@ export default function NotificationsScreen() {
     // 🛍️ Admin: New Order Received
     if (title.includes('new order received') || type === 'admin_order') {
       return { icon: 'bag-check-outline', color: '#f59e0b', bg: '#fef3c7' };
+    }
+    // 📱 Admin: New Sell Request Received
+    if (title.includes('new sell request') || type === 'admin_trade_in') {
+      return { icon: 'phone-portrait-outline', color: '#8b5cf6', bg: '#f5f3ff' };
     }
     // ✨ New Arrival / New Product Added
     if (title.includes('new arrival') || title.includes('new product') || type === 'product') {
@@ -178,6 +215,8 @@ export default function NotificationsScreen() {
 
     if (item.reference_type === 'admin_order' || item.type === 'admin_order') {
       navigation.navigate('AdminOrders');
+    } else if (item.reference_type === 'admin_trade_in' || item.type === 'admin_trade_in') {
+      navigation.navigate('AdminTradeIns' as any);
     } else if (item.reference_type === 'product' || item.type === 'product') {
       navigation.navigate('ProductDetail', { id: item.reference_id });
     } else if (item.reference_type === 'order' || item.type === 'order') {
@@ -204,13 +243,20 @@ export default function NotificationsScreen() {
           <Text style={styles.title}>Notifications</Text>
           <Text style={styles.subtitle}>{unreadCount ? unreadCount + ' unread update' + (unreadCount === 1 ? '' : 's') : 'You are all caught up'}</Text>
         </View>
-        <TouchableOpacity onPress={handleTestPress} disabled={testing} style={styles.testBtn}>
-          <Ionicons name="paper-plane-outline" size={13} color="#047857" />
-          <Text style={styles.testBtnText}>{testing ? '...' : 'Test'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={markAllRead} disabled={!unreadCount} style={styles.readAll}>
-          <Text style={[styles.readAllText, !unreadCount && styles.disabledText]}>Read all</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleTestPress} disabled={testing} style={styles.testBtn}>
+            <Ionicons name="paper-plane-outline" size={13} color="#047857" />
+            <Text style={styles.testBtnText}>{testing ? '...' : 'Test'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={markAllRead} disabled={!unreadCount} style={styles.readAll}>
+            <Text style={[styles.readAllText, !unreadCount && styles.disabledText]}>Read all</Text>
+          </TouchableOpacity>
+          {items.length > 0 && (
+            <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn} accessibilityLabel="Clear all">
+              <Ionicons name="trash-outline" size={16} color="#dc2626" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -284,6 +330,16 @@ export default function NotificationsScreen() {
                   <View style={styles.titleRow}>
                     <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
                     {!item.read_at && <View style={styles.unreadDot} />}
+                    <TouchableOpacity
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.deleteBtn}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        deleteItem(item);
+                      }}
+                    >
+                      <Ionicons name="close" size={15} color="#94a3b8" />
+                    </TouchableOpacity>
                   </View>
                   <Text style={styles.body}>{item.body}</Text>
                   <Text style={styles.time}>{formatDate(item.created_at)}</Text>
@@ -315,6 +371,11 @@ const styles = StyleSheet.create({
   back: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '900', color: '#0f172a' },
   subtitle: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   testBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -325,11 +386,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#a7f3d0',
-    marginRight: 4,
   },
   testBtnText: { fontSize: 11, fontWeight: '800', color: '#047857' },
-  readAll: { padding: 6 },
+  readAll: { paddingHorizontal: 6, paddingVertical: 4 },
   readAllText: { fontSize: 11, fontWeight: '800', color: '#b45309' },
+  clearBtn: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#fef2f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
   disabledText: { color: '#cbd5e1' },
   content: { padding: 16, paddingBottom: 120 },
   permissionWarning: {
@@ -384,6 +452,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   itemTitle: { flex: 1, fontSize: 13, fontWeight: '900', color: '#111827' },
   unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#f59e0b' },
+  deleteBtn: { padding: 4, marginLeft: 4 },
   body: { fontSize: 11, lineHeight: 16, color: '#4b5563', marginTop: 4 },
   time: { fontSize: 9, color: '#9ca3af', marginTop: 7 },
   stateCard: { backgroundColor: '#fff', borderRadius: 18, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#e8e4da' },

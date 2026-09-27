@@ -26,6 +26,7 @@ export interface IUser {
   pending_email?: string;
   email_verification_code?: string;
   email_verification_expires?: Date;
+  is_email_verified?: boolean;
   created_at: Date;
   updated_at: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -143,6 +144,10 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: null,
       select: false,
+    },
+    is_email_verified: {
+      type: Boolean,
+      default: true,
     },
   },
   {

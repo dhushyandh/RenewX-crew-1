@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { env } from '../config/env';
+import { observability } from '../services/observability';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -19,7 +20,17 @@ export function errorHandler(
       ? 'Internal server error'
       : (err.message || 'Internal Server Error');
 
-  console.error(`[API Error] ${req.method} ${req.originalUrl}:`, err);
+  if (statusCode >= 500) {
+    observability.error(`[API Error] ${req.method} ${req.originalUrl} (${statusCode})`, err, {
+      req,
+      statusCode,
+      code: err.code,
+    });
+  } else {
+    observability.warn(`[API Client Error] ${req.method} ${req.originalUrl} (${statusCode}) - ${err.message}`, {
+      code: err.code,
+    });
+  }
 
   res.status(statusCode).json({
     success: false,

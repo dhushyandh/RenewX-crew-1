@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { exchangeCodeAsync } from 'expo-auth-session';
 import { getApiBaseUrl } from '@/services/api';
 import { getStoredPushTokenAsync, registerPushTokenInBackground, unregisterPushTokenAsync } from '@/services/pushNotifications';
 
@@ -41,6 +42,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<{ error: string | null }>;
   loginWithToken: (token: string, user: AppUser) => Promise<void>;
   updateUser: (updates: Partial<AppUser>) => Promise<void>;
+  refreshUser: () => Promise<AppUser | null>;
   signOut: () => Promise<void>;
 }
 
@@ -70,11 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? googleIosClientId !== 'disabled'
         : googleWebClientId !== 'disabled';
 
-  const [, , promptGoogleAsync] = Google.useIdTokenAuthRequest({
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useIdTokenAuthRequest({
     clientId: googleWebClientId,
     webClientId: googleWebClientId,
-    androidClientId: googleAndroidClientId,
-    iosClientId: googleIosClientId,
+    androidClientId: googleAndroidClientId !== 'disabled' ? googleAndroidClientId : undefined,
+    iosClientId: googleIosClientId !== 'disabled' ? googleIosClientId : undefined,
+    scopes: ['openid', 'profile', 'email'],
     selectAccount: true,
   });
 
@@ -216,30 +219,110 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerPushTokenInBackground();
   }, []);
 
+  const loginWithGoogleTokens = useCallback(async (idToken?: string, accessToken?: string) => {
+    const apiUrl = getApiBaseUrl();
+    const response = await fetch(`${apiUrl}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, accessToken }),
+    });
+
+    const json = await response.json();
+    if (!response.ok || !json.success) {
+      throw new Error(json.error?.message || 'Google sign-in could not be completed.');
+    }
+
+    await loginWithToken(json.data.token, json.data.user);
+    return json.data;
+  }, [loginWithToken]);
+
+  // Handle deep-link or background response from Google OAuth provider
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const idToken = googleResponse.params?.id_token || (googleResponse as any).authentication?.idToken;
+      const accessToken = googleResponse.params?.access_token || (googleResponse as any).authentication?.accessToken;
+      if ((idToken || accessToken) && !user) {
+        loginWithGoogleTokens(idToken, accessToken).catch((err) => {
+          console.warn('[Auth] Background Google sign-in failed:', err);
+        });
+      }
+    }
+  }, [googleResponse, user, loginWithGoogleTokens]);
+
   const signInWithGoogle = useCallback(async () => {
     if (!googleConfigured) return { error: 'Google sign-in is not configured for this app build.' };
+    if (!googleRequest) return { error: 'Google authentication is initializing. Please try again in a moment.' };
     try {
       const result = await promptGoogleAsync();
+      console.log('[Auth] Google prompt result:', result);
+
       if (result?.type !== 'success') {
-        if (result?.type === 'cancel' || result?.type === 'dismiss') return { error: 'Google sign-in was cancelled.' };
-        return { error: 'Google sign-in failed. Please try again.' };
+        if (result?.type === 'cancel' || result?.type === 'dismiss') {
+          if (Platform.OS === 'web') {
+            console.warn(
+              '[Auth] Google sign-in was dismissed/cancelled. If Google showed "Error 400: redirect_uri_mismatch", add http://localhost:8081 to Authorized redirect URIs in Google Cloud Console for Client ID: ' +
+                googleWebClientId
+            );
+          }
+          return { error: 'Google sign-in was cancelled.' };
+        }
+        const anyResult = result as any;
+        const errorDetail =
+          anyResult?.params?.error_description ||
+          anyResult?.params?.error ||
+          anyResult?.error?.message ||
+          'Google sign-in was not completed.';
+        return { error: errorDetail };
       }
-      const idToken = result.params?.id_token || result.authentication?.idToken;
-      if (!idToken) return { error: 'Google did not return a valid ID token.' };
-      const response = await fetch(getApiBaseUrl() + '/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) return { error: json.error?.message || 'Google sign-in could not be completed.' };
-      await loginWithToken(json.data.token, json.data.user);
+
+      let idToken = result.params?.id_token || (result as any).authentication?.idToken;
+      let accessToken = result.params?.access_token || (result as any).authentication?.accessToken;
+
+      // If an authorization code was returned instead of tokens, perform PKCE code exchange
+      if (!idToken && !accessToken && result.params?.code) {
+        try {
+          const activeClientId =
+            Platform.OS === 'android' && googleAndroidClientId !== 'disabled'
+              ? googleAndroidClientId
+              : Platform.OS === 'ios' && googleIosClientId !== 'disabled'
+                ? googleIosClientId
+                : googleWebClientId;
+
+          const tokenResponse = await exchangeCodeAsync(
+            {
+              clientId: activeClientId,
+              code: result.params.code,
+              redirectUri: googleRequest.redirectUri,
+              extraParams: {
+                code_verifier: googleRequest.codeVerifier || '',
+              },
+            },
+            Google.discovery
+          );
+          idToken = tokenResponse.idToken;
+          accessToken = tokenResponse.accessToken;
+        } catch (exchangeErr: any) {
+          console.warn('[Auth] Code exchange error:', exchangeErr);
+        }
+      }
+
+      // If still not resolved directly, check if the response hook received the tokens
+      if (!idToken && !accessToken && googleResponse?.type === 'success') {
+        idToken = googleResponse.params?.id_token || (googleResponse as any).authentication?.idToken;
+        accessToken = googleResponse.params?.access_token || (googleResponse as any).authentication?.accessToken;
+      }
+
+      if (!idToken && !accessToken) {
+        return { error: 'Google did not return a valid authentication token. Please verify Google Cloud OAuth credentials.' };
+      }
+
+      await loginWithGoogleTokens(idToken, accessToken);
       return { error: null };
     } catch (err: any) {
       console.error('[Auth] Google sign-in failed:', err);
       return { error: err?.message || 'Unable to complete Google sign-in.' };
     }
-  }, [googleConfigured, promptGoogleAsync, loginWithToken]);
+  }, [googleConfigured, googleRequest, promptGoogleAsync, googleAndroidClientId, googleIosClientId, googleWebClientId, googleResponse, loginWithGoogleTokens]);
 
   const updateUser = useCallback(async (updates: Partial<AppUser>) => {
     setUser((prev) => {
@@ -264,11 +347,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNeedsProfileSetup(false);
   }, []);
 
+  const refreshUser = useCallback(async (): Promise<AppUser | null> => {
+    try {
+      const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      if (!storedToken) return null;
+      const res = await fetch(`${getApiBaseUrl()}/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        setUser(json.data);
+        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(json.data));
+        return json.data;
+      }
+    } catch (err) {
+      console.warn('[Auth] refreshUser failed:', err);
+    }
+    return null;
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       const pushToken = await getStoredPushTokenAsync();
       if (pushToken) await unregisterPushTokenAsync(pushToken);
+    } catch (pushErr) {
+      console.warn('[Auth] Push token unregister error:', pushErr);
+    }
+
+    try {
       await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+        window.localStorage.removeItem(USER_STORAGE_KEY);
+      }
+    } catch (storageErr) {
+      console.warn('[Auth] Storage clear error:', storageErr);
     } finally {
       setToken(null);
       setUser(null);
@@ -299,6 +412,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         loginWithToken,
         updateUser,
+        refreshUser,
         signOut,
       }}
     >

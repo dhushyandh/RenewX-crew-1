@@ -54,8 +54,8 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
       ]);
       setBrands(
         Array.isArray(fetchedBrands)
-          ? fetchedBrands.map((b: any) => ({
-              id: b.id,
+          ? fetchedBrands.map((b: any, index: number) => ({
+              id: String(b.id || b._id || `brand-${index}-${b.name || 'item'}`),
               name: b.name,
               category: b.category,
               logo: b.logo_url || b.logo || '',
@@ -66,9 +66,9 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
 
       setModels(
         Array.isArray(fetchedModels)
-          ? fetchedModels.map((m: any) => ({
-              id: m.id,
-              brandId: m.brand_id || m.brandId,
+          ? fetchedModels.map((m: any, index: number) => ({
+              id: String(m.id || m._id || `model-${index}-${m.name || 'item'}`),
+              brandId: String(m.brand_id || m.brandId || m.brand || ''),
               brandName: m.brand_name || m.brandName || 'Brand',
               name: m.name,
               category: m.category,
@@ -400,10 +400,14 @@ const handleSaveBrand = async (b: BrandItem) => {
         </View>
       ) : (
         <View style={styles.brandList}>
-          {filteredBrands.map((brand) => {
-            const brandModels = models.filter((m) => m.brandId === brand.id || (m as any).brand_id === brand.id);
+          {filteredBrands.map((brand, index) => {
+            const brandKey = String(brand.id || `brand-${brand.name || 'item'}-${index}`);
+            const brandModels = models.filter((m) => {
+              const mBrand = String(m.brandId || (m as any).brand_id || '');
+              return mBrand === brand.id || (brand.name && mBrand.toLowerCase() === brand.name.toLowerCase());
+            });
             return (
-              <View key={brand.id} style={[styles.brandCard, { width: cardWidth }]}>
+              <View key={brandKey} style={[styles.brandCard, { width: cardWidth }]}>
                 {/* Brand Top Row */}
                 <View style={styles.brandCardTop}>
                   <View style={styles.logoBox}>
@@ -613,8 +617,8 @@ function ManageModelsModal({
                 </Text>
               </View>
             ) : (
-              filtered.map((model) => (
-                <View key={model.id} style={modalStyles.modelCard}>
+              filtered.map((model, index) => (
+                <View key={String(model.id || `model-${model.name || 'item'}-${index}`)} style={modalStyles.modelCard}>
                   <View style={modalStyles.modelCardLeft}>
                     <View style={modalStyles.cubeBox}>
                       <Ionicons name="cube-outline" size={22} color="#94a3b8" />

@@ -1,8 +1,16 @@
-import { useState } from 'react';
-import { NavigationContainer, type LinkingOptions } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
+import {
+  NavigationContainer,
+  useNavigationContainerRef,
+  type LinkingOptions,
+  getStateFromPath,
+} from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
+import * as Sentry from '@sentry/react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 
@@ -73,6 +81,8 @@ import PaymentScreen from '@/screens/PaymentScreen';
 import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
+import ForgotPasswordScreen from '@/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '@/screens/ResetPasswordScreen';
 import SecurityScreen from '@/screens/SecurityScreen';
 import EditProfileScreen from '@/screens/EditProfileScreen';
 import OnboardingProfileScreen from '@/screens/OnboardingProfileScreen';
@@ -81,8 +91,16 @@ import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute'
 import FloatingContactButtons from '@/components/FloatingContactButtons';
 import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { clientObservability } from '@/services/observability';
+
+// Initialize global crash & unhandled exception telemetry
+clientObservability.init();
 
 export type RootStackParamList = {
+  Auth: undefined;
+  ForgotPassword: { email?: string } | undefined;
+  ResetPassword: { token?: string; email?: string } | undefined;
   MainTabs: { screen?: keyof TabParamList } | undefined;
   ProductDetail: { product?: Product; id?: string };
   Search: undefined;
@@ -148,8 +166,16 @@ export const linking: LinkingOptions<RootStackParamList> = {
     'http://localhost:8082',
     'http://10.0.2.2:8081',
   ],
+  getStateFromPath: (path, options) => {
+    // Normalization: support user's /forget-password route as alias to /forgot-password
+    const normalized = path.replace(/^\/forget-password/, '/forgot-password');
+    return getStateFromPath(normalized, options);
+  },
   config: {
     screens: {
+      Auth: 'login',
+      ForgotPassword: 'forgot-password',
+      ResetPassword: 'reset-password',
       MainTabs: {
         screens: {
           Home: '',
@@ -197,114 +223,142 @@ export type TabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-// Custom Elevated Sell Button with Dollar sign
-function CustomSellTabButton({ children, onPress, accessibilityState }: any) {
-  const focused = accessibilityState?.selected;
+// Custom Modern Floating Rounded-Full Tab Bar
+function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 14) : 14;
+
+  const currentRoute = state.routes[state.index];
+  const currentDescriptor = descriptors[currentRoute.key];
+  if ((currentDescriptor?.options?.tabBarStyle as any)?.display === 'none') {
+    return null;
+  }
+
+  const TAB_CONFIG: Record<string, { active: any; inactive: any; label: string }> = {
+    Home: { active: 'home', inactive: 'home-outline', label: 'Home' },
+    Shop: { active: 'grid', inactive: 'grid-outline', label: 'Shop' },
+    Sell: { active: 'cash', inactive: 'cash-outline', label: 'Sell' },
+    Track: { active: 'cube', inactive: 'cube-outline', label: 'Track' },
+    Account: { active: 'person', inactive: 'person-outline', label: 'Account' },
+  };
+
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={styles.customSellContainer}
-      activeOpacity={0.88}
+    <View
+      pointerEvents={Platform.OS === 'web' ? undefined : 'box-none'}
+      style={[
+        styles.floatingTabBarWrapper,
+        { bottom: bottomInset },
+        Platform.OS === 'web' ? ({ pointerEvents: 'box-none' } as any) : undefined,
+      ]}
     >
-      <View style={[styles.customSellCircle, focused && styles.customSellCircleActive]}>
-        <Ionicons name="cash-outline" size={25} color="#0a0a0a" />
+      <View style={styles.floatingCapsuleContainer}>
+        {/* Frosted Glass Blurred Pill Background */}
+        <BlurView
+          intensity={80}
+          tint="light"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.floatingBlurBackground,
+            Platform.OS === 'web'
+              ? ({
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                } as any)
+              : undefined,
+          ]}
+        />
+
+        <View style={styles.floatingCapsuleRow}>
+          {state.routes.map((route, index) => {
+            const isFocused = state.index === index;
+            const isSell = route.name === 'Sell';
+            const config = TAB_CONFIG[route.name] || {
+              active: 'ellipse',
+              inactive: 'ellipse-outline',
+              label: route.name,
+            };
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!event.defaultPrevented) {
+                if (!isFocused) {
+                  navigation.navigate(route.name);
+                }
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                  window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+                }
+              }
+            };
+
+            if (isSell) {
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  onPress={onPress}
+                  activeOpacity={0.88}
+                  style={styles.floatingSellBtnContainer}
+                  accessibilityRole="button"
+                  accessibilityState={isFocused ? { selected: true } : {}}
+                  accessibilityLabel="Sell device"
+                >
+                  <View style={[styles.floatingSellCircle, isFocused && styles.floatingSellCircleActive]}>
+                    <Text style={styles.floatingSellDollarText}>$</Text>
+                  </View>
+                  <Text style={[styles.floatingSellLabel, isFocused && styles.floatingSellLabelActive]}>
+                    Sell
+                  </Text>
+                </TouchableOpacity>
+              );
+            }
+
+            return (
+              <TouchableOpacity
+                key={route.key}
+                onPress={onPress}
+                activeOpacity={0.75}
+                style={[styles.floatingTabItem, isFocused && styles.floatingTabItemActive]}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={config.label}
+              >
+                <View style={styles.floatingIconBox}>
+                  <Ionicons
+                    name={isFocused ? config.active : config.inactive}
+                    size={21}
+                    color={isFocused ? '#0f172a' : '#64748b'}
+                  />
+                  {isFocused && <View style={styles.floatingActiveDot} />}
+                </View>
+                <Text style={[styles.floatingTabLabel, isFocused && styles.floatingTabLabelActive]}>
+                  {config.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
-      <Text style={[styles.sellLabel, focused && styles.sellLabelActive]}>Sell</Text>
-    </TouchableOpacity>
+    </View>
   );
 }
 
 function TabNavigator() {
   return (
     <Tab.Navigator
+      tabBar={(props) => <ModernRoundedTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0f172a',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: {
-          borderTopColor: '#ebe7dd',
-          borderTopWidth: 1,
-          backgroundColor: '#ffffff',
-          height: Platform.OS === 'ios' ? 82 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-          paddingTop: 8,
-          elevation: 10,
-          boxShadow: '0px -2px 8px rgba(0, 0, 0, 0.05)',
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-          marginTop: 2,
-        },
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={22}
-              color={focused ? '#0f172a' : color}
-            />
-          ),
-          tabBarLabel: 'Home',
-        }}
-      />
-
-      <Tab.Screen
-        name="Shop"
-        component={ShopScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'grid' : 'grid-outline'}
-              size={22}
-              color={focused ? '#0f172a' : color}
-            />
-          ),
-          tabBarLabel: 'Shop',
-        }}
-      />
-
-      <Tab.Screen
-        name="Sell"
-        component={SellScreen}
-        options={{
-          tabBarButton: (props) => <CustomSellTabButton {...props} />,
-        }}
-      />
-
-      <Tab.Screen
-        name="Track"
-        component={TrackScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'cube' : 'cube-outline'}
-              size={22}
-              color={focused ? '#0f172a' : color}
-            />
-          ),
-          tabBarLabel: 'Track',
-        }}
-      />
-
-      <Tab.Screen
-        name="Account"
-        component={AccountScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={22}
-              color={focused ? '#0f172a' : color}
-            />
-          ),
-          tabBarLabel: 'Account',
-        }}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Shop" component={ShopScreen} />
+      <Tab.Screen name="Sell" component={SellScreen} />
+      <Tab.Screen name="Track" component={TrackScreen} />
+      <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );
 }
@@ -344,7 +398,117 @@ const ProtectedOrderConfirmScreen = withProtectedRoute(OrderConfirmScreen, {
 
 function MainAppNavigation() {
   const { user, loading, needsProfileSetup } = useAuth();
-  const [showSecurity, setShowSecurity] = useState(false);
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
+
+  // Sync user context with client observability
+  useEffect(() => {
+    clientObservability.setUser(user ? { id: user.id, email: user.email } : null);
+  }, [user]);
+
+  // Deep-link to target screen when push notification banner is tapped
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const navigateFromNotification = (data: Record<string, any> | undefined) => {
+      if (!data) return;
+      const targetScreen = String(data.screen || '').trim();
+      const id = data.productId || data.id || data.orderId || data.tradeInId;
+
+      const performNavigation = () => {
+        if (!navigationRef.isReady()) {
+          setTimeout(performNavigation, 150);
+          return;
+        }
+
+        if (targetScreen === 'ProductDetail' && (data.productId || data.id)) {
+          navigationRef.navigate('ProductDetail', { id: String(data.productId || data.id) });
+        } else if (targetScreen === 'Track' || targetScreen === 'TrackOrder' || targetScreen === 'Orders') {
+          navigationRef.navigate('MainTabs', { screen: 'Track' });
+        } else if (targetScreen === 'AdminOrders') {
+          navigationRef.navigate('AdminOrders');
+        } else if (targetScreen === 'AdminTradeIn' || targetScreen === 'AdminTradeIns') {
+          navigationRef.navigate('AdminTradeIns');
+        } else if (targetScreen === 'TradeIn' || targetScreen === 'MySellRequests') {
+          navigationRef.navigate('MySellRequests');
+        } else if (targetScreen === 'Security') {
+          navigationRef.navigate('Security');
+        } else if (targetScreen === 'ForgotPassword') {
+          navigationRef.navigate('ForgotPassword');
+        } else if (targetScreen === 'ResetPassword') {
+          navigationRef.navigate('ResetPassword');
+        } else if (targetScreen === 'Notifications') {
+          navigationRef.navigate('Notifications');
+        } else if (targetScreen) {
+          try {
+            (navigationRef.navigate as any)(targetScreen, id ? { id } : undefined);
+          } catch {
+            navigationRef.navigate('Notifications');
+          }
+        } else {
+          navigationRef.navigate('Notifications');
+        }
+      };
+
+      performNavigation();
+    };
+
+    // 1. Cold start: user opened the app by tapping a notification while terminated
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      const data = response?.notification?.request?.content?.data;
+      if (data) {
+        navigateFromNotification(data as Record<string, any>);
+      }
+    });
+
+    // 2. Foreground / background: user taps notification banner while app is running
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data;
+      if (data) {
+        navigateFromNotification(data as Record<string, any>);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [navigationRef]);
+
+
+  // When user logs out, cleanly reset navigation to Auth
+  useEffect(() => {
+    if (!navigationRef.isReady()) return;
+    if (!user) {
+      const currentRoute = navigationRef.getCurrentRoute()?.name;
+      if (
+        currentRoute &&
+        currentRoute !== 'Auth' &&
+        currentRoute !== 'ForgotPassword' &&
+        currentRoute !== 'ResetPassword'
+      ) {
+        try {
+          navigationRef.reset({
+            index: 0,
+            routes: [{ name: 'Auth' }],
+          });
+        } catch {
+          // Safe ignore
+        }
+      }
+    } else {
+      // When user logs in, automatically redirect away from Auth/ForgotPassword/ResetPassword to MainTabs
+      const currentRoute = navigationRef.getCurrentRoute()?.name;
+      if (currentRoute === 'Auth' || currentRoute === 'ForgotPassword' || currentRoute === 'ResetPassword') {
+        try {
+          navigationRef.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }],
+          });
+        } catch {
+          // Safe ignore
+        }
+      }
+    }
+  }, [user, navigationRef]);
 
   if (loading) {
     return (
@@ -354,27 +518,32 @@ function MainAppNavigation() {
     );
   }
 
-  const isWebSecurity =
-    Platform.OS === 'web' &&
-    typeof window !== 'undefined' &&
-    (window.location.pathname.startsWith('/security') || window.location.href.includes('/security'));
-
-  if (!user && !isWebSecurity && !showSecurity) {
-    return <AuthScreen onForgotPassword={() => setShowSecurity(true)} />;
-  }
-
   // If a new user creates an account or has not completed their initial profile setup
-  if (user && needsProfileSetup && !isWebSecurity && !showSecurity) {
+  if (user && needsProfileSetup) {
     return <OnboardingProfileScreen />;
   }
 
   return (
     <View style={{ flex: 1 }}>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer
+        ref={navigationRef}
+        linking={linking}
+        onStateChange={() => {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+          }
+        }}
+      >
         <Stack.Navigator
           screenOptions={{ headerShown: false }}
-          initialRouteName={!user || isWebSecurity || showSecurity ? 'Security' : 'MainTabs'}
+          initialRouteName={!user ? 'Auth' : 'MainTabs'}
         >
+          {/* Public Auth, Forgot Password, and Reset Password Routes */}
+          <Stack.Screen name="Auth" component={AuthScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+
+          {/* Main App Routes */}
           <Stack.Screen name="MainTabs" component={TabNavigator} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
@@ -387,14 +556,7 @@ function MainAppNavigation() {
           <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
           <Stack.Screen name="EditProfile" component={ProtectedEditProfileScreen} />
           <Stack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
-          <Stack.Screen name="Security">
-            {(props) => (
-              <SecurityScreen
-                {...props}
-                onBack={!user ? () => setShowSecurity(false) : undefined}
-              />
-            )}
-          </Stack.Screen>
+          <Stack.Screen name="Security" component={SecurityScreen} />
 
           {/* Dedicated Protected Admin Direct Routes */}
           <Stack.Screen name="AdminDashboard" component={ProtectedAdminPanel} />
@@ -417,7 +579,7 @@ function MainAppNavigation() {
   );
 }
 
-export default function App() {
+function App() {
   const [fontsLoaded] = useFonts({
     Outfit_400Regular,
     Outfit_500Medium,
@@ -435,17 +597,21 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <CartProvider>
-            <MainAppNavigation />
-          </CartProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <CartProvider>
+              <MainAppNavigation />
+            </CartProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
+
+export default Sentry.wrap(App);
 
 const styles = StyleSheet.create({
   loadingContainer: {
@@ -454,42 +620,108 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  customSellContainer: {
-    top: -18,
-    justifyContent: 'center',
+  floatingTabBarWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    zIndex: 1000,
+  },
+  floatingCapsuleContainer: {
+    width: '92%',
+    maxWidth: 440,
+    height: 64,
+    position: 'relative',
+    borderRadius: 9999,
+    boxShadow: '0px 10px 32px rgba(15, 23, 42, 0.12)',
+    elevation: 12,
+  },
+  floatingBlurBackground: {
+    borderRadius: 9999,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+  },
+  floatingCapsuleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    height: 64,
+    paddingHorizontal: 8,
+  },
+  floatingTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 9999,
+  },
+  floatingTabItemActive: {
+    backgroundColor: 'rgba(15, 23, 42, 0.05)',
+  },
+  floatingIconBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 22,
+    position: 'relative',
+  },
+  floatingActiveDot: {
+    position: 'absolute',
+    bottom: -5,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#f59e0b',
+  },
+  floatingTabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 4,
+  },
+  floatingTabLabelActive: {
+    color: '#0f172a',
+    fontWeight: '800',
+  },
+  floatingSellBtnContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: -14,
     flex: 1,
   },
-  customSellCircle: {
+  floatingSellCircle: {
     width: 52,
     height: 52,
     borderRadius: 26,
     backgroundColor: '#ffc400',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 3.5,
     borderColor: '#ffffff',
-    boxShadow: '0px 4px 8px rgba(255, 196, 0, 0.5)',
-    elevation: 8,
+    boxShadow: '0px 6px 18px rgba(255, 196, 0, 0.45)',
+    elevation: 10,
   },
-  customSellCircleActive: {
+  floatingSellCircleActive: {
     backgroundColor: '#f59e0b',
     borderColor: '#ffffff',
+    transform: [{ scale: 1.06 }],
   },
-  sellCurrencySign: {
+  floatingSellDollarText: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#0a0a0a',
+    color: '#0f172a',
     marginTop: -2,
+    includeFontPadding: false,
   },
-  sellLabel: {
+  floatingSellLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#9ca3af',
-    marginTop: 2,
+    color: '#64748b',
+    marginTop: 3,
   },
-  sellLabelActive: {
-    color: '#0f172a',
-    fontWeight: '900',
+  floatingSellLabelActive: {
+    color: '#d97706',
+    fontWeight: '800',
   },
 });

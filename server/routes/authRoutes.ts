@@ -9,20 +9,26 @@ import {
   verifyResetToken,
   resetPassword,
   changePassword,
+  sendAuthOtp,
+  verifyAuthOtp,
 } from '../controllers/authController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { authRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-// Public auth endpoints
-router.post('/register', register);
-router.post('/login', login);
-router.post('/google', googleAuth);
+// Public auth endpoints protected by authRateLimiter
+router.post('/register', authRateLimiter, register);
+router.post('/login', authRateLimiter, login);
+router.post('/google', authRateLimiter, googleAuth);
+router.post('/send-otp', authRateLimiter, sendAuthOtp);
+router.post('/verify-otp', authRateLimiter, verifyAuthOtp);
 
 // Password Reset & Email Verification endpoints
-router.post('/forgot-password', requestPasswordReset);
-router.post('/verify-reset-token', verifyResetToken);
-router.post('/reset-password', resetPassword);
+router.post('/forgot-password', authRateLimiter, requestPasswordReset);
+router.post('/forget-password', authRateLimiter, requestPasswordReset);
+router.post('/verify-reset-token', authRateLimiter, verifyResetToken);
+router.post('/reset-password', authRateLimiter, resetPassword);
 
 // Authenticated session profile & password management
 router.get('/me', authenticateToken, getMe);

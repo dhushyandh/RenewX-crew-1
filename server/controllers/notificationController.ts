@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { NotificationModel } from '../models/Notification';
 import { User } from '../models/User';
@@ -75,6 +76,51 @@ export async function markAllNotificationsRead(
   }
 }
 
+export async function deleteNotification(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const { id } = req.params;
+    const deleted = await NotificationModel.findOneAndDelete({
+      _id: id,
+      user_id: req.user.id,
+    });
+
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { message: 'Notification not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    res.json({ success: true, message: 'Notification deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function clearAllNotifications(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    await NotificationModel.deleteMany({ user_id: req.user.id });
+    res.json({ success: true, message: 'All notifications cleared' });
+  } catch (err) {
+    next(err);
+  }
+}
 
 import { isExpoPushToken } from '../services/notificationService';
 
@@ -112,8 +158,13 @@ export async function registerPushToken(
     }
 
     // A physical device token should belong to only one signed-in account.
+    // Ensure strict ObjectId comparison so other accounts on the same device don't leak notifications.
+    const userObjectId = mongoose.Types.ObjectId.isValid(req.user.id)
+      ? new mongoose.Types.ObjectId(req.user.id)
+      : req.user.id;
+
     await User.updateMany(
-      { _id: { $ne: req.user.id }, push_tokens: token },
+      { _id: { $ne: userObjectId }, push_tokens: token },
       { $pull: { push_tokens: token } }
     ).exec();
 
@@ -190,6 +241,22 @@ export async function triggerTestNotification(
         items: [{ name: 'MacBook Air M2 256GB', quantity: 1, price: 54999 }],
       });
       res.json({ success: true, message: "Admin new order alert dispatched successfully" });
+      return;
+    }
+
+    if (action === 'admin_trade_in') {
+      const { notifyAdminsNewTradeIn } = await import('../services/notificationService');
+      await notifyAdminsNewTradeIn({
+        tradeInId: orderId,
+        customerName: req.user?.full_name || 'Rahul Sharma',
+        customerPhone: '9876543210',
+        customerEmail: req.user?.email || 'customer@example.com',
+        brand: 'Apple',
+        model: 'iPhone 14 Pro 128GB',
+        valuation: 42000,
+        pickupAddress: '42 MG Road, Indiranagar, Bengaluru, 560038',
+      });
+      res.json({ success: true, message: "Admin new sell request alert dispatched successfully" });
       return;
     }
 

@@ -155,5 +155,8 @@ const TradeInRequestSchema = new Schema<ITradeInRequest>(
   }
 );
 
+TradeInRequestSchema.index({ user_id: 1, created_at: -1 });
+TradeInRequestSchema.index({ status: 1, created_at: -1 });
+
 export const TradeInModel =
   (mongoose.models.TradeInRequest as mongoose.Model<ITradeInRequest>) || mongoose.model<ITradeInRequest>('TradeInRequest', TradeInRequestSchema);

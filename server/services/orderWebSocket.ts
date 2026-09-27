@@ -219,9 +219,18 @@ export function setupOrderWebSocket(server: import('http').Server): void {
   }, 30_000);
 
   heartbeat.unref();
+
+  // Listen for cluster IPC broadcast messages from other worker processes
+  if (process.on) {
+    process.on('message', (message: any) => {
+      if (message && message.type === 'WS_ORDER_BROADCAST' && message.order) {
+        broadcastOrderUpdate(message.order, true);
+      }
+    });
+  }
 }
 
-export function broadcastOrderUpdate(order: any): void {
+export function broadcastOrderUpdate(order: any, fromClusterIPC = false): void {
   const orderId = String(order?._id || order?.id || '');
 
   if (!orderId) return;
@@ -233,6 +242,7 @@ export function broadcastOrderUpdate(order: any): void {
     data: order,
   };
 
+  // 1. Broadcast to all clients connected to this worker's local process
   for (const [socket, state] of clients.entries()) {
     if (
       socket.readyState === WebSocket.OPEN &&
@@ -240,6 +250,19 @@ export function broadcastOrderUpdate(order: any): void {
       state.orderId === orderId
     ) {
       send(socket, payload);
+    }
+  }
+
+  // 2. Inter-process communication (IPC) for Node.js Cluster mode
+  // If this worker triggered the update, relay it to sibling workers via primary process
+  if (!fromClusterIPC && typeof process.send === 'function') {
+    try {
+      process.send({
+        type: 'WS_ORDER_BROADCAST',
+        order,
+      });
+    } catch (ipcErr) {
+      console.warn('[WebSocket Cluster] Failed to relay broadcast via IPC:', ipcErr);
     }
   }
 }

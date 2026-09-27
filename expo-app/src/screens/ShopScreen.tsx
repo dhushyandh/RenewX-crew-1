@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,13 +14,14 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
 import type { Product } from '@/types';
 import { api } from '@/services/api';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
+import { shareProduct } from '@/services/shareService';
 import { mapProductRow } from '@/lib/productMapper';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { Ionicons } from '@expo/vector-icons';
@@ -122,6 +123,16 @@ export default function ShopScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState<Record<string | number, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const fetchLiveProducts = useCallback(async (options?: { initial?: boolean }) => {
     const initial = options?.initial ?? false;
@@ -200,15 +211,11 @@ export default function ShopScreen() {
   };
 
   const handleShare = async (product: Product) => {
-    try {
-      await Share.share({
-        title: product.name,
-        message: `Check out ${product.name} on RenewX for ₹${Number(product.price || 0).toLocaleString('en-IN')}.`,
-      });
-    } catch (error) {
-      // Share cancellation/errors should not interrupt shopping.
-      console.warn('Share error:', error);
-    }
+    await shareProduct(product, {
+      onSuccessToast: (msg) => {
+        toast.success(msg, 'Link Copied');
+      },
+    });
   };
 
   const filteredProducts = useMemo(() => {
@@ -248,7 +255,7 @@ export default function ShopScreen() {
           const name = String(product.name || '').toLowerCase();
 
           if (!brand.includes(selectedBrand.toLowerCase()) &&
-              !name.includes(selectedBrand.toLowerCase())) {
+            !name.includes(selectedBrand.toLowerCase())) {
             return false;
           }
         }
@@ -473,19 +480,6 @@ export default function ShopScreen() {
           <View style={styles.brandRow}>
             <Text style={styles.brandTitle}>Renew</Text>
             <Text style={styles.brandAccent}>X</Text>
-            <View style={styles.liveDot} />
-            <Text style={styles.shopBadge}>SHOP</Text>
-            <View style={styles.routeBadge}>
-              <Ionicons name="link-outline" size={11} color="#64748b" />
-              <Text
-                style={[
-                  styles.routeBadgeText,
-                  { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-                ]}
-              >
-                /shop
-              </Text>
-            </View>
           </View>
           <Text style={styles.headerSub}>Shop devices from live inventory</Text>
         </View>
@@ -673,6 +667,7 @@ export default function ShopScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={filteredProducts}
           renderItem={renderProductItem}
           keyExtractor={(item) => String(item.id)}

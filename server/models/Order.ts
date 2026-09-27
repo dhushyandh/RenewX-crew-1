@@ -168,5 +168,9 @@ OrderSchema.index(
   { unique: true, partialFilterExpression: { razorpay_payment_id: { $type: 'string' } } }
 );
 
+OrderSchema.index({ user_id: 1, created_at: -1 });
+OrderSchema.index({ status: 1, created_at: -1 });
+OrderSchema.index({ created_at: -1 });
+
 export const OrderModel =
   (mongoose.models.Order as mongoose.Model<IOrder>) || mongoose.model<IOrder>('Order', OrderSchema);

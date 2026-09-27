@@ -1,10 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
+import mongoose from 'mongoose';
 import { env } from '../config/env';
-import { uploadImageToStorage, shouldUsePersistentStorage } from '../services/storage';
+import {
+  uploadImageToStorage,
+  uploadImageToGridFS,
+  isSupabaseConfigured,
+} from '../services/storage';
 
-// Ensure public/uploads directory exists on disk
+// Ensure public/uploads directory exists on disk for local dev
 const UPLOAD_DIR = path.resolve(process.cwd(), 'public', 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -35,6 +40,95 @@ function saveImageBuffer(
 }
 
 /**
+ * Universal persistent image saver:
+ * 1. Checks Supabase Storage (if configured)
+ * 2. Falls back to MongoDB GridFS (fully persistent across server restarts / Render deploys)
+ * 3. Falls back to local disk (development)
+ */
+async function savePersistentImage(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string,
+  req: Request
+): Promise<string> {
+  // 1. Try Supabase Storage if configured
+  if (isSupabaseConfigured()) {
+    try {
+      return await uploadImageToStorage(buffer, fileName, mimeType);
+    } catch (storageErr) {
+      console.warn('[Upload] Supabase upload failed, falling back to MongoDB GridFS:', storageErr);
+    }
+  }
+
+  // 2. Persistent fallback: MongoDB GridFS (guaranteed persistence across cloud restarts)
+  if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+    try {
+      const gridFsName = await uploadImageToGridFS(buffer, fileName, mimeType);
+      const protocol = req.protocol || 'http';
+      const host = req.get('host') || `localhost:${env.PORT}`;
+      return `${protocol}://${host}/api/upload/file/${gridFsName}`;
+    } catch (gridFsErr) {
+      console.warn('[Upload] GridFS upload failed, falling back to local disk:', gridFsErr);
+    }
+  }
+
+  // 3. Fallback to local disk (development)
+  const localResult = saveImageBuffer(buffer, fileName, mimeType, req);
+  return localResult.url;
+}
+
+/**
+ * Stream an uploaded image from MongoDB GridFS or local disk.
+ * Allows permanent image retrieval with immutable caching headers.
+ */
+export async function getUploadedFile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { filename } = req.params;
+    if (!filename || typeof filename !== 'string') {
+      res.status(400).json({ success: false, error: { message: 'Filename is required' } });
+      return;
+    }
+
+    const safeFilename = path.basename(filename);
+
+    // 1. Check local disk first
+    const localPath = path.join(UPLOAD_DIR, safeFilename);
+    if (fs.existsSync(localPath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.sendFile(localPath);
+      return;
+    }
+
+    // 2. Check MongoDB GridFS
+    const db = mongoose.connection.db;
+    if (!db) {
+      res.status(404).json({ success: false, error: { message: 'File not found' } });
+      return;
+    }
+
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
+    const files = await bucket.find({ filename: safeFilename }).toArray();
+
+    if (!files.length) {
+      res.status(404).json({ success: false, error: { message: 'File not found' } });
+      return;
+    }
+
+    const file = files[0];
+    res.setHeader('Content-Type', file.contentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
+    const downloadStream = bucket.openDownloadStreamByName(safeFilename);
+    downloadStream.on('error', () => {
+      if (!res.headersSent) res.status(404).end();
+    });
+    downloadStream.pipe(res);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * Handle multipart form file upload (e.g. from FormData)
  */
 export async function uploadFile(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -51,23 +145,11 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
     const originalName = file.originalname || 'upload.jpg';
     const mimeType = file.mimetype || 'image/jpeg';
 
-    if (shouldUsePersistentStorage()) {
-      try {
-        const url = await uploadImageToStorage(file.buffer, originalName, mimeType);
-        res.status(201).json({
-          success: true,
-          data: { url, fileName: originalName, size: file.size, mimeType },
-        });
-        return;
-      } catch (storageErr) {
-        console.warn('[Upload] Persistent storage failed, falling back to local disk:', storageErr);
-      }
-    }
+    const url = await savePersistentImage(file.buffer, originalName, mimeType, req);
 
-    const result = saveImageBuffer(file.buffer, originalName, mimeType, req);
     res.status(201).json({
       success: true,
-      data: { ...result, mimeType },
+      data: { url, fileName: originalName, size: file.size, mimeType },
     });
   } catch (err) {
     next(err);
@@ -95,23 +177,11 @@ export async function uploadBase64(req: Request, res: Response, next: NextFuncti
     const mime = contentType || 'image/jpeg';
     const name = fileName || 'device-image.jpg';
 
-    if (shouldUsePersistentStorage()) {
-      try {
-        const url = await uploadImageToStorage(buffer, name, mime);
-        res.status(201).json({
-          success: true,
-          data: { url, fileName: name, size: buffer.length, mimeType: mime },
-        });
-        return;
-      } catch (storageErr) {
-        console.warn('[Upload] Persistent storage failed, falling back to local disk:', storageErr);
-      }
-    }
+    const url = await savePersistentImage(buffer, name, mime, req);
 
-    const result = saveImageBuffer(buffer, name, mime, req);
     res.status(201).json({
       success: true,
-      data: { ...result, mimeType: mime },
+      data: { url, fileName: name, size: buffer.length, mimeType: mime },
     });
   } catch (err) {
     next(err);
@@ -125,37 +195,32 @@ export async function uploadBase64(req: Request, res: Response, next: NextFuncti
 export async function uploadUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { url } = req.body;
+
     if (!url || typeof url !== 'string') {
       res.status(400).json({
         success: false,
-        error: { message: 'url string is required in request body' },
+        error: { message: 'Valid image URL is required' },
       });
       return;
     }
 
-    const cleanUrl = url.trim().replace(/^["'`(<]+|["'`>)]+$/g, '');
+    const cleanUrl = url.trim();
 
-    // If it's already a data URI, delegate to base64
+    // If it's a data URL, delegate directly to uploadBase64
     if (cleanUrl.startsWith('data:')) {
       req.body.base64 = cleanUrl;
       return uploadBase64(req, res, next);
     }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
       const response = await fetch(cleanUrl, {
-        signal: controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         },
       });
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
-        // Fallback: return original clean URL
         res.status(200).json({
           success: true,
           data: { url: cleanUrl },
@@ -175,23 +240,11 @@ export async function uploadUrl(req: Request, res: Response, next: NextFunction)
 
       const originalName = `remote-${Date.now()}${ext}`;
 
-      if (shouldUsePersistentStorage()) {
-        try {
-          const storedUrl = await uploadImageToStorage(buffer, originalName, contentType);
-          res.status(201).json({
-            success: true,
-            data: { url: storedUrl, fileName: originalName, size: buffer.length, mimeType: contentType },
-          });
-          return;
-        } catch (storageErr) {
-          console.warn('[Upload] Persistent storage failed, falling back to local disk:', storageErr);
-        }
-      }
+      const storedUrl = await savePersistentImage(buffer, originalName, contentType, req);
 
-      const result = saveImageBuffer(buffer, originalName, contentType, req);
       res.status(201).json({
         success: true,
-        data: { ...result, mimeType: contentType },
+        data: { url: storedUrl, fileName: originalName, size: buffer.length, mimeType: contentType },
       });
     } catch (fetchErr) {
       console.warn('[Upload] Fetch remote URL failed, keeping original:', fetchErr);
@@ -204,4 +257,3 @@ export async function uploadUrl(req: Request, res: Response, next: NextFunction)
     next(err);
   }
 }
-

@@ -32,12 +32,6 @@ export default function HomeHeader({
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <View>
-            <Text style={styles.logo}>
-              Renew<Text style={styles.logoAccent}>X</Text>
-            </Text>
-            <Text style={styles.logoSub}>CREW</Text>
-          </View>
         </View>
 
         <View style={styles.actions}>
@@ -87,30 +81,10 @@ const styles = StyleSheet.create({
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   logoImage: {
-    width: 38,
+    width: 125,
     height: 38,
-    borderRadius: radius.md,
-    backgroundColor: '#ffffff',
-  },
-  logo: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.black,
-    color: colors.text,
-    letterSpacing: -0.5,
-    lineHeight: 18,
-  },
-  logoAccent: {
-    color: colors.primary,
-  },
-  logoSub: {
-    fontSize: 8,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    letterSpacing: 2,
-    marginTop: 1,
   },
   actions: {
     flexDirection: 'row',

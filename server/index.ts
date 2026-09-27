@@ -1,12 +1,21 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
 import path from 'path';
+import mongoose from 'mongoose';
 import { env } from './config/env';
 import apiRouter from './routes';
 import { errorHandler } from './middleware/errorHandler';
 import { handleRazorpayWebhook } from './controllers/orderController';
+import { generalRateLimiter } from './middleware/rateLimiter';
+import { connectDB } from './config/db';
 
 const app = express();
+
+// Enable reverse proxy support (Render, Vercel, AWS ALB, Nginx, Cloudflare)
+// so req.ip and express-rate-limit correctly identify client IPs instead of the load balancer.
+app.set('trust proxy', 1);
 
 if (env.NODE_ENV === 'production' && env.CORS_ORIGINS.includes('*')) {
   throw new Error('CORS_ORIGIN must be explicitly configured in production');
@@ -15,7 +24,7 @@ if (env.NODE_ENV === 'production' && env.CORS_ORIGINS.includes('*')) {
 const allowedOrigins = new Set(env.CORS_ORIGINS.filter((origin) => origin !== '*'));
 
 const isAllowedOrigin = (origin: string | undefined): boolean => {
-  if (!origin) return true;
+  if (!origin || origin === 'null') return true;
   if (env.CORS_ORIGINS.includes('*')) return true;
   if (allowedOrigins.has(origin)) return true;
   try {
@@ -41,7 +50,7 @@ const corsOptions: cors.CorsOptions = {
     if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
-    return callback(new Error('Origin not allowed by CORS'));
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -54,14 +63,26 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.disable('x-powered-by');
-app.use(cors(corsOptions));
 
-// Establish MongoDB lazily for Vercel requests and reuse Mongoose's
-// connection pool across warm function invocations.
+// Security headers with permissive resource policy for cross-origin mobile assets
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false,
+}));
+
+// Gzip/Brotli compression for all JSON and static payloads
+app.use(compression());
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Ensure database connection is active using warm mongoose connection pool
 app.use(async (_req, _res, next) => {
   try {
-    const { connectDB } = await import('./config/db');
-    await connectDB();
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
     next();
   } catch (error) {
     next(error);
@@ -78,8 +99,8 @@ app.post(
   handleRazorpayWebhook,
 );
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use((req: Request, res: Response, next) => {
   const start = Date.now();
@@ -103,10 +124,12 @@ app.get('/', (_req, res) => {
   });
 });
 
-app.use('/api', apiRouter);
+app.use('/api', generalRateLimiter, apiRouter);
 
-// This is suitable for local development only.
-// Vercel does not provide persistent local disk storage.
+import { getUploadedFile } from './controllers/uploadController';
+
+// Persistent file delivery: serves from local disk first, or streams from MongoDB GridFS if on ephemeral host
+app.get('/uploads/:filename', getUploadedFile);
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'public', 'uploads')));
 
 app.use((req: Request, res: Response) => {

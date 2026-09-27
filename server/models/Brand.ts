@@ -69,4 +69,6 @@ const BrandSchema = new Schema<IBrand>(
   }
 );
 
+BrandSchema.index({ category: 1, name: 1 });
+
 export const BrandModel = (mongoose.models.Brand as mongoose.Model<IBrand>) || mongoose.model<IBrand>('Brand', BrandSchema);

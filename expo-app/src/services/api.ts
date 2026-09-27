@@ -166,6 +166,18 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
+
+    sendAuthOtp: async (email: string, intent?: 'sign_in' | 'sign_up', password?: string, fullName?: string) =>
+      request<{ email: string; expiresInMinutes?: number }>('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, intent, password, full_name: fullName }),
+      }),
+
+    verifyAuthOtp: async (email: string, code: string) =>
+      request<{ token: string; user: any }>('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      }),
   },
 
   brands: {
@@ -337,6 +349,8 @@ export const api = {
     getAll: async () => request<any>('/notifications'),
     markRead: async (id: string) => request<any>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' }),
     markAllRead: async () => request<any>('/notifications/read-all', { method: 'PATCH' }),
+    delete: async (id: string) => request<any>(`/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    clearAll: async () => request<any>('/notifications/clear-all', { method: 'DELETE' }),
     triggerTest: async (action?: string) =>
       request<any>('/notifications/test-event', {
         method: 'POST',
@@ -351,7 +365,20 @@ export const api = {
       const match = /\.(\w+)$/.exec(filename);
       const type = fileData.type || (match ? `image/${match[1]}` : 'image/jpeg');
 
-      formData.append('file', { uri: fileData.uri, name: filename, type } as any);
+      if (Platform.OS === 'web' && fileData.uri) {
+        try {
+          if (fileData.uri.startsWith('blob:') || fileData.uri.startsWith('data:')) {
+            const blob = await fetch(fileData.uri).then((r) => r.blob());
+            formData.append('file', blob, filename);
+          } else {
+            formData.append('file', { uri: fileData.uri, name: filename, type } as any);
+          }
+        } catch {
+          formData.append('file', { uri: fileData.uri, name: filename, type } as any);
+        }
+      } else {
+        formData.append('file', { uri: fileData.uri, name: filename, type } as any);
+      }
 
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
       const headers: Record<string, string> = {};

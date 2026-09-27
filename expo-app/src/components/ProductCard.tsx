@@ -7,9 +7,10 @@ interface ProductCardProps {
   product: Product;
   onPress: () => void;
   onAddToCart: () => void;
+  onShare?: () => void;
 }
 
-export default function ProductCard({ product, onPress, onAddToCart }: ProductCardProps) {
+export default function ProductCard({ product, onPress, onAddToCart, onShare }: ProductCardProps) {
   const price = Number(product.price) || 0;
   const originalPrice = Number(product.originalPrice) || price;
   const discount = Math.round(
@@ -25,6 +26,19 @@ export default function ProductCard({ product, onPress, onAddToCart }: ProductCa
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>-{discount}%</Text>
           </View>
+        )}
+        {onShare && (
+          <TouchableOpacity
+            style={styles.shareBtn}
+            onPress={(e) => {
+              (e as any)?.stopPropagation?.();
+              onShare();
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Share product"
+          >
+            <Ionicons name="share-social-outline" size={13} color="#334155" />
+          </TouchableOpacity>
         )}
         <View style={[styles.conditionBadge, { backgroundColor: cond.bg }]}>
           <Text style={[styles.conditionText, { color: cond.text }]}>{product.condition}</Text>
@@ -104,6 +118,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.full,
+  },
+  shareBtn: {
+    position: 'absolute',
+    bottom: spacing.xs + 3,
+    right: spacing.xs + 3,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   conditionText: {
     fontSize: 10,

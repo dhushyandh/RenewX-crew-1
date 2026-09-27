@@ -55,9 +55,17 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sharing",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "computer-science-engineering",
+          "project": "react-native"
+        }
+      ]
     ],
     "owner": "dhushyandhs-workspace",
-    "scheme": "renewx"
+    "scheme": ["renewx", "com.renewx.mobile"]
   }
 }

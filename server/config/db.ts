@@ -37,8 +37,8 @@ export async function connectDB(): Promise<typeof mongoose> {
       connectTimeoutMS: 15000,
       socketTimeoutMS: 45000,
       maxIdleTimeMS: 60000,
-      maxPoolSize: 20,
-      minPoolSize: env.NODE_ENV === 'production' ? 2 : 0,
+      maxPoolSize: 50,
+      minPoolSize: env.NODE_ENV === 'production' ? 5 : 2,
     })
     .then(async (connection) => {
       await reconcileOrderIndexes();
