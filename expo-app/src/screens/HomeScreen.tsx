@@ -28,6 +28,7 @@ import { useAuth } from '@/context/AuthContext';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import HomeHeader from '@/components/HomeHeader';
 import ProductCard from '@/components/ProductCard';
+import FloatingContactButtons from '@/components/FloatingContactButtons';
 import { mapProductRow } from '@/lib/productMapper';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -689,80 +690,6 @@ export default function HomeScreen() {
   );
 }
 
-function FloatingContactButtons() {
-  const whatsappNumber = process.env.EXPO_PUBLIC_WHATSAPP_NUMBER;
-  const supportPhone = process.env.EXPO_PUBLIC_SUPPORT_PHONE;
-  const instagramUrl = process.env.EXPO_PUBLIC_INSTAGRAM_URL;
-
-  const openWhatsApp = async () => {
-    if (!whatsappNumber) return;
-    const url = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
-    await Linking.openURL(url);
-  };
-
-  const openPhone = async () => {
-    if (!supportPhone) return;
-    await Linking.openURL(`tel:${supportPhone}`);
-  };
-
-  const openInstagram = async () => {
-    if (!instagramUrl) return;
-    await Linking.openURL(instagramUrl);
-  };
-
-  const actions = [
-    whatsappNumber
-      ? {
-          key: 'whatsapp',
-          icon: 'logo-whatsapp' as const,
-          onPress: openWhatsApp,
-          style: styles.whatsappButton,
-        }
-      : null,
-    supportPhone
-      ? {
-          key: 'phone',
-          icon: 'call-outline' as const,
-          onPress: openPhone,
-          style: styles.phoneButton,
-        }
-      : null,
-    instagramUrl
-      ? {
-          key: 'instagram',
-          icon: 'logo-instagram' as const,
-          onPress: openInstagram,
-          style: styles.instagramButton,
-        }
-      : null,
-  ].filter(Boolean) as {
-    key: string;
-    icon: any;
-    onPress: () => void;
-    style: any;
-  }[];
-
-  if (!actions.length) return null;
-
-  return (
-    <View
-      pointerEvents={Platform.OS === 'web' ? undefined : 'box-none'}
-      style={[styles.floatingContacts, Platform.OS === 'web' ? ({ pointerEvents: 'box-none' } as any) : undefined]}
-    >
-      {actions.map((action) => (
-        <TouchableOpacity
-          key={action.key}
-          style={[styles.floatingButton, action.style]}
-          onPress={action.onPress}
-          activeOpacity={0.82}
-        >
-          <Ionicons name={action.icon} size={27} color="#ffffff" />
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1262,38 +1189,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '800',
     fontSize: 12,
-  },
-
-  floatingContacts: {
-    position: 'absolute',
-    right: 18,
-    bottom: 90,
-    alignItems: 'center',
-    gap: 13,
-  },
-
-  floatingButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 7,
-  },
-
-  whatsappButton: {
-    backgroundColor: '#1fc76b',
-  },
-
-  phoneButton: {
-    backgroundColor: '#090909',
-  },
-
-  instagramButton: {
-    backgroundColor: '#d12d83',
   },
 });

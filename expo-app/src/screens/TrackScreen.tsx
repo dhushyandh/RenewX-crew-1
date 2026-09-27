@@ -766,7 +766,7 @@ export default function TrackScreen() {
                       </View>
                       <View>
                         <Text style={styles.invoiceBtnTitle}>Download Tax Invoice (PDF)</Text>
-                        <Text style={styles.invoiceBtnSub}>Official receipt & 6-month warranty certificate</Text>
+                        <Text style={styles.invoiceBtnSub}>Official tax invoice & verified purchase receipt</Text>
                       </View>
                     </View>
                     <View style={styles.invoicePill}>

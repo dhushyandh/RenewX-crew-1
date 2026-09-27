@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  RefreshControl,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +33,7 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
   const [brands, setBrands] = useState<BrandItem[]>([]);
   const [models, setModels] = useState<DeviceModelItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [brandSearch, setBrandSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -45,8 +47,8 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
   const [editingModel, setEditingModel] = useState<DeviceModelItem | null>(null);
   const [preselectedBrandId, setPreselectedBrandId] = useState<string>(propBrandId || 'apple');
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [fetchedBrands, fetchedModels] = await Promise.all([
         api.brands.getAll(),
@@ -85,8 +87,14 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
       setModels([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData(true);
+  }, [loadData]);
 
   useEffect(() => {
     loadData();
@@ -255,6 +263,15 @@ const handleSaveBrand = async (b: BrandItem) => {
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={true}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#ffc400']}
+          tintColor={'#ffc400'}
+        />
+      }
     >
       {/* 1. Header Hero Card with Stats */}
       <View style={styles.headerCard}>

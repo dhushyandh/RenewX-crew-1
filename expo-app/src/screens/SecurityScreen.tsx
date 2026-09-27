@@ -546,26 +546,6 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
             </View>
           )}
 
-          {/* Security Standards & Policy Card */}
-          <View style={styles.securityChecklistCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Ionicons name="lock-closed" size={18} color="#ffc400" />
-              <Text style={styles.checklistHeader}>RenewX Security Standards</Text>
-            </View>
-
-            <View style={styles.checkItem}>
-              <Ionicons name="checkmark-circle" size={15} color="#10b981" />
-              <Text style={styles.checkText}>256-bit AES encryption & bcrypt password hashing</Text>
-            </View>
-            <View style={styles.checkItem}>
-              <Ionicons name="checkmark-circle" size={15} color="#10b981" />
-              <Text style={styles.checkText}>Cryptographic single-use email verification tokens (30 min expiry)</Text>
-            </View>
-            <View style={styles.checkItem}>
-              <Ionicons name="checkmark-circle" size={15} color="#10b981" />
-              <Text style={styles.checkText}>Automatic session token invalidation upon credential update</Text>
-            </View>
-          </View>
 
           {user && (
             <TouchableOpacity

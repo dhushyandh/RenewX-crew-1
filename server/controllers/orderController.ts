@@ -255,7 +255,7 @@ export async function getOrderInvoice(req: AuthenticatedRequest, res: Response, 
           <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; color: #0f172a;">
             ${item.product_name || 'Certified RenewX Device'}
             <div style="font-size: 11px; font-weight: 600; color: #16a34a; margin-top: 3px;">
-              ✓ 6-Month RenewX Certified Warranty Included
+              ✓ Inspected & Quality Verified Pre-Owned
             </div>
           </td>
           <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #334155;">${quantity}</td>
@@ -328,7 +328,7 @@ export async function getOrderInvoice(req: AuthenticatedRequest, res: Response, 
         <div class="party-title">Sold By (Seller)</div>
         <div class="party-name">RenewX Crew India Pvt Ltd</div>
         <div class="party-detail">
-          Certified Refurbished Technology Hub<br />
+          Pre-Owned Electronics Marketplace<br />
           Email: support@renewx.in<br />
           Web: https://renewx.expo.app<br />
           GSTIN: 33AAACR2938L1Z8
@@ -349,7 +349,7 @@ export async function getOrderInvoice(req: AuthenticatedRequest, res: Response, 
       <thead>
         <tr>
           <th style="width: 40px; text-align: center;">#</th>
-          <th style="text-align: left;">Item Description & Coverage</th>
+          <th style="text-align: left;">Item Description</th>
           <th style="width: 60px; text-align: center;">Qty</th>
           <th style="width: 120px; text-align: right;">Unit Price</th>
           <th style="width: 120px; text-align: right;">Total</th>
@@ -391,14 +391,14 @@ export async function getOrderInvoice(req: AuthenticatedRequest, res: Response, 
     <div class="guarantee-box">
       <div class="guarantee-badge">✓</div>
       <div>
-        <div class="guarantee-title">RenewX 6-Month Comprehensive Warranty Active</div>
+        <div class="guarantee-title">RenewX Inspected & Quality Verified</div>
         <div class="guarantee-sub">
-          This certified unit passed our multi-point rigorous hardware diagnostics. Keep this tax invoice as valid proof of warranty.
+          This pre-owned device passed our hardware inspection & functional verification before dispatch.
         </div>
       </div>
     </div>
     <div class="footer">
-      Questions about your order or warranty? Reach out at <strong>support@renewx.in</strong> or through the RenewX app.<br />
+      Questions about your order? Reach out at <strong>support@renewx.in</strong> or through the RenewX app.<br />
       Thank you for championing sustainable, circular electronics with RenewX Crew.
     </div>
   </div>
@@ -516,7 +516,7 @@ export async function downloadOrderInvoicePdfController(
 
       doc.fillColor('#64748b').fontSize(8.5).font('Helvetica').text(String(idx + 1), 50, currentY + 5);
       doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold').text(item.product_name || 'Certified RenewX Device', 80, currentY + 5);
-      doc.fillColor('#16a34a').fontSize(7.5).font('Helvetica').text('✓ 6-Month RenewX Certified Warranty Included', 80, currentY + 17);
+      doc.fillColor('#16a34a').fontSize(7.5).font('Helvetica').text('✓ Inspected & Quality Verified Pre-Owned', 80, currentY + 17);
 
       doc.fillColor('#334155').fontSize(8.5).font('Helvetica').text(String(qty), 370, currentY + 5, { width: 35, align: 'center' });
       doc.text(`₹${Number(price).toLocaleString('en-IN')}`, 415, currentY + 5, { width: 60, align: 'right' });
@@ -544,11 +544,11 @@ export async function downloadOrderInvoicePdfController(
     doc.text('Grand Total:', 355, totalsY + 58);
     doc.text(`₹${Number(order.total_amount || order.subtotal || 0).toLocaleString('en-IN')}`, 450, totalsY + 58, { width: 95, align: 'right' });
 
-    // Guarantee & Warranty Box
+    // Quality Assurance Box
     const guaranteeY = totalsY + 95;
     doc.rect(40, guaranteeY, 515, 42).fillAndStroke('#ecfdf5', '#a7f3d0');
-    doc.fillColor('#065f46').fontSize(9.5).font('Helvetica-Bold').text('🛡️ Official 6-Month Comprehensive Warranty', 55, guaranteeY + 9);
-    doc.fillColor('#047857').fontSize(8).font('Helvetica').text('Certified multi-point hardware diagnostics passed. Keep this tax invoice as valid proof of warranty.', 55, guaranteeY + 23);
+    doc.fillColor('#065f46').fontSize(9.5).font('Helvetica-Bold').text('🛡️ Inspected & Quality Verified Pre-Owned', 55, guaranteeY + 9);
+    doc.fillColor('#047857').fontSize(8).font('Helvetica').text('Passed hardware inspection & functional testing. Keep this tax invoice as proof of purchase.', 55, guaranteeY + 23);
 
     // Payment details & Footer
     const footerY = guaranteeY + 56;

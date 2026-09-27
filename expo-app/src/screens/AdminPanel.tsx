@@ -13,6 +13,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   SafeAreaView,
+  RefreshControl,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -309,6 +310,7 @@ function TradeInsView() {
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -383,8 +385,8 @@ function TradeInsView() {
     return cleanList;
   };
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const data = await api.tradeIn.getAll(statusFilter === 'all' ? undefined : statusFilter);
       const rows = Array.isArray(data) ? data : [];
@@ -402,8 +404,14 @@ function TradeInsView() {
       setItems([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [statusFilter, toast]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    load(true);
+  }, [load]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -579,7 +587,7 @@ function TradeInsView() {
 
   const inspectionPhotos = selectedInspectionItem ? getItemPhotos(selectedInspectionItem) : [];
 
-  if (loading) return <View style={styles.centerBox}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (loading && !refreshing) return <View style={styles.centerBox}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
@@ -588,7 +596,7 @@ function TradeInsView() {
           <Ionicons name="search" size={16} color="#94a3b8" />
           <TextInput value={search} onChangeText={setSearch} placeholder="Search device, customer or phone..." placeholderTextColor="#94a3b8" style={styles.searchInput} />
         </View>
-        <TouchableOpacity onPress={load} style={styles.addButtonMini}><Ionicons name="refresh" size={18} color="#000" /></TouchableOpacity>
+        <TouchableOpacity onPress={() => onRefresh()} style={styles.addButtonMini}><Ionicons name="refresh" size={18} color="#000" /></TouchableOpacity>
       </View>
 
       <View style={{ height: 42, marginVertical: 8 }}>
@@ -603,11 +611,26 @@ function TradeInsView() {
         </ScrollView>
       </View>
 
-      {filtered.length === 0 ? (
-        <View style={styles.centerBox}><Ionicons name="pricetag-outline" size={38} color="#94a3b8" /><Text style={styles.emptyNote}>{search ? 'No requests match your search.' : 'No sell requests found.'}</Text></View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 14 }} showsVerticalScrollIndicator={false}>
-          {filtered.map((item) => {
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 14, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        alwaysBounceVertical={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {filtered.length === 0 ? (
+          <View style={[styles.centerBox, { minHeight: 250 }]}>
+            <Ionicons name="pricetag-outline" size={38} color="#94a3b8" />
+            <Text style={styles.emptyNote}>{search ? 'No requests match your search.' : 'No sell requests found.'}</Text>
+          </View>
+        ) : (
+          filtered.map((item) => {
             const id = String(item.id || item._id);
             const status = String(item.status || 'pending');
             const photos = getItemPhotos(item);
@@ -828,9 +851,9 @@ function TradeInsView() {
                 </View>
               </View>
             );
-          })}
-        </ScrollView>
-      )}
+          })
+        )}
+      </ScrollView>
 
       {/* ========================================================================================
           MODAL 1: FULL SELL REQUEST & 12-POINT DIAGNOSTIC INSPECTION (MOBILE RESPONSIVE)
@@ -1162,7 +1185,7 @@ function TradeInsView() {
                       { label: 'Original Box', val: selectedInspectionItem.condition?.accessories?.hasBox },
                       { label: 'Charger', val: selectedInspectionItem.condition?.accessories?.hasCharger },
                       { label: 'Valid Bill', val: selectedInspectionItem.condition?.accessories?.hasBill },
-                      { label: 'Warranty', val: false, custom: 'Expired' },
+                      { label: 'OEM Warranty', val: false, custom: 'Expired' },
                     ].map((itemAcc, aIdx) => (
                       <View key={aIdx} style={{ flex: 1, minWidth: isSmallScreen ? '46%' : 120, backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Text style={{ fontSize: 11, color: '#334155' }}>{itemAcc.label}</Text>
@@ -1684,11 +1707,13 @@ function DashboardView({
   refreshSignal: number;
 }) {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [sellRequests, setSellRequests] = useState<any[]>([]);
 
-  const loadStats = useCallback(async () => {
+  const loadStats = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [prods, ords, sell] = await Promise.all([
         api.products.getAll().catch((): any[] => []),
@@ -1702,14 +1727,20 @@ function DashboardView({
       // ignore
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadStats(true);
+  }, [loadStats]);
 
   useEffect(() => {
     loadStats();
   }, [loadStats, refreshSignal]);
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.centerBox}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -1722,7 +1753,19 @@ function DashboardView({
   const lowStock = products.filter((p) => Number(p.stock) <= 3).length;
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.scrollContainer}
+      showsVerticalScrollIndicator={false}
+      alwaysBounceVertical={true}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[colors.primary]}
+          tintColor={colors.primary}
+        />
+      }
+    >
       {/* 4 Metric Cards */}
       <View style={styles.metricsGrid}>
         <View style={styles.metricCard}>
@@ -1911,12 +1954,13 @@ function ProductsView({
 }) {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const toast = useToast();
 
-  const fetchListings = useCallback(async () => {
-    setLoading(true);
+  const fetchListings = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const data = await api.products.getAll();
       setProducts((data as ProductRow[]) || []);
@@ -1924,8 +1968,14 @@ function ProductsView({
       // ignore
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchListings(true);
+  }, [fetchListings]);
 
   useEffect(() => {
     fetchListings();
@@ -2001,18 +2051,31 @@ function ProductsView({
         </ScrollView>
       </View>
 
-      {loading ? (
+      {loading && !refreshing ? (
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      ) : filtered.length === 0 ? (
-        <View style={styles.centerBox}>
-          <Ionicons name="cube-outline" size={36} color="#94a3b8" />
-          <Text style={styles.emptyNote}>No products match your search</Text>
-        </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 10 }}>
-          {filtered.map((item, itemIdx) => {
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 10, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          alwaysBounceVertical={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {filtered.length === 0 ? (
+            <View style={[styles.centerBox, { minHeight: 250 }]}>
+              <Ionicons name="cube-outline" size={36} color="#94a3b8" />
+              <Text style={styles.emptyNote}>No products match your search</Text>
+            </View>
+          ) : (
+            filtered.map((item, itemIdx) => {
             const isLow = Number(item.stock) <= 3;
             const isOut = Number(item.stock) === 0;
             const productKey = String(item.id || (item as any)._id || itemIdx);
@@ -2052,8 +2115,9 @@ function ProductsView({
                 </View>
               </View>
             );
-          })}
-        </ScrollView>
+          })
+        )}
+      </ScrollView>
       )}
     </View>
   );
@@ -2065,6 +2129,7 @@ function ProductsView({
 function OrdersView() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
@@ -2084,8 +2149,8 @@ function OrdersView() {
     }
   };
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const data = await api.orders.getAll();
       const rows = Array.isArray(data) ? data : [];
@@ -2109,8 +2174,14 @@ function OrdersView() {
       setOrders([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [toast]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchOrders(true);
+  }, [fetchOrders]);
 
   useEffect(() => {
     fetchOrders();
@@ -2195,7 +2266,7 @@ function OrdersView() {
             style={styles.searchInput}
           />
         </View>
-        <TouchableOpacity onPress={fetchOrders} style={styles.addButtonMini}>
+        <TouchableOpacity onPress={() => onRefresh()} style={styles.addButtonMini}>
           <Ionicons name="refresh" size={18} color="#000" />
         </TouchableOpacity>
       </View>
@@ -2215,14 +2286,31 @@ function OrdersView() {
         </ScrollView>
       </View>
 
-      {filtered.length === 0 ? (
+      {loading && !refreshing ? (
         <View style={styles.centerBox}>
-          <Ionicons name="receipt-outline" size={38} color="#94a3b8" />
-          <Text style={styles.emptyNote}>{search ? 'No orders match your search.' : 'No orders found.'}</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 12 }} showsVerticalScrollIndicator={false}>
-          {filtered.map((order) => {
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 12, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          alwaysBounceVertical={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {filtered.length === 0 ? (
+            <View style={[styles.centerBox, { minHeight: 250 }]}>
+              <Ionicons name="receipt-outline" size={38} color="#94a3b8" />
+              <Text style={styles.emptyNote}>{search ? 'No orders match your search.' : 'No orders found.'}</Text>
+            </View>
+          ) : (
+            filtered.map((order) => {
             const orderId = String(order.id || order._id);
             const isCod = order.payment_method === 'cod';
             const statusMatch = STATUS_OPTIONS.find((x) => x.id === order.status);
@@ -2365,8 +2453,9 @@ function OrdersView() {
                 </View>
               </View>
             );
-          })}
-        </ScrollView>
+          })
+        )}
+      </ScrollView>
       )}
     </View>
   );
@@ -2378,14 +2467,15 @@ function OrdersView() {
 function UsersView() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [editRole, setEditRole] = useState<'admin' | 'customer'>('customer');
   const toast = useToast();
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
+  const fetchUsers = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const data = await api.users.getAll();
       setProfiles((data as Profile[]) || []);
@@ -2393,8 +2483,14 @@ function UsersView() {
       // ignore
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchUsers(true);
+  }, [fetchUsers]);
 
   useEffect(() => {
     fetchUsers();
@@ -2493,13 +2589,31 @@ function UsersView() {
         </View>
       </View>
 
-      {loading ? (
+      {loading && !refreshing ? (
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 8 }}>
-          {filtered.map((user) => {
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: 100, gap: 8, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          alwaysBounceVertical={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {filtered.length === 0 ? (
+            <View style={[styles.centerBox, { minHeight: 250 }]}>
+              <Ionicons name="people-outline" size={38} color="#94a3b8" />
+              <Text style={styles.emptyNote}>{search ? 'No users match your search.' : 'No users found.'}</Text>
+            </View>
+          ) : (
+            filtered.map((user) => {
             const userId = user.id || (user as any)._id;
             const isAdmin = user.role === 'admin';
             const isUpdating = updatingId === userId;
@@ -2553,8 +2667,9 @@ function UsersView() {
                 </View>
               </View>
             );
-          })}
-        </ScrollView>
+          })
+        )}
+      </ScrollView>
       )}
 
       {/* Dedicated Edit User Role Modal */}

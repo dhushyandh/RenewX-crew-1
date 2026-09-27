@@ -120,7 +120,7 @@ export function generateInvoiceHtml(order: InvoiceOrderData, currentUser?: any):
         <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; color: #0f172a;">
           ${itemName}
           <div style="font-size: 11px; font-weight: 500; color: #16a34a; margin-top: 3px;">
-            ✓ 6-Month RenewX Certified Warranty Included
+            ✓ Inspected & Quality Verified Pre-Owned
           </div>
         </td>
         <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #334155;">${quantity}</td>
@@ -345,7 +345,7 @@ export function generateInvoiceHtml(order: InvoiceOrderData, currentUser?: any):
         <div class="party-title">Sold By (Seller)</div>
         <div class="party-name">RenewX Crew India Pvt Ltd</div>
         <div class="party-detail">
-          Certified Refurbished Technology Hub<br />
+          Pre-Owned Electronics Marketplace<br />
           Email: support@renewx.in<br />
           Web: https://renewx.in<br />
           GSTIN: 33AAACR2938L1Z8
@@ -368,7 +368,7 @@ export function generateInvoiceHtml(order: InvoiceOrderData, currentUser?: any):
       <thead>
         <tr>
           <th style="width: 40px; text-align: center;">#</th>
-          <th style="text-align: left;">Item Description & Coverage</th>
+          <th style="text-align: left;">Item Description</th>
           <th style="width: 60px; text-align: center;">Qty</th>
           <th style="width: 120px; text-align: right;">Unit Price</th>
           <th style="width: 120px; text-align: right;">Total</th>
@@ -410,20 +410,20 @@ export function generateInvoiceHtml(order: InvoiceOrderData, currentUser?: any):
       </div>
     </div>
 
-    <!-- Guarantee Callout -->
+    <!-- Quality Callout -->
     <div class="guarantee-box">
       <div class="guarantee-badge">✓</div>
       <div>
-        <div class="guarantee-title">RenewX 6-Month Comprehensive Warranty Active</div>
+        <div class="guarantee-title">RenewX Inspected & Quality Verified</div>
         <div class="guarantee-sub">
-          This certified unit passed our multi-point rigorous hardware diagnostics. Keep this tax invoice as valid proof of warranty.
+          This pre-owned device passed our hardware inspection & functional verification before dispatch.
         </div>
       </div>
     </div>
 
     <!-- Footer -->
     <div class="footer">
-      Questions about your order or warranty? Reach out at <strong>support@renewx.in</strong> or through the RenewX app.<br />
+      Questions about your order? Reach out at <strong>support@renewx.in</strong> or through the RenewX app.<br />
       Thank you for championing sustainable, circular electronics with RenewX Crew.
     </div>
   </div>

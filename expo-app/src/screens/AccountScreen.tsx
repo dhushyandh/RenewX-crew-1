@@ -349,7 +349,7 @@ export default function AccountScreen() {
             </View>
             <View style={styles.menuContent}>
               <Text style={styles.menuTitle}>About RenewX Crew</Text>
-              <Text style={styles.menuSub}>How it works, policies, contact & warranty</Text>
+              <Text style={styles.menuSub}>How it works, policies & official contact</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
           </TouchableOpacity>

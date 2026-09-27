@@ -154,7 +154,6 @@ export default function ShopScreen() {
   const [selectedCondition, setSelectedCondition] = useState('all');
   const [selectedStorage, setSelectedStorage] = useState('all');
   const [onlyDiscounts, setOnlyDiscounts] = useState(false);
-  const [onlyWarranty, setOnlyWarranty] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [favorites, setFavorites] = useState<Record<string | number, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -351,8 +350,6 @@ export default function ShopScreen() {
         // Discounts filter
         if (onlyDiscounts && getDiscountPercent(product) <= 0) return false;
 
-        // Warranty filter
-        if (onlyWarranty && Number(product.warrantyMonths || 0) < 6) return false;
 
         // Stock filter
         if (inStockOnly && Number(product.stock ?? 1) <= 0) return false;
@@ -378,7 +375,6 @@ export default function ShopScreen() {
     selectedCondition,
     selectedStorage,
     onlyDiscounts,
-    onlyWarranty,
     inStockOnly,
   ]);
 
@@ -390,7 +386,6 @@ export default function ShopScreen() {
     if (selectedCondition !== 'all') count++;
     if (selectedStorage !== 'all') count++;
     if (onlyDiscounts) count++;
-    if (onlyWarranty) count++;
     if (inStockOnly) count++;
     if (sortBy !== 'featured') count++;
     return count;
@@ -403,7 +398,6 @@ export default function ShopScreen() {
     selectedCondition,
     selectedStorage,
     onlyDiscounts,
-    onlyWarranty,
     inStockOnly,
     sortBy,
   ]);
@@ -421,7 +415,6 @@ export default function ShopScreen() {
     setSelectedCondition('all');
     setSelectedStorage('all');
     setOnlyDiscounts(false);
-    setOnlyWarranty(false);
     setInStockOnly(false);
   };
 
@@ -592,10 +585,6 @@ export default function ShopScreen() {
         <Text style={styles.deviceCountText}>
           {filteredProducts.length} {filteredProducts.length === 1 ? 'device' : 'devices'}
         </Text>
-        <View style={styles.livePill}>
-          <Ionicons name="cloud-done-outline" size={13} color="#475569" />
-          <Text style={styles.livePillText}>Live inventory</Text>
-        </View>
       </View>
     </View>
   );
@@ -783,15 +772,7 @@ export default function ShopScreen() {
                 <Ionicons name="close" size={13} color="#475569" />
               </TouchableOpacity>
             )}
-            {onlyWarranty && (
-              <TouchableOpacity
-                style={styles.activeFilterTag}
-                onPress={() => setOnlyWarranty(false)}
-              >
-                <Text style={styles.activeFilterTagText}>6M+ Warranty</Text>
-                <Ionicons name="close" size={13} color="#475569" />
-              </TouchableOpacity>
-            )}
+
             {inStockOnly && (
               <TouchableOpacity
                 style={styles.activeFilterTag}
@@ -1092,24 +1073,6 @@ export default function ShopScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.filterChip, onlyWarranty && styles.filterChipActive]}
-                    onPress={() => setOnlyWarranty((prev) => !prev)}
-                  >
-                    <Ionicons
-                      name="shield-checkmark"
-                      size={14}
-                      color={onlyWarranty ? '#059669' : '#64748b'}
-                    />
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        onlyWarranty && styles.filterChipTextActive,
-                      ]}
-                    >
-                      6+ Months Warranty
-                    </Text>
-                  </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[styles.filterChip, inStockOnly && styles.filterChipActive]}

@@ -510,7 +510,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
                 Discover your next{'\n'}certified brand
               </Text>
               <Text style={styles.bottomHeroSubtitle}>
-                Buy & Sell tested devices with 6-month warranty
+                Buy & Sell tested pre-owned devices with ease
               </Text>
             </View>
 
@@ -1140,9 +1140,9 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
                   <Text style={styles.legalParagraph}>
                     By accessing or using the RenewX platform, mobile application, and related services, you agree to be bound by these Terms of Service. If you do not agree, please do not use our services.
                   </Text>
-                  <Text style={styles.legalSectionTitle}>2. Certified Pre-Owned Tech</Text>
+                  <Text style={styles.legalSectionTitle}>2. Pre-Owned Electronics</Text>
                   <Text style={styles.legalParagraph}>
-                    Every device sold through RenewX is verified through our rigorous 32-point inspection process and comes backed by our certified 6-month warranty covering functional hardware defects.
+                    Every device sold through RenewX is verified through our rigorous 32-point inspection process. Products are pre-owned and sold as-is without any additional post-purchase warranty unless provided directly by the original manufacturer.
                   </Text>
                   <Text style={styles.legalSectionTitle}>3. Buyback & Trade-In</Text>
                   <Text style={styles.legalParagraph}>

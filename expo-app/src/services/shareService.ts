@@ -40,7 +40,7 @@ export function formatProductShareContent(product: Product): ProductShareContent
   const lines = [
     `Check out this certified pre-owned deal on RenewX:`,
     `📱 ${brand}${product.name}`,
-    `✨ Condition: ${condition} • 6-Month Warranty Included`,
+    `✨ Condition: ${condition} • Tested & Verified`,
     `💰 Price: ₹${price}${originalPrice ? ` (MRP ₹${originalPrice}${savings ? `, Save ₹${savings}` : ''})` : ''}`,
   ];
 

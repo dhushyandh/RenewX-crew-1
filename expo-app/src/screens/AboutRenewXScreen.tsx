@@ -187,9 +187,9 @@ export default function AboutRenewXScreen() {
               <View style={styles.stepItem}>
                 <View style={styles.stepNum}><Text style={styles.stepNumText}>3</Text></View>
                 <View style={styles.stepBody}>
-                  <Text style={styles.stepTitle}>Free Express Delivery & Warranty</Text>
+                  <Text style={styles.stepTitle}>Insured Express Doorstep Delivery</Text>
                   <Text style={styles.stepDesc}>
-                    Enjoy safe insured doorstep delivery, real-time live map tracking, and a complimentary 6-month repair or replacement warranty.
+                    Enjoy safe insured doorstep delivery and real-time live map tracking directly to your address.
                   </Text>
                 </View>
               </View>
@@ -250,14 +250,14 @@ export default function AboutRenewXScreen() {
               </Text>
 
               <Text style={styles.bodyParagraph}>
-                We believe premium technology should be accessible to everyone without breaking the bank or harming the planet. Every refurbished device purchased extends hardware life, directly curbing electronic waste.
+                We believe premium technology should be accessible to everyone without breaking the bank or harming the planet. Every pre-owned device purchased extends hardware life, directly curbing electronic waste.
               </Text>
 
               <View style={styles.highlightGrid}>
                 <View style={styles.highlightCard}>
                   <Ionicons name="shield-checkmark" size={22} color="#10b981" />
-                  <Text style={styles.highlightTitle}>6-Month Warranty</Text>
-                  <Text style={styles.highlightDesc}>Pan-India warranty coverage on all functional components.</Text>
+                  <Text style={styles.highlightTitle}>100% Genuine</Text>
+                  <Text style={styles.highlightDesc}>Authentic pre-owned devices checked for quality & functionality.</Text>
                 </View>
 
                 <View style={styles.highlightCard}>
@@ -297,7 +297,7 @@ export default function AboutRenewXScreen() {
               </View>
 
               <Text style={styles.bodyParagraph}>
-                Have a question about an order, warranty claim, selling a device, or wholesale trade-in? Reach out to our dedicated support team directly.
+                Have a question about an order, selling a device, or wholesale trade-in? Reach out to our dedicated support team directly.
               </Text>
 
               {/* Direct Phone Box */}
@@ -434,9 +434,9 @@ export default function AboutRenewXScreen() {
                 </View>
               </View>
 
-              <Text style={styles.policySubHeader}>1. Certified Product Warranty</Text>
+              <Text style={styles.policySubHeader}>1. Pre-Owned Product Condition & Verification</Text>
               <Text style={styles.policyBody}>
-                Every device sold on RenewX includes a 6-month limited hardware warranty covering motherboard, display functionality, internal speaker, and power failures. Accidental drops, intentional disassembly, unauthorized third-party repairs, and liquid damage are not covered under warranty.
+                All products listed on RenewX are pre-owned electronics verified for functionality prior to dispatch. Products are sold as-is without any post-purchase manufacturer or third-party warranty unless explicitly covered by the original manufacturer. Buyers are encouraged to inspect and verify their device upon doorstep delivery.
               </Text>
 
               <Text style={styles.policySubHeader}>2. Device Trade-In & Selling Policy</Text>
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   heroCard: {
-    backgroundColor: '#111827',
+    backgroundColor: '#ffffff',
     borderRadius: radius.xl,
     padding: 22,
     alignItems: 'center',
@@ -532,14 +532,14 @@ const styles = StyleSheet.create({
   heroBadge: {
     fontSize: 9,
     fontWeight: fontWeight.bold,
-    color: '#ffc400',
+    color: '#111111',
     letterSpacing: 1.2,
     marginBottom: 4,
   },
   heroTitle: {
     fontSize: 22,
     fontWeight: fontWeight.black,
-    color: '#ffffff',
+    color: '#111111',
     letterSpacing: 0.2,
   },
   heroTagline: {

@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import { reverseGeocodeCoords } from '@/services/locationService';
 import CheckoutStepper from '@/components/CheckoutStepper';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
@@ -95,51 +96,22 @@ export default function CheckoutScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
 
-      const { latitude, longitude } = loc.coords;
+      const geo = await reverseGeocodeCoords(loc.coords);
 
-      // Reverse geocode via expo-location
-      const geocoded = await Location.reverseGeocodeAsync({ latitude, longitude });
-
-      if (geocoded && geocoded.length > 0) {
-        const g = geocoded[0];
-        const parts = [
-          g.name,
-          g.streetNumber,
-          g.street,
-          g.district || g.subregion,
-          g.city,
-          g.region,
-        ].filter(Boolean);
-
-        const fullStreet = parts.join(', ');
-        if (fullStreet) {
-          setAddress(fullStreet);
+      if (geo) {
+        if (geo.address) {
+          setAddress(geo.address);
           setErrors((prev) => ({ ...prev, address: '' }));
         }
 
-        if (g.postalCode) {
-          const cleanPin = g.postalCode.replace(/\D/g, '').slice(0, 6);
-          setPincode(cleanPin);
+        if (geo.pincode) {
+          setPincode(geo.pincode);
           setErrors((prev) => ({ ...prev, pincode: '' }));
         }
 
         Alert.alert('GPS Location Detected', 'Address & PIN code populated successfully.');
       } else {
-        // Fallback: OpenStreetMap reverse geocode
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-          { headers: { 'User-Agent': 'RenewX-Mobile-App' } },
-        );
-        const data = await res.json();
-        if (data?.display_name) {
-          setAddress(data.display_name);
-          setErrors((prev) => ({ ...prev, address: '' }));
-          if (data.address?.postcode) {
-            setPincode(data.address.postcode.replace(/\D/g, '').slice(0, 6));
-            setErrors((prev) => ({ ...prev, pincode: '' }));
-          }
-          Alert.alert('GPS Location Detected', 'Address auto-filled from GPS.');
-        }
+        Alert.alert('Location Notice', 'Could not determine street address. Please enter manually.');
       }
     } catch (err: any) {
       Alert.alert(

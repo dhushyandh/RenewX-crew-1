@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import { api } from '@/services/api';
+import { reverseGeocodeCoords } from '@/services/locationService';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
@@ -736,12 +737,11 @@ export default function SellScreen() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const places = await Location.reverseGeocodeAsync(loc.coords);
-      const place = places[0];
-      if (!place) return;
-      setAddress([place.name, place.street, place.subregion || place.district].filter(Boolean).join(', '));
-      setCity(place.city || place.subregion || '');
-      if (place.postalCode) setPincode(place.postalCode.replace(/\D/g, '').slice(0, 6));
+      const geo = await reverseGeocodeCoords(loc.coords);
+      if (!geo) return;
+      if (geo.address) setAddress(geo.address);
+      if (geo.city) setCity(geo.city);
+      if (geo.pincode) setPincode(geo.pincode);
       toast.success('Pickup address detected.');
     } catch {
       toast.error('Could not detect your address.');

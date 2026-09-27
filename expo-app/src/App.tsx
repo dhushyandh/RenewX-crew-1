@@ -89,9 +89,9 @@ import EditProfileScreen from '@/screens/EditProfileScreen';
 import OnboardingProfileScreen from '@/screens/OnboardingProfileScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
-import FloatingContactButtons from '@/components/FloatingContactButtons';
 import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
+import AnimatedSplashScreen from '@/components/AnimatedSplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { clientObservability } from '@/services/observability';
 
@@ -600,7 +600,6 @@ function MainAppNavigation() {
           <Stack.Screen name="Admin" component={ProtectedAdminPanel} />
         </Stack.Navigator>
       </NavigationContainer>
-      <FloatingContactButtons />
       <ConnectionStatusBanner />
       <NotificationPermissionPrompt />
     </View>
@@ -616,13 +615,7 @@ function App() {
     Outfit_800ExtraBold,
   });
 
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#f8f7f2', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#ffc400" />
-      </View>
-    );
-  }
+  const [splashFinished, setSplashFinished] = useState(false);
 
   return (
     <ErrorBoundary>
@@ -630,7 +623,17 @@ function App() {
         <ToastProvider>
           <AuthProvider>
             <CartProvider>
-              <MainAppNavigation />
+              {fontsLoaded ? (
+                <MainAppNavigation />
+              ) : (
+                <View style={{ flex: 1, backgroundColor: '#ffffff' }} />
+              )}
+              {!splashFinished && (
+                <AnimatedSplashScreen
+                  isReady={fontsLoaded}
+                  onFinish={() => setSplashFinished(true)}
+                />
+              )}
             </CartProvider>
           </AuthProvider>
         </ToastProvider>

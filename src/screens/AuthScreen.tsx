@@ -58,7 +58,7 @@ export default function AuthScreen() {
         <p className="text-sm text-gray-400">
           {mode === 'login'
             ? 'Sign in to shop renewed electronics and track orders.'
-            : 'Join RenewX to shop premium refurbished tech with warranty.'}
+            : 'Join RenewX to shop premium tech with warranty.'}
         </p>
       </div>
 
