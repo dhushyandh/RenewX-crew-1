@@ -162,15 +162,25 @@ export type RootStackParamList = {
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [
     'renewx://',
+    'https://renewx.expo.app',
+    'http://renewx.expo.app',
+    'https://renewx-crew-server.onrender.com',
     'http://localhost:8081',
     'http://127.0.0.1:8081',
     'http://localhost:19006',
     'http://localhost:8082',
     'http://10.0.2.2:8081',
+    ...(Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin
+      ? [window.location.origin]
+      : []),
   ],
   getStateFromPath: (path, options) => {
     // Normalization: support user's /forget-password route as alias to /forgot-password
-    const normalized = path.replace(/^\/forget-password/, '/forgot-password');
+    let normalized = path.replace(/^\/forget-password/, '/forgot-password');
+    // If a token parameter is present in forgot-password, treat it directly as reset-password
+    if (normalized.includes('token=') && (normalized.startsWith('/forgot-password') || normalized.startsWith('forgot-password'))) {
+      normalized = normalized.replace(/^\/?forgot-password/, '/reset-password');
+    }
     return getStateFromPath(normalized, options);
   },
   config: {
@@ -477,6 +487,31 @@ function MainAppNavigation() {
   }, [navigationRef]);
 
 
+  // On web initial load, ensure reset-password URL is opened directly
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const path = window.location.pathname || '';
+    const hash = window.location.hash || '';
+    if (path.includes('reset-password') || path.includes('forget-password') || hash.includes('reset-password')) {
+      const searchParams = new URLSearchParams(window.location.search || (hash.includes('?') ? hash.split('?')[1] : ''));
+      const token = searchParams.get('token') || undefined;
+      const email = searchParams.get('email') || undefined;
+
+      const navigateToReset = () => {
+        if (!navigationRef.isReady()) {
+          setTimeout(navigateToReset, 60);
+          return;
+        }
+        const current = navigationRef.getCurrentRoute()?.name;
+        if (current !== 'ResetPassword') {
+          navigationRef.navigate('ResetPassword', { token, email });
+        }
+      };
+
+      navigateToReset();
+    }
+  }, [navigationRef]);
+
   // When user logs out, cleanly reset navigation to Auth
   useEffect(() => {
     if (!navigationRef.isReady()) return;
@@ -498,9 +533,9 @@ function MainAppNavigation() {
         }
       }
     } else {
-      // When user logs in, automatically redirect away from Auth/ForgotPassword/ResetPassword to MainTabs
+      // When user logs in, automatically redirect away from Auth/ForgotPassword to MainTabs (do NOT boot away from ResetPassword)
       const currentRoute = navigationRef.getCurrentRoute()?.name;
-      if (currentRoute === 'Auth' || currentRoute === 'ForgotPassword' || currentRoute === 'ResetPassword') {
+      if (currentRoute === 'Auth' || currentRoute === 'ForgotPassword') {
         try {
           navigationRef.reset({
             index: 0,

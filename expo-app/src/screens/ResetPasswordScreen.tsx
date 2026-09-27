@@ -38,7 +38,16 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
     if (paramToken) return String(paramToken).trim();
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
-      return (searchParams.get('token') || '').trim();
+      const urlToken = searchParams.get('token');
+      if (urlToken) return urlToken.trim();
+
+      if (window.location.hash?.includes('token=')) {
+        const hashQuery = window.location.hash.split('?')[1];
+        if (hashQuery) {
+          const hashToken = new URLSearchParams(hashQuery).get('token');
+          if (hashToken) return hashToken.trim();
+        }
+      }
     }
     return '';
   }, [paramToken]);
@@ -47,7 +56,16 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
     if (paramEmail) return String(paramEmail).trim();
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
-      return (searchParams.get('email') || '').trim();
+      const urlEmail = searchParams.get('email');
+      if (urlEmail) return urlEmail.trim();
+
+      if (window.location.hash?.includes('email=')) {
+        const hashQuery = window.location.hash.split('?')[1];
+        if (hashQuery) {
+          const hashEmail = new URLSearchParams(hashQuery).get('email');
+          if (hashEmail) return hashEmail.trim();
+        }
+      }
     }
     return '';
   }, [paramEmail]);
@@ -55,6 +73,16 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
   const [token, setToken] = useState(initialToken);
   const [targetEmail, setTargetEmail] = useState(initialEmail);
   const [userName, setUserName] = useState('');
+
+  // Keep token and email state synced if route or URL params change
+  useEffect(() => {
+    if (initialToken && initialToken !== token) {
+      setToken(initialToken);
+    }
+    if (initialEmail && initialEmail !== targetEmail) {
+      setTargetEmail(initialEmail);
+    }
+  }, [initialToken, initialEmail]);
 
   // Token validation state
   const [isValidatingToken, setIsValidatingToken] = useState(true);
