@@ -76,8 +76,8 @@ export default function ForgotPasswordScreen({ onBack, initialEmail = '' }: Forg
       setSubmitting(true);
 
       // Determine client origin for reset link redirection
-      let redirectUrl: string | undefined;
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      let redirectUrl = 'https://renewx.expo.app';
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
         redirectUrl = window.location.origin;
       }
 

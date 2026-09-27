@@ -503,16 +503,44 @@ export async function requestPasswordReset(req: Request, res: Response, next: Ne
     user.reset_password_expires = new Date(Date.now() + 30 * 60 * 1000);
     await user.save();
 
-    // Determine target frontend base URL
-    const origin =
-      redirectUrl ||
-      process.env.FRONTEND_URL ||
-      process.env.APP_URL ||
-      req.get('origin') ||
-      req.get('referer')?.replace(/\/$/, '') ||
-      'http://localhost:8081';
+    // Determine target frontend base URL:
+    // 1. Explicit redirectUrl from client
+    // 2. Request origin or referer (e.g., https://renewx.expo.app)
+    // 3. Environment variables (FRONTEND_URL, APP_URL)
+    // 4. Fallback: https://renewx.expo.app in production/cloud, or http://localhost:8081 for local dev
+    const reqOrigin = req.get('origin');
+    let refererOrigin: string | undefined;
+    const refererHeader = req.get('referer');
+    if (refererHeader) {
+      try {
+        refererOrigin = new URL(refererHeader).origin;
+      } catch {
+        refererOrigin = refererHeader.split('#')[0].replace(/\/$/, '');
+      }
+    }
 
-    const cleanOrigin = origin.split('#')[0].replace(/\/$/, '');
+    const isProduction =
+      process.env.NODE_ENV === 'production' ||
+      Boolean(process.env.RENDER) ||
+      Boolean(process.env.RENDER_EXTERNAL_URL);
+
+    let originCandidate =
+      (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim()) ||
+      reqOrigin ||
+      refererOrigin ||
+      process.env.FRONTEND_URL ||
+      process.env.APP_URL;
+
+    // If candidate is localhost but request comes from production or client domain is known, use production URL
+    if (!originCandidate || (isProduction && originCandidate.includes('localhost'))) {
+      originCandidate = isProduction ? 'https://renewx.expo.app' : 'http://localhost:8081';
+    }
+
+    let cleanOrigin = originCandidate.split('#')[0].replace(/\/$/, '');
+    if (isProduction && cleanOrigin.includes('localhost')) {
+      cleanOrigin = 'https://renewx.expo.app';
+    }
+
     const resetUrl = `${cleanOrigin}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
     // Dispatch verification email
