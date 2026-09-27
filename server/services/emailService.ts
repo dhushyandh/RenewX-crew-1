@@ -232,3 +232,131 @@ This code expires in 15 minutes. If you did not request this email change, pleas
   return { success: true, simulated: true };
 }
 
+export interface AdminOrderAlertEmailOptions {
+  email: string;
+  orderId: string;
+  subtotal: number;
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  paymentMethod: string;
+  items: Array<{ name: string; quantity: number; price: number }>;
+}
+
+export async function sendAdminOrderAlertEmail({
+  email,
+  orderId,
+  subtotal,
+  customerName,
+  customerPhone,
+  customerAddress,
+  paymentMethod,
+  items,
+}: AdminOrderAlertEmailOptions): Promise<{ success: boolean; simulated?: boolean; messageId?: string }> {
+  const fromAddress = process.env.SMTP_FROM?.trim() || '"RenewX Store Alert" <orders@renewx.com>';
+  const orderShort = orderId.slice(-6).toUpperCase();
+  const formattedAmount = `₹${Number(subtotal).toLocaleString('en-IN')}`;
+
+  const itemsHtml = items.map(
+    (item) => `<tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #0f172a;">${item.name}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #64748b; text-align: center;">x${item.quantity}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #0f172a; text-align: right; font-weight: 600;">₹${(item.price * item.quantity).toLocaleString('en-IN')}</td>
+    </tr>`
+  ).join('');
+
+  const mailOptions = {
+    from: fromAddress,
+    to: email,
+    subject: `🛍️ New Order Alert: #${orderShort} (${formattedAmount}) from ${customerName}`,
+    text: `New order received on RenewX!
+Order ID: #${orderShort}
+Customer: ${customerName}
+Phone: ${customerPhone || 'N/A'}
+Address: ${customerAddress || 'N/A'}
+Payment Method: ${paymentMethod}
+Total Amount: ${formattedAmount}
+Items: ${items.map((i) => `${i.name} (x${i.quantity})`).join(', ')}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>New Order Alert</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; color: #0f172a; }
+    .container { max-width: 600px; margin: 24px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; }
+    .header { background: #0a0a0a; padding: 24px; text-align: center; }
+    .badge { display: inline-block; background: #f59e0b; color: #0a0a0a; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 8px; }
+    .title { color: #ffffff; font-size: 22px; font-weight: 800; margin: 0; }
+    .content { padding: 28px; }
+    .summary-card { background: #f8fafc; border-radius: 12px; padding: 18px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+    .label { color: #64748b; }
+    .val { font-weight: 600; color: #0f172a; }
+    .table-wrap { width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 24px; }
+    .table-head { background: #f1f5f9; font-size: 11px; text-transform: uppercase; color: #64748b; }
+    .total-row { font-size: 16px; font-weight: 800; color: #0f172a; border-top: 2px solid #e2e8f0; padding-top: 12px; }
+    .footer { background: #f8fafc; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="badge">Store Admin Alert</div>
+      <h1 class="title">New Order Received</h1>
+    </div>
+    <div class="content">
+      <div class="summary-card">
+        <div style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #0f172a;">Order Details</div>
+        <div class="summary-row"><span class="label">Order ID:</span><span class="val">#${orderShort}</span></div>
+        <div class="summary-row"><span class="label">Customer Name:</span><span class="val">${customerName}</span></div>
+        <div class="summary-row"><span class="label">Phone:</span><span class="val">${customerPhone || 'N/A'}</span></div>
+        <div class="summary-row"><span class="label">Delivery Address:</span><span class="val">${customerAddress || 'N/A'}</span></div>
+        <div class="summary-row"><span class="label">Payment Method:</span><span class="val">${paymentMethod}</span></div>
+        <div class="summary-row"><span class="label">Order Total:</span><span class="val" style="color: #059669; font-size: 15px;">${formattedAmount}</span></div>
+      </div>
+
+      <div style="font-size: 14px; font-weight: 700; margin-bottom: 8px;">Ordered Items</div>
+      <table class="table-wrap">
+        <thead class="table-head">
+          <tr>
+            <th style="padding: 8px 12px; text-align: left;">Product</th>
+            <th style="padding: 8px 12px; text-align: center;">Qty</th>
+            <th style="padding: 8px 12px; text-align: right;">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+    </div>
+    <div class="footer">
+      RenewX Crew Management • Real-time Order Notification
+    </div>
+  </div>
+</body>
+</html>
+    `,
+  };
+
+  const activeTransporter = getTransporter();
+
+  if (activeTransporter) {
+    try {
+      const info = await activeTransporter.sendMail(mailOptions);
+      console.log(`[Email] Sent new order alert email to ${email} (MessageID: ${info.messageId})`);
+      return { success: true, messageId: info.messageId };
+    } catch (err) {
+      console.error('[Email] Failed sending admin order email via SMTP:', err);
+    }
+  }
+
+  console.log('\n=============================================================');
+  console.log(`🛍️ [ADMIN ORDER EMAIL DISPATCH] To: ${email}`);
+  console.log(`Order: #${orderShort} | Total: ${formattedAmount} | Customer: ${customerName}`);
+  console.log('=============================================================\n');
+
+  return { success: true, simulated: true };
+}
+

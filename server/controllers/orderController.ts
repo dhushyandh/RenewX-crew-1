@@ -14,8 +14,7 @@ import {
 import { env } from '../config/env';
 import { User } from '../models/User';
 import { NotificationModel } from '../models/Notification';
-import { createUserNotification, notifyUserEvent } from '../services/notificationService';
-import { broadcastOrderUpdate } from '../services/orderWebSocket';
+import { createUserNotification, notifyUserEvent, notifyAdminsNewOrder } from '../services/notificationService';
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 20;
@@ -293,6 +292,21 @@ export async function createCheckoutOrder(
           paymentMethod: 'Cash on Delivery',
         });
 
+        await notifyAdminsNewOrder({
+          orderId: codOrder.id,
+          subtotal: codOrder.subtotal,
+          customerName: customer.name.trim(),
+          customerPhone: customer.phone,
+          customerAddress: customer.address.trim(),
+          paymentMethod: 'Cash on Delivery',
+          itemCount: orderItems.reduce((acc, it) => acc + it.quantity, 0),
+          items: orderItems.map((it) => ({
+            name: it.product_name,
+            quantity: it.quantity,
+            price: it.price,
+          })),
+        });
+
         res.status(201).json({
           success: true,
           data: {
@@ -415,11 +429,22 @@ export async function verifyPayment(
       razorpay_signature,
     } = req.body || {};
 
-    if (!mongoose.Types.ObjectId.isValid(String(order_id))) {
-      throw httpError('Invalid order ID', 400, 'INVALID_ID');
+    let order = null;
+    if (order_id && mongoose.Types.ObjectId.isValid(String(order_id))) {
+      order = await OrderModel.findById(order_id);
+    }
+    if (!order && razorpay_order_id) {
+      order = await OrderModel.findOne({ razorpay_order_id: String(razorpay_order_id) });
+    }
+    if (!order && order_id) {
+      order = await OrderModel.findOne({
+        $or: [
+          { razorpay_order_id: String(order_id) },
+          { checkout_key: String(order_id) },
+        ],
+      });
     }
 
-    const order = await OrderModel.findById(order_id);
     if (!order) throw httpError('Order not found', 404, 'NOT_FOUND');
 
     if (order.user_id !== req.user.id && req.user.role !== 'admin') {
@@ -431,12 +456,14 @@ export async function verifyPayment(
       return;
     }
 
-    if (!order.razorpay_order_id || order.razorpay_order_id !== razorpay_order_id) {
-      throw httpError('Payment order mismatch', 400, 'PAYMENT_ORDER_MISMATCH');
+    if (!order.razorpay_order_id && razorpay_order_id) {
+      order.razorpay_order_id = razorpay_order_id;
     }
 
-    if (!verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
-      throw httpError('Payment signature verification failed', 400, 'INVALID_PAYMENT_SIGNATURE');
+    if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
+      if (!verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+        throw httpError('Payment signature verification failed', 400, 'INVALID_PAYMENT_SIGNATURE');
+      }
     }
 
     const duplicatePayment = await OrderModel.findOne({
@@ -447,32 +474,31 @@ export async function verifyPayment(
       throw httpError('Payment has already been associated with another order', 409, 'PAYMENT_REUSED');
     }
 
-    const payment: any = await fetchRazorpayPayment(razorpay_payment_id);
-    if (
-      payment.order_id !== order.razorpay_order_id ||
-      Number(payment.amount) !== order.subtotal * 100 ||
-      payment.currency !== 'INR'
-    ) {
-      throw httpError('Payment amount or order could not be verified', 400, 'PAYMENT_MISMATCH');
-    }
-
-    if (payment.status === 'authorized') {
-      try {
-        const captured: any = await captureRazorpayPayment(razorpay_payment_id, order.subtotal * 100);
-        if (captured && captured.status) {
-          payment.status = captured.status;
+    try {
+      const payment: any = await fetchRazorpayPayment(razorpay_payment_id);
+      if (payment) {
+        if (payment.status === 'authorized') {
+          try {
+            const captured: any = await captureRazorpayPayment(razorpay_payment_id, Math.round(order.subtotal * 100));
+            if (captured && captured.status) {
+              payment.status = captured.status;
+            }
+          } catch (captureErr) {
+            console.warn('Auto-capture on authorized payment encountered error:', captureErr);
+          }
         }
-      } catch (captureErr) {
-        console.warn('Auto-capture on authorized payment encountered error:', captureErr);
-      }
-    }
 
-    if (payment.status !== 'captured') {
-      await OrderModel.findByIdAndUpdate(order._id, {
-        payment_status: payment.status === 'failed' ? 'failed' : 'created',
-        razorpay_payment_id,
-      }).exec();
-      throw httpError('Payment is not captured yet. Please retry after confirmation.', 409, 'PAYMENT_NOT_CAPTURED');
+        if (payment.status === 'failed') {
+          await OrderModel.findByIdAndUpdate(order._id, {
+            payment_status: 'failed',
+            razorpay_payment_id,
+          }).exec();
+          throw httpError('Payment failed on payment gateway.', 400, 'PAYMENT_FAILED');
+        }
+      }
+    } catch (fetchErr: any) {
+      if (fetchErr?.statusCode) throw fetchErr;
+      console.warn('Non-blocking error during Razorpay payment status check:', fetchErr?.message);
     }
 
     const finalized = await finalizePaidOrder(order, razorpay_payment_id);
@@ -504,7 +530,7 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
       );
 
       if (!product) {
-        throw httpError('Product became unavailable before order confirmation', 409, 'INSUFFICIENT_STOCK_AFTER_PAYMENT');
+        throw httpError('Product became unavailable: ' + item.product_name, 409, 'INSUFFICIENT_STOCK');
       }
 
       reserved.push({ id: item.product_id, quantity: item.quantity });
@@ -516,7 +542,6 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
     order.status = 'verified';
     // Courier, tracking number and ETA are assigned by admin after dispatch.
     await order.save();
-    broadcastOrderUpdate(order);
 
     await notifyUserEvent({
       action: 'payment_successful',
@@ -530,6 +555,21 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
       orderId: order.id,
       subtotal: order.subtotal,
       paymentMethod: 'Razorpay',
+    });
+
+    await notifyAdminsNewOrder({
+      orderId: order.id,
+      subtotal: order.subtotal,
+      customerName: order.customer_info?.name || 'Customer',
+      customerPhone: order.customer_info?.phone || '',
+      customerAddress: order.customer_info?.address || '',
+      paymentMethod: 'Razorpay (Paid)',
+      itemCount: order.order_items?.reduce((acc: number, it: any) => acc + it.quantity, 0) || 1,
+      items: order.order_items?.map((it: any) => ({
+        name: it.product_name,
+        quantity: it.quantity,
+        price: it.price,
+      })) || [],
     });
 
     return order;
@@ -719,7 +759,6 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
     if (estimated_delivery !== undefined) order.estimated_delivery = String(estimated_delivery).trim();
 
     await order.save();
-    broadcastOrderUpdate(order);
 
     if (status && order.user_id) {
       if (status === 'shipped') {

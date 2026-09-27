@@ -6,7 +6,6 @@ import {
   Image,
   Linking,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
@@ -22,84 +22,150 @@ interface OfflineScreenProps {
   onRetrySuccess?: () => void;
 }
 
-export default function OfflineScreen({ onRetrySuccess }: OfflineScreenProps) {
+const COLORS = {
+  white: '#FFFFFF',
+  black: '#111111',
+  yellow: '#FFC400',
+  yellowLight: '#FFF8D6',
+  yellowSoft: '#FFF3B8',
+
+  gray50: '#FAFAFA',
+  gray100: '#F3F4F6',
+  gray200: '#E5E7EB',
+  gray400: '#9CA3AF',
+  gray500: '#6B7280',
+  gray600: '#4B5563',
+
+  red: '#DC2626',
+  redLight: '#FEF2F2',
+  redBorder: '#FECACA',
+};
+
+export default function OfflineScreen({
+  onRetrySuccess,
+}: OfflineScreenProps) {
   const safeTop = useSafeHeaderTop();
+
   const [checking, setChecking] = useState(false);
-  const [lastChecked, setLastChecked] = useState<string>('');
+  const [lastChecked, setLastChecked] = useState('');
   const [retryFailed, setRetryFailed] = useState(false);
 
+  /**
+   * Check whether the RenewX backend is reachable.
+   */
   const checkConnection = useCallback(async () => {
+    if (checking) {
+      return false;
+    }
+
     setChecking(true);
     setRetryFailed(false);
+
     try {
       const result = await api.health();
-      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const now = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+
       setLastChecked(now);
 
       if (result?.status === 'healthy') {
-        if (onRetrySuccess) {
-          onRetrySuccess();
-        }
+        onRetrySuccess?.();
         return true;
-      } else {
-        setRetryFailed(true);
-        return false;
       }
+
+      setRetryFailed(true);
+      return false;
     } catch {
       setRetryFailed(true);
       return false;
     } finally {
       setChecking(false);
     }
-  }, [onRetrySuccess]);
+  }, [checking, onRetrySuccess]);
 
+  /**
+   * Automatically retry:
+   * - every 15 seconds
+   * - when the app becomes active
+   */
   useEffect(() => {
-    setLastChecked(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    setLastChecked(
+      new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
+    );
 
-    // Auto-check periodically every 15 seconds
-    const interval = setInterval(checkConnection, 15000);
+    const interval = setInterval(() => {
+      checkConnection();
+    }, 15000);
 
-    // Auto-check when returning to app
-    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') {
-        checkConnection();
-      }
-    });
+    const subscription = AppState.addEventListener(
+      'change',
+      (state: AppStateStatus) => {
+        if (state === 'active') {
+          checkConnection();
+        }
+      },
+    );
 
     return () => {
       clearInterval(interval);
-      sub.remove();
+      subscription.remove();
     };
   }, [checkConnection]);
 
+  /**
+   * Open device network settings.
+   * On web, reload the application.
+   */
   const handleOpenSettings = () => {
     if (Platform.OS !== 'web') {
-      Linking.openSettings().catch(() => undefined);
-    } else if (typeof window !== 'undefined') {
+      Linking.openSettings().catch(() => {});
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
       window.location.reload();
     }
   };
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: safeTop,
+        },
+      ]}
+    >
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={COLORS.white}
+      />
 
-      {/* Header with RenewX branding & status badge */}
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
+
       <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <Image
-            source={require('@/assets/notification-icon.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.brandText}>
-            Renew<Text style={styles.brandAccent}>X</Text>
-          </Text>
-        </View>
+        <Image
+          source={require('@/assets/logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
-        <View style={styles.offlinePill}>
+        <View style={styles.offlineBadge}>
           <View style={styles.offlineDot} />
-          <Text style={styles.offlinePillText}>Offline</Text>
+
+          <Text style={styles.offlineBadgeText}>
+            OFFLINE
+          </Text>
         </View>
       </View>
 
@@ -108,342 +174,680 @@ export default function OfflineScreen({ onRetrySuccess }: OfflineScreenProps) {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Main Offline Illustration / Icon */}
-        <View style={styles.illustrationWrap}>
-          <View style={styles.outerRing}>
-            <View style={styles.middleRing}>
-              <View style={styles.innerCircle}>
-                <Ionicons name="cloud-offline-outline" size={48} color="#dc2626" />
-              </View>
+        {/* ===================================================
+            OFFLINE ILLUSTRATION
+        ==================================================== */}
+
+        <View style={styles.illustrationContainer}>
+          {/* Soft yellow background */}
+          <View style={styles.illustrationBackground} />
+
+          {/* Decorative yellow circles */}
+          <View style={styles.smallCircleOne} />
+          <View style={styles.smallCircleTwo} />
+
+          {/* Phone */}
+          <View style={styles.phone}>
+            <View style={styles.phoneSpeaker} />
+
+            <View style={styles.phoneScreen}>
+              <Ionicons
+                name="wifi-outline"
+                size={42}
+                color={COLORS.black}
+              />
+
+              {/* Wi-Fi slash */}
+              <View style={styles.wifiSlash} />
             </View>
+
+            <View style={styles.phoneButton} />
+          </View>
+
+          {/* Offline badge */}
+          <View style={styles.offlineIconBadge}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={25}
+              color={COLORS.black}
+            />
           </View>
         </View>
 
-        {/* Title & Description */}
-        <Text style={styles.title}>You're Currently Offline</Text>
-        <Text style={styles.subtitle}>
-          We couldn't connect to RenewX. Please check your internet connection to continue browsing products, offers, and orders.
+        {/* ===================================================
+            TITLE
+        ==================================================== */}
+
+        <Text style={styles.title}>
+          You&apos;re Offline
         </Text>
 
-        {/* Diagnostic / Troubleshooting Tips Card */}
-        <View style={styles.tipsCard}>
-          <Text style={styles.tipsHeading}>Connection Details & Tips</Text>
+        <Text style={styles.subtitle}>
+          It looks like your internet connection
+          is unavailable right now.
+        </Text>
 
-          <View style={styles.tipRow}>
-            <View style={[styles.tipIconBox, { backgroundColor: '#eff6ff' }]}>
-              <Ionicons name="wifi-outline" size={16} color="#2563eb" />
-            </View>
-            <View style={styles.tipTextBox}>
-              <Text style={styles.tipTitle}>Check Wi-Fi or Cellular Data</Text>
-              <Text style={styles.tipDesc}>Verify that your internet router or mobile network has an active connection.</Text>
-            </View>
-          </View>
+        <Text style={styles.description}>
+          Check your connection and try again to
+          continue using RenewX.
+        </Text>
 
-          <View style={styles.tipRow}>
-            <View style={[styles.tipIconBox, { backgroundColor: '#fef3c7' }]}>
-              <Ionicons name="airplane-outline" size={16} color="#d97706" />
-            </View>
-            <View style={styles.tipTextBox}>
-              <Text style={styles.tipTitle}>Toggle Airplane Mode</Text>
-              <Text style={styles.tipDesc}>Turning airplane mode on for 5 seconds and off can refresh your network link.</Text>
-            </View>
-          </View>
+        {/* ===================================================
+            RETRY ERROR
+        ==================================================== */}
 
-          <View style={styles.tipRow}>
-            <View style={[styles.tipIconBox, { backgroundColor: '#f0fdf4' }]}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#059669" />
-            </View>
-            <View style={styles.tipTextBox}>
-              <Text style={styles.tipTitle}>Saved Data is Safe</Text>
-              <Text style={styles.tipDesc}>Your cart items, trade-in requests, and saved session remain preserved locally.</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Feedback message if manual retry fails */}
         {retryFailed && (
-          <View style={styles.failNotice}>
-            <Ionicons name="alert-circle" size={16} color="#b91c1c" />
-            <Text style={styles.failNoticeText}>
-              Still unable to reach server. Please verify your connection and try again.
-            </Text>
+          <View style={styles.errorCard}>
+            <View style={styles.errorIconContainer}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={19}
+                color={COLORS.black}
+              />
+            </View>
+
+            <View style={styles.errorContent}>
+              <Text style={styles.errorTitle}>
+                Still offline
+              </Text>
+
+              <Text style={styles.errorText}>
+                We couldn&apos;t reach the RenewX server.
+                Please check your internet connection.
+              </Text>
+            </View>
           </View>
         )}
 
-        {/* Last Checked timestamp */}
+        {/* ===================================================
+            RETRY BUTTON
+        ==================================================== */}
+
+        <TouchableOpacity
+          style={[
+            styles.retryButton,
+            checking && styles.retryButtonDisabled,
+          ]}
+          onPress={checkConnection}
+          disabled={checking}
+          activeOpacity={0.85}
+        >
+          {checking ? (
+            <ActivityIndicator
+              size="small"
+              color={COLORS.black}
+            />
+          ) : (
+            <Ionicons
+              name="refresh-outline"
+              size={20}
+              color={COLORS.black}
+            />
+          )}
+
+          <Text style={styles.retryButtonText}>
+            {checking ? 'Checking...' : 'Try Again'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* ===================================================
+            NETWORK SETTINGS
+        ==================================================== */}
+
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={handleOpenSettings}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={
+              Platform.OS === 'web'
+                ? 'reload-outline'
+                : 'settings-outline'
+            }
+            size={17}
+            color={COLORS.gray600}
+          />
+
+          <Text style={styles.settingsButtonText}>
+            {Platform.OS === 'web'
+              ? 'Reload App'
+              : 'Open Network Settings'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* ===================================================
+            LAST CHECKED
+        ==================================================== */}
+
         {lastChecked ? (
-          <Text style={styles.timestampText}>Last verified at {lastChecked}</Text>
+          <Text style={styles.lastChecked}>
+            Last checked at {lastChecked}
+          </Text>
         ) : null}
 
-        {/* Action Buttons */}
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={[styles.primaryBtn, checking && styles.btnDisabled]}
-            onPress={checkConnection}
-            disabled={checking}
-            activeOpacity={0.85}
-          >
-            {checking ? (
-              <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
-            ) : (
-              <Ionicons name="refresh-outline" size={18} color="#ffffff" style={{ marginRight: 6 }} />
-            )}
-            <Text style={styles.primaryBtnText}>
-              {checking ? 'Checking Connection...' : 'Retry Connection'}
-            </Text>
-          </TouchableOpacity>
+        {/* ===================================================
+            BRAND FOOTER
+        ==================================================== */}
 
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={handleOpenSettings}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={Platform.OS === 'web' ? 'reload-outline' : 'settings-outline'}
-              size={16}
-              color="#475569"
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.secondaryBtnText}>
-              {Platform.OS === 'web' ? 'Reload App' : 'Open Network Settings'}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.footer}>
+          <View style={styles.footerAccent} />
+
+          <Image
+            source={require('@/assets/logo.png')}
+            style={styles.footerLogo}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.footerTagline}>
+            BUY  •  SELL  •  EXCHANGE
+          </Text>
         </View>
       </ScrollView>
     </View>
   );
 }
 
+/* ============================================================
+   STYLES
+============================================================ */
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
-    ...(Platform.OS === 'web' ? { position: 'fixed' as any } : {}),
-    backgroundColor: '#f8fafc',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'fixed' as any,
+        }
+      : {}),
+
+    backgroundColor: COLORS.white,
+
     zIndex: 99999,
   },
+
+  /* ==========================================================
+     HEADER
+  ========================================================== */
+
   header: {
+    height: 68,
+
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+
     paddingHorizontal: 20,
-    paddingVertical: 14,
+
+    backgroundColor: COLORS.white,
+
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+    borderBottomColor: COLORS.gray100,
   },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+
   logo: {
-    width: 30,
-    height: 30,
-    borderRadius: 7,
+    width: 105,
+    height: 48,
   },
-  brandText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#0f172a',
-    letterSpacing: -0.5,
-  },
-  brandAccent: {
-    color: '#059669',
-  },
-  offlinePill: {
+
+  offlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fef2f2',
+
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+
+    borderRadius: 20,
+
+    backgroundColor: COLORS.yellowLight,
+
     borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    borderColor: COLORS.yellow,
   },
+
   offlineDot: {
     width: 7,
     height: 7,
+
     borderRadius: 4,
-    backgroundColor: '#dc2626',
+
+    backgroundColor: COLORS.black,
+
+    marginRight: 6,
   },
-  offlinePillText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#dc2626',
-    textTransform: 'uppercase',
+
+  offlineBadgeText: {
+    fontSize: 10,
+
+    fontWeight: '900',
+
+    color: COLORS.black,
+
+    letterSpacing: 0.8,
   },
+
+  /* ==========================================================
+     CONTENT
+  ========================================================== */
+
   scrollContent: {
     flexGrow: 1,
+
+    alignItems: 'center',
+
     paddingHorizontal: 24,
-    paddingVertical: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 30,
+    paddingBottom: 35,
   },
-  illustrationWrap: {
+
+  /* ==========================================================
+     ILLUSTRATION
+  ========================================================== */
+
+  illustrationContainer: {
+    width: 230,
+    height: 190,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    position: 'relative',
+
     marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  outerRing: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: 'rgba(254, 226, 226, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
+
+  illustrationBackground: {
+    position: 'absolute',
+
+    width: 165,
+    height: 165,
+
+    borderRadius: 83,
+
+    backgroundColor: COLORS.yellowLight,
   },
-  middleRing: {
+
+  smallCircleOne: {
+    position: 'absolute',
+
+    width: 12,
+    height: 12,
+
+    borderRadius: 6,
+
+    backgroundColor: COLORS.yellow,
+
+    left: 38,
+    top: 45,
+  },
+
+  smallCircleTwo: {
+    position: 'absolute',
+
+    width: 8,
+    height: 8,
+
+    borderRadius: 4,
+
+    backgroundColor: COLORS.black,
+
+    right: 38,
+    top: 75,
+  },
+
+  phone: {
     width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#fee2e2',
+    height: 132,
+
+    borderRadius: 17,
+
+    backgroundColor: COLORS.black,
+
     alignItems: 'center',
-    justifyContent: 'center',
+
+    paddingTop: 9,
+
+    transform: [
+      {
+        rotate: '-6deg',
+      },
+    ],
+
+    shadowColor: COLORS.black,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+
+    elevation: 8,
+
+    zIndex: 3,
   },
-  innerCircle: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: '#ffffff',
+
+  phoneSpeaker: {
+    width: 28,
+    height: 4,
+
+    borderRadius: 3,
+
+    backgroundColor: COLORS.gray400,
+
+    marginBottom: 7,
+  },
+
+  phoneScreen: {
+    width: 68,
+    height: 94,
+
+    backgroundColor: COLORS.white,
+
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+
+    position: 'relative',
+  },
+
+  wifiSlash: {
+    position: 'absolute',
+
+    width: 58,
+    height: 5,
+
+    borderRadius: 5,
+
+    backgroundColor: COLORS.yellow,
+
+    transform: [
+      {
+        rotate: '-45deg',
+      },
+    ],
+  },
+
+  phoneButton: {
+    width: 12,
+    height: 12,
+
+    borderRadius: 6,
+
+    backgroundColor: COLORS.white,
+
+    marginTop: 5,
+  },
+
+  offlineIconBadge: {
+    position: 'absolute',
+
+    right: 30,
+    bottom: 18,
+
+    width: 54,
+    height: 54,
+
+    borderRadius: 27,
+
+    backgroundColor: COLORS.yellow,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderWidth: 4,
+    borderColor: COLORS.white,
+
+    zIndex: 5,
+
+    shadowColor: COLORS.black,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.14,
     shadowRadius: 8,
-    elevation: 3,
+
+    elevation: 5,
   },
+
+  /* ==========================================================
+     TEXT
+  ========================================================== */
+
   title: {
-    fontSize: 22,
+    fontSize: 28,
+
+    lineHeight: 34,
+
     fontWeight: '900',
-    color: '#0f172a',
+
+    color: COLORS.black,
+
     textAlign: 'center',
-    marginBottom: 8,
+
+    letterSpacing: -0.8,
+
+    marginBottom: 9,
   },
+
   subtitle: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#64748b',
+    maxWidth: 330,
+
+    fontSize: 15,
+
+    lineHeight: 22,
+
+    fontWeight: '600',
+
+    color: COLORS.gray600,
+
     textAlign: 'center',
-    maxWidth: 320,
+
+    marginBottom: 5,
+  },
+
+  description: {
+    maxWidth: 330,
+
+    fontSize: 13,
+
+    lineHeight: 19,
+
+    color: COLORS.gray500,
+
+    textAlign: 'center',
+
     marginBottom: 22,
   },
-  tipsCard: {
+
+  /* ==========================================================
+     ERROR
+  ========================================================== */
+
+  errorCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  tipsHeading: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#334155',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  tipRow: {
+
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
+
+    padding: 13,
+
+    marginBottom: 14,
+
+    borderRadius: 14,
+
+    backgroundColor: COLORS.redLight,
+
+    borderWidth: 1,
+    borderColor: COLORS.redBorder,
   },
-  tipIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+
+  errorIconContainer: {
+    width: 34,
+    height: 34,
+
+    borderRadius: 17,
+
+    backgroundColor: COLORS.white,
+
     alignItems: 'center',
     justifyContent: 'center',
+
+    marginRight: 10,
   },
-  tipTextBox: {
+
+  errorContent: {
     flex: 1,
   },
-  tipTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
+
+  errorTitle: {
+    fontSize: 13,
+
+    fontWeight: '800',
+
+    color: COLORS.black,
+
+    marginBottom: 2,
   },
-  tipDesc: {
+
+  errorText: {
     fontSize: 11,
-    color: '#64748b',
-    marginTop: 1,
-    lineHeight: 15,
+
+    lineHeight: 16,
+
+    color: COLORS.gray500,
   },
-  failNotice: {
+
+  /* ==========================================================
+     RETRY BUTTON
+  ========================================================== */
+
+  retryButton: {
+    width: '100%',
+    maxWidth: 360,
+
+    height: 54,
+
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+
+    backgroundColor: COLORS.yellow,
+
+    borderRadius: 15,
+
+    shadowColor: COLORS.black,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+
+    elevation: 4,
+  },
+
+  retryButtonDisabled: {
+    opacity: 0.65,
+  },
+
+  retryButtonText: {
+    marginLeft: 8,
+
+    fontSize: 15,
+
+    fontWeight: '900',
+
+    color: COLORS.black,
+  },
+
+  /* ==========================================================
+     SETTINGS BUTTON
+  ========================================================== */
+
+  settingsButton: {
+    width: '100%',
+    maxWidth: 360,
+
+    height: 48,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginTop: 10,
+
+    borderRadius: 14,
+
+    backgroundColor: COLORS.gray50,
+
     borderWidth: 1,
-    borderColor: '#fca5a5',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    marginBottom: 12,
-    maxWidth: 340,
+    borderColor: COLORS.gray200,
   },
-  failNoticeText: {
-    fontSize: 11,
-    color: '#b91c1c',
-    fontWeight: '600',
-    flex: 1,
+
+  settingsButtonText: {
+    marginLeft: 7,
+
+    fontSize: 13,
+
+    fontWeight: '700',
+
+    color: COLORS.gray600,
   },
-  timestampText: {
+
+  /* ==========================================================
+     LAST CHECKED
+  ========================================================== */
+
+  lastChecked: {
+    marginTop: 12,
+
     fontSize: 10,
-    color: '#94a3b8',
-    marginBottom: 16,
+
+    color: COLORS.gray400,
+
     fontWeight: '500',
   },
-  buttonGroup: {
-    width: '100%',
-    maxWidth: 360,
-    gap: 10,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
+
+  /* ==========================================================
+     FOOTER
+  ========================================================== */
+
+  footer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+
+    marginTop: 28,
   },
-  btnDisabled: {
-    opacity: 0.7,
+
+  footerAccent: {
+    width: 42,
+    height: 3,
+
+    borderRadius: 3,
+
+    backgroundColor: COLORS.yellow,
+
+    marginBottom: 12,
   },
-  primaryBtnText: {
-    color: '#ffffff',
-    fontSize: 14,
+
+  footerLogo: {
+    width: 100,
+    height: 42,
+  },
+
+  footerTagline: {
+    marginTop: 4,
+
+    fontSize: 8,
+
+    letterSpacing: 1.8,
+
     fontWeight: '800',
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f1f5f9',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  secondaryBtnText: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: '700',
+
+    color: COLORS.gray400,
   },
 });

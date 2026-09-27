@@ -33,7 +33,10 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!role || !['admin', 'customer'].includes(role)) {
+    const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+    const newRole: 'admin' | 'customer' = normalizedRole === 'user' ? 'customer' : (normalizedRole as any);
+
+    if (!['admin', 'customer'].includes(newRole)) {
       res.status(400).json({ success: false, error: { message: "Role must be 'admin' or 'customer'" } });
       return;
     }
@@ -42,6 +45,9 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     if (mongoose.Types.ObjectId.isValid(id)) {
       targetUser = await User.findById(id);
     }
+    if (!targetUser) {
+      targetUser = await User.findOne({ $or: [{ id }, { email: id }] });
+    }
 
     if (!targetUser) {
       res.status(404).json({ success: false, error: { message: 'User not found' } });
@@ -49,7 +55,7 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     }
 
     // Safety check: protect primary admin from demotion
-    if (targetUser.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase() && role !== 'admin') {
+    if (env.ADMIN_EMAIL && targetUser.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase() && newRole !== 'admin') {
       res.status(400).json({
         success: false,
         error: { message: 'Primary administrator role cannot be demoted.', code: 'PROTECTED_USER' },
@@ -57,7 +63,7 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    targetUser.role = role;
+    targetUser.role = newRole;
     await targetUser.save();
 
     // Role persistence must not fail because a notification provider is unavailable.
@@ -66,13 +72,23 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
         action: 'account_security_update',
         userId: targetUser.id,
         title: 'Account/security update',
-        message: `Your account role has been updated to ${role}.`,
+        message: `Your account role has been updated to ${newRole}.`,
       });
     } catch (notificationError) {
       console.warn('[Users] Role updated but notification failed:', notificationError);
     }
 
-    res.json({ success: true, data: targetUser });
+    res.json({
+      success: true,
+      message: `User role updated to ${newRole}`,
+      data: {
+        id: targetUser.id,
+        email: targetUser.email,
+        role: targetUser.role,
+        full_name: targetUser.full_name,
+        created_at: targetUser.created_at,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -206,7 +222,7 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
       return;
     }
 
-    const { full_name, avatar_url, phone, address, city, state, pincode, bio } = req.body || {};
+    const { full_name, avatar_url, phone, address, city, state, pincode, bio, profile_completed } = req.body || {};
     const updates: Record<string, any> = {};
 
     if (full_name !== undefined) {
@@ -219,6 +235,12 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
 
     if (phone !== undefined) {
       updates.phone = typeof phone === 'string' ? phone.trim() : '';
+    }
+
+    if (profile_completed !== undefined) {
+      updates.profile_completed = Boolean(profile_completed);
+    } else if (updates.full_name && updates.full_name.length > 0) {
+      updates.profile_completed = true;
     }
 
     if (address !== undefined) {
@@ -267,6 +289,7 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
         state: updatedUser.state,
         pincode: updatedUser.pincode,
         bio: updatedUser.bio,
+        profile_completed: updatedUser.profile_completed ?? Boolean(updatedUser.full_name && updatedUser.phone),
       },
     });
   } catch (err) {

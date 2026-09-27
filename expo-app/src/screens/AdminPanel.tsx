@@ -2211,7 +2211,11 @@ function OrdersView() {
             const isCod = order.payment_method === 'cod';
             const statusMatch = STATUS_OPTIONS.find((x) => x.id === order.status);
             const isUpdating = updatingOrderId === orderId;
-            const draft = shippingDrafts[orderId] || { courier: String(order.courier || ''), tracking: String(order.tracking_number || '') };
+            const draft = shippingDrafts[orderId] || {
+              courier: String(order.courier || ''),
+              courierPhone: String(order.courier_phone || (order as any).courierPhone || ''),
+              tracking: String(order.tracking_number || ''),
+            };
             return (
               <View key={orderId} style={styles.orderCardBox}>
                 <View style={styles.orderCardHeader}>
@@ -2353,6 +2357,11 @@ function UsersView() {
     fetchUsers();
   }, [fetchUsers]);
 
+  const openEditUser = (targetUser: Profile) => {
+    setEditingUser(targetUser);
+    setEditRole(targetUser.role === 'admin' ? 'admin' : 'customer');
+  };
+
   const handleRoleChange = (targetUser: Profile, nextRole: 'admin' | 'customer') => {
     const userId = String(targetUser.id || (targetUser as any)._id || '');
     if (!userId || nextRole === targetUser.role) return;
@@ -2380,6 +2389,25 @@ function UsersView() {
       },
       nextRole === 'admin' ? 'Make Admin' : 'Make Customer'
     );
+  };
+
+  const saveEditedUser = async () => {
+    if (!editingUser) return;
+    const userId = String(editingUser.id || (editingUser as any)._id || '');
+    try {
+      setUpdatingId(userId);
+      const updated = await api.users.updateRole(userId, editRole);
+      const savedRole = updated?.role || updated?.data?.role || editRole;
+      setProfiles((prev) =>
+        prev.map((p) => (String(p.id || (p as any)._id) === userId ? { ...p, role: savedRole } : p))
+      );
+      toast.success(`${editingUser.email} role updated to ${savedRole === 'admin' ? 'Admin' : 'Customer'}`, 'User Updated');
+      setEditingUser(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update user role');
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const handleDeleteUser = (targetUser: Profile) => {
@@ -2485,9 +2513,268 @@ function UsersView() {
           })}
         </ScrollView>
       )}
+
+      {/* Dedicated Edit User Role Modal */}
+      {editingUser && (
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setEditingUser(null)}
+        >
+          <View style={userModalStyles.overlay}>
+            <View style={userModalStyles.card}>
+              {/* Header */}
+              <View style={userModalStyles.header}>
+                <View style={userModalStyles.iconWrap}>
+                  <Ionicons name="shield-checkmark" size={22} color="#f59e0b" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={userModalStyles.title}>Edit User Permissions</Text>
+                  <Text style={userModalStyles.subtitle} numberOfLines={1}>
+                    {editingUser.email}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setEditingUser(null)}
+                  style={userModalStyles.closeBtn}
+                >
+                  <Ionicons name="close" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Role Selection Options */}
+              <View style={userModalStyles.body}>
+                <Text style={userModalStyles.label}>ASSIGN PERMISSIONS</Text>
+
+                {/* Customer Option */}
+                <TouchableOpacity
+                  style={[
+                    userModalStyles.roleOption,
+                    editRole === 'customer' && userModalStyles.roleOptionSelected,
+                  ]}
+                  onPress={() => setEditRole('customer')}
+                  activeOpacity={0.8}
+                >
+                  <View style={[userModalStyles.radio, editRole === 'customer' && userModalStyles.radioSelected]}>
+                    {editRole === 'customer' && <View style={userModalStyles.radioDot} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={userModalStyles.roleTitle}>Customer (Standard User)</Text>
+                    <Text style={userModalStyles.roleDesc}>
+                      Normal shopper access to browse catalog, place orders, sell tech, and view order history.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Admin Option */}
+                <TouchableOpacity
+                  style={[
+                    userModalStyles.roleOption,
+                    editRole === 'admin' && userModalStyles.roleOptionSelected,
+                  ]}
+                  onPress={() => setEditRole('admin')}
+                  activeOpacity={0.8}
+                >
+                  <View style={[userModalStyles.radio, editRole === 'admin' && userModalStyles.radioSelected]}>
+                    {editRole === 'admin' && <View style={userModalStyles.radioDot} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={userModalStyles.roleTitle}>Administrator</Text>
+                      <View style={userModalStyles.adminBadge}>
+                        <Text style={userModalStyles.adminBadgeText}>FULL ACCESS</Text>
+                      </View>
+                    </View>
+                    <Text style={userModalStyles.roleDesc}>
+                      Unrestricted command access to products, inventory, orders, telemetry, and user roles.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Modal Actions */}
+              <View style={userModalStyles.footer}>
+                <TouchableOpacity
+                  style={userModalStyles.cancelBtn}
+                  onPress={() => setEditingUser(null)}
+                  disabled={updatingId !== null}
+                  activeOpacity={0.7}
+                >
+                  <Text style={userModalStyles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[userModalStyles.saveBtn, updatingId !== null && { opacity: 0.6 }]}
+                  onPress={saveEditedUser}
+                  disabled={updatingId !== null}
+                  activeOpacity={0.85}
+                >
+                  {updatingId ? (
+                    <ActivityIndicator size="small" color="#0a0a0a" />
+                  ) : (
+                    <Text style={userModalStyles.saveBtnText}>Save Role</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
+
+const userModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    gap: 12,
+  },
+  iconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  closeBtn: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+  },
+  body: {
+    padding: 18,
+    gap: 12,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    gap: 12,
+  },
+  roleOptionSelected: {
+    borderColor: '#f59e0b',
+    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  radioSelected: {
+    borderColor: '#f59e0b',
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#f59e0b',
+  },
+  roleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  roleDesc: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 3,
+    lineHeight: 17,
+  },
+  adminBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  adminBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#d97706',
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    padding: 16,
+    backgroundColor: '#f8fafc',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    gap: 10,
+  },
+  cancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: '#e2e8f0',
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  saveBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: '#f59e0b',
+  },
+  saveBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0a0a0a',
+  },
+});
 
 /* ========================================================================================
    CLEAN ADD / EDIT PRODUCT MODAL

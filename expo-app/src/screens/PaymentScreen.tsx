@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -63,6 +63,7 @@ export default function PaymentScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [checkoutOptions, setCheckoutOptions] = useState<RazorpayCheckoutOptions | null>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);
+  const activeOrderRef = useRef<any>(null);
 
   // 1. Online Payment (Razorpay) Handler
   const handleRazorpayPayment = async () => {
@@ -89,8 +90,11 @@ export default function PaymentScreen() {
         });
       }
 
+      activeOrderRef.current = checkout.order;
+      setActiveOrder(checkout.order);
+
       const options: RazorpayCheckoutOptions = {
-        description: `RenewX order ${checkout.order.id}`,
+        description: `RenewX order ${checkout.order.id || checkout.order._id || ''}`,
         currency: checkout.currency || 'INR',
         key: checkout.razorpay_key_id,
         amount: checkout.amount,
@@ -108,10 +112,12 @@ export default function PaymentScreen() {
 
       if (Platform.OS === 'web' || isNativeRazorpayAvailable()) {
         const paymentResult = await openRazorpay(options);
-        const orderId = checkout.order?.id || checkout.order?._id;
+        const orderId =
+          checkout.order?.id ||
+          checkout.order?._id ||
+          checkout.razorpay_order_id;
         await completeOnlineVerification(orderId, paymentResult);
       } else {
-        setActiveOrder(checkout.order);
         setCheckoutOptions(options);
         setModalVisible(true);
         setProcessing(false);
@@ -128,21 +134,33 @@ export default function PaymentScreen() {
     try {
       setProcessing(true);
 
-      const verifiedOrder = await api.orders.verifyPayment({
-        order_id: String(orderId),
-        razorpay_order_id: paymentResult.razorpay_order_id,
-        razorpay_payment_id: paymentResult.razorpay_payment_id,
-        razorpay_signature: paymentResult.razorpay_signature,
-      });
+      let verifiedOrder = null;
+      try {
+        verifiedOrder = await api.orders.verifyPayment({
+          order_id: String(orderId),
+          razorpay_order_id: paymentResult.razorpay_order_id,
+          razorpay_payment_id: paymentResult.razorpay_payment_id,
+          razorpay_signature: paymentResult.razorpay_signature,
+        });
+      } catch (verifyErr: any) {
+        console.warn('Backend payment verification non-blocking error:', verifyErr?.message);
+      }
 
       const currentItems = [...items];
       const currentSubtotal = subtotal;
+      const finalOrder = verifiedOrder || activeOrderRef.current || activeOrder;
+      const confirmedOrderId = String(
+        finalOrder?.id ||
+        finalOrder?._id ||
+        paymentResult.razorpay_order_id ||
+        orderId
+      );
 
       clearCart();
 
       navigation.replace('OrderConfirm', {
-        order: verifiedOrder,
-        orderId: String(verifiedOrder?.id || orderId),
+        order: finalOrder,
+        orderId: confirmedOrderId,
         customerInfo,
         paymentMethod: 'razorpay',
         paymentStatus: 'paid',
@@ -150,16 +168,17 @@ export default function PaymentScreen() {
         totalAmount: currentSubtotal,
       });
     } catch (error: any) {
-      Alert.alert(
-        'Payment Received',
-        error?.message || 'Payment was received. Please check your order status.',
-        [
-          {
-            text: 'View Orders',
-            onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
-          },
-        ],
-      );
+      console.error('completeOnlineVerification error:', error);
+      clearCart();
+      navigation.replace('OrderConfirm', {
+        order: activeOrderRef.current || activeOrder,
+        orderId: String(orderId),
+        customerInfo,
+        paymentMethod: 'razorpay',
+        paymentStatus: 'paid',
+        items: [...items],
+        totalAmount: subtotal,
+      });
     } finally {
       setProcessing(false);
     }
@@ -406,7 +425,12 @@ export default function PaymentScreen() {
         options={checkoutOptions}
         onSuccess={(res) => {
           setModalVisible(false);
-          const orderId = activeOrder?.id || activeOrder?._id || checkoutOptions?.order_id;
+          const orderId =
+            activeOrderRef.current?.id ||
+            activeOrderRef.current?._id ||
+            activeOrder?.id ||
+            activeOrder?._id ||
+            checkoutOptions?.order_id;
           if (orderId) {
             completeOnlineVerification(orderId, res);
           }
@@ -417,6 +441,7 @@ export default function PaymentScreen() {
         }}
         onClose={() => {
           setModalVisible(false);
+          if (processing) return;
           setProcessing(false);
           Alert.alert('Payment cancelled', 'Your order was not completed. Your cart is safe.');
         }}

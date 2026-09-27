@@ -72,7 +72,7 @@ export function registerPushTokenInBackground(): void {
   if (registrationPromise) return;
 
   registrationPromise = registerForPushNotificationsAsync()
-    .catch((error) => {
+    .catch((error): null => {
       console.warn('[Notifications] Push registration failed:', error);
       return null;
     })

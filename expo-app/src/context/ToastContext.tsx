@@ -89,7 +89,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const scale = useRef(new Animated.Value(0.92)).current;
   const progressAnim = useRef(new Animated.Value(1)).current;
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<any>(null);
 
   const hide = useCallback(() => {
     if (timerRef.current) {

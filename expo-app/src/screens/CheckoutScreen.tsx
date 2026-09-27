@@ -200,6 +200,7 @@ export default function CheckoutScreen() {
     if (saveAddressForLater) {
       try {
         const addressToSave: SavedAddress = {
+          id: `addr_${Date.now()}`,
           name: cleanName,
           phone: cleanPhone,
           address: cleanAddress,

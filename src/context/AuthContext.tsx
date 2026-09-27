@@ -10,6 +10,8 @@ export interface AppUser {
   role: 'admin' | 'customer';
   full_name?: string;
   avatar_url?: string;
+  phone?: string;
+  profile_completed?: boolean;
 }
 
 interface AuthContextValue {

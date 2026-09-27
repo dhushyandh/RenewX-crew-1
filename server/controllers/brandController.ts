@@ -124,3 +124,17 @@ export async function deleteBrand(req: Request, res: Response, next: NextFunctio
     next(err);
   }
 }
+
+export async function seedBrandsController(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { seedBrandsAndModels } = await import('../seed');
+    const result = await seedBrandsAndModels();
+    res.json({
+      success: true,
+      message: `Successfully populated database with ${result.brandsCount} brands and ${result.modelsCount} device models.`,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}

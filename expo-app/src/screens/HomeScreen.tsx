@@ -32,8 +32,23 @@ import { Ionicons } from '@expo/vector-icons';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type AnyProduct = Product & Record<string, any>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PRODUCTS_CACHE_KEY = '@renewx_products_cache';
+
+function getResponsiveMetrics(width: number) {
+  const isSmall = width < 360;
+  const isLarge = width >= 430;
+
+  return {
+    heroWidth: width,
+    heroHorizontalPadding: isSmall ? 14 : isLarge ? 24 : 18,
+    heroMinHeight: isSmall ? 430 : isLarge ? 500 : 465,
+    heroImageHeight: isSmall ? 205 : isLarge ? 270 : 235,
+    heroImageMargin: isSmall ? 28 : isLarge ? 48 : 34,
+    heroArrowTop: isSmall ? 175 : isLarge ? 215 : 195,
+    gridGap: isSmall ? 8 : 10,
+    horizontalPadding: isSmall ? 12 : 16,
+  };
+}
 
 function ProductSkeleton() {
   return (
@@ -155,11 +170,15 @@ function HeroProductCard({
   index,
   total,
   onPress,
+  screenWidth,
+  responsive,
 }: {
   product: AnyProduct;
   index: number;
   total: number;
   onPress: () => void;
+  screenWidth: number;
+  responsive: ReturnType<typeof getResponsiveMetrics>;
 }) {
   const image = getProductImage(product);
   const name = getProductName(product);
@@ -172,7 +191,13 @@ function HeroProductCard({
     <TouchableOpacity
       activeOpacity={0.96}
       onPress={onPress}
-      style={styles.heroOuter}
+      style={[
+        styles.heroOuter,
+        {
+          width: screenWidth,
+          paddingHorizontal: responsive.heroHorizontalPadding,
+        },
+      ]}
     >
       <View style={styles.heroCard}>
         <View style={styles.heroGlow} />
@@ -189,7 +214,15 @@ function HeroProductCard({
           <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
         </View>
 
-        <View style={styles.heroImageFrame}>
+        <View
+          style={[
+            styles.heroImageFrame,
+            {
+              height: responsive.heroImageHeight,
+              marginHorizontal: responsive.heroImageMargin,
+            },
+          ]}
+        >
           {image ? (
             <Image
               source={{ uri: image }}
@@ -267,6 +300,9 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart, totalItems } = useCart();
   const { isAdmin, signOut } = useAuth();
+  const [screenWidth, setScreenWidth] = useState(() => Dimensions.get('window').width);
+
+  const responsive = useMemo(() => getResponsiveMetrics(screenWidth), [screenWidth]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -351,6 +387,12 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchLiveProducts();
+
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenWidth(window.width);
+    });
+
+    return () => subscription.remove();
   }, [fetchLiveProducts]);
 
   const heroProducts = useMemo(() => {
@@ -384,7 +426,7 @@ export default function HomeScreen() {
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
     const nextIndex = Math.round(
-      event.nativeEvent.contentOffset.x / SCREEN_WIDTH,
+      event.nativeEvent.contentOffset.x / Math.max(screenWidth, 1),
     );
 
     if (nextIndex !== heroIndex) {
@@ -403,7 +445,7 @@ export default function HomeScreen() {
           : index;
 
     heroScrollRef.current?.scrollTo({
-      x: nextIndex * SCREEN_WIDTH,
+      x: nextIndex * Math.max(screenWidth, 1),
       animated: true,
     });
     setHeroIndex(nextIndex);
@@ -484,6 +526,8 @@ export default function HomeScreen() {
                       index={index}
                       total={heroProducts.length}
                       onPress={() => openProduct(product)}
+                      screenWidth={screenWidth}
+                      responsive={responsive}
                     />
                   ))}
                 </ScrollView>
@@ -674,12 +718,11 @@ const styles = StyleSheet.create({
   },
 
   heroOuter: {
-    width: SCREEN_WIDTH,
-    paddingHorizontal: 48,
+    paddingHorizontal: 18,
   },
 
   heroCard: {
-    minHeight: 520,
+    minHeight: 465,
     borderRadius: 38,
     backgroundColor: '#ffffff',
     overflow: 'hidden',
@@ -744,8 +787,8 @@ const styles = StyleSheet.create({
   },
 
   heroImageFrame: {
-    height: 275,
-    marginHorizontal: 48,
+    height: 235,
+    marginHorizontal: 34,
     marginTop: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -811,6 +854,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     marginTop: 10,
+    gap: 10,
   },
 
   heroNameBlock: {
@@ -832,6 +876,8 @@ const styles = StyleSheet.create({
 
   heroPriceBlock: {
     alignItems: 'flex-end',
+    flexShrink: 0,
+    maxWidth: '45%',
   },
 
   heroFrom: {
@@ -931,16 +977,16 @@ const styles = StyleSheet.create({
   },
 
   heroExternalLeft: {
-    left: 48,
+    left: 4,
   },
 
   heroExternalRight: {
-    right: 48,
+    right: 4,
   },
 
   heroSkeleton: {
-    height: 520,
-    marginHorizontal: 22,
+    height: 465,
+    marginHorizontal: 18,
     borderRadius: 38,
     backgroundColor: '#f4f5f6',
     borderWidth: 1,
@@ -1018,6 +1064,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
+    gap: 10,
   },
 
   arrivalsTitle: {
@@ -1041,24 +1088,27 @@ const styles = StyleSheet.create({
   },
 
   productRow: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: 16,
+    gap: 10,
   },
 
   productWrapper: {
     flex: 1,
+    minWidth: 0,
     maxWidth: '50%',
   },
 
   skeletonGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    gap: 10,
+    paddingHorizontal: 16,
   },
 
   skeletonCard: {
-    width: '48%',
+    flex: 1,
+    minWidth: 0,
+    maxWidth: '50%',
     padding: 10,
     marginBottom: spacing.sm,
     borderRadius: radius.md,

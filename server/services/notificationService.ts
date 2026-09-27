@@ -1,5 +1,6 @@
 import { NotificationModel } from '../models/Notification';
 import { User } from '../models/User';
+import { env } from '../config/env';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const MAX_BATCH_SIZE = 100;
@@ -527,4 +528,127 @@ export async function broadcastNewProductArrival(product: {
     console.error('[Notifications] Error in broadcastNewProductArrival:', err);
   }
 }
+
+export interface AdminNewOrderNotificationPayload {
+  orderId: string;
+  subtotal: number;
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  paymentMethod: string;
+  itemCount?: number;
+  items?: Array<{ name: string; quantity: number; price: number }>;
+}
+
+/**
+ * Dispatches real-time notifications to all Admin accounts and devices
+ * when a customer places a new order.
+ * - Saves in-app notification in MongoDB for all admin users
+ * - Dispatches push notifications to all admin devices (Expo)
+ * - Sends email notification to admin email(s)
+ */
+export async function notifyAdminsNewOrder(payload: AdminNewOrderNotificationPayload): Promise<void> {
+  try {
+    const adminEmail = (env.ADMIN_EMAIL || 'admin@renewx.com').toLowerCase();
+
+    // 1. Find all admin users by role or matching ADMIN_EMAIL
+    const adminUsers = await User.find({
+      $or: [{ role: 'admin' }, { email: adminEmail }],
+    }).select('_id email full_name +push_tokens').lean();
+
+    if (!adminUsers || !adminUsers.length) {
+      console.warn('[Notifications] No admin accounts found to receive new order alert');
+      return;
+    }
+
+    const orderShort = payload.orderId.slice(-6).toUpperCase();
+    const amountFormatted = `₹${Number(payload.subtotal).toLocaleString('en-IN')}`;
+    const title = `🛍️ New Order Received: #${orderShort}`;
+    const body = `${payload.customerName} placed order #${orderShort} for ${amountFormatted} (${payload.paymentMethod}).`;
+
+    const notificationsToInsert: Array<{
+      user_id: string;
+      type: string;
+      title: string;
+      body: string;
+      reference_id: string;
+      reference_type: string;
+    }> = [];
+
+    const pushMessages: Array<Record<string, unknown>> = [];
+
+    for (const admin of adminUsers) {
+      const adminId = admin._id.toString();
+
+      notificationsToInsert.push({
+        user_id: adminId,
+        type: 'admin_order',
+        title,
+        body,
+        reference_id: payload.orderId,
+        reference_type: 'admin_order',
+      });
+
+      const rawTokens = (admin as any).push_tokens || [];
+      const validTokens = rawTokens.filter(isExpoPushToken);
+
+      for (const to of validTokens) {
+        pushMessages.push({
+          to,
+          sound: 'default',
+          title,
+          body,
+          data: {
+            screen: 'AdminOrders',
+            orderId: payload.orderId,
+            id: payload.orderId,
+          },
+          channelId: 'default',
+          priority: 'high',
+        });
+      }
+    }
+
+    // 2. Batch insert in-app notifications into MongoDB for all admin users
+    if (notificationsToInsert.length) {
+      try {
+        await NotificationModel.insertMany(notificationsToInsert, { ordered: false });
+        console.log(`[Notifications] Saved new order alert to ${notificationsToInsert.length} admin inbox(es).`);
+      } catch (insertErr) {
+        console.error('[Notifications] Failed saving admin in-app notification:', insertErr);
+      }
+    }
+
+    // 3. Dispatch Push Notifications to all admin devices
+    if (pushMessages.length) {
+      console.log(`[Notifications] Dispatching new order push notification to ${pushMessages.length} admin device(s)...`);
+      await sendExpoPushMessages(pushMessages);
+    } else {
+      console.log('[Notifications] No registered push tokens found for admin users.');
+    }
+
+    // 4. Send Email Notification to Admin if SMTP is configured
+    try {
+      const { sendAdminOrderAlertEmail } = await import('./emailService');
+      const adminEmails = [...new Set(adminUsers.map((a) => a.email).filter(Boolean))];
+      for (const email of adminEmails) {
+        await sendAdminOrderAlertEmail({
+          email,
+          orderId: payload.orderId,
+          subtotal: payload.subtotal,
+          customerName: payload.customerName,
+          customerPhone: payload.customerPhone,
+          customerAddress: payload.customerAddress,
+          paymentMethod: payload.paymentMethod,
+          items: payload.items || [],
+        });
+      }
+    } catch (emailErr) {
+      console.warn('[Notifications] Could not send admin new order email alert:', emailErr);
+    }
+  } catch (err) {
+    console.error('[Notifications] Failed to notify admin of new order:', err);
+  }
+}
+
 

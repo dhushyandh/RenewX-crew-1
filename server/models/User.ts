@@ -14,6 +14,7 @@ export interface IUser {
   state?: string;
   pincode?: string;
   bio?: string;
+  profile_completed?: boolean;
   notification_preferences?: {
     order_updates: boolean;
     sell_request_updates: boolean;
@@ -42,6 +43,7 @@ export interface UserProfile {
   state?: string;
   pincode?: string;
   bio?: string;
+  profile_completed?: boolean;
   created_at?: string;
 }
 
@@ -100,6 +102,10 @@ const UserSchema = new Schema<IUser>(
     bio: {
       type: String,
       default: '',
+    },
+    profile_completed: {
+      type: Boolean,
+      default: false,
     },
     notification_preferences: {
       order_updates: { type: Boolean, default: true },

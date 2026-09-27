@@ -66,9 +66,12 @@ export async function openRazorpay(
   }
 
   return new Promise<RazorpayCheckoutResult>((resolve, reject) => {
+    let hasResolved = false;
+
     const rzpOptions = {
       ...options,
       handler: (response: any) => {
+        hasResolved = true;
         resolve({
           razorpay_order_id: response.razorpay_order_id || String(options.order_id || ''),
           razorpay_payment_id: response.razorpay_payment_id,
@@ -77,6 +80,7 @@ export async function openRazorpay(
       },
       modal: {
         ondismiss: () => {
+          if (hasResolved) return;
           const err = new Error('Payment was cancelled by user.') as Error & {
             code?: number;
             description?: string;
@@ -91,6 +95,7 @@ export async function openRazorpay(
     try {
       const rzp = new (window as any).Razorpay(rzpOptions);
       rzp.on('payment.failed', (response: any) => {
+        if (hasResolved) return;
         const err = new Error(
           response?.error?.description || response?.error?.message || 'Payment failed.',
         ) as Error & { code?: string | number; description?: string };
@@ -100,6 +105,7 @@ export async function openRazorpay(
       });
       rzp.open();
     } catch (err) {
+      if (hasResolved) return;
       reject(err);
     }
   });

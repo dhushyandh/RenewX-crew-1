@@ -71,6 +71,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
           state: newUser.state,
           pincode: newUser.pincode,
           bio: newUser.bio,
+          profile_completed: false,
         },
       },
     });
@@ -141,6 +142,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
           state: user.state,
           pincode: user.pincode,
           bio: user.bio,
+          profile_completed: user.profile_completed ?? Boolean(user.full_name && user.phone),
         },
       },
     });
@@ -176,6 +178,7 @@ export async function getMe(req: AuthenticatedRequest, res: Response, next: Next
         state: user.state,
         pincode: user.pincode,
         bio: user.bio,
+        profile_completed: user.profile_completed ?? Boolean(user.full_name && user.phone),
         created_at: user.created_at,
       },
     });
@@ -366,6 +369,7 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
           state: user.state,
           pincode: user.pincode,
           bio: user.bio,
+          profile_completed: user.profile_completed ?? Boolean(user.full_name && user.phone),
         },
       },
     });

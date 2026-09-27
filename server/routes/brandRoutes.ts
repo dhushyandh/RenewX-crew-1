@@ -5,6 +5,7 @@ import {
   createBrand,
   updateBrand,
   deleteBrand,
+  seedBrandsController,
 } from '../controllers/brandController';
 import { getModels } from '../controllers/modelController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
@@ -12,6 +13,9 @@ import { validateRequest } from '../middleware/validation';
 import { validateBrandInput } from '../models/Brand';
 
 const router = Router();
+
+// Seeding route (Admin only)
+router.post('/seed', authenticateToken, requireAdmin, seedBrandsController);
 
 // Public discovery routes
 router.get('/', getBrands);

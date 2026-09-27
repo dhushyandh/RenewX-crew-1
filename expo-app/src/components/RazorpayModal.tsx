@@ -34,6 +34,13 @@ export default function RazorpayModal({
 }: RazorpayModalProps) {
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
+  const hasSucceededRef = useRef(false);
+
+  useEffect(() => {
+    if (visible) {
+      hasSucceededRef.current = false;
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -52,6 +59,7 @@ export default function RazorpayModal({
   }
 
   const handleRequestClose = () => {
+    if (hasSucceededRef.current) return;
     Alert.alert(
       'Cancel Payment?',
       'Are you sure you want to exit? Your cart items will remain saved.',
@@ -74,6 +82,7 @@ export default function RazorpayModal({
 
       switch (data.type) {
         case 'PAYMENT_SUCCESS': {
+          hasSucceededRef.current = true;
           const result: RazorpayCheckoutResult = {
             razorpay_order_id: data.data?.razorpay_order_id || String(options.order_id || ''),
             razorpay_payment_id: data.data?.razorpay_payment_id || '',
@@ -84,11 +93,13 @@ export default function RazorpayModal({
         }
 
         case 'PAYMENT_CANCELLED': {
+          if (hasSucceededRef.current) return;
           onClose();
           break;
         }
 
         case 'PAYMENT_FAILED': {
+          if (hasSucceededRef.current) return;
           const desc = data.error?.description || data.error?.reason || 'Payment failed';
           const err: any = new Error(desc);
           err.code = data.error?.code;
@@ -98,6 +109,7 @@ export default function RazorpayModal({
         }
 
         case 'GATEWAY_ERROR': {
+          if (hasSucceededRef.current) return;
           onError(new Error(data.message || 'Payment gateway could not be loaded'));
           break;
         }
@@ -190,14 +202,17 @@ export default function RazorpayModal({
 
       try {
         var baseOptions = ${JSON.stringify(options)};
+        var paymentDone = false;
 
         var options = Object.assign({}, baseOptions, {
           redirect: false,
           handler: function(response) {
+            paymentDone = true;
             post('PAYMENT_SUCCESS', { data: response });
           },
           modal: {
             ondismiss: function() {
+              if (paymentDone) return;
               post('PAYMENT_CANCELLED');
             },
             backdropclose: false,
@@ -213,6 +228,7 @@ export default function RazorpayModal({
         var rzp = new Razorpay(options);
 
         rzp.on('payment.failed', function(resp) {
+          if (paymentDone) return;
           post('PAYMENT_FAILED', { error: resp.error });
         });
 

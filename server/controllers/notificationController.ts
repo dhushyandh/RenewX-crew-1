@@ -177,6 +177,22 @@ export async function triggerTestNotification(
       return;
     }
 
+    if (action === 'admin_new_order') {
+      const { notifyAdminsNewOrder } = await import('../services/notificationService');
+      await notifyAdminsNewOrder({
+        orderId,
+        subtotal: 54999,
+        customerName: req.user?.full_name || 'Rahul Sharma',
+        customerPhone: '9876543210',
+        customerAddress: '42 MG Road, Indiranagar, Bengaluru, 560038',
+        paymentMethod: 'Cash on Delivery',
+        itemCount: 1,
+        items: [{ name: 'MacBook Air M2 256GB', quantity: 1, price: 54999 }],
+      });
+      res.json({ success: true, message: "Admin new order alert dispatched successfully" });
+      return;
+    }
+
     let targetUserId = req.user?.id;
     if (!targetUserId) {
       const firstUser = await User.findOne({}).select('_id');

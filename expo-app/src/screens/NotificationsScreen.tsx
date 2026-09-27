@@ -89,6 +89,7 @@ export default function NotificationsScreen() {
       'Test System Push Notification',
       'Select which event notification to send directly to your phone:',
       [
+        { text: '🛍️ Admin: New Order Received', onPress: () => triggerTest('admin_new_order') },
         { text: '✨ New Arrival (All Users)', onPress: () => triggerTest('new_arrival') },
         { text: '🚚 Order Shipped', onPress: () => triggerTest('order_shipped') },
         { text: '🏠 Out for Delivery', onPress: () => triggerTest('out_for_delivery') },
@@ -104,6 +105,10 @@ export default function NotificationsScreen() {
     const title = item.title?.toLowerCase() || '';
     const type = item.type || '';
 
+    // 🛍️ Admin: New Order Received
+    if (title.includes('new order received') || type === 'admin_order') {
+      return { icon: 'bag-check-outline', color: '#f59e0b', bg: '#fef3c7' };
+    }
     // ✨ New Arrival / New Product Added
     if (title.includes('new arrival') || title.includes('new product') || type === 'product') {
       return { icon: 'sparkles-outline', color: '#8b5cf6', bg: '#f5f3ff' };
@@ -171,7 +176,9 @@ export default function NotificationsScreen() {
   const handleNotificationPress = async (item: any) => {
     await markRead(item);
 
-    if (item.reference_type === 'product' || item.type === 'product') {
+    if (item.reference_type === 'admin_order' || item.type === 'admin_order') {
+      navigation.navigate('AdminOrders');
+    } else if (item.reference_type === 'product' || item.type === 'product') {
       navigation.navigate('ProductDetail', { id: item.reference_id });
     } else if (item.reference_type === 'order' || item.type === 'order') {
       navigation.navigate('MainTabs', { screen: 'Orders' as any });

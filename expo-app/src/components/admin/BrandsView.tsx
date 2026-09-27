@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -33,6 +34,7 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
   const [loading, setLoading] = useState(false);
 
   const [brandSearch, setBrandSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedBrandForModels, setSelectedBrandForModels] = useState<BrandItem | null>(null);
 
   // Modals state
@@ -103,15 +105,22 @@ export default function BrandsView({ initialAction, preselectedBrandId: propBran
 
   // Filtered brands
   const filteredBrands = useMemo(() => {
-    if (!brandSearch.trim()) return brands;
-    const q = brandSearch.toLowerCase();
-    return brands.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
-        b.category.toLowerCase().includes(q) ||
-        b.description.toLowerCase().includes(q)
-    );
-  }, [brands, brandSearch]);
+    let list = brands;
+    if (selectedCategory !== 'ALL') {
+      const cat = selectedCategory.toLowerCase();
+      list = list.filter((b) => (b.category || '').toLowerCase() === cat);
+    }
+    if (brandSearch.trim()) {
+      const q = brandSearch.toLowerCase();
+      list = list.filter(
+        (b) =>
+          b.name.toLowerCase().includes(q) ||
+          (b.category || '').toLowerCase().includes(q) ||
+          (b.description || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [brands, brandSearch, selectedCategory]);
 
   // Brand actions
   const handleOpenAddBrand = () => {
@@ -236,135 +245,240 @@ const handleSaveBrand = async (b: BrandItem) => {
     }
   };
 
+  const { width: screenWidth } = useWindowDimensions();
+  const isDesktop = screenWidth >= 1024;
+  const isTablet = screenWidth >= 640 && screenWidth < 1024;
+  const cardWidth = isDesktop ? '31.8%' : isTablet ? '48.8%' : '100%';
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. Header Card (Matching Screenshot 1) */}
+      {/* 1. Header Hero Card with Stats */}
       <View style={styles.headerCard}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="business" size={28} color="#2563eb" />
+        <View style={styles.headerTop}>
+          <View style={styles.headerTitleWrap}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="pricetags" size={24} color="#0f172a" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle}>Brands & Device Catalog</Text>
+              <Text style={styles.headerSubtitle}>
+                Maintain hardware manufacturers, series, and valuation models for trade-in.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.headerButtonsRow}>
+            <TouchableOpacity
+              style={styles.addBrandBtn}
+              onPress={handleOpenAddBrand}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={17} color="#000000" />
+              <Text style={styles.addBrandBtnText}>Add Brand</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.addModelBtn}
+              onPress={() => handleOpenAddModel()}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="hardware-chip-outline" size={15} color="#0f172a" />
+              <Text style={styles.addModelBtnText}>Add Model</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <Text style={styles.headerTitle}>Brands & Device Models</Text>
-        <Text style={styles.headerSubtitle}>
-          Maintain the catalog used by product discovery and the trade-in valuation engine.
-        </Text>
 
-        <View style={styles.headerButtonsRow}>
-          <TouchableOpacity
-            style={styles.addModelBtn}
-            onPress={() => handleOpenAddModel()}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={16} color="#0f172a" />
-            <Text style={styles.addModelBtnText}>Add Model</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.addBrandBtn}
-            onPress={handleOpenAddBrand}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={16} color="#ffffff" />
-            <Text style={styles.addBrandBtnText}>Add Brand</Text>
-          </TouchableOpacity>
+        {/* Catalog Metrics Strip */}
+        <View style={styles.metricsStrip}>
+          <View style={styles.metricItem}>
+            <Text style={styles.metricVal}>{brands.length}</Text>
+            <Text style={styles.metricLabel}>Total Brands</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={styles.metricVal}>{models.length}</Text>
+            <Text style={styles.metricLabel}>Models Registered</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={styles.metricVal}>{models.filter((m) => m.isFeatured).length}</Text>
+            <Text style={styles.metricLabel}>Featured Devices</Text>
+          </View>
         </View>
       </View>
 
-      {/* 2. Search Brands Bar (Matching Screenshot 1) */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color="#9ca3af" />
-        <TextInput
-          placeholder="Search brands..."
-          placeholderTextColor="#9ca3af"
-          value={brandSearch}
-          onChangeText={setBrandSearch}
-          style={styles.searchInput}
-        />
-        {brandSearch.length > 0 && (
-          <TouchableOpacity onPress={() => setBrandSearch('')}>
-            <Ionicons name="close-circle" size={16} color="#9ca3af" />
-          </TouchableOpacity>
-        )}
+      {/* 2. Search & Category Filters */}
+      <View style={styles.filterSection}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={17} color="#94a3b8" />
+          <TextInput
+            placeholder="Search brands by name, category, or description..."
+            placeholderTextColor="#94a3b8"
+            value={brandSearch}
+            onChangeText={setBrandSearch}
+            style={styles.searchInput}
+          />
+          {brandSearch.length > 0 && (
+            <TouchableOpacity onPress={() => setBrandSearch('')}>
+              <Ionicons name="close-circle" size={16} color="#94a3b8" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Category Filter Chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScroll}
+        >
+          {['ALL', 'SMARTPHONES', 'LAPTOPS', 'TABLETS', 'AUDIO', 'WEARABLES', 'CAMERAS'].map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.categoryFilterChip, isActive && styles.categoryFilterChipActive]}
+                onPress={() => setSelectedCategory(cat)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.categoryFilterChipText, isActive && styles.categoryFilterChipTextActive]}>
+                  {cat === 'ALL' ? 'All Categories' : cat.charAt(0) + cat.slice(1).toLowerCase()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Counter metrics */}
       <View style={styles.counterRow}>
         <Text style={styles.counterText}>
-          {brands.length} brands · {models.length} models
+          Showing {filteredBrands.length} of {brands.length} brands · {models.length} models
         </Text>
       </View>
 
-      {/* 3. Brand Cards List (Matching Screenshot 1) */}
-      <View style={styles.brandList}>
-        {filteredBrands.map((brand) => {
-          const brandModels = models.filter((m) => m.brandId === brand.id);
-          return (
-            <View key={brand.id} style={styles.brandCard}>
-              <View style={styles.brandCardTop}>
-                <View style={styles.logoBox}>
-                  {brand.logo ? (
-                    <Image source={brand.logo ? { uri: brand.logo } : null} style={styles.brandLogo} resizeMode="contain" />
-                  ) : (
-                    <Text style={styles.brandInitial}>{brand.name.charAt(0)}</Text>
-                  )}
+      {/* 3. Brand Cards List */}
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color="#f59e0b" />
+          <Text style={styles.loadingText}>Loading brand catalog...</Text>
+        </View>
+      ) : filteredBrands.length === 0 ? (
+        <View style={styles.emptyStateBox}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="search-outline" size={32} color="#94a3b8" />
+          </View>
+          <Text style={styles.emptyTitle}>No Brands Found</Text>
+          <Text style={styles.emptySubtitle}>
+            {brandSearch
+              ? `No brands matching "${brandSearch}". Try clearing your search.`
+              : 'No brands registered in this category yet.'}
+          </Text>
+          <View style={styles.emptyActionsRow}>
+            {brandSearch || selectedCategory !== 'ALL' ? (
+              <TouchableOpacity
+                style={styles.emptyResetBtn}
+                onPress={() => {
+                  setBrandSearch('');
+                  setSelectedCategory('ALL');
+                }}
+              >
+                <Text style={styles.emptyResetBtnText}>Reset Filters</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={styles.emptyAddBtn}
+              onPress={handleOpenAddBrand}
+            >
+              <Ionicons name="add" size={16} color="#000" />
+              <Text style={styles.emptyAddBtnText}>Add Brand</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.brandList}>
+          {filteredBrands.map((brand) => {
+            const brandModels = models.filter((m) => m.brandId === brand.id || (m as any).brand_id === brand.id);
+            return (
+              <View key={brand.id} style={[styles.brandCard, { width: cardWidth }]}>
+                {/* Brand Top Row */}
+                <View style={styles.brandCardTop}>
+                  <View style={styles.logoBox}>
+                    <BrandLogoAvatar logo={brand.logo} name={brand.name} />
+                  </View>
+
+                  <View style={styles.brandInfo}>
+                    <Text style={styles.brandName} numberOfLines={1}>{brand.name}</Text>
+                    <View style={styles.badgesRow}>
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryBadgeText}>{(brand.category || 'DEVICES').toUpperCase()}</Text>
+                      </View>
+                      <View style={styles.modelsCountBadge}>
+                        <Ionicons name="hardware-chip-outline" size={11} color="#2563eb" />
+                        <Text style={styles.modelsCountBadgeText}>
+                          {brandModels.length} {brandModels.length === 1 ? 'model' : 'models'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Actions (Pencil & Trash) */}
+                  <View style={styles.topActionIcons}>
+                    <TouchableOpacity
+                      style={styles.actionIconBtn}
+                      onPress={() => handleOpenEditBrand(brand)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="pencil-outline" size={15} color="#2563eb" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionIconBtn, styles.actionIconBtnDanger]}
+                      onPress={() => handleDeleteBrand(brand.id, brand.name)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
-                <View style={styles.brandInfo}>
-                  <Text style={styles.brandName}>{brand.name}</Text>
-                  <Text style={styles.brandModelsCount}>{brandModels.length} models</Text>
+                {/* Brand Description */}
+                <Text style={styles.brandDesc} numberOfLines={2}>
+                  {brand.description || 'Verified manufacturer in the trade-in and device catalog.'}
+                </Text>
+
+                {/* Bottom Action Buttons */}
+                <View style={styles.brandCardBottom}>
+                  <TouchableOpacity
+                    style={styles.manageModelsBtn}
+                    onPress={() => setSelectedBrandForModels(brand)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="layers-outline" size={15} color="#ffffff" />
+                    <Text style={styles.manageModelsBtnText}>Manage Models</Text>
+                    <View style={styles.modelsNumberPill}>
+                      <Text style={styles.modelsNumberPillText}>{brandModels.length}</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.addModelMiniBtn}
+                    onPress={() => handleOpenAddModel(brand.id)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="add" size={16} color="#0f172a" />
+                    <Text style={styles.addModelMiniBtnText}>Add</Text>
+                  </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                  style={styles.editBrandBtn}
-                  onPress={() => handleOpenEditBrand(brand)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="pencil-outline" size={18} color="#6b7280" />
-                </TouchableOpacity>
               </View>
-
-              <Text style={styles.brandDesc}>{brand.description}</Text>
-
-              <View style={styles.categoryPillBox}>
-                <View style={styles.categoryPill}>
-                  <Text style={styles.categoryPillText}>{brand.category}</Text>
-                </View>
-              </View>
-
-              {/* Bottom Action Row */}
-              <View style={styles.brandCardBottom}>
-                <TouchableOpacity
-                  style={styles.manageModelsBtn}
-                  onPress={() => setSelectedBrandForModels(brand)}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="layers" size={15} color="#ffffff" />
-                  <Text style={styles.manageModelsBtnText}>Manage Models</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.iconCircleBtn}
-                  onPress={() => handleOpenAddModel(brand.id)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="add" size={18} color="#111827" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.iconCircleBtn}
-                  onPress={() => handleDeleteBrand(brand.id, brand.name)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-      </View>
+            );
+          })}
+        </View>
+      )}
 
       {/* 4. Manage Models Modal (Matching Screenshot 2) */}
       {selectedBrandForModels && (
@@ -919,6 +1033,28 @@ function ModelFormModal({
   );
 }
 
+function BrandLogoAvatar({ logo, name }: { logo?: string; name: string }) {
+  const [hasError, setHasError] = useState(false);
+  const initial = (name || 'B').trim().charAt(0).toUpperCase();
+
+  if (!logo || hasError) {
+    return (
+      <View style={styles.brandInitialBox}>
+        <Text style={styles.brandInitial}>{initial}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: logo }}
+      style={styles.brandLogo}
+      resizeMode="contain"
+      onError={() => setHasError(true)}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -926,27 +1062,42 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 110,
   },
   headerCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#e8e4da',
-    marginBottom: 16,
+    borderColor: '#e2e8f0',
+    marginBottom: 14,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  headerTop: {
+    flexDirection: 'column',
+    gap: 14,
+  },
+  headerTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: '#eff6ff',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fef3c7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     color: '#0f172a',
     letterSpacing: -0.3,
@@ -954,25 +1105,42 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 12,
     color: '#64748b',
-    marginTop: 4,
-    lineHeight: 18,
-    fontWeight: '500',
+    marginTop: 2,
+    lineHeight: 17,
   },
   headerButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 18,
+  },
+  addBrandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ffc400',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#ffc400',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  addBrandBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000000',
   },
   addModelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
   addModelBtnText: {
@@ -980,124 +1148,209 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0f172a',
   },
-  addBrandBtn: {
+  metricsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
+    justifyContent: 'space-around',
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    paddingVertical: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
-  addBrandBtnText: {
-    fontSize: 12,
+  metricItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  metricVal: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#0f172a',
+  },
+  metricLabel: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#64748b',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  metricDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#e2e8f0',
+  },
+  filterSection: {
+    marginBottom: 12,
+    gap: 10,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 44,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 42,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     gap: 8,
-    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
     color: '#0f172a',
   },
+  categoryScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  categoryFilterChip: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  categoryFilterChipActive: {
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+  },
+  categoryFilterChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  categoryFilterChipTextActive: {
+    color: '#ffffff',
+  },
   counterRow: {
     paddingHorizontal: 4,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   counterText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#64748b',
   },
   brandList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
     gap: 12,
   },
   brandCard: {
-    width: '48.5%',
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e8e4da',
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    boxSizing: 'border-box' as any,
   },
   brandCardTop: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
   },
   logoBox: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: 14,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   brandLogo: {
-    width: '80%',
-    height: '80%',
+    width: 34,
+    height: 34,
+  },
+  brandInitialBox: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#fffbeb',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   brandInitial: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#d97706',
   },
   brandInfo: {
     flex: 1,
-    marginLeft: 12,
+    minWidth: 0,
   },
   brandName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
+    letterSpacing: -0.2,
   },
-  brandModelsCount: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '600',
-    marginTop: 1,
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    flexWrap: 'wrap',
   },
-  editBrandBtn: {
-    padding: 6,
+  categoryBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  categoryBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.4,
+  },
+  modelsCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3.5,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  modelsCountBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  topActionIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  actionIconBtnDanger: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fee2e2',
   },
   brandDesc: {
     fontSize: 12,
     color: '#64748b',
     marginTop: 10,
-    lineHeight: 16,
-  },
-  categoryPillBox: {
-    marginTop: 8,
-    flexDirection: 'row',
-  },
-  categoryPill: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  categoryPillText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#475569',
-    letterSpacing: 0.5,
+    lineHeight: 17,
   },
   brandCardBottom: {
     flexDirection: 'row',
@@ -1114,8 +1367,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#0a0a0a',
-    paddingVertical: 10,
+    backgroundColor: '#0f172a',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     borderRadius: 12,
   },
   manageModelsBtnText: {
@@ -1123,15 +1377,107 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
   },
-  iconCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
+  modelsNumberPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 10,
+  },
+  modelsNumberPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  addModelMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  addModelMiniBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  loadingBox: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  emptyStateBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginVertical: 12,
+  },
+  emptyIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 4,
+    maxWidth: 280,
+    lineHeight: 18,
+  },
+  emptyActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 18,
+  },
+  emptyResetBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+  },
+  emptyResetBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  emptyAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#ffc400',
+  },
+  emptyAddBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000000',
   },
 });
 

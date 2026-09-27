@@ -75,6 +75,7 @@ import SearchScreen from '@/screens/SearchScreen';
 import AuthScreen from '@/screens/AuthScreen';
 import SecurityScreen from '@/screens/SecurityScreen';
 import EditProfileScreen from '@/screens/EditProfileScreen';
+import OnboardingProfileScreen from '@/screens/OnboardingProfileScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
@@ -105,6 +106,7 @@ export type RootStackParamList = {
   Settings: undefined;
   Notifications: undefined;
   EditProfile: undefined;
+  OnboardingProfile: undefined;
   Security: { token?: string; email?: string } | undefined;
   Payment: {
     customerInfo: {
@@ -167,6 +169,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Settings: 'settings',
       Notifications: 'notifications',
       EditProfile: 'edit-profile',
+      OnboardingProfile: 'onboarding',
       Security: 'security',
       AdminDashboard: 'admin/dashboard',
       AdminProducts: 'admin/products',
@@ -340,7 +343,7 @@ const ProtectedOrderConfirmScreen = withProtectedRoute(OrderConfirmScreen, {
 });
 
 function MainAppNavigation() {
-  const { user, loading } = useAuth();
+  const { user, loading, needsProfileSetup } = useAuth();
   const [showSecurity, setShowSecurity] = useState(false);
 
   if (loading) {
@@ -358,6 +361,11 @@ function MainAppNavigation() {
 
   if (!user && !isWebSecurity && !showSecurity) {
     return <AuthScreen onForgotPassword={() => setShowSecurity(true)} />;
+  }
+
+  // If a new user creates an account or has not completed their initial profile setup
+  if (user && needsProfileSetup && !isWebSecurity && !showSecurity) {
+    return <OnboardingProfileScreen />;
   }
 
   return (
@@ -378,6 +386,7 @@ function MainAppNavigation() {
           <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
           <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
           <Stack.Screen name="EditProfile" component={ProtectedEditProfileScreen} />
+          <Stack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
           <Stack.Screen name="Security">
             {(props) => (
               <SecurityScreen

@@ -23,6 +23,7 @@ export interface AppUser {
   state?: string;
   pincode?: string;
   bio?: string;
+  profile_completed?: boolean;
 }
 
 interface AuthContextValue {
@@ -32,6 +33,9 @@ interface AuthContextValue {
   session: { access_token: string; user: AppUser } | null; // Compatibility
   isAdmin: boolean;
   loading: boolean;
+  needsProfileSetup: boolean;
+  completeProfileSetup: (updates: Partial<AppUser>) => Promise<void>;
+  dismissProfileSetup: () => void;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
@@ -42,10 +46,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function isProfileComplete(u: AppUser | null): boolean {
+  if (!u) return true;
+  if (u.role === 'admin') return true;
+  if (u.profile_completed === true) return true;
+  return Boolean(u.full_name && u.full_name.trim().length > 0 && u.phone && u.phone.trim().length > 0);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || 'disabled';
   const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || 'disabled';
@@ -77,9 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (storedToken) {
           if (isMounted) setToken(storedToken);
+          let resolvedUser: AppUser | null = null;
           if (storedUserJson) {
             try {
-              if (isMounted) setUser(JSON.parse(storedUserJson));
+              resolvedUser = JSON.parse(storedUserJson);
+              if (isMounted) setUser(resolvedUser);
             } catch {
               // Ignore JSON parse error
             }
@@ -92,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
             const json = await res.json();
             if (json.success && json.data && isMounted) {
+              resolvedUser = json.data;
               setUser(json.data);
               await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(json.data));
             } else if (res.status === 401) {
@@ -100,10 +115,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (isMounted) {
                 setToken(null);
                 setUser(null);
+                setNeedsProfileSetup(false);
               }
             }
           } catch (fetchErr) {
             console.warn('[Auth] Could not verify session with server, keeping cached user:', fetchErr);
+          }
+
+          if (isMounted && resolvedUser && !isProfileComplete(resolvedUser)) {
+            setNeedsProfileSetup(true);
           }
 
           registerPushTokenInBackground();
@@ -140,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(receivedToken);
       setUser(receivedUser);
+      setNeedsProfileSetup(!isProfileComplete(receivedUser));
 
       await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
       await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
@@ -173,6 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(receivedToken);
       setUser(receivedUser);
+      // New user registration always triggers profile setup flow
+      setNeedsProfileSetup(true);
 
       await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
       await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
@@ -187,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithToken = useCallback(async (receivedToken: string, receivedUser: AppUser) => {
     setToken(receivedToken);
     setUser(receivedUser);
+    setNeedsProfileSetup(!isProfileComplete(receivedUser));
     await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
     await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
     registerPushTokenInBackground();
@@ -226,6 +250,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const completeProfileSetup = useCallback(async (updates: Partial<AppUser>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const next: AppUser = { ...prev, ...updates, profile_completed: true };
+      AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+    setNeedsProfileSetup(false);
+  }, []);
+
+  const dismissProfileSetup = useCallback(() => {
+    setNeedsProfileSetup(false);
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       const pushToken = await getStoredPushTokenAsync();
@@ -234,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setToken(null);
       setUser(null);
+      setNeedsProfileSetup(false);
     }
   }, []);
 
@@ -252,6 +291,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         isAdmin,
         loading,
+        needsProfileSetup,
+        completeProfileSetup,
+        dismissProfileSetup,
         signUp,
         signIn,
         signInWithGoogle,

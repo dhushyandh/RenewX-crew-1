@@ -13,8 +13,12 @@
         "LSApplicationQueriesSchemes": [
           "tez",
           "phonepe",
+          "paytmmp",
+          "tez",
+          "phonepe",
           "paytmmp"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
