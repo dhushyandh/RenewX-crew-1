@@ -1,40 +1,50 @@
 import { Platform } from 'react-native';
+import {
+  renewxColors,
+  renewxSpacing,
+  renewxRadius,
+  renewxTypography,
+  renewxFontFamily,
+  renewxShadows,
+} from '@/design-system';
 
+/**
+ * Backwards-compatible theme exports.
+ * New screens should import from '@/design-system' directly.
+ */
 export const colors = {
-  primary: '#ffc400',
-  primaryDark: '#e0ac00',
-  primaryLight: '#fff8d8',
-  secondary: '#111827',
-  accent: '#ffc400',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  background: '#f8f7f2',
-  surface: '#ffffff',
-  text: '#111827',
-  textSecondary: '#4b5563',
-  textMuted: '#9ca3af',
-  border: '#e6e2d8',
-  borderLight: '#f0ede6',
-  white: '#ffffff',
-  black: '#0a0a0a',
+  primary: renewxColors.green,
+  primaryDark: renewxColors.greenDark,
+  primaryLight: renewxColors.greenLight,
+  secondary: renewxColors.black,
+  accent: renewxColors.yellow,
+  success: renewxColors.success,
+  warning: renewxColors.warning,
+  error: renewxColors.error,
+  info: renewxColors.info,
+  background: renewxColors.background,
+  surface: renewxColors.surface,
+  text: renewxColors.text,
+  textSecondary: renewxColors.textSecondary,
+  textMuted: renewxColors.textMuted,
+  border: renewxColors.border,
+  borderLight: '#EEF1EE',
+  white: renewxColors.white,
+  black: renewxColors.black,
+  yellow: renewxColors.yellow,
+  green: renewxColors.green,
+  greenLight: renewxColors.greenLight,
 };
 
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-};
+export const spacing = renewxSpacing;
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  full: 9999,
+  sm: renewxRadius.sm,
+  md: renewxRadius.md,
+  lg: renewxRadius.lg,
+  xl: renewxRadius.xl,
+  xxl: renewxRadius.xxl,
+  full: renewxRadius.pill,
 };
 
 export const fontSize = {
@@ -55,18 +65,13 @@ export const fontWeight = {
   black: '800' as const,
 };
 
-export const fontFamily = {
-  regular: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_400Regular' }),
-  medium: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_500Medium' }),
-  semibold: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_600SemiBold' }),
-  bold: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_700Bold' }),
-  extraBold: Platform.select({ web: 'Outfit, -apple-system, sans-serif', default: 'Outfit_800ExtraBold' }),
-};
+export const fontFamily = renewxFontFamily;
+export const typography = renewxTypography;
+export const shadows = renewxShadows;
 
 export const conditionColors: Record<string, { bg: string; text: string }> = {
-  'Like New': { bg: '#d1fae5', text: '#047857' },
-  Excellent: { bg: '#ccfbf1', text: '#0f766e' },
-  Good: { bg: '#dbeafe', text: '#1d4ed8' },
-  Fair: { bg: '#fef3c7', text: '#b45309' },
+  'Like New': { bg: renewxColors.greenLight, text: renewxColors.greenDark },
+  Excellent: { bg: '#E1F7F3', text: '#0F766E' },
+  Good: { bg: '#EAF2FF', text: '#1D4ED8' },
+  Fair: { bg: renewxColors.yellowLight, text: '#8A6500' },
 };
-
