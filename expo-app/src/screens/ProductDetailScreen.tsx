@@ -196,8 +196,8 @@ export default function ProductDetailScreen() {
         }
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.hero}>
-          <View style={styles.heroTop}>
+        <View style={[styles.hero, { paddingTop: safeTop }]}>
+          <View style={[styles.heroTop, { top: safeTop + 12 }]}>
             <TouchableOpacity style={styles.iconButton} onPress={handleBack} accessibilityLabel="Go back">
               <Ionicons name="arrow-back" size={20} color={renewxColors.text} />
             </TouchableOpacity>
@@ -209,7 +209,7 @@ export default function ProductDetailScreen() {
           </View>
 
           {discount > 0 && (
-            <View style={styles.discountBadge}>
+            <View style={[styles.discountBadge, { top: safeTop + 60 }]}>
               <Text style={styles.discountText}>{discount}% OFF</Text>
             </View>
           )}
@@ -380,11 +380,11 @@ const styles = StyleSheet.create({
   primaryStateText: { fontFamily: renewxFontFamily.semibold, fontSize: 12, color: renewxColors.black },
   secondaryStateButton: { marginTop: 9, paddingHorizontal: 18, paddingVertical: 10, borderRadius: renewxRadius.md, borderWidth: 1, borderColor: renewxColors.border, backgroundColor: renewxColors.surface },
   secondaryStateText: { fontFamily: renewxFontFamily.semibold, fontSize: 12, color: renewxColors.text },
-  hero: { backgroundColor: renewxColors.surface, borderBottomWidth: 1, borderBottomColor: renewxColors.border, paddingTop: safeTop },
-  heroTop: { position: 'absolute', top: safeTop + 12, left: renewxSpacing.md, right: renewxSpacing.md, zIndex: 5, flexDirection: 'row', justifyContent: 'space-between' },
+  hero: { backgroundColor: renewxColors.surface, borderBottomWidth: 1, borderBottomColor: renewxColors.border },
+  heroTop: { position: 'absolute', top: 12, left: renewxSpacing.md, right: renewxSpacing.md, zIndex: 5, flexDirection: 'row', justifyContent: 'space-between' },
   heroActions: { flexDirection: 'row', gap: 8 },
   iconButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: renewxColors.border, alignItems: 'center', justifyContent: 'center', ...renewxShadows.card },
-  discountBadge: { position: 'absolute', zIndex: 4, top: safeTop + 60, right: renewxSpacing.md, paddingHorizontal: 10, paddingVertical: 6, borderRadius: renewxRadius.pill, backgroundColor: renewxColors.black },
+  discountBadge: { position: 'absolute', zIndex: 4, top: 60, right: renewxSpacing.md, paddingHorizontal: 10, paddingVertical: 6, borderRadius: renewxRadius.pill, backgroundColor: renewxColors.black },
   discountText: { fontFamily: renewxFontFamily.semibold, fontSize: 10, color: renewxColors.yellow },
   heroImageWrap: { width: '100%', height: Math.max(320, Math.min(460, IMAGE_SIZE)), backgroundColor: renewxColors.surfaceMuted, alignItems: 'center', justifyContent: 'center', padding: 22 },
   heroImage: { width: '100%', height: '100%' },

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, StyleSheet, View, type StyleProp, type ViewStyle, type DimensionValue } from 'react-native';
 import { renewxColors, renewxRadius } from '@/design-system';
 
 type Props = {
-  width?: number | string;
+  width?: DimensionValue;
   height?: number;
   radius?: number;
   style?: StyleProp<ViewStyle>;
