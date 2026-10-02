@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     backgroundColor: renewxColors.greenLight,
   },
   conditionText: {
-    fontFamily: renewxTypography.label.fontFamily,
+    fontFamily: renewxFontFamily.semibold,
     fontSize: 9,
     color: renewxColors.greenDark,
   },
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     backgroundColor: renewxColors.black,
   },
   discountText: {
-    fontFamily: renewxTypography.label.fontFamily,
+    fontFamily: renewxFontFamily.semibold,
     fontSize: 9,
     color: renewxColors.yellow,
   },
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   brand: {
     flex: 1,
-    fontFamily: renewxTypography.label.fontFamily,
+    fontFamily: renewxFontFamily.semibold,
     fontSize: 9,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
@@ -224,14 +224,14 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   ratingText: {
-    fontFamily: renewxTypography.caption.fontFamily,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 9,
     color: renewxColors.textSecondary,
   },
   name: {
     marginTop: 5,
     minHeight: 32,
-    fontFamily: renewxTypography.bodySemibold.fontFamily,
+    fontFamily: renewxFontFamily.semibold,
     fontSize: 13,
     lineHeight: 17,
     color: renewxColors.text,
@@ -245,12 +245,12 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   reviews: {
-    fontFamily: renewxTypography.caption.fontFamily,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 9,
     color: renewxColors.textMuted,
   },
   stock: {
-    fontFamily: renewxTypography.caption.fontFamily,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 9,
     color: renewxColors.warning,
   },
@@ -271,12 +271,12 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   price: {
-    fontFamily: renewxTypography.price.fontFamily,
+    fontFamily: renewxFontFamily.extraBold,
     fontSize: 15,
     color: renewxColors.text,
   },
   originalPrice: {
-    fontFamily: renewxTypography.caption.fontFamily,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 9,
     color: renewxColors.textMuted,
     textDecorationLine: 'line-through',
