@@ -9,12 +9,10 @@ import {
   Image,
   ScrollView,
   Dimensions,
-  Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,64 +23,40 @@ import { useToast } from '@/context/ToastContext';
 import { shareProduct } from '@/services/shareService';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import HomeHeader from '@/components/HomeHeader';
 import ProductCard from '@/components/ProductCard';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
 import { mapProductRow } from '@/lib/productMapper';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  renewxColors,
+  renewxRadius,
+  renewxSpacing,
+  renewxTypography,
+  renewxShadows,
+} from '@/design-system';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type AnyProduct = Product & Record<string, any>;
 
 const PRODUCTS_CACHE_KEY = '@renewx_products_cache';
-const AUTO_SLIDE_INTERVAL = 3000; // 3 seconds auto-slide
+const AUTO_SLIDE_INTERVAL = 4000;
 
-function getResponsiveMetrics(width: number) {
-  const isSmall = width < 360;
-  const isLarge = width >= 430;
-
-  return {
-    heroWidth: width,
-    heroHorizontalPadding: isSmall ? 14 : isLarge ? 24 : 18,
-    heroMinHeight: isSmall ? 430 : isLarge ? 500 : 465,
-    heroImageHeight: isSmall ? 205 : isLarge ? 270 : 235,
-    heroImageMargin: isSmall ? 28 : isLarge ? 48 : 34,
-    heroArrowTop: isSmall ? 175 : isLarge ? 215 : 195,
-    gridGap: isSmall ? 8 : 10,
-    horizontalPadding: isSmall ? 12 : 16,
-  };
-}
-
-function ProductSkeleton() {
-  return (
-    <View style={styles.skeletonCard}>
-      <View style={styles.skeletonImage} />
-      <View style={styles.skeletonLineLarge} />
-      <View style={styles.skeletonLineSmall} />
-      <View style={styles.skeletonLinePrice} />
-    </View>
-  );
-}
+const QUICK_CATEGORIES = [
+  { label: 'Smartphones', icon: 'phone-portrait-outline' as const },
+  { label: 'Laptops', icon: 'laptop-outline' as const },
+  { label: 'MacBooks', icon: 'logo-apple' as const },
+  { label: 'Tablets', icon: 'tablet-portrait-outline' as const },
+  { label: 'Audio', icon: 'headset-outline' as const },
+  { label: 'Smartwatches', icon: 'watch-outline' as const },
+];
 
 function getProductName(product: AnyProduct) {
-  return (
-    product.name ??
-    product.title ??
-    product.product_name ??
-    product.productName ??
-    'Certified Device'
-  );
+  return product.name ?? product.title ?? product.product_name ?? product.productName ?? 'Certified Device';
 }
 
 function getCategory(product: AnyProduct) {
-  return (
-    product.category ??
-    product.category_name ??
-    product.categoryName ??
-    product.type ??
-    ''
-  );
+  return product.category ?? product.category_name ?? product.categoryName ?? product.type ?? '';
 }
 
 function getProductImage(product: AnyProduct): string | undefined {
@@ -122,13 +96,7 @@ function getProductPrice(product: AnyProduct) {
 }
 
 function getProductCondition(product: AnyProduct) {
-  return (
-    product.condition ??
-    product.grade ??
-    product.quality ??
-    product.device_condition ??
-    'Certified'
-  );
+  return product.condition ?? product.grade ?? product.quality ?? product.device_condition ?? 'Certified';
 }
 
 function getAvailability(product: AnyProduct) {
@@ -146,27 +114,30 @@ function getAvailability(product: AnyProduct) {
 }
 
 function formatPrice(value: number) {
-  if (!value) return 'Price on request';
-
-  return `₹${Math.round(value).toLocaleString('en-IN')}`;
+  return value > 0 ? `₹${Math.round(value).toLocaleString('en-IN')}` : 'Price on request';
 }
 
 function getHeroProductScore(product: AnyProduct) {
-  const stock = Number(
-    product.stock_quantity ?? product.stockQuantity ?? product.stock ?? 1,
-  );
-
+  const stock = Number(product.stock_quantity ?? product.stockQuantity ?? product.stock ?? 1);
   const featured = Boolean(
-    product.featured ??
-      product.is_featured ??
-      product.isFeatured ??
-      product.highlighted,
+    product.featured ?? product.is_featured ?? product.isFeatured ?? product.highlighted,
   );
-
   const hasImage = Boolean(getProductImage(product));
   const price = getProductPrice(product);
 
   return (featured ? 1000 : 0) + (hasImage ? 100 : 0) + (stock > 0 ? 20 : 0) + (price > 0 ? 10 : 0);
+}
+
+function getResponsiveMetrics(width: number) {
+  const isSmall = width < 360;
+  const isLarge = width >= 430;
+
+  return {
+    heroHeight: isSmall ? 430 : isLarge ? 490 : 455,
+    imageHeight: isSmall ? 210 : isLarge ? 255 : 230,
+    sidePadding: isSmall ? 12 : 16,
+    gridGap: isSmall ? 8 : 10,
+  };
 }
 
 function HeroProductCard({
@@ -175,14 +146,12 @@ function HeroProductCard({
   total,
   onPress,
   screenWidth,
-  responsive,
 }: {
   product: AnyProduct;
   index: number;
   total: number;
   onPress: () => void;
   screenWidth: number;
-  responsive: ReturnType<typeof getResponsiveMetrics>;
 }) {
   const image = getProductImage(product);
   const name = getProductName(product);
@@ -195,108 +164,83 @@ function HeroProductCard({
     <TouchableOpacity
       activeOpacity={0.96}
       onPress={onPress}
-      style={[
-        styles.heroOuter,
-        {
-          width: screenWidth,
-          paddingHorizontal: responsive.heroHorizontalPadding,
-        },
-      ]}
+      style={{ width: screenWidth }}
+      accessibilityRole="button"
+      accessibilityLabel={`Featured device: ${name}`}
     >
       <View style={styles.heroCard}>
-        <View style={styles.heroGlow} />
+        <View style={styles.heroTopRow}>
+          <View style={styles.certifiedPill}>
+            <View style={styles.certifiedDot} />
+            <Text style={styles.certifiedText}>CERTIFIED DEVICE</Text>
+          </View>
 
-        <View style={styles.heroDeviceBadge}>
-          <Ionicons name="phone-portrait-outline" size={19} color={colors.text} />
+          <View style={styles.heroCount}>
+            <Text style={styles.heroCountText}>{index + 1}</Text>
+            <Text style={styles.heroCountSlash}>/</Text>
+            <Text style={styles.heroCountTotal}>{total}</Text>
+          </View>
         </View>
 
-        <View style={styles.heroCounter}>
-          <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
-          <Text style={styles.heroCounterText}>
-            {index + 1} / {total}
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-        </View>
+        <View style={styles.heroVisual}>
+          <View style={styles.heroGlowLarge} />
+          <View style={styles.heroGlowSmall} />
 
-        <View
-          style={[
-            styles.heroImageFrame,
-            {
-              height: responsive.heroImageHeight,
-              marginHorizontal: responsive.heroImageMargin,
-            },
-          ]}
-        >
           {image ? (
-            <Image
-              source={{ uri: image }}
-              style={styles.heroImage}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: image }} style={{ width: '92%', height: '100%' }} resizeMode="contain" />
           ) : (
-            <View style={styles.heroImageFallback}>
-              <Ionicons name="phone-portrait-outline" size={58} color={colors.textMuted} />
+            <View style={styles.heroFallback}>
+              <Ionicons name="phone-portrait-outline" size={54} color={renewxColors.textSecondary} />
             </View>
           )}
         </View>
 
         <View style={styles.heroInfo}>
-          <View style={styles.heroMetaRow}>
-            <Text style={styles.heroCertified}>CERTIFIED DEVICE</Text>
-            <View style={styles.heroMetaDot} />
-            <Text style={styles.heroGrade}>{String(condition)}</Text>
-          </View>
-
-          <View style={styles.heroNamePriceRow}>
-            <View style={styles.heroNameBlock}>
-              <Text style={styles.heroProductName} numberOfLines={1}>
-                {name}
+          <View style={styles.heroInfoTop}>
+            <View style={styles.heroTitleBlock}>
+              <Text style={styles.heroBrand} numberOfLines={1}>
+                {String(category || 'RenewX device').toUpperCase()}
               </Text>
-              <Text style={styles.heroCategory} numberOfLines={1}>
-                {String(category || 'Devices').toLowerCase()}
-              </Text>
+              <Text style={styles.heroName} numberOfLines={2}>{name}</Text>
+              <Text style={styles.heroSubline}>Professionally checked • Ready to ship</Text>
             </View>
 
             <View style={styles.heroPriceBlock}>
               <Text style={styles.heroFrom}>FROM</Text>
-              <Text style={styles.heroPrice} numberOfLines={1}>
-                {formatPrice(price)}
-              </Text>
+              <Text style={styles.heroPrice}>{formatPrice(price)}</Text>
             </View>
           </View>
 
-          <View style={styles.heroDivider} />
-
-          <View style={styles.heroConditionRow}>
-            <View style={styles.conditionIcon}>
-              <Ionicons name="shield-checkmark-outline" size={18} color={colors.success} />
+          <View style={styles.heroBottomRow}>
+            <View style={styles.conditionPill}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={renewxColors.greenDark} />
+              <Text style={styles.conditionText}>{String(condition)}</Text>
             </View>
-            <Text style={styles.conditionText}>{String(condition)}</Text>
+
+            <View style={styles.availability}>
+              <View
+                style={[
+                  styles.availabilityDot,
+                  availability === 'Out of stock' && styles.availabilityDotOff,
+                ]}
+              />
+              <Text style={styles.availabilityText}>{availability}</Text>
+            </View>
           </View>
         </View>
-      </View>
-
-      <View style={styles.heroAvailabilityRow}>
-        <View style={styles.heroDots}>
-          {Array.from({ length: Math.min(total, 7) }).map((_, dotIndex) => (
-            <View
-              key={dotIndex}
-              style={[
-                styles.heroDot,
-                dotIndex === index % 7 && styles.heroDotActive,
-              ]}
-            />
-          ))}
-        </View>
-        <View
-          style={[
-            styles.availableDot,
-            availability === 'Out of stock' && styles.unavailableDot,
-          ]}
-        />
-        <Text style={styles.availabilityText}>{availability}</Text>
       </View>
     </TouchableOpacity>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonImage} />
+      <View style={styles.skeletonLineWide} />
+      <View style={styles.skeletonLine} />
+      <View style={styles.skeletonPrice} />
+    </View>
   );
 }
 
@@ -305,20 +249,20 @@ export default function HomeScreen() {
   const { addToCart, totalItems } = useCart();
   const { isAdmin, signOut } = useAuth();
   const toast = useToast();
-  const [screenWidth, setScreenWidth] = useState(() => Dimensions.get('window').width);
+  const isFocused = useIsFocused();
 
+  const [screenWidth, setScreenWidth] = useState(() => Dimensions.get('window').width);
   const responsive = useMemo(() => getResponsiveMetrics(screenWidth), [screenWidth]);
 
-  const isFocused = useIsFocused();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [productList, setProductList] = useState<Product[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [autoSlideTrigger, setAutoSlideTrigger] = useState(0);
 
-  const isInteractingRef = useRef(false);
   const heroScrollRef = useRef<ScrollView>(null);
   const listRef = useRef<FlatList>(null);
+  const isInteractingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -326,36 +270,31 @@ export default function HomeScreen() {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
       }
-    }, [])
+    }, []),
   );
 
   const saveProductsCache = useCallback(async (rows: any[]) => {
     try {
-      // Keep only top 20 items and strip large base64 strings to prevent SQLite SQLITE_FULL
-      const lightweight = rows.slice(0, 20).map((r: any) => {
-        const img = typeof r.image === 'string' ? r.image : '';
-        const safeImage = img.startsWith('data:') && img.length > 5000 ? '' : img;
+      const lightweight = rows.slice(0, 20).map((row: any) => {
+        const image = typeof row.image === 'string' ? row.image : '';
         return {
-          id: r.id || r._uuid || r._id,
-          name: r.name,
-          price: r.price,
-          originalPrice: r.originalPrice,
-          brand: r.brand,
-          category: r.category,
-          stock: r.stock,
-          condition: r.condition,
-          image: safeImage,
+          id: row.id || row._uuid || row._id,
+          name: row.name,
+          price: row.price,
+          originalPrice: row.originalPrice,
+          brand: row.brand,
+          category: row.category,
+          stock: row.stock,
+          condition: row.condition,
+          image: image.startsWith('data:') && image.length > 5000 ? '' : image,
         };
       });
 
       await AsyncStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(lightweight));
-    } catch (err: any) {
-      console.warn('[Home] Failed to write product cache:', err?.message);
-      // If SQLite DB is full, clear the corrupt or oversized key to free up disk space
-      if (err?.message?.includes('SQLITE_FULL') || err?.message?.includes('full')) {
-        try {
-          await AsyncStorage.removeItem(PRODUCTS_CACHE_KEY);
-        } catch {}
+    } catch (error: any) {
+      console.warn('[Home] Failed to write product cache:', error?.message);
+      if (String(error?.message).includes('SQLITE_FULL') || String(error?.message).includes('full')) {
+        try { await AsyncStorage.removeItem(PRODUCTS_CACHE_KEY); } catch {}
       }
     }
   }, []);
@@ -388,20 +327,15 @@ export default function HomeScreen() {
 
       setProductList(mapped);
       setHeroIndex(0);
-
-      // Save lightweight cache in background (isolated from main fetch)
       saveProductsCache(rows);
-    } catch (err: any) {
-      console.warn('[Home] Live product fetch failed:', err?.message);
+    } catch (error: any) {
+      console.warn('[Home] Live product fetch failed:', error?.message);
       const cached = await readCache();
-      if (!cached) {
-        setProductList([]);
-      }
+      if (!cached) setProductList([]);
     } finally {
       setLoading(false);
     }
   }, [readCache, saveProductsCache]);
-
 
   useEffect(() => {
     fetchLiveProducts();
@@ -414,68 +348,47 @@ export default function HomeScreen() {
   }, [fetchLiveProducts]);
 
   const heroProducts = useMemo(() => {
-    const products = productList as AnyProduct[];
-
-    return [...products]
+    return [...(productList as AnyProduct[])]
       .filter((product) => getProductImage(product))
       .sort((a, b) => getHeroProductScore(b) - getHeroProductScore(a))
       .slice(0, 7);
   }, [productList]);
 
   const newArrivals = useMemo(() => {
-    const products = productList as AnyProduct[];
-
-    return [...products]
+    return [...(productList as AnyProduct[])]
       .sort((a, b) => {
-        const dateA = new Date(
-          a.created_at ?? a.createdAt ?? a.updated_at ?? a.updatedAt ?? 0,
-        ).getTime();
-
-        const dateB = new Date(
-          b.created_at ?? b.createdAt ?? b.updated_at ?? b.updatedAt ?? 0,
-        ).getTime();
-
+        const dateA = new Date(a.created_at ?? a.createdAt ?? a.updated_at ?? a.updatedAt ?? 0).getTime();
+        const dateB = new Date(b.created_at ?? b.createdAt ?? b.updated_at ?? b.updatedAt ?? 0).getTime();
         return dateB - dateA;
       })
       .slice(0, 10);
   }, [productList]);
 
+  const goToHero = useCallback((index: number) => {
+    if (!heroProducts.length) return;
+
+    const nextIndex = index < 0
+      ? heroProducts.length - 1
+      : index >= heroProducts.length ? 0 : index;
+
+    heroScrollRef.current?.scrollTo({
+      x: nextIndex * Math.max(screenWidth, 1),
+      animated: true,
+    });
+    setHeroIndex(nextIndex);
+  }, [heroProducts.length, screenWidth]);
+
   const resetAutoSlide = useCallback(() => {
-    setAutoSlideTrigger((prev) => prev + 1);
+    setAutoSlideTrigger((value) => value + 1);
   }, []);
 
-  const goToHero = useCallback(
-    (index: number) => {
-      if (!heroProducts.length) return;
-
-      const nextIndex =
-        index < 0
-          ? heroProducts.length - 1
-          : index >= heroProducts.length
-            ? 0
-            : index;
-
-      heroScrollRef.current?.scrollTo({
-        x: nextIndex * Math.max(screenWidth, 1),
-        animated: true,
-      });
-      setHeroIndex(nextIndex);
-    },
-    [heroProducts.length, screenWidth],
-  );
-
-  const handleHeroScroll = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ) => {
-    isInteractingRef.current = false;
+  const handleHeroScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const nextIndex = Math.round(
       event.nativeEvent.contentOffset.x / Math.max(screenWidth, 1),
     );
 
     if (nextIndex !== heroIndex) {
       setHeroIndex(Math.max(0, Math.min(nextIndex, heroProducts.length - 1)));
-    } else {
-      resetAutoSlide();
     }
   };
 
@@ -483,9 +396,9 @@ export default function HomeScreen() {
     if (!isFocused || heroProducts.length <= 1) return;
 
     const timer = setTimeout(() => {
-      if (isInteractingRef.current) return;
-      const nextIndex = (heroIndex + 1) % heroProducts.length;
-      goToHero(nextIndex);
+      if (!isInteractingRef.current) {
+        goToHero(heroIndex + 1);
+      }
     }, AUTO_SLIDE_INTERVAL);
 
     return () => clearTimeout(timer);
@@ -505,9 +418,7 @@ export default function HomeScreen() {
 
   const handleShareProduct = useCallback(async (product: Product) => {
     await shareProduct(product, {
-      onSuccessToast: (msg) => {
-        toast?.success?.(msg, 'Link Copied');
-      },
+      onSuccessToast: (message) => toast?.success?.(message, 'Link Copied'),
     });
   }, [toast]);
 
@@ -543,14 +454,14 @@ export default function HomeScreen() {
           String((item as AnyProduct)._uuid ?? (item as AnyProduct).id ?? index)
         }
         numColumns={2}
-        columnWrapperStyle={styles.productRow}
+        columnWrapperStyle={[styles.productRow, { gap: responsive.gridGap }]}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
+            tintColor={renewxColors.green}
           />
         }
         ListHeaderComponent={
@@ -562,9 +473,7 @@ export default function HomeScreen() {
                   horizontal
                   pagingEnabled
                   showsHorizontalScrollIndicator={false}
-                  onScrollBeginDrag={() => {
-                    isInteractingRef.current = true;
-                  }}
+                  onScrollBeginDrag={() => { isInteractingRef.current = true; }}
                   onScrollEndDrag={() => {
                     isInteractingRef.current = false;
                     resetAutoSlide();
@@ -574,75 +483,105 @@ export default function HomeScreen() {
                 >
                   {heroProducts.map((product, index) => (
                     <HeroProductCard
-                      key={String(
-                        (product as AnyProduct)._uuid ??
-                          (product as AnyProduct).id ??
-                          index,
-                      )}
+                      key={String((product as AnyProduct)._uuid ?? (product as AnyProduct).id ?? index)}
                       product={product as AnyProduct}
                       index={index}
                       total={heroProducts.length}
                       onPress={() => openProduct(product)}
                       screenWidth={screenWidth}
-                      responsive={responsive}
                     />
                   ))}
                 </ScrollView>
 
-                <TouchableOpacity
-                  accessibilityLabel="Previous featured product"
-                  style={[styles.heroExternalArrow, styles.heroExternalLeft]}
-                  onPress={() => {
-                    goToHero(heroIndex - 1);
-                    resetAutoSlide();
-                  }}
-                >
-                  <Ionicons name="chevron-back" size={25} color={colors.text} />
-                </TouchableOpacity>
+                {heroProducts.length > 1 && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.heroArrow, styles.heroArrowLeft]}
+                      onPress={() => { goToHero(heroIndex - 1); resetAutoSlide(); }}
+                      accessibilityLabel="Previous featured product"
+                    >
+                      <Ionicons name="chevron-back" size={20} color={renewxColors.text} />
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  accessibilityLabel="Next featured product"
-                  style={[styles.heroExternalArrow, styles.heroExternalRight]}
-                  onPress={() => {
-                    goToHero(heroIndex + 1);
-                    resetAutoSlide();
-                  }}
-                >
-                  <Ionicons name="chevron-forward" size={25} color={colors.text} />
-                </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.heroArrow, styles.heroArrowRight]}
+                      onPress={() => { goToHero(heroIndex + 1); resetAutoSlide(); }}
+                      accessibilityLabel="Next featured product"
+                    >
+                      <Ionicons name="chevron-forward" size={20} color={renewxColors.text} />
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             ) : loading ? (
-              <View style={styles.heroSkeleton}>
-                <View style={styles.heroSkeletonCircle} />
-                <View style={styles.heroSkeletonImage} />
-                <View style={styles.heroSkeletonInfo}>
-                  <View style={styles.skeletonLineSmall} />
-                  <View style={styles.skeletonLineLarge} />
-                  <View style={styles.skeletonLineMedium} />
-                </View>
+              <View style={[styles.heroSkeleton, { height: responsive.heroHeight }]}>
+                <View style={styles.skeletonCircle} />
+                <View style={styles.skeletonVisual} />
+                <View style={styles.skeletonInfo} />
               </View>
             ) : (
               <View style={styles.heroEmpty}>
                 <View style={styles.heroEmptyIcon}>
-                  <Ionicons name="phone-portrait-outline" size={32} color={colors.textMuted} />
+                  <Ionicons name="cube-outline" size={28} color={renewxColors.textSecondary} />
                 </View>
-                <Text style={styles.heroEmptyTitle}>Featured devices will appear here</Text>
+                <Text style={styles.heroEmptyTitle}>Your next certified device is coming</Text>
                 <Text style={styles.heroEmptyText}>
-                  Published products with images are shown in this section.
+                  Published products with images will appear here.
                 </Text>
               </View>
             )}
 
-            <View style={styles.arrivalsHeader}>
-              <Text style={styles.arrivalsTitle}>New Device Arrivals</Text>
-              <TouchableOpacity
-                style={styles.viewAllButton}
-                onPress={() => navigation.navigate('Shop' as never)}
-                activeOpacity={0.7}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionKicker}>EXPLORE</Text>
+                  <Text style={styles.sectionTitle}>Shop by category</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Shop' as never)}
+                  style={styles.textAction}
+                >
+                  <Text style={styles.textActionLabel}>Shop all</Text>
+                  <Ionicons name="arrow-forward" size={15} color={renewxColors.greenDark} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryRow}
               >
-                <Text style={styles.viewAllText}>View all devices</Text>
-                <Ionicons name="arrow-forward" size={15} color={colors.text} />
-              </TouchableOpacity>
+                {QUICK_CATEGORIES.map((category) => (
+                  <TouchableOpacity
+                    key={category.label}
+                    style={styles.categoryChip}
+                    onPress={() => navigation.navigate('Shop' as never)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.categoryIcon}>
+                      <Ionicons name={category.icon} size={18} color={renewxColors.greenDark} />
+                    </View>
+                    <Text style={styles.categoryLabel}>{category.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionKicker}>JUST IN</Text>
+                  <Text style={styles.sectionTitle}>New device arrivals</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.textAction}
+                  onPress={() => navigation.navigate('Shop' as never)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.textActionLabel}>View all</Text>
+                  <Ionicons name="arrow-forward" size={15} color={renewxColors.greenDark} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {loading && (
@@ -659,24 +598,14 @@ export default function HomeScreen() {
           !loading ? (
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
-                <Ionicons
-                  name="cube-outline"
-                  size={30}
-                  color={colors.textMuted}
-                />
+                <Ionicons name="cube-outline" size={28} color={renewxColors.textSecondary} />
               </View>
-
               <Text style={styles.emptyTitle}>No products available</Text>
-
               <Text style={styles.emptyText}>
                 New certified devices will appear here when they are published.
               </Text>
-
-              <TouchableOpacity
-                style={styles.emptyRetry}
-                onPress={onRefresh}
-              >
-                <Ionicons name="refresh" size={16} color="#ffffff" />
+              <TouchableOpacity style={styles.emptyRetry} onPress={onRefresh}>
+                <Ionicons name="refresh" size={16} color={renewxColors.black} />
                 <Text style={styles.emptyRetryText}>Refresh</Text>
               </TouchableOpacity>
             </View>
@@ -693,501 +622,423 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: renewxColors.background,
   },
-
   listContent: {
-    paddingBottom: 110,
+    paddingBottom: 118,
   },
-
   heroSection: {
     position: 'relative',
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+    marginTop: renewxSpacing.sm,
+    marginBottom: renewxSpacing.lg,
   },
-
-  heroOuter: {
-    paddingHorizontal: 18,
-  },
-
   heroCard: {
-    minHeight: 465,
-    borderRadius: 38,
-    backgroundColor: '#ffffff',
+    minHeight: 445,
+    marginHorizontal: renewxSpacing.md,
+    padding: renewxSpacing.md,
+    paddingBottom: 12,
     overflow: 'hidden',
+    borderRadius: renewxRadius.xl,
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#eef0f2',
-    position: 'relative',
-    paddingTop: 54,
+    borderColor: renewxColors.border,
+    ...renewxShadows.card,
   },
-
-  heroGlow: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: '#fff6bd',
-    top: 78,
-    left: '50%',
-    marginLeft: -150,
-    opacity: 0.88,
-  },
-
-  heroDeviceBadge: {
-    position: 'absolute',
-    top: 12,
-    left: '50%',
-    marginLeft: -26,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#111111',
-    borderWidth: 5,
-    borderColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroTopRow: {
     zIndex: 5,
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-
-  heroCounter: {
+  certifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: renewxRadius.pill,
+    backgroundColor: renewxColors.greenLight,
+  },
+  certifiedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: renewxColors.green,
+  },
+  certifiedText: {
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 9,
+    letterSpacing: 0.7,
+    color: renewxColors.greenDark,
+  },
+  heroCount: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+  heroCountText: {
+    fontFamily: renewxTypography.h3.fontFamily,
+    fontSize: 15,
+    color: renewxColors.text,
+  },
+  heroCountSlash: {
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 12,
+    color: renewxColors.textMuted,
+  },
+  heroCountTotal: {
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 12,
+    color: renewxColors.textSecondary,
+  },
+  heroVisual: {
+    height: 245,
+    marginTop: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  heroGlowLarge: {
     position: 'absolute',
-    top: 76,
-    left: '50%',
-    marginLeft: -71,
-    width: 142,
-    height: 48,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    zIndex: 4,
+    width: 245,
+    height: 245,
+    borderRadius: 123,
+    backgroundColor: renewxColors.yellowLight,
   },
-
-  heroCounterText: {
-    fontSize: 14,
-    fontWeight: fontWeight.bold,
-    color: colors.textMuted,
+  heroGlowSmall: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: renewxColors.greenSoft,
+    right: 20,
+    bottom: 4,
+    opacity: 0.95,
   },
-
-  heroImageFrame: {
-    height: 235,
-    marginHorizontal: 34,
-    marginTop: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-
-  heroImage: {
+  heroFallback: {
+    flex: 1,
     width: '100%',
-    height: '100%',
-  },
-
-  heroImageFallback: {
-    width: '100%',
-    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   heroInfo: {
-    marginTop: 8,
-    marginHorizontal: 10,
-    paddingHorizontal: 22,
-    paddingTop: 22,
-    paddingBottom: 18,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.97)',
-    zIndex: 3,
-    shadowColor: '#000000',
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 3,
+    paddingTop: 14,
+    paddingHorizontal: 3,
   },
-
-  heroMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  heroCertified: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-    color: '#0a9b70',
-  },
-
-  heroMetaDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#cbd5e1',
-    marginHorizontal: 8,
-  },
-
-  heroGrade: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#94a3b8',
-  },
-
-  heroNamePriceRow: {
+  heroInfoTop: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    gap: 10,
+    gap: 12,
   },
-
-  heroNameBlock: {
+  heroTitleBlock: {
     flex: 1,
-    paddingRight: 12,
+    minWidth: 0,
   },
-
-  heroProductName: {
-    fontSize: 20,
-    fontWeight: fontWeight.bold,
-    color: '#111111',
+  heroBrand: {
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    color: renewxColors.green,
   },
-
-  heroCategory: {
-    marginTop: 7,
-    fontSize: 12,
-    color: '#64748b',
+  heroName: {
+    marginTop: 3,
+    fontFamily: renewxTypography.h2.fontFamily,
+    fontSize: 22,
+    lineHeight: 27,
+    color: renewxColors.text,
   },
-
+  heroSubline: {
+    marginTop: 5,
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 10,
+    color: renewxColors.textSecondary,
+  },
   heroPriceBlock: {
     alignItems: 'flex-end',
     flexShrink: 0,
-    maxWidth: '45%',
   },
-
   heroFrom: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#94a3b8',
-    marginBottom: 2,
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 8,
+    letterSpacing: 0.8,
+    color: renewxColors.textMuted,
   },
-
   heroPrice: {
+    marginTop: 1,
+    fontFamily: renewxTypography.price.fontFamily,
     fontSize: 22,
-    fontWeight: '900',
-    color: '#111111',
+    color: renewxColors.text,
   },
-
-  heroDivider: {
-    height: 1,
-    backgroundColor: '#edf0f2',
-    marginVertical: 14,
-  },
-
-  heroConditionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  conditionIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#ecfdf5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-
-  conditionText: {
-    fontSize: 12,
-    color: '#475569',
-    fontWeight: fontWeight.medium,
-  },
-
-  heroAvailabilityRow: {
-    minHeight: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    marginTop: 3,
-  },
-
-  heroDots: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 7,
-  },
-
-  heroDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#cbd5e1',
-    marginHorizontal: 3,
-  },
-
-  heroDotActive: {
-    width: 30,
-    backgroundColor: '#111111',
-  },
-
-  availableDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#08b66b',
-    marginRight: 5,
-  },
-
-  unavailableDot: {
-    backgroundColor: '#ef4444',
-  },
-
-  availabilityText: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-
-  heroExternalArrow: {
-    position: 'absolute',
-    top: 220,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-
-  heroExternalLeft: {
-    left: 4,
-  },
-
-  heroExternalRight: {
-    right: 4,
-  },
-
-  heroSkeleton: {
-    height: 465,
-    marginHorizontal: 18,
-    borderRadius: 38,
-    backgroundColor: '#f4f5f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
-    paddingTop: 72,
-  },
-
-  heroSkeletonCircle: {
-    position: 'absolute',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    top: 12,
-    left: '50%',
-    marginLeft: -26,
-    backgroundColor: '#e5e7eb',
-  },
-
-  heroSkeletonImage: {
-    height: 275,
-    marginHorizontal: 72,
-    borderRadius: 18,
-    backgroundColor: '#e5e7eb',
-  },
-
-  heroSkeletonInfo: {
-    marginTop: 20,
-    marginHorizontal: 30,
-    borderRadius: 24,
-    backgroundColor: '#ffffff',
-    padding: 24,
-  },
-
-  heroEmpty: {
-    marginHorizontal: 22,
-    minHeight: 260,
-    borderRadius: 34,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 34,
-    borderWidth: 1,
-    borderColor: '#edf0f2',
-  },
-
-  heroEmptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-
-  heroEmptyTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    textAlign: 'center',
-  },
-
-  heroEmptyText: {
-    marginTop: 7,
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-
-  arrivalsHeader: {
+  heroBottomRow: {
+    marginTop: 13,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: renewxColors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    gap: 10,
   },
-
-  arrivalsTitle: {
-    flex: 1,
-    fontSize: 23,
-    fontWeight: '900',
-    color: '#111111',
-  },
-
-  viewAllButton: {
+  conditionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: spacing.sm,
+    gap: 6,
   },
-
-  viewAllText: {
+  conditionText: {
+    fontFamily: renewxTypography.bodyMedium.fontFamily,
+    fontSize: 11,
+    color: renewxColors.textSecondary,
+  },
+  availability: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  availabilityDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: renewxColors.green,
+  },
+  availabilityDotOff: {
+    backgroundColor: renewxColors.error,
+  },
+  availabilityText: {
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 10,
+    color: renewxColors.textSecondary,
+  },
+  heroArrow: {
+    position: 'absolute',
+    top: 214,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: renewxColors.surface,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+    ...renewxShadows.card,
+  },
+  heroArrowLeft: { left: 8 },
+  heroArrowRight: { right: 8 },
+  heroSkeleton: {
+    marginHorizontal: renewxSpacing.md,
+    borderRadius: renewxRadius.xl,
+    overflow: 'hidden',
+    backgroundColor: renewxColors.surface,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+    padding: renewxSpacing.md,
+  },
+  skeletonCircle: {
+    width: 80,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: renewxColors.border,
+  },
+  skeletonVisual: {
+    height: 260,
+    marginTop: 16,
+    borderRadius: renewxRadius.lg,
+    backgroundColor: renewxColors.background,
+  },
+  skeletonInfo: {
+    height: 105,
+    marginTop: 14,
+    borderRadius: renewxRadius.md,
+    backgroundColor: renewxColors.background,
+  },
+  heroEmpty: {
+    minHeight: 250,
+    marginHorizontal: renewxSpacing.md,
+    padding: renewxSpacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: renewxRadius.xl,
+    backgroundColor: renewxColors.surface,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+  },
+  heroEmptyIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: renewxColors.greenSoft,
+  },
+  heroEmptyTitle: {
+    marginTop: 12,
+    textAlign: 'center',
+    fontFamily: renewxTypography.h3.fontFamily,
+    fontSize: 17,
+    color: renewxColors.text,
+  },
+  heroEmptyText: {
+    marginTop: 6,
+    textAlign: 'center',
+    fontFamily: renewxTypography.body.fontFamily,
     fontSize: 12,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-    marginRight: 5,
+    lineHeight: 18,
+    color: renewxColors.textSecondary,
   },
-
-  productRow: {
-    paddingHorizontal: 16,
+  section: {
+    marginBottom: renewxSpacing.lg,
+  },
+  sectionHeader: {
+    paddingHorizontal: renewxSpacing.md,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
     gap: 10,
   },
-
+  sectionKicker: {
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    color: renewxColors.green,
+  },
+  sectionTitle: {
+    marginTop: 2,
+    fontFamily: renewxTypography.h2.fontFamily,
+    fontSize: 21,
+    lineHeight: 25,
+    color: renewxColors.text,
+  },
+  textAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingBottom: 2,
+  },
+  textActionLabel: {
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 10,
+    color: renewxColors.greenDark,
+  },
+  categoryRow: {
+    paddingHorizontal: renewxSpacing.md,
+    paddingTop: 12,
+    gap: 8,
+  },
+  categoryChip: {
+    minWidth: 92,
+    padding: 9,
+    borderRadius: renewxRadius.lg,
+    backgroundColor: renewxColors.surface,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+    alignItems: 'center',
+    ...renewxShadows.card,
+  },
+  categoryIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: renewxColors.greenLight,
+  },
+  categoryLabel: {
+    marginTop: 6,
+    textAlign: 'center',
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 9,
+    lineHeight: 12,
+    color: renewxColors.text,
+  },
+  productRow: {
+    paddingHorizontal: renewxSpacing.md,
+  },
   productWrapper: {
     flex: 1,
     minWidth: 0,
     maxWidth: '50%',
   },
-
   skeletonGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: renewxSpacing.md,
   },
-
   skeletonCard: {
     flex: 1,
     minWidth: 0,
     maxWidth: '50%',
-    padding: 10,
-    marginBottom: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: '#ffffff',
+    marginBottom: renewxSpacing.sm,
+    padding: 9,
+    borderRadius: renewxRadius.lg,
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: renewxColors.border,
   },
-
   skeletonImage: {
     height: 145,
-    borderRadius: radius.sm,
-    backgroundColor: '#e5e7eb',
-    marginBottom: 10,
+    borderRadius: renewxRadius.md,
+    backgroundColor: renewxColors.background,
   },
-
-  skeletonLineLarge: {
-    height: 12,
-    width: '82%',
-    borderRadius: 6,
-    backgroundColor: '#e5e7eb',
-    marginBottom: 7,
-  },
-
-  skeletonLineMedium: {
+  skeletonLineWide: {
+    width: '78%',
     height: 10,
-    width: '64%',
-    borderRadius: 6,
-    backgroundColor: '#e5e7eb',
-    marginBottom: 9,
+    marginTop: 11,
+    borderRadius: 5,
+    backgroundColor: renewxColors.border,
   },
-
-  skeletonLineSmall: {
-    height: 9,
-    width: '55%',
-    borderRadius: 6,
-    backgroundColor: '#e5e7eb',
-    marginBottom: 10,
+  skeletonLine: {
+    width: '52%',
+    height: 8,
+    marginTop: 7,
+    borderRadius: 4,
+    backgroundColor: renewxColors.border,
   },
-
-  skeletonLinePrice: {
-    height: 14,
-    width: '45%',
-    borderRadius: 6,
-    backgroundColor: '#d1d5db',
+  skeletonPrice: {
+    width: '42%',
+    height: 13,
+    marginTop: 10,
+    borderRadius: 5,
+    backgroundColor: renewxColors.border,
   },
-
   emptyState: {
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 55,
+    paddingHorizontal: renewxSpacing.xl,
+    paddingVertical: 45,
   },
-
   emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#f1f5f9',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    backgroundColor: renewxColors.greenSoft,
   },
-
   emptyTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    marginBottom: 6,
+    marginTop: 12,
+    fontFamily: renewxTypography.h3.fontFamily,
+    fontSize: 17,
+    color: renewxColors.text,
   },
-
   emptyText: {
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
+    marginTop: 6,
     textAlign: 'center',
-    lineHeight: 20,
+    fontFamily: renewxTypography.body.fontFamily,
+    fontSize: 12,
+    lineHeight: 18,
+    color: renewxColors.textSecondary,
   },
-
   emptyRetry: {
-    marginTop: spacing.md,
+    marginTop: 15,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: '#111827',
     paddingHorizontal: 18,
     paddingVertical: 11,
-    borderRadius: radius.md,
+    borderRadius: renewxRadius.pill,
+    backgroundColor: renewxColors.yellow,
   },
-
   emptyRetryText: {
-    color: '#ffffff',
-    fontWeight: '800',
-    fontSize: 12,
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 11,
+    color: renewxColors.black,
   },
 });
