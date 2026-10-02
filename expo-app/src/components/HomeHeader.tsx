@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { renewxColors, renewxRadius, renewxSpacing, renewxTypography, renewxFontFamily } from '@/design-system';
+import { renewxColors, renewxRadius, renewxSpacing, renewxFontFamily } from '@/design-system';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 interface HomeHeaderProps {
