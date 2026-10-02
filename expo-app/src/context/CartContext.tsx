@@ -177,57 +177,61 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
 
     const unavailable: string[] = [];
-    let changed = false;
+    const nextItems: CartItem[] = [];
 
-    setItems((current) =>
-      current
-        .map((item) => {
-          const id = String(item.id || item._uuid || (item as any)._id || '');
-          const result = results.find((entry) => String(entry.item.id || entry.item._uuid || (entry.item as any)._id || '') === id);
+    for (const item of items) {
+      const id = String(item.id || item._uuid || (item as any)._id || '');
+      const result = results.find(
+        (entry) => String(entry.item.id || entry.item._uuid || (entry.item as any)._id || '') === id,
+      );
 
-          if (!result || result.error || !result.latest) {
-            if (result?.error && (result.error as any)?.status === 404) {
-              unavailable.push(item.name);
-              changed = true;
-              return null;
-            }
-            return item;
-          }
+      if (!result || result.error || !result.latest) {
+        if (result?.error && (result.error as any)?.status === 404) {
+          unavailable.push(item.name);
+          continue;
+        }
+        nextItems.push(item);
+        continue;
+      }
 
-          const latest = result.latest;
-          const stock = Math.max(0, Number(latest.stock ?? 0));
-          const price = Number(latest.price ?? item.price);
-          const originalPrice = Number(latest.original_price ?? latest.originalPrice ?? item.originalPrice);
-          const nextQuantity = Math.min(item.quantity, stock);
+      const latest = result.latest;
+      const stock = Math.max(0, Number(latest.stock ?? 0));
+      const price = Number(latest.price ?? item.price);
+      const originalPrice = Number(
+        latest.original_price ?? latest.originalPrice ?? item.originalPrice,
+      );
+      const quantity = Math.min(item.quantity, stock);
 
-          if (
-            stock !== item.stock ||
-            price !== item.price ||
-            originalPrice !== item.originalPrice ||
-            nextQuantity !== item.quantity ||
-            latest.name !== item.name
-          ) {
-            changed = true;
-          }
+      if (stock <= 0) unavailable.push(item.name);
 
-          if (stock <= 0) unavailable.push(item.name);
+      nextItems.push({
+        ...item,
+        name: latest.name ?? item.name,
+        brand: latest.brand ?? item.brand,
+        model: latest.model ?? item.model,
+        price,
+        originalPrice,
+        stock,
+        image: latest.image_url ?? latest.image ?? item.image,
+        images: Array.isArray(latest.images) ? latest.images : item.images,
+        quantity,
+      });
+    }
 
-          return {
-            ...item,
-            name: latest.name ?? item.name,
-            brand: latest.brand ?? item.brand,
-            model: latest.model ?? item.model,
-            price,
-            originalPrice,
-            stock,
-            image: latest.image_url ?? latest.image ?? item.image,
-            images: Array.isArray(latest.images) ? latest.images : item.images,
-            quantity: nextQuantity,
-          };
-        })
-        .filter(Boolean) as CartItem[],
-    );
+    const changed = nextItems.length !== items.length || nextItems.some((next, index) => {
+      const current = items[index];
+      return (
+        String(next.id) !== String(current.id) ||
+        next.name !== current.name ||
+        next.price !== current.price ||
+        next.originalPrice !== current.originalPrice ||
+        next.stock !== current.stock ||
+        next.quantity !== current.quantity ||
+        next.image !== current.image
+      );
+    });
 
+    if (changed) setItems(nextItems);
     return { changed, unavailable };
   }, [items]);
 
