@@ -5,6 +5,8 @@ export interface Product {
   _uuid?: string;
   name: string;
   brand: string;
+  model?: string;
+  images?: string[];
   category: Category;
   originalPrice: number;
   price: number;
