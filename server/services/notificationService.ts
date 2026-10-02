@@ -290,7 +290,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `Your order #${orderShort} has been placed successfully${event.paymentMethod ? ` via ${event.paymentMethod}` : ''}.`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 
@@ -304,7 +304,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `Your payment${amountStr} for order #${orderShort} has been confirmed. We are preparing your order.`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 
@@ -317,7 +317,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `Your order #${orderShort} is now ${event.status.replace(/_/g, ' ')}.`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 
@@ -332,7 +332,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `Your order #${orderShort} has been shipped${courierStr}.${trackingStr}`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 
@@ -345,7 +345,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `Your order #${orderShort} is out for delivery today! Our courier executive will contact you shortly.`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 
@@ -358,7 +358,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `Your order #${orderShort} has been delivered successfully. Thank you for choosing RenewX!`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 
@@ -372,7 +372,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `Your order #${orderShort} has been cancelled${reasonStr}`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 
@@ -387,7 +387,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
         body = `A refund of${amountStr} for order #${orderShort} has been ${statusStr} to your original payment method.`;
         reference_id = event.orderId;
         reference_type = 'order';
-        data = { screen: 'Orders', orderId: event.orderId };
+        data = { screen: 'OrderDetail', orderId: event.orderId };
         break;
       }
 

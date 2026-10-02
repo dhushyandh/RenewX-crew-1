@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, getApiBaseUrl } from '@/services/api';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
@@ -179,6 +179,7 @@ function mergeOrder(previous: Order, incoming?: Order, status?: string) {
 export default function TrackScreen() {
   const safeTop = useSafeHeaderTop();
   const { user, token } = useAuth();
+  const navigation = useNavigation<any>();
 
   const [searchMode, setSearchMode] = useState<SearchMode>('order');
   const [query, setQuery] = useState('');
@@ -969,7 +970,7 @@ export default function TrackScreen() {
                   <TouchableOpacity
                     key={String(order.id)}
                     style={styles.recentOrder}
-                    onPress={() => setSelectedOrderId(String(order.id))}
+                    onPress={() => navigation.navigate('OrderDetail', { id: String(order.id), order })}
                     activeOpacity={0.82}
                   >
                     <View style={styles.recentOrderIcon}>
