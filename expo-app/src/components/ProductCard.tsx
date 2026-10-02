@@ -6,6 +6,7 @@ import {
   renewxRadius,
   renewxSpacing,
   renewxTypography,
+  renewxFontFamily,
   renewxShadows,
 } from '@/design-system';
 
