@@ -833,10 +833,18 @@ export async function verifyPayment(
       order.razorpay_order_id = razorpay_order_id;
     }
 
-    if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
-      if (!verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
-        throw httpError('Payment signature verification failed', 400, 'INVALID_PAYMENT_SIGNATURE');
-      }
+    // A client must never be able to mark an order paid without a complete
+    // Razorpay response. The HMAC signature binds the payment to this order.
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      throw httpError('Incomplete payment verification payload', 400, 'INCOMPLETE_PAYMENT_VERIFICATION');
+    }
+
+    if (!order.razorpay_order_id || String(order.razorpay_order_id) !== String(razorpay_order_id)) {
+      throw httpError('Razorpay order does not match this checkout', 400, 'PAYMENT_ORDER_MISMATCH');
+    }
+
+    if (!verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+      throw httpError('Payment signature verification failed', 400, 'INVALID_PAYMENT_SIGNATURE');
     }
 
     const duplicatePayment = await OrderModel.findOne({
@@ -847,31 +855,42 @@ export async function verifyPayment(
       throw httpError('Payment has already been associated with another order', 409, 'PAYMENT_REUSED');
     }
 
-    try {
-      const payment: any = await fetchRazorpayPayment(razorpay_payment_id);
-      if (payment) {
-        if (payment.status === 'authorized') {
-          try {
-            const captured: any = await captureRazorpayPayment(razorpay_payment_id, Math.round(order.subtotal * 100));
-            if (captured && captured.status) {
-              payment.status = captured.status;
-            }
-          } catch (captureErr) {
-            console.warn('Auto-capture on authorized payment encountered error:', captureErr);
-          }
-        }
+    // Verify the gateway state before mutating inventory or marking the order paid.
+    // A temporary Razorpay/API failure must leave the order recoverable, not falsely paid.
+    const payment: any = await fetchRazorpayPayment(razorpay_payment_id);
+    if (!payment) {
+      throw httpError('Payment could not be verified with Razorpay', 502, 'PAYMENT_VERIFICATION_UNAVAILABLE');
+    }
 
-        if (payment.status === 'failed') {
-          await OrderModel.findByIdAndUpdate(order._id, {
-            payment_status: 'failed',
-            razorpay_payment_id,
-          }).exec();
-          throw httpError('Payment failed on payment gateway.', 400, 'PAYMENT_FAILED');
-        }
+    if (payment.order_id && String(payment.order_id) !== String(order.razorpay_order_id)) {
+      throw httpError('Payment does not belong to this Razorpay order', 400, 'PAYMENT_ORDER_MISMATCH');
+    }
+
+    if (payment.amount !== undefined && Number(payment.amount) !== Math.round(order.subtotal * 100)) {
+      throw httpError('Payment amount does not match the order total', 400, 'PAYMENT_AMOUNT_MISMATCH');
+    }
+
+    if (payment.status === 'authorized') {
+      const captured: any = await captureRazorpayPayment(
+        razorpay_payment_id,
+        Math.round(order.subtotal * 100),
+      );
+      if (captured?.status) payment.status = captured.status;
+    }
+
+    if (payment.status !== 'captured') {
+      if (payment.status === 'failed') {
+        await OrderModel.findByIdAndUpdate(order._id, {
+          payment_status: 'failed',
+          razorpay_payment_id,
+        }).exec();
+        throw httpError('Payment failed on payment gateway.', 400, 'PAYMENT_FAILED');
       }
-    } catch (fetchErr: any) {
-      if (fetchErr?.statusCode) throw fetchErr;
-      console.warn('Non-blocking error during Razorpay payment status check:', fetchErr?.message);
+      throw httpError(
+        'Payment is not captured yet. Please wait a moment and try again.',
+        409,
+        'PAYMENT_NOT_CAPTURED',
+      );
     }
 
     const finalized = await finalizePaidOrder(order, razorpay_payment_id);
