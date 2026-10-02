@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   eyebrow: {
-    fontFamily: renewxTypography.label.fontFamily,
+    fontFamily: renewxFontFamily.semibold,
     fontSize: 8,
     lineHeight: 10,
     letterSpacing: 1.1,
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   subline: {
     marginTop: 1,
-    fontFamily: renewxTypography.caption.fontFamily,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 9,
     lineHeight: 12,
     color: renewxColors.textSecondary,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     borderColor: renewxColors.surface,
   },
   badgeText: {
-    fontFamily: renewxTypography.label.fontFamily,
+    fontFamily: renewxFontFamily.semibold,
     fontSize: 8,
     color: renewxColors.black,
   },
