@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Product, CartItem } from '@/types';
+import { api } from '@/services/api';
 
 interface CartContextValue {
   items: CartItem[];
@@ -8,6 +9,7 @@ interface CartContextValue {
   removeFromCart: (id: string | number) => void;
   updateQuantity: (id: string | number, quantity: number) => void;
   clearCart: () => void;
+  refreshInventory: () => Promise<{ changed: boolean; unavailable: string[] }>;
   totalItems: number;
   subtotal: number;
   savings: number;
@@ -159,6 +161,81 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => setItems([]), []);
 
+  const refreshInventory = useCallback(async () => {
+    if (!items.length) return { changed: false, unavailable: [] as string[] };
+
+    const results = await Promise.all(
+      items.map(async (item) => {
+        const id = String(item.id || item._uuid || (item as any)._id || '');
+        try {
+          const latest = await api.products.getById(id);
+          return { item, latest, error: null as any };
+        } catch (error) {
+          return { item, latest: null, error };
+        }
+      }),
+    );
+
+    const unavailable: string[] = [];
+    const nextItems: CartItem[] = [];
+
+    for (const item of items) {
+      const id = String(item.id || item._uuid || (item as any)._id || '');
+      const result = results.find(
+        (entry) => String(entry.item.id || entry.item._uuid || (entry.item as any)._id || '') === id,
+      );
+
+      if (!result || result.error || !result.latest) {
+        if (result?.error && (result.error as any)?.status === 404) {
+          unavailable.push(item.name);
+          continue;
+        }
+        nextItems.push(item);
+        continue;
+      }
+
+      const latest = result.latest;
+      const stock = Math.max(0, Number(latest.stock ?? 0));
+      const price = Number(latest.price ?? item.price);
+      const originalPrice = Number(
+        latest.original_price ?? latest.originalPrice ?? item.originalPrice,
+      );
+      const quantity = Math.min(item.quantity, stock);
+
+      if (stock <= 0) unavailable.push(item.name);
+
+      nextItems.push({
+        ...item,
+        name: latest.name ?? item.name,
+        brand: latest.brand ?? item.brand,
+        model: latest.model ?? item.model,
+        price,
+        originalPrice,
+        stock,
+        image: latest.image_url ?? latest.image ?? item.image,
+        images: Array.isArray(latest.images) ? latest.images : item.images,
+        quantity,
+      });
+    }
+
+    const changed = nextItems.length !== items.length || nextItems.some((next, index) => {
+      const current = items[index];
+      return (
+        String(next.id) !== String(current.id) ||
+        next.name !== current.name ||
+        next.price !== current.price ||
+        next.originalPrice !== current.originalPrice ||
+        next.stock !== current.stock ||
+        next.quantity !== current.quantity ||
+        next.image !== current.image
+      );
+    });
+
+    if (changed) setItems(nextItems);
+    return { changed, unavailable };
+  }, [items]);
+
+
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const savings = items.reduce(
@@ -174,6 +251,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeFromCart,
         updateQuantity,
         clearCart,
+        refreshInventory,
         totalItems,
         subtotal,
         savings,
