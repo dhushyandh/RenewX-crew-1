@@ -132,54 +132,71 @@ export default function PaymentScreen() {
     orderId: string,
     paymentResult: RazorpayCheckoutResult,
   ) => {
+    const currentItems = [...items];
+    const currentSubtotal = subtotal;
+    const confirmedOrderId = String(
+      activeOrderRef.current?.id ||
+      activeOrderRef.current?._id ||
+      activeOrder?.id ||
+      activeOrder?._id ||
+      orderId
+    );
+
     try {
       setProcessing(true);
 
-      let verifiedOrder = null;
       try {
-        verifiedOrder = await api.orders.verifyPayment({
-          order_id: String(orderId),
+        const verifiedOrder = await api.orders.verifyPayment({
+          order_id: confirmedOrderId,
           razorpay_order_id: paymentResult.razorpay_order_id,
           razorpay_payment_id: paymentResult.razorpay_payment_id,
           razorpay_signature: paymentResult.razorpay_signature,
         });
+
+        // Only clear the cart after the backend has cryptographically verified
+        // and captured the payment.
+        clearCart();
+
+        navigation.replace('OrderConfirm', {
+          order: verifiedOrder,
+          orderId: String(verifiedOrder?.id || verifiedOrder?._id || confirmedOrderId),
+          customerInfo,
+          paymentMethod: 'razorpay',
+          paymentStatus: 'paid',
+          items: currentItems,
+          totalAmount: currentSubtotal,
+        });
+        return;
       } catch (verifyErr: any) {
-        console.warn('Backend payment verification non-blocking error:', verifyErr?.message);
+        // Do not report a successful payment as "paid" when backend verification
+        // failed. The Razorpay webhook can still finalize the order asynchronously.
+        console.warn('[Payment] Backend verification pending:', verifyErr?.message);
+        clearCart();
+
+        Alert.alert(
+          'Payment received — confirmation pending',
+          'Razorpay returned a payment response, but RenewX could not confirm it yet. Your order will update automatically once verification completes. Please do not pay again.',
+          [{
+            text: 'View Order',
+            onPress: () => navigation.replace('OrderConfirm', {
+              order: activeOrderRef.current || activeOrder,
+              orderId: confirmedOrderId,
+              customerInfo,
+              paymentMethod: 'razorpay',
+              paymentStatus: 'pending',
+              items: currentItems,
+              totalAmount: currentSubtotal,
+            }),
+          }],
+          { cancelable: false },
+        );
       }
-
-      const currentItems = [...items];
-      const currentSubtotal = subtotal;
-      const finalOrder = verifiedOrder || activeOrderRef.current || activeOrder;
-      const confirmedOrderId = String(
-        finalOrder?.id ||
-        finalOrder?._id ||
-        paymentResult.razorpay_order_id ||
-        orderId
-      );
-
-      clearCart();
-
-      navigation.replace('OrderConfirm', {
-        order: finalOrder,
-        orderId: confirmedOrderId,
-        customerInfo,
-        paymentMethod: 'razorpay',
-        paymentStatus: 'paid',
-        items: currentItems,
-        totalAmount: currentSubtotal,
-      });
     } catch (error: any) {
-      console.error('completeOnlineVerification error:', error);
-      clearCart();
-      navigation.replace('OrderConfirm', {
-        order: activeOrderRef.current || activeOrder,
-        orderId: String(orderId),
-        customerInfo,
-        paymentMethod: 'razorpay',
-        paymentStatus: 'paid',
-        items: [...items],
-        totalAmount: subtotal,
-      });
+      console.error('[Payment] Verification flow error:', error);
+      Alert.alert(
+        'Payment confirmation pending',
+        error?.message || 'We could not confirm the payment yet. Please do not pay again.',
+      );
     } finally {
       setProcessing(false);
     }
