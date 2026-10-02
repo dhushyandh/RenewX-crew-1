@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { exchangeCodeAsync } from 'expo-auth-session';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { getApiBaseUrl } from '@/services/api';
 import { getStoredPushTokenAsync, registerPushTokenInBackground, unregisterPushTokenAsync } from '@/services/pushNotifications';
 
@@ -67,10 +68,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const googleConfigured =
     Platform.OS === 'android'
-      ? googleAndroidClientId !== 'disabled'
+      ? (googleWebClientId !== 'disabled' || googleAndroidClientId !== 'disabled')
       : Platform.OS === 'ios'
-        ? googleIosClientId !== 'disabled'
+        ? (googleWebClientId !== 'disabled' || googleIosClientId !== 'disabled')
         : googleWebClientId !== 'disabled';
+
+  // Configure native Google Sign-In for Android & iOS builds
+  useEffect(() => {
+    if (Platform.OS !== 'web' && googleWebClientId && googleWebClientId !== 'disabled') {
+      try {
+        GoogleSignin.configure({
+          webClientId: googleWebClientId,
+          offlineAccess: false,
+          scopes: ['profile', 'email'],
+        });
+      } catch (err) {
+        console.warn('[Auth] GoogleSignin configure error:', err);
+      }
+    }
+  }, [googleWebClientId]);
 
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useIdTokenAuthRequest({
     clientId: googleWebClientId,
@@ -249,8 +265,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [googleResponse, user, loginWithGoogleTokens]);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     if (!googleConfigured) return { error: 'Google sign-in is not configured for this app build.' };
+
+    // 1. Native mobile (Android APK & iOS) via Google Play Services native One Tap / Sign-In dialog
+    if (Platform.OS !== 'web') {
+      try {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const signinResult = await GoogleSignin.signIn();
+
+        if (signinResult.type === 'cancelled') {
+          return { error: 'Google sign-in was cancelled.' };
+        }
+
+        const idToken = signinResult.data?.idToken;
+        if (idToken) {
+          await loginWithGoogleTokens(idToken);
+          return { error: null };
+        }
+
+        let tokens = null;
+        try {
+          tokens = await GoogleSignin.getTokens();
+        } catch {
+          tokens = null;
+        }
+        if (tokens?.idToken) {
+          await loginWithGoogleTokens(tokens.idToken, tokens.accessToken);
+          return { error: null };
+        }
+
+        return { error: 'Google did not return an ID token. Verify Web Client ID configuration.' };
+      } catch (nativeErr: any) {
+        console.warn('[Auth] Native Google sign-in encountered an issue:', nativeErr);
+
+        if (nativeErr?.code === statusCodes.SIGN_IN_CANCELLED) {
+          return { error: 'Google sign-in was cancelled.' };
+        }
+        if (nativeErr?.code === statusCodes.IN_PROGRESS) {
+          return { error: 'Google sign-in is already in progress.' };
+        }
+        if (nativeErr?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+          return { error: 'Google Play Services is not available or outdated on this device.' };
+        }
+
+        // Check if running in Expo Go without native code
+        const isExpoGo =
+          nativeErr?.message?.includes('RNGoogleSignin') ||
+          nativeErr?.message?.includes('null') ||
+          nativeErr?.code === '12500';
+
+        if (!isExpoGo) {
+          if (nativeErr?.code === '10' || nativeErr?.message?.includes('DEVELOPER_ERROR')) {
+            return {
+              error:
+                'Google Sign-In configuration error (Code 10 DEVELOPER_ERROR). Check that your EAS Android Keystore SHA-1 matches the SHA-1 in Google Cloud Console for package com.renewx.mobile.',
+            };
+          }
+          return { error: nativeErr?.message || 'Native Google sign-in failed.' };
+        }
+
+        console.log('[Auth] Falling back to expo-auth-session for Google sign-in');
+      }
+    }
+
+    // 2. Fallback / Web Flow using expo-auth-session
     if (!googleRequest) return { error: 'Google authentication is initializing. Please try again in a moment.' };
     try {
       const result = await promptGoogleAsync();
@@ -322,7 +401,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[Auth] Google sign-in failed:', err);
       return { error: err?.message || 'Unable to complete Google sign-in.' };
     }
-  }, [googleConfigured, googleRequest, promptGoogleAsync, googleAndroidClientId, googleIosClientId, googleWebClientId, googleResponse, loginWithGoogleTokens]);
+  }, [
+    googleConfigured,
+    googleWebClientId,
+    loginWithGoogleTokens,
+    googleRequest,
+    promptGoogleAsync,
+    googleAndroidClientId,
+    googleIosClientId,
+    googleResponse,
+  ]);
 
   const updateUser = useCallback(async (updates: Partial<AppUser>) => {
     setUser((prev) => {
@@ -372,6 +460,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (pushToken) await unregisterPushTokenAsync(pushToken);
     } catch (pushErr) {
       console.warn('[Auth] Push token unregister error:', pushErr);
+    }
+
+    if (Platform.OS !== 'web') {
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Ignore if user wasn't signed in via Google
+      }
     }
 
     try {
