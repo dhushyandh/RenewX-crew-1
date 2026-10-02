@@ -37,7 +37,7 @@ const SAVED_ADDRESSES_KEY = '@renewx_saved_addresses';
 export default function CheckoutScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
-  const { items, subtotal, hydrated } = useCart();
+  const { items, subtotal, hydrated, refreshInventory } = useCart();
   const { user } = useAuth();
 
   const [name, setName] = useState(user?.full_name || '');
@@ -165,6 +165,27 @@ export default function CheckoutScreen() {
 
     if (!items.length) {
       Alert.alert('Cart is empty', 'Add a product before checking out.');
+      return;
+    }
+
+    // Reconcile local cart data against the live backend inventory before
+    // entering payment. This catches stock/price changes made on another device.
+    try {
+      const inventory = await refreshInventory();
+      if (inventory.changed || inventory.unavailable.length > 0) {
+        Alert.alert(
+          'Cart updated',
+          inventory.unavailable.length > 0
+            ? `${inventory.unavailable.join(', ')} is no longer available. Your cart has been updated.`
+            : 'Product availability or pricing changed. Your cart has been updated. Please review it before continuing.',
+        );
+        return;
+      }
+    } catch {
+      Alert.alert(
+        'Could not verify inventory',
+        'Please check your connection and try again before continuing to payment.',
+      );
       return;
     }
 
