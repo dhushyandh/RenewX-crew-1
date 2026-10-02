@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api, getApiBaseUrl } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { renewxColors, renewxFontFamily, renewxRadius, renewxSpacing, renewxTypography } from '@/design-system';
+import { renewxColors, renewxFontFamily, renewxRadius, renewxSpacing } from '@/design-system';
 import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 
 type RootParamList = {
@@ -187,7 +187,6 @@ export default function OrderDetailScreen() {
   const cancelled = currentStatus === 'cancelled';
   const refunded = ['refunded'].includes(String(order?.payment_status || '').toLowerCase());
   const items = Array.isArray(order?.order_items) ? order.order_items : [];
-  const image = items[0]?.product_image || items[0]?.image_url || order?.product_image;
   const totalItems = items.reduce((sum: number, item: any) => sum + Number(item.quantity || 0), 0);
 
   const refresh = async () => {
