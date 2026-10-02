@@ -1590,7 +1590,7 @@ const styles = StyleSheet.create({
   },
   imagePlaceholderText: {
     marginTop: 4,
-    fontFamily: renewxFontFamily.caption,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 9,
     color: renewxColors.textMuted,
   },
