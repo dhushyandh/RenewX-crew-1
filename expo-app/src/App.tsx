@@ -78,6 +78,7 @@ import NotificationsScreen from '@/screens/NotificationsScreen';
 import CartScreen from '@/screens/CartScreen';
 import CheckoutScreen from '@/screens/CheckoutScreen';
 import OrderConfirmScreen from '@/screens/OrderConfirmScreen';
+import OrderDetailScreen from '@/screens/OrderDetailScreen';
 import PaymentScreen from '@/screens/PaymentScreen';
 import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
@@ -108,6 +109,7 @@ export type RootStackParamList = {
   Search: undefined;
   Cart: undefined;
   Checkout: undefined;
+  OrderDetail: { id: string; order?: any };
   OrderConfirm: {
     order?: any;
     orderId?: string;
@@ -202,6 +204,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Search: 'search',
       Cart: 'cart',
       Checkout: 'checkout',
+      OrderDetail: 'order/:id',
       OrderConfirm: 'order-confirmed',
       Payment: 'payment',
       MySellRequests: 'sell-requests',
@@ -436,6 +439,8 @@ function MainAppNavigation() {
 
         if (targetScreen === 'ProductDetail' && (data.productId || data.id)) {
           navigationRef.navigate('ProductDetail', { id: String(data.productId || data.id) });
+        } else if (targetScreen === 'OrderDetail' && (data.orderId || data.id)) {
+          navigationRef.navigate('OrderDetail', { id: String(data.orderId || data.id) });
         } else if (targetScreen === 'Track' || targetScreen === 'TrackOrder' || targetScreen === 'Orders') {
           navigationRef.navigate('MainTabs', { screen: 'Track' });
         } else if (targetScreen === 'AdminOrders') {
@@ -612,6 +617,7 @@ function MainAppNavigation() {
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Checkout" component={ProtectedCheckoutScreen} />
+          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
           <Stack.Screen name="OrderConfirm" component={ProtectedOrderConfirmScreen} />
           <Stack.Screen name="Payment" component={ProtectedPaymentScreen} />
           <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
