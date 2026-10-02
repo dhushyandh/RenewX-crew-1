@@ -26,6 +26,7 @@ import { useAuth } from '@/context/AuthContext';
 import HomeHeader from '@/components/HomeHeader';
 import ProductCard from '@/components/ProductCard';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
+import ShimmerText from '@/components/ShimmerText';
 import { mapProductRow } from '@/lib/productMapper';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -40,15 +41,60 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type AnyProduct = Product & Record<string, any>;
 
 const PRODUCTS_CACHE_KEY = '@renewx_products_cache';
-const AUTO_SLIDE_INTERVAL = 4000;
 
 const QUICK_CATEGORIES = [
-  { label: 'Smartphones', icon: 'phone-portrait-outline' as const },
-  { label: 'Laptops', icon: 'laptop-outline' as const },
-  { label: 'MacBooks', icon: 'logo-apple' as const },
-  { label: 'Tablets', icon: 'tablet-portrait-outline' as const },
-  { label: 'Audio', icon: 'headset-outline' as const },
-  { label: 'Smartwatches', icon: 'watch-outline' as const },
+  { id: 'All', label: 'All', icon: 'grid' as const },
+  { id: 'Phones', label: 'Phones', icon: 'phone-portrait-outline' as const },
+  { id: 'Laptops', label: 'Laptops', icon: 'laptop-outline' as const },
+  { id: 'Tablets', label: 'Tablets', icon: 'tablet-portrait-outline' as const },
+  { id: 'Watches', label: 'Watches', icon: 'watch-outline' as const },
+  { id: 'Audio', label: 'Audio', icon: 'headset-outline' as const },
+  { id: 'Accessories', label: 'Accessories', icon: 'bag-handle-outline' as const },
+];
+
+const TOP_CATEGORIES = [
+  {
+    id: 'Smartphones',
+    title: 'Smartphones',
+    subtitle: 'Best brands',
+    image: require('@/assets/categories/smartphone.png'),
+    filter: 'Phones',
+  },
+  {
+    id: 'Laptops',
+    title: 'Laptops',
+    subtitle: 'High performance',
+    image: require('@/assets/categories/laptop.png'),
+    filter: 'Laptops',
+  },
+  {
+    id: 'Tablets',
+    title: 'Tablets',
+    subtitle: 'iPad, Galaxy Tab',
+    image: require('@/assets/categories/tablets.png'),
+    filter: 'Tablets',
+  },
+  {
+    id: 'Watches',
+    title: 'Watches',
+    subtitle: 'Apple, Samsung',
+    image: require('@/assets/categories/smartwatch.png'),
+    filter: 'Watches',
+  },
+  {
+    id: 'Audio',
+    title: 'Audio',
+    subtitle: 'AirPods, Boat',
+    image: require('@/assets/categories/accessories.png'),
+    filter: 'Audio',
+  },
+  {
+    id: 'Accessories',
+    title: 'Accessories',
+    subtitle: 'Chargers, Cases',
+    image: require('@/assets/categories/accessories.png'),
+    filter: 'Accessories',
+  },
 ];
 
 function getProductName(product: AnyProduct) {
@@ -95,37 +141,34 @@ function getProductPrice(product: AnyProduct) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function getProductCondition(product: AnyProduct) {
-  return product.condition ?? product.grade ?? product.quality ?? product.device_condition ?? 'Certified';
-}
-
-function getAvailability(product: AnyProduct) {
-  const stock = product.stock_quantity ?? product.stockQuantity ?? product.stock;
-
-  if (stock !== undefined && stock !== null) {
-    return Number(stock) > 0 ? 'Available now' : 'Out of stock';
+function getDiscountPercent(product: AnyProduct) {
+  if (product.discount && Number(product.discount) > 0) {
+    return `${Math.round(Number(product.discount))}% OFF`;
   }
-
-  if (product.available === false || product.is_available === false) {
-    return 'Out of stock';
-  }
-
-  return 'Available now';
-}
-
-function formatPrice(value: number) {
-  return value > 0 ? `₹${Math.round(value).toLocaleString('en-IN')}` : 'Price on request';
-}
-
-function getHeroProductScore(product: AnyProduct) {
-  const stock = Number(product.stock_quantity ?? product.stockQuantity ?? product.stock ?? 1);
-  const featured = Boolean(
-    product.featured ?? product.is_featured ?? product.isFeatured ?? product.highlighted,
-  );
-  const hasImage = Boolean(getProductImage(product));
   const price = getProductPrice(product);
+  const orig = Number(product.original_price ?? product.originalPrice ?? 0);
+  if (orig > price && price > 0) {
+    return `${Math.round(((orig - price) / orig) * 100)}% OFF`;
+  }
+  return '28% OFF';
+}
 
-  return (featured ? 1000 : 0) + (hasImage ? 100 : 0) + (stock > 0 ? 20 : 0) + (price > 0 ? 10 : 0);
+function getOriginalPrice(product: AnyProduct) {
+  const orig = Number(product.original_price ?? product.originalPrice ?? 0);
+  if (orig > 0) return orig;
+  const price = getProductPrice(product);
+  return price > 0 ? Math.round(price * 1.35) : 0;
+}
+
+function getProductCondition(product: AnyProduct) {
+  return product.condition ?? product.grade ?? product.quality ?? product.device_condition ?? 'Excellent';
+}
+
+function getProductSpecLine(product: AnyProduct) {
+  const p = product as any;
+  const storage = p?.storage || p?.ram_storage || p?.specs?.storage || '128 GB';
+  const condition = getProductCondition(product);
+  return `${storage} • ${condition}`;
 }
 
 function getResponsiveMetrics(width: number) {
@@ -138,99 +181,6 @@ function getResponsiveMetrics(width: number) {
     sidePadding: isSmall ? 12 : 16,
     gridGap: isSmall ? 8 : 10,
   };
-}
-
-function HeroProductCard({
-  product,
-  index,
-  total,
-  onPress,
-  screenWidth,
-}: {
-  product: AnyProduct;
-  index: number;
-  total: number;
-  onPress: () => void;
-  screenWidth: number;
-}) {
-  const image = getProductImage(product);
-  const name = getProductName(product);
-  const category = getCategory(product);
-  const price = getProductPrice(product);
-  const condition = getProductCondition(product);
-  const availability = getAvailability(product);
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.96}
-      onPress={onPress}
-      style={{ width: screenWidth }}
-      accessibilityRole="button"
-      accessibilityLabel={`Featured device: ${name}`}
-    >
-      <View style={styles.heroCard}>
-        <View style={styles.heroTopRow}>
-          <View style={styles.certifiedPill}>
-            <View style={styles.certifiedDot} />
-            <Text style={styles.certifiedText}>CERTIFIED DEVICE</Text>
-          </View>
-
-          <View style={styles.heroCount}>
-            <Text style={styles.heroCountText}>{index + 1}</Text>
-            <Text style={styles.heroCountSlash}>/</Text>
-            <Text style={styles.heroCountTotal}>{total}</Text>
-          </View>
-        </View>
-
-        <View style={styles.heroVisual}>
-          <View style={styles.heroGlowLarge} />
-          <View style={styles.heroGlowSmall} />
-
-          {image ? (
-            <Image source={{ uri: image }} style={{ width: '92%', height: '100%' }} resizeMode="contain" />
-          ) : (
-            <View style={styles.heroFallback}>
-              <Ionicons name="phone-portrait-outline" size={54} color={renewxColors.textSecondary} />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.heroInfo}>
-          <View style={styles.heroInfoTop}>
-            <View style={styles.heroTitleBlock}>
-              <Text style={styles.heroBrand} numberOfLines={1}>
-                {String(category || 'RenewX device').toUpperCase()}
-              </Text>
-              <Text style={styles.heroName} numberOfLines={2}>{name}</Text>
-              <Text style={styles.heroSubline}>Professionally checked • Ready to ship</Text>
-            </View>
-
-            <View style={styles.heroPriceBlock}>
-              <Text style={styles.heroFrom}>FROM</Text>
-              <Text style={styles.heroPrice}>{formatPrice(price)}</Text>
-            </View>
-          </View>
-
-          <View style={styles.heroBottomRow}>
-            <View style={styles.conditionPill}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={renewxColors.greenDark} />
-              <Text style={styles.conditionText}>{String(condition)}</Text>
-            </View>
-
-            <View style={styles.availability}>
-              <View
-                style={[
-                  styles.availabilityDot,
-                  availability === 'Out of stock' && styles.availabilityDotOff,
-                ]}
-              />
-              <Text style={styles.availabilityText}>{availability}</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
 }
 
 function ProductSkeleton() {
@@ -247,9 +197,38 @@ function ProductSkeleton() {
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart, totalItems } = useCart();
-  const { isAdmin, signOut } = useAuth();
+  const { isAdmin, signOut, user } = useAuth();
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [wishlist, setWishlist] = useState<Record<string, boolean>>({});
   const toast = useToast();
   const isFocused = useIsFocused();
+
+  const toggleWishlist = useCallback((id: string, name: string) => {
+    setWishlist((prev) => {
+      const next = !prev[id];
+      if (next) {
+        toast?.success?.('Saved to wishlist', name);
+      } else {
+        toast?.info?.('Removed from wishlist', name);
+      }
+      return { ...prev, [id]: next };
+    });
+  }, [toast]);
+
+  const handleCategoryPress = useCallback((categoryName: string) => {
+    let target = categoryName;
+    if (target === 'Phones') target = 'Smartphones';
+    if (target === 'Smartwatches') target = 'Watches';
+
+    // Keep home state in sync
+    setSelectedCategory(categoryName);
+
+    // Redirect to Categories (Shop) screen with this category filter active
+    (navigation as any).navigate('Shop', {
+      category: target,
+      _t: Date.now(),
+    });
+  }, [navigation]);
 
   const [screenWidth, setScreenWidth] = useState(() => Dimensions.get('window').width);
   const responsive = useMemo(() => getResponsiveMetrics(screenWidth), [screenWidth]);
@@ -257,12 +236,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [productList, setProductList] = useState<Product[]>([]);
-  const [heroIndex, setHeroIndex] = useState(0);
-  const [autoSlideTrigger, setAutoSlideTrigger] = useState(0);
-
-  const heroScrollRef = useRef<ScrollView>(null);
   const listRef = useRef<FlatList>(null);
-  const isInteractingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -326,7 +300,6 @@ export default function HomeScreen() {
       const mapped = rows.map(mapProductRow);
 
       setProductList(mapped);
-      setHeroIndex(0);
       saveProductsCache(rows);
     } catch (error: any) {
       console.warn('[Home] Live product fetch failed:', error?.message);
@@ -347,13 +320,6 @@ export default function HomeScreen() {
     return () => subscription.remove();
   }, [fetchLiveProducts]);
 
-  const heroProducts = useMemo(() => {
-    return [...(productList as AnyProduct[])]
-      .filter((product) => getProductImage(product))
-      .sort((a, b) => getHeroProductScore(b) - getHeroProductScore(a))
-      .slice(0, 7);
-  }, [productList]);
-
   const newArrivals = useMemo(() => {
     return [...(productList as AnyProduct[])]
       .sort((a, b) => {
@@ -364,45 +330,65 @@ export default function HomeScreen() {
       .slice(0, 10);
   }, [productList]);
 
-  const goToHero = useCallback((index: number) => {
-    if (!heroProducts.length) return;
-
-    const nextIndex = index < 0
-      ? heroProducts.length - 1
-      : index >= heroProducts.length ? 0 : index;
-
-    heroScrollRef.current?.scrollTo({
-      x: nextIndex * Math.max(screenWidth, 1),
-      animated: true,
-    });
-    setHeroIndex(nextIndex);
-  }, [heroProducts.length, screenWidth]);
-
-  const resetAutoSlide = useCallback(() => {
-    setAutoSlideTrigger((value) => value + 1);
-  }, []);
-
-  const handleHeroScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextIndex = Math.round(
-      event.nativeEvent.contentOffset.x / Math.max(screenWidth, 1),
-    );
-
-    if (nextIndex !== heroIndex) {
-      setHeroIndex(Math.max(0, Math.min(nextIndex, heroProducts.length - 1)));
+  const displayedProducts = useMemo(() => {
+    if (selectedCategory === 'All') {
+      return productList.length > 0 ? productList : newArrivals;
     }
-  };
-
-  useEffect(() => {
-    if (!isFocused || heroProducts.length <= 1) return;
-
-    const timer = setTimeout(() => {
-      if (!isInteractingRef.current) {
-        goToHero(heroIndex + 1);
+    const cat = selectedCategory.toLowerCase();
+    const filtered = (productList as AnyProduct[]).filter((p) => {
+      const pCat = String(getCategory(p) || '').toLowerCase();
+      const pName = String(getProductName(p) || '').toLowerCase();
+      const pBrand = String(p.brand || '').toLowerCase();
+      if (cat.includes('festive') || cat.includes('deals')) {
+        return Boolean(
+          p.featured ||
+          p.is_featured ||
+          p.isFeatured ||
+          (p.discount && p.discount > 0) ||
+          p.original_price ||
+          p.originalPrice,
+        );
       }
-    }, AUTO_SLIDE_INTERVAL);
-
-    return () => clearTimeout(timer);
-  }, [heroIndex, isFocused, heroProducts.length, autoSlideTrigger, goToHero]);
+      if (cat.includes('smartphone') || cat.includes('phone')) {
+        return (
+          pCat.includes('phone') ||
+          pCat.includes('mobile') ||
+          pCat.includes('smartphone') ||
+          pName.includes('iphone') ||
+          pName.includes('samsung') ||
+          pName.includes('pixel') ||
+          pName.includes('oneplus')
+        );
+      }
+      if (cat.includes('macbook') || cat.includes('laptop')) {
+        return pCat.includes('laptop') || pCat.includes('macbook') || pName.includes('macbook') || pName.includes('laptop');
+      }
+      if (cat.includes('audio') || cat.includes('sound')) {
+        return (
+          pCat.includes('audio') ||
+          pCat.includes('headphone') ||
+          pCat.includes('airpods') ||
+          pName.includes('airpods') ||
+          pName.includes('headphone') ||
+          pName.includes('sound')
+        );
+      }
+      if (cat.includes('watch')) {
+        return pCat.includes('watch') || pName.includes('watch');
+      }
+      if (cat.includes('tab') || cat.includes('ipad')) {
+        return pCat.includes('tab') || pCat.includes('ipad') || pName.includes('ipad');
+      }
+      if (cat.includes('gaming')) {
+        return pCat.includes('gaming') || pCat.includes('console') || pName.includes('ps5') || pName.includes('xbox');
+      }
+      if (cat.includes('accessories')) {
+        return pCat.includes('access') || pCat.includes('charger') || pCat.includes('cable');
+      }
+      return pCat.includes(cat) || pName.includes(cat) || pBrand.includes(cat);
+    });
+    return filtered.length > 0 ? filtered : productList;
+  }, [selectedCategory, productList, newArrivals]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -422,19 +408,80 @@ export default function HomeScreen() {
     });
   }, [toast]);
 
-  const renderProduct = ({ item }: { item: Product }) => (
-    <View style={styles.productWrapper}>
-      <ProductCard
-        product={item}
-        onPress={() => openProduct(item)}
-        onAddToCart={() => {
-          addToCart(item);
-          navigation.navigate('Cart');
-        }}
-        onShare={() => handleShareProduct(item)}
-      />
-    </View>
-  );
+  const renderProduct = ({ item }: { item: Product }) => {
+    const p = item as AnyProduct;
+    const pid = String(p.id ?? p._uuid ?? p._id ?? '');
+    const name = getProductName(p);
+    const image = getProductImage(p);
+    const price = getProductPrice(p);
+    const origPrice = getOriginalPrice(p);
+    const discount = getDiscountPercent(p);
+    const specs = getProductSpecLine(p);
+    const isWishlisted = Boolean(wishlist[pid]);
+
+    return (
+      <View style={styles.productWrapper}>
+        <TouchableOpacity
+          style={styles.trendingCard}
+          onPress={() => openProduct(item)}
+          activeOpacity={0.92}
+        >
+          {/* Card Top Row: Discount Pill + Wishlist Heart */}
+          <View style={styles.dealTopRow}>
+            <View style={styles.dealDiscountPill}>
+              <Text style={styles.dealDiscountText}>{discount}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => toggleWishlist(pid, name)}
+              style={styles.dealHeartBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={isWishlisted ? 'heart' : 'heart-outline'}
+                size={18}
+                color={isWishlisted ? '#EF4444' : '#475569'}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Product Image */}
+          <View style={styles.dealImageBox}>
+            {image ? (
+              <Image source={{ uri: image }} style={styles.dealImage} resizeMode="contain" />
+            ) : (
+              <Ionicons name="phone-portrait-outline" size={48} color="#94A3B8" />
+            )}
+          </View>
+
+          {/* Product Title & Specs */}
+          <Text style={styles.dealTitle} numberOfLines={1}>{name}</Text>
+          <Text style={styles.dealSpecs} numberOfLines={1}>{specs}</Text>
+
+          {/* Price Row + Yellow Cart Button */}
+          <View style={styles.dealBottomRow}>
+            <View style={styles.dealPriceBlock}>
+              <Text style={styles.dealPrice}>₹{price.toLocaleString('en-IN')}</Text>
+              {origPrice > price && (
+                <Text style={styles.dealOrigPrice}>₹{origPrice.toLocaleString('en-IN')}</Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.dealCartBtn}
+              onPress={() => {
+                addToCart(item);
+                toast?.success?.('Added to cart!', name);
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="cart" size={17} color="#000000" />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -445,11 +492,16 @@ export default function HomeScreen() {
         isAdmin={isAdmin}
         onAdmin={() => navigation.navigate('Admin', { screen: 'dashboard' })}
         onLogout={signOut}
+        onAccount={() => (navigation as any).navigate('Account')}
+        onSell={() => (navigation as any).navigate('Sell')}
+        onWishlist={() => navigation.navigate('Wishlist')}
+        onNotifications={() => navigation.navigate('Notifications')}
+        userAddress="Bangalore - 560004"
       />
 
       <FlatList
         ref={listRef}
-        data={loading ? [] : newArrivals}
+        data={loading ? [] : displayedProducts}
         keyExtractor={(item, index) =>
           String((item as AnyProduct)._uuid ?? (item as AnyProduct).id ?? index)
         }
@@ -466,122 +518,243 @@ export default function HomeScreen() {
         }
         ListHeaderComponent={
           <View>
-            {heroProducts.length > 0 ? (
-              <View style={styles.heroSection}>
-                <ScrollView
-                  ref={heroScrollRef}
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  onScrollBeginDrag={() => { isInteractingRef.current = true; }}
-                  onScrollEndDrag={() => {
-                    isInteractingRef.current = false;
-                    resetAutoSlide();
-                  }}
-                  onMomentumScrollEnd={handleHeroScroll}
-                  scrollEventThrottle={16}
-                >
-                  {heroProducts.map((product, index) => (
-                    <HeroProductCard
-                      key={String((product as AnyProduct)._uuid ?? (product as AnyProduct).id ?? index)}
-                      product={product as AnyProduct}
-                      index={index}
-                      total={heroProducts.length}
-                      onPress={() => openProduct(product)}
-                      screenWidth={screenWidth}
-                    />
-                  ))}
-                </ScrollView>
-
-                {heroProducts.length > 1 && (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.heroArrow, styles.heroArrowLeft]}
-                      onPress={() => { goToHero(heroIndex - 1); resetAutoSlide(); }}
-                      accessibilityLabel="Previous featured product"
-                    >
-                      <Ionicons name="chevron-back" size={20} color={renewxColors.text} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.heroArrow, styles.heroArrowRight]}
-                      onPress={() => { goToHero(heroIndex + 1); resetAutoSlide(); }}
-                      accessibilityLabel="Next featured product"
-                    >
-                      <Ionicons name="chevron-forward" size={20} color={renewxColors.text} />
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-            ) : loading ? (
-              <View style={[styles.heroSkeleton, { height: responsive.heroHeight }]}>
-                <View style={styles.skeletonCircle} />
-                <View style={styles.skeletonVisual} />
-                <View style={styles.skeletonInfo} />
-              </View>
-            ) : (
-              <View style={styles.heroEmpty}>
-                <View style={styles.heroEmptyIcon}>
-                  <Ionicons name="cube-outline" size={28} color={renewxColors.textSecondary} />
-                </View>
-                <Text style={styles.heroEmptyTitle}>Your next certified device is coming</Text>
-                <Text style={styles.heroEmptyText}>
-                  Published products with images will appear here.
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={styles.sectionKicker}>EXPLORE</Text>
-                  <Text style={styles.sectionTitle}>Shop by category</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Shop' as never)}
-                  style={styles.textAction}
-                >
-                  <Text style={styles.textActionLabel}>Shop all</Text>
-                  <Ionicons name="arrow-forward" size={15} color={renewxColors.greenDark} />
-                </TouchableOpacity>
-              </View>
-
+            {/* 1. TOP QUICK CATEGORY STRIP */}
+            <View style={styles.quickCatSection}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryRow}
+                contentContainerStyle={styles.quickCatScroll}
               >
-                {QUICK_CATEGORIES.map((category) => (
-                  <TouchableOpacity
-                    key={category.label}
-                    style={styles.categoryChip}
-                    onPress={() => navigation.navigate('Shop' as never)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.categoryIcon}>
-                      <Ionicons name={category.icon} size={18} color={renewxColors.greenDark} />
-                    </View>
-                    <Text style={styles.categoryLabel}>{category.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                {QUICK_CATEGORIES.map((cat) => {
+                  const isSelected =
+                    selectedCategory === cat.label ||
+                    (cat.label === 'Phones' && selectedCategory === 'Smartphones');
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.quickCatCard,
+                        isSelected && styles.quickCatCardActive,
+                      ]}
+                      onPress={() => handleCategoryPress(cat.label)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={cat.icon}
+                        size={22}
+                        color={isSelected ? '#000000' : '#1E293B'}
+                      />
+                      <Text
+                        style={[
+                          styles.quickCatText,
+                          isSelected && styles.quickCatTextActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             </View>
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionKicker}>JUST IN</Text>
-                  <Text style={styles.sectionTitle}>New device arrivals</Text>
+            {/* 2. HERO BANNER 1: CERTIFIED REFURBISHED */}
+            <View style={styles.heroBanner1Card}>
+              <View style={styles.heroBanner1Top}>
+                {/* Left Text */}
+                <View style={styles.heroBanner1Left}>
+                  <View style={styles.heroRefurbBadge}>
+                    <Text style={styles.heroRefurbBadgeText}>CERTIFIED REFURBISHED</Text>
+                  </View>
+                  <ShimmerText variant="gold" style={styles.heroBanner1Title}>
+                    {'Premium devices.\nBetter value.'}
+                  </ShimmerText>
+                  <Text style={styles.heroBanner1Sub}>
+                    {'Same performance. Lower price.\nGood for you. Better for the planet.'}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.heroPillBtn}
+                    onPress={() => handleCategoryPress('Laptops')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.heroPillBtnText}>Shop Now</Text>
+                    <Ionicons name="arrow-forward" size={15} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.textAction}
-                  onPress={() => navigation.navigate('Shop' as never)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.textActionLabel}>View all</Text>
-                  <Ionicons name="arrow-forward" size={15} color={renewxColors.greenDark} />
-                </TouchableOpacity>
+
+                {/* Right Device Visual */}
+                <View style={styles.heroBanner1Right}>
+                  <Image
+                    source={require('@/assets/categories/mac.png')}
+                    style={styles.heroCollageImg}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.dotsRow}>
+                    <View style={[styles.pagerDot, styles.pagerDotActive]} />
+                    <View style={styles.pagerDot} />
+                    <View style={styles.pagerDot} />
+                    <View style={styles.pagerDot} />
+                  </View>
+                </View>
               </View>
+
+              {/* 4 Trust Guarantee items below */}
+              <View style={styles.heroTrustGrid}>
+                <View style={styles.heroTrustItem}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#0F172A" />
+                  <View style={styles.heroTrustItemTextCol}>
+                    <Text style={styles.heroTrustTitle}>Quality Checked</Text>
+                    <Text style={styles.heroTrustSub}>by experts</Text>
+                  </View>
+                </View>
+
+                <View style={styles.heroTrustItem}>
+                  <Ionicons name="car-outline" size={18} color="#0F172A" />
+                  <View style={styles.heroTrustItemTextCol}>
+                    <Text style={styles.heroTrustTitle}>Free Delivery</Text>
+                    <Text style={styles.heroTrustSub}>across India</Text>
+                  </View>
+                </View>
+
+                <View style={styles.heroTrustItem}>
+                  <Ionicons name="shield-outline" size={18} color="#0F172A" />
+                  <View style={styles.heroTrustItemTextCol}>
+                    <Text style={styles.heroTrustTitle}>6 Months Warranty</Text>
+                    <Text style={styles.heroTrustSub}>on all devices</Text>
+                  </View>
+                </View>
+
+                <View style={styles.heroTrustItem}>
+                  <Ionicons name="leaf-outline" size={18} color="#0F172A" />
+                  <View style={styles.heroTrustItemTextCol}>
+                    <Text style={styles.heroTrustTitle}>Sustainable</Text>
+                    <Text style={styles.heroTrustSub}>Choice</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* 3. HERO BANNER 2: TRADE-IN / SELL */}
+            <View style={styles.heroBanner2Card}>
+              <View style={styles.heroBanner2Content}>
+                {/* Left Text */}
+                <View style={styles.heroBanner2Left}>
+                  <Text style={styles.tradeInEyebrow}>TRADE-IN  |  UPGRADE  |  SAVE</Text>
+                  <ShimmerText variant="green" style={styles.heroBanner2Title}>
+                    Turn your old device into instant value.
+                  </ShimmerText>
+                  <Text style={styles.heroBanner2Sub}>
+                    Sell your phone, laptop, tablet & more
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.heroPillBtn}
+                    onPress={() => navigation.navigate('Sell' as never)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.heroPillBtnText}>Sell Now</Text>
+                    <Ionicons name="arrow-forward" size={15} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Center Phone Visual */}
+                <View style={styles.heroBanner2Center}>
+                  <Image
+                    source={require('@/assets/categories/smartphone.png')}
+                    style={styles.heroTradeInImg}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.dotsRow}>
+                    <View style={[styles.pagerDot, styles.pagerDotActive]} />
+                    <View style={styles.pagerDot} />
+                    <View style={styles.pagerDot} />
+                    <View style={styles.pagerDot} />
+                  </View>
+                </View>
+
+                {/* Right 3 Value Props */}
+                <View style={styles.heroBanner2Values}>
+                  <View style={styles.tradeInValueRow}>
+                    <View style={styles.tradeInValueIcon}>
+                      <Text style={styles.tradeInValueIconSymbol}>₹</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.tradeInValTitle}>Best</Text>
+                      <Text style={styles.tradeInValSub}>market price</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.tradeInValueRow}>
+                    <View style={styles.tradeInValueIcon}>
+                      <Ionicons name="car-outline" size={14} color="#92400E" />
+                    </View>
+                    <View>
+                      <Text style={styles.tradeInValTitle}>Free pickup</Text>
+                      <Text style={styles.tradeInValSub}>at your doorstep</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.tradeInValueRow}>
+                    <View style={styles.tradeInValueIcon}>
+                      <Ionicons name="shield-checkmark-outline" size={14} color="#92400E" />
+                    </View>
+                    <View>
+                      <Text style={styles.tradeInValTitle}>Safe & secure</Text>
+                      <Text style={styles.tradeInValSub}>process</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* 4. TOP CATEGORIES SECTION */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionMainTitle}>Top Categories</Text>
+              <TouchableOpacity
+                style={styles.viewAllRow}
+                onPress={() => navigation.navigate('Shop' as never)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+                <Ionicons name="arrow-forward" size={14} color="#0F172A" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.topCategoriesScroll}
+            >
+              {TOP_CATEGORIES.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.topCategoryCard}
+                  onPress={() => handleCategoryPress(item.id || item.filter)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.topCategoryCardImgBox}>
+                    <Image source={item.image} style={styles.topCategoryCardImg} resizeMode="contain" />
+                  </View>
+                  <Text style={styles.topCategoryCardTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.topCategoryCardSub} numberOfLines={1}>{item.subtitle}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* 5. TRENDING DEALS SECTION */}
+            <View style={[styles.sectionHeaderRow, { marginTop: 18 }]}>
+              <View style={styles.trendingTitleRow}>
+                <Text style={styles.fireEmoji}>🔥</Text>
+                <Text style={styles.sectionMainTitle}>Trending Deals</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.viewAllRow}
+                onPress={() => navigation.navigate('Shop' as never)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+                <Ionicons name="arrow-forward" size={14} color="#0F172A" />
+              </TouchableOpacity>
             </View>
 
             {loading && (
@@ -1040,5 +1213,450 @@ const styles = StyleSheet.create({
     fontFamily: renewxFontFamily.semibold,
     fontSize: 11,
     color: renewxColors.black,
+  },
+
+  /* 1. TOP QUICK CATEGORY STRIP */
+  quickCatSection: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  quickCatScroll: {
+    paddingHorizontal: renewxSpacing.md,
+    gap: 10,
+    alignItems: 'center',
+  },
+  quickCatCard: {
+    width: 62,
+    height: 64,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' },
+      default: { elevation: 1 },
+    }),
+  },
+  quickCatCardActive: {
+    backgroundColor: '#FDE047',
+    borderColor: '#FDE047',
+  },
+  quickCatText: {
+    fontSize: 10.5,
+    fontFamily: renewxFontFamily.semibold,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  quickCatTextActive: {
+    color: '#000000',
+    fontWeight: '800',
+  },
+
+  /* 2. HERO BANNER 1: CERTIFIED REFURBISHED */
+  heroBanner1Card: {
+    marginHorizontal: renewxSpacing.md,
+    marginTop: 14,
+    marginBottom: 12,
+    backgroundColor: '#FFFDF0',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+    padding: 14,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 16px rgba(234, 179, 8, 0.08)' },
+      default: { elevation: 2 },
+    }),
+  },
+  heroBanner1Top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  heroBanner1Left: {
+    flex: 1.15,
+  },
+  heroRefurbBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FDE047',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 7,
+  },
+  heroRefurbBadgeText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#000000',
+    letterSpacing: 0.4,
+  },
+  heroBanner1Title: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  heroBanner1Sub: {
+    marginTop: 5,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 9.5,
+    lineHeight: 13.5,
+    color: '#64748B',
+  },
+  heroPillBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  heroPillBtnText: {
+    color: '#FFFFFF',
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  heroBanner1Right: {
+    flex: 0.95,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCollageImg: {
+    width: '100%',
+    height: 110,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  pagerDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#CBD5E1',
+  },
+  pagerDotActive: {
+    backgroundColor: '#334155',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  heroTrustGrid: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#FEF08A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  heroTrustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: '48%',
+    marginBottom: 4,
+  },
+  heroTrustItemTextCol: {
+    flex: 1,
+  },
+  heroTrustTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  heroTrustSub: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 8,
+    color: '#64748B',
+  },
+
+  /* 3. HERO BANNER 2: TRADE-IN / SELL */
+  heroBanner2Card: {
+    marginHorizontal: renewxSpacing.md,
+    marginBottom: 16,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    padding: 14,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 16px rgba(16, 185, 129, 0.08)' },
+      default: { elevation: 2 },
+    }),
+  },
+  heroBanner2Content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  heroBanner2Left: {
+    flex: 1.1,
+  },
+  tradeInEyebrow: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    color: '#059669',
+    marginBottom: 4,
+  },
+  heroBanner2Title: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  heroBanner2Sub: {
+    marginTop: 4,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 9.5,
+    color: '#64748B',
+  },
+  heroBanner2Center: {
+    flex: 0.75,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTradeInImg: {
+    width: 65,
+    height: 95,
+  },
+  heroBanner2Values: {
+    flex: 0.95,
+    gap: 7,
+  },
+  tradeInValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tradeInValueIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tradeInValueIconSymbol: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  tradeInValTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  tradeInValSub: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 7.5,
+    color: '#64748B',
+  },
+
+  /* 4. SECTION HEADERS & TOP CATEGORIES */
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: renewxSpacing.md,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  sectionMainTitle: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  trendingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  fireEmoji: {
+    fontSize: 18,
+  },
+  topCategoriesScroll: {
+    paddingHorizontal: renewxSpacing.md,
+    gap: 10,
+    paddingBottom: 6,
+  },
+  topCategoryCard: {
+    width: 95,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 8,
+    alignItems: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' },
+      default: { elevation: 1 },
+    }),
+  },
+  topCategoryCardImgBox: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  topCategoryCardImg: {
+    width: '100%',
+    height: '100%',
+  },
+  topCategoryCardTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F172A',
+    textAlign: 'center',
+  },
+  topCategoryCardSub: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 8.5,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 1,
+  },
+
+  /* 5. TRENDING CARD (2-COLUMN GRID ITEM) */
+  trendingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    marginBottom: 10,
+    position: 'relative',
+    ...Platform.select({
+      web: { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' },
+      default: { elevation: 2 },
+    }),
+  },
+  dealTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 2,
+  },
+  dealDiscountPill: {
+    backgroundColor: '#FDE047',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  dealDiscountText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  dealHeartBtn: {
+    padding: 2,
+  },
+  dealImageBox: {
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  dealImage: {
+    width: '100%',
+    height: '100%',
+  },
+  dealTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 4,
+  },
+  dealSpecs: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  dealBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  dealPriceBlock: {
+    flex: 1,
+  },
+  dealPrice: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 14.5,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  dealOrigPrice: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 10,
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+    marginTop: 1,
+  },
+  dealCartBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FFC400',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* 6. FILTER CONTROLS */
+  clearFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: '#DCFCE7',
+  },
+  clearFilterText: {
+    fontFamily: renewxFontFamily.semibold,
+    fontSize: 10,
+    color: '#0C7A43',
   },
 });

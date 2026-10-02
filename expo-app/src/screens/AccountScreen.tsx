@@ -1,370 +1,496 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Image, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Linking,
+  Platform,
+  Alert,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '@/services/api';
+import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/context/ToastContext';
-import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
-import { fontFamily } from '@/theme';
+import { api } from '@/services/api';
+import HomeHeader from '@/components/HomeHeader';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  renewxColors,
+  renewxFontFamily,
+  renewxRadius,
+  renewxSpacing,
+} from '@/design-system';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SUPPORT_PHONE = '+919080168778';
-const WHATSAPP_COMMUNITY_URL =
-  'https://chat.whatsapp.com/FyyALPUCzl2KvmRHnz2aaA?mode=gi_t';
 
 export default function AccountScreen() {
-  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
+  const { user, isAdmin, signOut } = useAuth();
+  const { totalWishlistItems } = useWishlist();
   const toast = useToast();
-  const { user, isAdmin, signOut, refreshUser } = useAuth();
-  const [sellCount, setSellCount] = useState(0);
-  const [tradeInValue, setTradeInValue] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
-      }
-      refreshUser().catch(() => {});
-    }, [refreshUser])
-  );
+  const [orderStats, setOrderStats] = useState({
+    total: 0,
+    inTransit: 0,
+    delivered: 0,
+    cancelled: 0,
+  });
+  const [sellCount, setSellCount] = useState(0);
 
   useEffect(() => {
     let active = true;
-    api.tradeIn.getMyRequests().then((requests) => {
+    Promise.allSettled([
+      api.orders.getAll(),
+      api.tradeIn.getMyRequests(),
+    ]).then(([orderRes, sellRes]) => {
       if (!active) return;
-      setSellCount(requests.length);
-      setTradeInValue(requests.reduce((sum: number, item: any) => sum + Number(item.approved_amount ?? item.valuation_amount ?? 0), 0));
-    }).catch(() => {});
-    return () => { active = false; };
+      if (orderRes.status === 'fulfilled' && Array.isArray(orderRes.value)) {
+        let inTransit = 0;
+        let delivered = 0;
+        let cancelled = 0;
+        orderRes.value.forEach((o: any) => {
+          const s = String(o.status || '').toLowerCase();
+          if (s === 'delivered') delivered++;
+          else if (s === 'cancelled') cancelled++;
+          else inTransit++;
+        });
+        setOrderStats({
+          total: orderRes.value.length,
+          inTransit,
+          delivered,
+          cancelled,
+        });
+      }
+      if (sellRes.status === 'fulfilled' && Array.isArray(sellRes.value)) {
+        setSellCount(sellRes.value.length);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      try {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Auth' }],
-        });
-      } catch {
-        navigation.navigate('Auth');
-      }
       toast.success('Signed out successfully.');
-    } catch (err) {
-      console.error('[AccountScreen] Sign out error:', err);
+      navigation.navigate('Auth' as any);
+    } catch {
+      toast.error('Failed to sign out');
     }
   };
 
+  const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Guest User');
+  const displayEmail = user?.email || 'Not signed in';
+  const displayPhone = user?.phone || 'No phone added';
+  const initials =
+    user?.full_name
+      ?.trim()
+      .split(/\s+/)
+      .map((w: string) => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || (user?.email ? user.email.substring(0, 2).toUpperCase() : 'RX');
+
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      {/* Sleek Top Header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>Account</Text>
-            <Text style={styles.headerSubtitle}>Manage orders, trade-ins & settings</Text>
-          </View>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusPillText}>Active</Text>
-          </View>
-        </View>
-      </View>
+    <View style={styles.container}>
+      {/* 1. TOP HEADER */}
+      <HomeHeader
+        onSearch={() => navigation.navigate('Search')}
+        cartCount={0}
+        onCart={() => navigation.navigate('Cart')}
+        isAdmin={isAdmin}
+        onAdmin={() => navigation.navigate('Admin', { screen: 'dashboard' })}
+        onLogout={signOut}
+        onAccount={() => {}}
+        onSell={() => (navigation as any).navigate('Sell')}
+        onWishlist={() => navigation.navigate('Wishlist')}
+        onNotifications={() => navigation.navigate('Notifications')}
+        userAddress={user?.address || undefined}
+      />
 
       <ScrollView
-        ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Luxury Hero Profile Card */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroGlow} />
-          <View style={styles.heroTopRow}>
-            <View style={styles.avatarContainer}>
+        {/* 2. USER PROFILE HERO CARD */}
+        <View style={styles.profileCard}>
+          <View style={styles.profileCardRow}>
+            {/* Avatar Circle with Camera badge */}
+            <View style={styles.avatarWrapper}>
               <View style={styles.avatarCircle}>
                 {user?.avatar_url ? (
-                  <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} resizeMode="cover" />
+                  <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} />
                 ) : (
-                  <Text style={styles.avatarText}>
-                    {(user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U').toUpperCase()}
-                  </Text>
+                  <Text style={styles.avatarInitialsText}>{initials}</Text>
                 )}
               </View>
-              <View style={styles.onlineBadge} />
+              <TouchableOpacity
+                style={styles.cameraBadge}
+                onPress={() => navigation.navigate('EditProfile')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="camera" size={11} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.heroInfo}>
-              <View style={styles.nameBadgeRow}>
-                <Text style={styles.userName} numberOfLines={1}>
-                  {user?.full_name || (user as any)?.user_metadata?.full_name || user?.email?.split('@')[0] || 'RenewX Member'}
-                </Text>
-              </View>
-              <Text style={styles.userEmail} numberOfLines={1}>
-                {user?.email}
+            {/* User Details */}
+            <View style={styles.profileInfoCol}>
+              <Text style={styles.userNameText} numberOfLines={1}>
+                {displayName}
               </Text>
-              {user?.phone ? (
-                <Text style={styles.userPhone} numberOfLines={1}>
-                  {user.phone}{user?.city ? ` • ${user.city}` : ''}
-                </Text>
-              ) : null}
-              <View style={styles.badgeRow}>
-                {isAdmin ? (
-                  <View style={styles.adminBadge}>
-                    <Ionicons name="shield-checkmark" size={11} color="#000000" />
-                    <Text style={styles.adminBadgeText}>ADMINISTRATOR</Text>
-                  </View>
-                ) : (
-                  <View style={styles.memberBadge}>
-                    <Ionicons name="sparkles" size={11} color="#10b981" />
-                    <Text style={styles.memberBadgeText}>VERIFIED MEMBER</Text>
-                  </View>
-                )}
+              <Text style={styles.userEmailText} numberOfLines={1}>
+                {displayEmail}
+              </Text>
+              <Text style={styles.userPhoneText} numberOfLines={1}>
+                {displayPhone}
+              </Text>
+
+              {/* Verified Pill */}
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={13} color="#059669" />
+                <Text style={styles.verifiedText}>Verified</Text>
               </View>
             </View>
 
+            {/* Edit Profile Button */}
             <TouchableOpacity
               style={styles.editProfileBtn}
               onPress={() => navigation.navigate('EditProfile')}
               activeOpacity={0.8}
             >
-              <Ionicons name="create-outline" size={16} color="#ffffff" />
+              <Ionicons name="pencil" size={13} color="#0F172A" />
+              <Text style={styles.editProfileBtnText}>Edit Profile</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Admin Quick Banner */}
-        {isAdmin && (
+        {/* 3. RENEWX PLUS BANNER */}
+        <View style={styles.plusBannerCard}>
+          <View style={styles.plusCrownCircle}>
+            <Ionicons name="ribbon" size={20} color="#B45309" />
+          </View>
+
+          <View style={styles.plusInfoCol}>
+            <Text style={styles.plusTitle}>RenewX Plus</Text>
+            <Text style={styles.plusSubtitle}>
+              More savings. Faster support. Exclusive offers.
+            </Text>
+          </View>
+
           <TouchableOpacity
-            style={styles.adminBanner}
-            onPress={() => navigation.navigate('Admin')}
-            activeOpacity={0.88}
+            style={styles.plusExploreBtn}
+            onPress={() => toast.info('RenewX Plus membership is active for your account!')}
+            activeOpacity={0.85}
           >
-            <View style={styles.adminBannerIcon}>
-              <Ionicons name="shield-half" size={20} color="#000000" />
+            <Text style={styles.plusExploreText}>Explore</Text>
+            <Ionicons name="chevron-forward" size={13} color="#000000" />
+          </TouchableOpacity>
+        </View>
+
+        {/* 4. MY ORDERS STATS ROW */}
+        <View style={styles.ordersSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionMainTitle}>My Orders</Text>
+            <TouchableOpacity
+              style={styles.viewAllRow}
+              onPress={() => (navigation as any).navigate('Track')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <Ionicons name="arrow-forward" size={13} color="#0F172A" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsRow}>
+            {/* Stat 1: Total Orders */}
+            <TouchableOpacity
+              style={styles.statBox}
+              onPress={() => (navigation as any).navigate('Track')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.statIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="cube-outline" size={18} color="#EF4444" />
+              </View>
+              <Text style={styles.statCountText}>{orderStats.total}</Text>
+              <Text style={styles.statLabelText}>Total Orders</Text>
+            </TouchableOpacity>
+
+            {/* Stat 2: In Transit */}
+            <TouchableOpacity
+              style={styles.statBox}
+              onPress={() => (navigation as any).navigate('Track')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.statIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="car-outline" size={18} color="#3B82F6" />
+              </View>
+              <Text style={styles.statCountText}>{orderStats.inTransit}</Text>
+              <Text style={styles.statLabelText}>In Transit</Text>
+            </TouchableOpacity>
+
+            {/* Stat 3: Delivered */}
+            <TouchableOpacity
+              style={styles.statBox}
+              onPress={() => (navigation as any).navigate('Track')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.statIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="checkmark-circle-outline" size={18} color="#10B981" />
+              </View>
+              <Text style={styles.statCountText}>{orderStats.delivered}</Text>
+              <Text style={styles.statLabelText}>Delivered</Text>
+            </TouchableOpacity>
+
+            {/* Stat 4: Cancelled */}
+            <TouchableOpacity
+              style={styles.statBox}
+              onPress={() => (navigation as any).navigate('Track')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.statIconCircle, { backgroundColor: '#FFEDD5' }]}>
+                <Ionicons name="return-up-back-outline" size={18} color="#F97316" />
+              </View>
+              <Text style={styles.statCountText}>{orderStats.cancelled}</Text>
+              <Text style={styles.statLabelText}>Cancelled</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Sell Request Tracking Banner */}
+          <TouchableOpacity
+            style={styles.sellTrackingCard}
+            onPress={() => (navigation as any).navigate('MainTabs', { screen: 'Track', params: { type: 'sell_requests' } })}
+            activeOpacity={0.85}
+          >
+            <View style={styles.sellTrackingIconCircle}>
+              <Ionicons name="repeat" size={20} color="#059669" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.adminBannerTitle}>Admin Control Center</Text>
-              <Text style={styles.adminBannerSub}>Manage inventory, trade-ins, orders & users</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.sellTrackingTitle}>Track Sell Requests</Text>
+                <View style={styles.sellCountBadge}>
+                  <Text style={styles.sellCountBadgeText}>{sellCount} Active</Text>
+                </View>
+              </View>
+              <Text style={styles.sellTrackingSubtitle}>
+                Valuation approval, doorstep pickup & instant payout
+              </Text>
             </View>
-            <View style={styles.adminBannerArrow}>
-              <Ionicons name="arrow-forward" size={14} color="#000000" />
-            </View>
+            <Ionicons name="chevron-forward" size={16} color="#059669" />
           </TouchableOpacity>
-        )}
+        </View>
 
-        {/* Quick Stats Grid */}
-        <View style={styles.statsCard}>
+        {/* 5. 4 QUICK ACTION TILES (2x2) */}
+        <View style={styles.quickTilesGrid}>
+          {/* Tile 1: Favorites */}
           <TouchableOpacity
-            style={styles.statCell}
-            onPress={() => navigation.navigate('MySellRequests')}
+            style={styles.quickTile}
+            onPress={() => navigation.navigate('Wishlist')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.tileIconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="heart" size={18} color="#EF4444" />
+            </View>
+            <Text style={styles.tileTitle}>Favorites</Text>
+            <Text style={styles.tileSub}>
+              {totalWishlistItems} {totalWishlistItems === 1 ? 'item' : 'items'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Tile 2: Addresses */}
+          <TouchableOpacity
+            style={styles.quickTile}
+            onPress={() => navigation.navigate('EditProfile')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.tileIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="location" size={18} color="#2563EB" />
+            </View>
+            <Text style={styles.tileTitle}>Addresses</Text>
+            <Text style={styles.tileSub}>{user?.address ? '1 saved' : '0 saved'}</Text>
+          </TouchableOpacity>
+
+          {/* Tile 3: Trade-in / Sell */}
+          <TouchableOpacity
+            style={styles.quickTile}
+            onPress={() => (navigation as any).navigate('Sell')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.tileIconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="pricetag" size={18} color="#D97706" />
+            </View>
+            <Text style={styles.tileTitle}>Trade-in / Sell</Text>
+            <Text style={styles.tileSub}>Instant quote</Text>
+          </TouchableOpacity>
+
+          {/* Tile 4: Alerts */}
+          <TouchableOpacity
+            style={styles.quickTile}
+            onPress={() => navigation.navigate('Notifications')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.tileIconCircle, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="notifications" size={18} color="#059669" />
+            </View>
+            <Text style={styles.tileTitle}>Notifications</Text>
+            <Text style={styles.tileSub}>Latest alerts</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 6. ACCOUNT MENU LIST */}
+        <View style={styles.menuListContainer}>
+          {/* Item 1: Personal Information */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('EditProfile')}
             activeOpacity={0.75}
           >
-            <View style={styles.statIconBox}>
-              <Ionicons name="repeat-outline" size={18} color="#f59e0b" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="person-outline" size={18} color="#2563EB" />
             </View>
-            <View>
-              <Text style={styles.statNumber}>{sellCount}</Text>
-              <Text style={styles.statLabel}>Trade-in Requests</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>Personal Information</Text>
+              <Text style={styles.menuItemSub}>Name, email, phone number</Text>
             </View>
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.statDivider} />
-
-          <View style={styles.statCell}>
-            <View style={styles.statIconBox}>
-              <Ionicons name="wallet-outline" size={18} color="#10b981" />
-            </View>
-            <View>
-              <Text style={styles.statNumber}>₹{tradeInValue.toLocaleString('en-IN')}</Text>
-              <Text style={styles.statLabel}>Estimated Valuation</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Group 1: Activity & Orders */}
-        <Text style={styles.groupHeading}>Activity & Orders</Text>
-        <View style={styles.cardGroup}>
+          {/* Item 2: Manage Addresses */}
           <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Track' } as any)}
-            activeOpacity={0.7}
+            style={styles.menuItem}
+            onPress={() => toast.info('Delivery addresses configured for Bangalore')}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#eff6ff' }]}>
-              <Ionicons name="cube" size={18} color="#2563eb" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="location-outline" size={18} color="#059669" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>My Orders & Invoices</Text>
-              <Text style={styles.menuSub}>Live tracking, delivery status & history</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>Manage Addresses</Text>
+              <Text style={styles.menuItemSub}>Home, work or other addresses</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.rowSeparator} />
-
+          {/* Item 3: Payment Methods */}
           <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate('MySellRequests')}
-            activeOpacity={0.7}
+            style={styles.menuItem}
+            onPress={() => toast.info('Cards, UPI and COD enabled')}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#fef3c7' }]}>
-              <Ionicons name="cash" size={18} color="#d97706" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="card-outline" size={18} color="#1D4ED8" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>My Sell / Trade-in Requests</Text>
-              <Text style={styles.menuSub}>Device valuations, pickup & payouts</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>Payment Methods</Text>
+              <Text style={styles.menuItemSub}>Cards, UPI and more</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
-        </View>
 
-        {/* Group 2: Support & Community */}
-        <Text style={styles.groupHeading}>Support & Community</Text>
-        <View style={styles.cardGroup}>
+          {/* Item 4: Live Tracking Hub */}
           <TouchableOpacity
-            style={styles.menuRow}
-            onPress={async () => {
-              try {
-                await Linking.openURL(WHATSAPP_COMMUNITY_URL);
-              } catch {
-                Alert.alert('WhatsApp Community', 'Unable to open WhatsApp.');
-              }
-            }}
-            activeOpacity={0.7}
+            style={styles.menuItem}
+            onPress={() => (navigation as any).navigate('MainTabs', { screen: 'Track' })}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#dcfce7' }]}>
-              <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="navigate-outline" size={18} color="#059669" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>WhatsApp Community</Text>
-              <Text style={styles.menuSub}>Join members, deals & direct support</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>Track Orders & Sell Requests</Text>
+              <Text style={styles.menuItemSub}>Track live by Order ID or Sell Request ID</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.rowSeparator} />
-
+          {/* Item 5: My Refurbish / Sell Requests */}
           <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE}`).catch(() =>
-              Alert.alert('Customer Helpline', 'Unable to open phone dialer.')
-            )}
-            activeOpacity={0.7}
+            style={styles.menuItem}
+            onPress={() => (navigation as any).navigate('MySellRequests')}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#f1f5f9' }]}>
-              <Ionicons name="call" size={18} color="#0f172a" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="pricetag-outline" size={18} color="#D97706" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>Customer Helpline</Text>
-              <Text style={styles.menuSub}>+91 90801 68778 (Mon–Sat)</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>My Sell Requests</Text>
+              <Text style={styles.menuItemSub}>
+                {sellCount > 0 ? `${sellCount} active requests • Check live status` : 'Track quotes, approvals & payouts'}
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.rowSeparator} />
-
+          {/* Item 5: Notifications */}
           <TouchableOpacity
-            style={styles.menuRow}
+            style={styles.menuItem}
             onPress={() => navigation.navigate('Notifications')}
-            activeOpacity={0.7}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#fae8ff' }]}>
-              <Ionicons name="notifications" size={18} color="#a855f7" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="notifications-outline" size={18} color="#EF4444" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>Notifications</Text>
-              <Text style={styles.menuSub}>Order updates and special arrival alerts</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>Notifications</Text>
+              <Text style={styles.menuItemSub}>Order updates, offers and alerts</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Group 3: Account & Security */}
-        <Text style={styles.groupHeading}>Security & Preferences</Text>
-        <View style={styles.cardGroup}>
-          <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate('EditProfile')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconWrap, { backgroundColor: '#ecfdf5' }]}>
-              <Ionicons name="person" size={18} color="#059669" />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>Edit Personal Details</Text>
-              <Text style={styles.menuSub}>Full name, profile image & email</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.rowSeparator} />
-
+          {/* Item 6: Help & Support */}
           <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate('Security' as any)}
-            activeOpacity={0.7}
+            style={styles.menuItem}
+            onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE}`)}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#f0fdf4' }]}>
-              <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="headset-outline" size={18} color="#059669" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>Password & Security</Text>
-              <Text style={styles.menuSub}>Change password & security credentials</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>Help & Support</Text>
+              <Text style={styles.menuItemSub}>FAQs, contact us</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.rowSeparator} />
-
+          {/* Item 7: Settings */}
           <TouchableOpacity
-            style={styles.menuRow}
+            style={styles.menuItem}
             onPress={() => navigation.navigate('Settings')}
-            activeOpacity={0.7}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#f1f5f9' }]}>
-              <Ionicons name="settings-sharp" size={18} color="#475569" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#F1F5F9' }]}>
+              <Ionicons name="settings-outline" size={18} color="#475569" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>App Settings</Text>
-              <Text style={styles.menuSub}>Preferences, cache & system diagnostics</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemTitle}>Settings</Text>
+              <Text style={styles.menuItemSub}>App preferences, language, privacy</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.rowSeparator} />
-
+          {/* Item 8: Log Out */}
           <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate('AboutRenewX')}
-            activeOpacity={0.7}
+            style={[styles.menuItem, { borderBottomWidth: 0 }]}
+            onPress={handleSignOut}
+            activeOpacity={0.75}
           >
-            <View style={[styles.iconWrap, { backgroundColor: '#e0f2fe' }]}>
-              <Ionicons name="information-circle" size={18} color="#0284c7" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#F1F5F9' }]}>
+              <Ionicons name="log-out-outline" size={18} color="#475569" />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>About RenewX Crew</Text>
-              <Text style={styles.menuSub}>How it works, policies & official contact</Text>
+            <View style={styles.menuItemTextCol}>
+              <Text style={[styles.menuItemTitle, { color: '#B91C1C' }]}>Log Out</Text>
+              <Text style={styles.menuItemSub}>Sign out from your account</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
-        </View>
-
-        {/* Sign Out Card */}
-        <TouchableOpacity style={styles.signOutCard} onPress={handleSignOut} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={19} color="#dc2626" />
-          <Text style={styles.signOutCardText}>Sign Out of Account</Text>
-        </TouchableOpacity>
-
-        {/* Discreet Footer */}
-        <View style={styles.footerContainer}>
-          <Text style={styles.footerBrand}>RenewX Crew Mobile</Text>
-          <Text style={styles.footerVersion}>Version 1.0.0 • Certified Tested Tech</Text>
         </View>
       </ScrollView>
     </View>
@@ -374,364 +500,361 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f7f2',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ebe7dd',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: {
-    fontFamily: fontFamily.bold,
-    fontSize: 24,
-    color: '#0f172a',
-    letterSpacing: -0.4,
-  },
-  headerSubtitle: {
-    fontFamily: fontFamily.regular,
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10b981',
-  },
-  statusPillText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 11,
-    color: '#047857',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    padding: renewxSpacing.md,
+    paddingBottom: 120,
+    gap: 14,
   },
-  heroCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 22,
-    padding: 20,
-    marginBottom: 14,
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
+
+  /* 2. PROFILE HERO CARD */
+  profileCard: {
+    backgroundColor: '#E8FBE8',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    padding: 14,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 16px rgba(16, 185, 129, 0.08)' },
+      default: { elevation: 2 },
+    }),
   },
-  heroGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255, 196, 0, 0.12)',
-  },
-  heroTopRow: {
+  profileCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
   },
   avatarCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#ffc400',
+    backgroundColor: '#DCFCE7',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   avatarImg: {
     width: '100%',
     height: '100%',
+    borderRadius: 32,
   },
-  avatarText: {
-    fontFamily: fontFamily.bold,
+  avatarInitialsText: {
+    fontFamily: renewxFontFamily.extraBold,
     fontSize: 22,
-    color: '#000000',
+    fontWeight: '900',
+    color: '#0F172A',
   },
-  onlineBadge: {
+  cameraBadge: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: '#10b981',
-    borderWidth: 2,
-    borderColor: '#0f172a',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heroInfo: {
+  profileInfoCol: {
     flex: 1,
+    minWidth: 0,
   },
-  nameBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  userNameText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
   },
-  userName: {
-    fontFamily: fontFamily.bold,
-    fontSize: 17,
-    color: '#ffffff',
-    letterSpacing: -0.2,
-  },
-  userEmail: {
-    fontFamily: fontFamily.regular,
-    fontSize: 12,
-    color: '#94a3b8',
+  userEmailText: {
     marginTop: 2,
-    marginBottom: 8,
-  },
-  userPhone: {
-    fontFamily: fontFamily.regular,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 11,
-    color: '#cbd5e1',
-    marginTop: -4,
-    marginBottom: 6,
+    color: '#475569',
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  userPhoneText: {
+    marginTop: 1,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11,
+    color: '#475569',
   },
-  adminBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ffc400',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  adminBadgeText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 9,
-    color: '#000000',
-    letterSpacing: 0.5,
-  },
-  memberBadge: {
+  verifiedBadge: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 5,
   },
-  memberBadgeText: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 9,
-    color: '#34d399',
-    letterSpacing: 0.5,
+  verifiedText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 9.5,
+    color: '#059669',
+    fontWeight: '700',
   },
   editProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  editProfileBtnText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+
+  /* 3. PLUS BANNER */
+  plusBannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+    padding: 12,
+  },
+  plusCrownCircle: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  adminBanner: {
+  plusInfoCol: {
+    flex: 1,
+  },
+  plusTitle: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  plusSubtitle: {
+    marginTop: 2,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 10,
+    color: '#64748B',
+  },
+  plusExploreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#ffc400',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    gap: 3,
+    backgroundColor: '#FDE047',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
-  adminBannerIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adminBannerTitle: {
-    fontFamily: fontFamily.bold,
-    fontSize: 14,
+  plusExploreText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11,
+    fontWeight: '800',
     color: '#000000',
   },
-  adminBannerSub: {
-    fontFamily: fontFamily.regular,
-    fontSize: 11,
-    color: '#334155',
-    marginTop: 1,
+
+  /* 4. ORDERS SECTION */
+  ordersSection: {
+    backgroundColor: '#FFFFFF',
   },
-  adminBannerArrow: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionMainTitle: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    alignItems: 'center',
+    gap: 4,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' },
+      default: { elevation: 1 },
+    }),
+  },
+  statIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statsCard: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e8e4da',
-    marginBottom: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
+  statCountText: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
   },
-  statCell: {
-    flex: 1,
+  statLabelText: {
+    fontFamily: renewxFontFamily.medium,
+    fontSize: 9,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  sellTrackingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    padding: 12,
+    marginTop: 10,
+  },
+  sellTrackingIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellTrackingTitle: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  sellCountBadge: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 8,
+  },
+  sellCountBadgeText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  sellTrackingSubtitle: {
+    fontFamily: renewxFontFamily.medium,
+    fontSize: 10,
+    color: '#047857',
+    marginTop: 2,
+  },
+
+  /* 5. QUICK TILES (2x2) */
+  quickTilesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickTile: {
+    width: '48.5%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    alignItems: 'center',
+    gap: 4,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' },
+      default: { elevation: 1 },
+    }),
+  },
+  tileIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  tileTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  tileSub: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 9.5,
+    color: '#64748B',
+  },
+
+  /* 6. ACCOUNT MENU LIST */
+  menuListContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 8,
-  },
-  statIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statNumber: {
-    fontFamily: fontFamily.bold,
-    fontSize: 16,
-    color: '#0f172a',
-  },
-  statLabel: {
-    fontFamily: fontFamily.medium,
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 1,
-  },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: '#f1f5f9',
-  },
-  groupHeading: {
-    fontFamily: fontFamily.bold,
-    fontSize: 11,
-    color: '#64748b',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginLeft: 6,
-    marginBottom: 8,
-  },
-  cardGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#e8e4da',
     paddingHorizontal: 14,
-    paddingVertical: 4,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 13,
-  },
-  rowSeparator: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginLeft: 46,
-  },
-  iconWrap: {
+  menuIconCircle: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuContent: {
+  menuItemTextCol: {
     flex: 1,
   },
-  menuTitle: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 14,
-    color: '#0f172a',
+  menuItemTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0F172A',
   },
-  menuSub: {
-    fontFamily: fontFamily.regular,
-    fontSize: 11,
-    color: '#94a3b8',
-    marginTop: 1,
-  },
-  signOutCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 4,
-  },
-  signOutCardText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 14,
-    color: '#dc2626',
-  },
-  footerContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 10,
-  },
-  footerBrand: {
-    fontFamily: fontFamily.bold,
-    fontSize: 12,
-    color: '#64748b',
-  },
-  footerVersion: {
-    fontFamily: fontFamily.regular,
-    fontSize: 11,
-    color: '#94a3b8',
+  menuItemSub: {
     marginTop: 2,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 9.5,
+    color: '#64748B',
   },
 });
-

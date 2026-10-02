@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import ShimmerText from '@/components/ShimmerText';
 
 export default function HeroBanner() {
   return (
@@ -15,7 +16,7 @@ export default function HeroBanner() {
 
       <Text style={styles.title}>
         Buy. Sell.{'\n'}Upgrade.{'\n'}
-        <Text style={styles.titleAccent}>The Smart Way.</Text>
+        <ShimmerText variant="gold" style={styles.titleAccent}>The Smart Way.</ShimmerText>
       </Text>
 
       <Text style={styles.subtitle}>

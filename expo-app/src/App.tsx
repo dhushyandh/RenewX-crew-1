@@ -55,9 +55,11 @@ if (Platform.OS !== 'web') {
 import type { Product } from '@/types';
 import { colors } from '@/theme';
 import { renewxColors, renewxFontFamily, renewxRadius } from '@/design-system';
-import { CartProvider } from '@/context/CartContext';
+import { CartProvider, useCart } from '@/context/CartContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ToastProvider } from '@/context/ToastContext';
+import { WishlistProvider } from '@/context/WishlistContext';
+import { LocationProvider } from '@/context/LocationContext';
 import {
   useFonts,
   Outfit_400Regular,
@@ -82,6 +84,7 @@ import OrderDetailScreen from '@/screens/OrderDetailScreen';
 import PaymentScreen from '@/screens/PaymentScreen';
 import ProductDetailScreen from '@/screens/ProductDetailScreen';
 import SearchScreen from '@/screens/SearchScreen';
+import WishlistScreen from '@/screens/WishlistScreen';
 import AuthScreen from '@/screens/AuthScreen';
 import ForgotPasswordScreen from '@/screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/ResetPasswordScreen';
@@ -104,9 +107,11 @@ export type RootStackParamList = {
   Auth: undefined;
   ForgotPassword: { email?: string } | undefined;
   ResetPassword: { token?: string; email?: string } | undefined;
-  MainTabs: { screen?: keyof TabParamList } | undefined;
+  MainTabs: { screen?: keyof TabParamList; params?: any } | undefined;
+  Shop: { category?: string; brand?: string; _t?: number } | undefined;
   ProductDetail: { product?: Product; id?: string };
   Search: undefined;
+  Wishlist: undefined;
   Cart: undefined;
   Checkout: undefined;
   OrderDetail: { id: string; order?: any };
@@ -202,6 +207,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       } as any,
       ProductDetail: 'product/:id',
       Search: 'search',
+      Wishlist: 'wishlist',
       Cart: 'cart',
       Checkout: 'checkout',
       OrderDetail: 'order/:id',
@@ -231,9 +237,9 @@ export const linking: LinkingOptions<RootStackParamList> = {
 
 export type TabParamList = {
   Home: undefined;
-  Shop: undefined;
+  Shop: { category?: string; brand?: string; _t?: number } | undefined;
   Sell: undefined;
-  Track: undefined;
+  Track: { type?: 'orders' | 'sell_requests'; id?: string } | undefined;
   Account: undefined;
 };
 
@@ -243,7 +249,8 @@ const Tab = createBottomTabNavigator<TabParamList>();
 // Custom Modern Floating Rounded-Full Tab Bar
 function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const bottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 14) : 14;
+  const bottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 12) : 12;
+  const { totalItems } = useCart();
 
   const currentRoute = state.routes[state.index];
   const currentDescriptor = descriptors[currentRoute.key];
@@ -253,11 +260,14 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
   const TAB_CONFIG: Record<string, { active: any; inactive: any; label: string }> = {
     Home: { active: 'home', inactive: 'home-outline', label: 'Home' },
-    Shop: { active: 'grid', inactive: 'grid-outline', label: 'Shop' },
-    Sell: { active: 'cash', inactive: 'cash-outline', label: 'Sell' },
-    Track: { active: 'cube', inactive: 'cube-outline', label: 'Track' },
-    Account: { active: 'person', inactive: 'person-outline', label: 'Account' },
+    Shop: { active: 'grid', inactive: 'grid-outline', label: 'Categories' },
+    Track: { active: 'cube', inactive: 'cube-outline', label: 'Orders' },
+    Account: { active: 'person', inactive: 'person-outline', label: 'Profile' },
+    Sell: { active: 'add', inactive: 'add', label: 'Sell' },
   };
+
+  const mainRoutes = state.routes.filter((r) => r.name !== 'Sell');
+  const sellRoute = state.routes.find((r) => r.name === 'Sell');
 
   return (
     <View
@@ -268,96 +278,161 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
         Platform.OS === 'web' ? ({ pointerEvents: 'box-none' } as any) : undefined,
       ]}
     >
-      <View style={styles.floatingCapsuleContainer}>
-        {/* Frosted Glass Blurred Pill Background */}
-        <BlurView
-          intensity={80}
-          tint="light"
-          style={[
-            StyleSheet.absoluteFill,
-            styles.floatingBlurBackground,
-            Platform.OS === 'web'
-              ? ({
-                  backdropFilter: 'blur(20px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                } as any)
-              : undefined,
-          ]}
-        />
+      {/* Floating Free Delivery / Cart Pill */}
+      {totalItems > 0 && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Cart')}
+          style={styles.floatingCartBanner}
+          accessibilityRole="button"
+          accessibilityLabel={`Cart with ${totalItems} items, unlock free delivery`}
+        >
+          <View style={styles.floatingCartLeft}>
+            <View style={styles.floatingCartCheckCircle}>
+              <Ionicons name="checkmark-sharp" size={13} color="#FFFFFF" />
+            </View>
+            <Text style={styles.floatingCartText}>You've unlocked FREE delivery</Text>
+          </View>
+          <View style={styles.floatingCartRightBtn}>
+            <Ionicons name="bag-handle" size={14} color="#FFFFFF" />
+            <Text style={styles.floatingCartCount}>{totalItems}</Text>
+            <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+      )}
 
-        <View style={styles.floatingCapsuleRow}>
-          {state.routes.map((route, index) => {
-            const isFocused = state.index === index;
-            const isSell = route.name === 'Sell';
-            const config = TAB_CONFIG[route.name] || {
-              active: 'ellipse',
-              inactive: 'ellipse-outline',
-              label: route.name,
-            };
+      <View style={styles.floatingNavRow}>
+        {/* 1. Main Navbar Capsule with Home, Categories, Orders, Profile */}
+        <View style={styles.floatingMainCapsule}>
+          <BlurView
+            intensity={85}
+            tint="light"
+            style={[
+              StyleSheet.absoluteFill,
+              styles.floatingBlurBackground,
+              Platform.OS === 'web'
+                ? ({
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                  } as any)
+                : undefined,
+            ]}
+          />
 
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
+          <View style={styles.floatingCapsuleRow}>
+            {mainRoutes.map((route) => {
+              const routeIndex = state.routes.findIndex((r) => r.key === route.key);
+              const isFocused = state.index === routeIndex;
+              const config = TAB_CONFIG[route.name] || {
+                active: 'ellipse',
+                inactive: 'ellipse-outline',
+                label: route.name,
+              };
 
-              if (!event.defaultPrevented) {
-                if (!isFocused) {
-                  navigation.navigate(route.name);
+              const onPress = () => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+
+                if (!event.defaultPrevented) {
+                  if (!isFocused) {
+                    navigation.navigate(route.name);
+                  }
+                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+                  }
                 }
-                if (Platform.OS === 'web' && typeof window !== 'undefined') {
-                  window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
-                }
-              }
-            };
+              };
 
-            if (isSell) {
+              const activeBg = route.name === 'Track' ? '#FEF08A' : route.name === 'Shop' ? '#DCFCE7' : '#FDE047';
+
               return (
                 <TouchableOpacity
                   key={route.key}
                   onPress={onPress}
-                  activeOpacity={0.88}
-                  style={styles.floatingSellBtnContainer}
+                  activeOpacity={0.78}
+                  style={[
+                    styles.floatingTabItem,
+                    isFocused && [styles.floatingTabItemActive, { backgroundColor: activeBg }],
+                  ]}
                   accessibilityRole="button"
                   accessibilityState={isFocused ? { selected: true } : {}}
-                  accessibilityLabel="Sell device"
+                  accessibilityLabel={config.label}
                 >
-                  <View style={[styles.floatingSellCircle, isFocused && styles.floatingSellCircleActive]}>
-                    <Text style={styles.floatingSellDollarText}>$</Text>
+                  <View style={styles.floatingIconBox}>
+                    <Ionicons
+                      name={isFocused ? config.active : config.inactive}
+                      size={20}
+                      color={isFocused ? '#000000' : '#64748B'}
+                    />
                   </View>
-                  <Text style={[styles.floatingSellLabel, isFocused && styles.floatingSellLabelActive]}>
-                    Sell
+                  <Text style={[styles.floatingTabLabel, isFocused && styles.floatingTabLabelActive]}>
+                    {config.label}
                   </Text>
+                  {isFocused && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: -3,
+                        width: 5,
+                        height: 5,
+                        borderRadius: 2.5,
+                        backgroundColor: '#F59E0B',
+                      }}
+                    />
+                  )}
                 </TouchableOpacity>
               );
-            }
-
-            return (
-              <TouchableOpacity
-                key={route.key}
-                onPress={onPress}
-                activeOpacity={0.75}
-                style={[styles.floatingTabItem, isFocused && styles.floatingTabItemActive]}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={config.label}
-              >
-                <View style={styles.floatingIconBox}>
-                  <Ionicons
-                    name={isFocused ? config.active : config.inactive}
-                    size={21}
-                    color={isFocused ? '#0f172a' : '#64748b'}
-                  />
-                  {isFocused && <View style={styles.floatingActiveDot} />}
-                </View>
-                <Text style={[styles.floatingTabLabel, isFocused && styles.floatingTabLabelActive]}>
-                  {config.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+            })}
+          </View>
         </View>
+
+        {/* 2. Separate Border Rounded Button for Sell */}
+        {sellRoute && (() => {
+          const sellIndex = state.routes.findIndex((r) => r.key === sellRoute.key);
+          const isSellFocused = state.index === sellIndex;
+
+          const onSellPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: sellRoute.key,
+              canPreventDefault: true,
+            });
+
+            if (!event.defaultPrevented) {
+              if (!isSellFocused) {
+                navigation.navigate('Sell');
+              }
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+              }
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              key={sellRoute.key}
+              onPress={onSellPress}
+              activeOpacity={0.85}
+              style={[
+                styles.floatingSellSeparateBtn,
+                isSellFocused && styles.floatingSellSeparateBtnActive,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={isSellFocused ? { selected: true } : {}}
+              accessibilityLabel="Sell device for cash"
+            >
+              <View style={[styles.floatingSellCircle, isSellFocused && styles.floatingSellCircleActive]}>
+                <Ionicons name="pricetag" size={19} color="#000000" />
+              </View>
+              <Text style={[styles.floatingSellLabel, isSellFocused && styles.floatingSellLabelActive]}>
+                Sell
+              </Text>
+            </TouchableOpacity>
+          );
+        })()}
       </View>
     </View>
   );
@@ -373,9 +448,9 @@ function TabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Shop" component={ShopScreen} />
-      <Tab.Screen name="Sell" component={SellScreen} />
       <Tab.Screen name="Track" component={TrackScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
+      <Tab.Screen name="Sell" component={SellScreen} />
     </Tab.Navigator>
   );
 }
@@ -615,6 +690,7 @@ function MainAppNavigation() {
           <Stack.Screen name="MainTabs" component={TabNavigator} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="Wishlist" component={WishlistScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Checkout" component={ProtectedCheckoutScreen} />
           <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
@@ -665,6 +741,8 @@ function App() {
         <ToastProvider>
           <AuthProvider>
             <CartProvider>
+              <WishlistProvider>
+                <LocationProvider>
               {fontsLoaded ? (
                 <MainAppNavigation />
               ) : (
@@ -676,6 +754,8 @@ function App() {
                   onFinish={() => setSplashFinished(true)}
                 />
               )}
+                </LocationProvider>
+              </WishlistProvider>
             </CartProvider>
           </AuthProvider>
         </ToastProvider>
@@ -700,102 +780,161 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
-  floatingCapsuleContainer: {
-    width: '92%',
-    maxWidth: 440,
-    height: 64,
+  floatingCartBanner: {
+    width: '94%',
+    maxWidth: 460,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E8F7ED',
+    borderWidth: 1,
+    borderColor: '#C3E7CB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    boxShadow: '0px 6px 18px rgba(12, 122, 67, 0.12)',
+    elevation: 8,
+  },
+  floatingCartLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  floatingCartCheckCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#0C7A43',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingCartText: {
+    fontFamily: renewxFontFamily.semibold,
+    fontSize: 12,
+    color: '#064E2E',
+    fontWeight: '700',
+  },
+  floatingCartRightBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#064E2E',
+    borderRadius: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
+  floatingCartCount: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  floatingNavRow: {
+    width: '94%',
+    maxWidth: 460,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  floatingMainCapsule: {
+    flex: 1,
+    height: 62,
     position: 'relative',
     borderRadius: renewxRadius.pill,
-    boxShadow: '0px 10px 32px rgba(15, 23, 42, 0.12)',
-    elevation: 12,
+    boxShadow: '0px 10px 30px rgba(15, 23, 42, 0.08)',
+    elevation: 10,
   },
   floatingBlurBackground: {
     borderRadius: renewxRadius.pill,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.96)',
+    borderColor: '#E2E8F0',
   },
   floatingCapsuleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    height: 64,
-    paddingHorizontal: 8,
+    height: 62,
+    paddingHorizontal: 6,
   },
   floatingTabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: renewxRadius.pill,
   },
   floatingTabItemActive: {
-    backgroundColor: renewxColors.greenSoft,
+    backgroundColor: '#FDE047',
+    borderRadius: 20,
+    paddingHorizontal: 6,
   },
   floatingIconBox: {
     alignItems: 'center',
     justifyContent: 'center',
     height: 22,
-    position: 'relative',
-  },
-  floatingActiveDot: {
-    position: 'absolute',
-    bottom: -5,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: renewxColors.green,
   },
   floatingTabLabel: {
     fontSize: 10,
     fontWeight: '600',
     fontFamily: renewxFontFamily.semibold,
-    color: renewxColors.textSecondary,
-    marginTop: 4,
+    color: '#64748B',
+    marginTop: 2,
   },
   floatingTabLabelActive: {
-    color: renewxColors.black,
+    color: '#000000',
     fontWeight: '800',
   },
-  floatingSellBtnContainer: {
+  floatingSellSeparateBtn: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    top: -14,
-    flex: 1,
-  },
-  floatingSellCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: renewxColors.yellow,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3.5,
-    borderColor: renewxColors.surface,
-    boxShadow: '0px 6px 18px rgba(255, 196, 0, 0.45)',
+    paddingVertical: 3,
+    boxShadow: '0px 8px 24px rgba(15, 23, 42, 0.08)',
     elevation: 10,
   },
+  floatingSellSeparateBtnActive: {
+    backgroundColor: '#FEF08A',
+    borderColor: '#FACC15',
+    boxShadow: '0px 8px 24px rgba(250, 204, 21, 0.28)',
+  },
+  floatingSellCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFC400',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   floatingSellCircleActive: {
-    backgroundColor: renewxColors.yellowDark,
-    borderColor: '#ffffff',
-    transform: [{ scale: 1.06 }],
+    backgroundColor: '#EAB308',
   },
   floatingSellDollarText: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '900',
-    color: '#0f172a',
-    marginTop: -2,
+    color: '#0C7A43',
     includeFontPadding: false,
+  },
+  floatingSellDollarTextActive: {
+    color: '#FFD700',
   },
   floatingSellLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748b',
-    marginTop: 3,
+    fontFamily: renewxFontFamily.bold,
+    color: '#0F172A',
+    marginTop: 2,
   },
   floatingSellLabelActive: {
-    color: renewxColors.greenDark,
+    color: '#000000',
     fontWeight: '800',
   },
 });

@@ -19,8 +19,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import RenewXLogo from '@/components/RenewXLogo';
 
 const LOGO_IMG = require('@/assets/logo.png');
+const HERO_IMG = require('@/assets/onboarding_hero.jpg');
 
 type AuthStep = 'splash' | 'email' | 'otp' | 'password' | 'signing_in';
 
@@ -459,123 +461,133 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* ========================================================================= */}
-      {/* 1. PRODUCTION-READY SPLASH SCREEN                                         */}
+      {/* 1. PRODUCTION-READY SPLASH / WELCOME SCREEN                                 */}
       {/* ========================================================================= */}
       {step === 'splash' && (
         <View style={[styles.splashContainer, { paddingTop: safeTop }]}>
-          {/* Top Bar with Logo Branding */}
-          <View style={styles.topLogoRow}>
-            <Image source={LOGO_IMG} style={styles.topBrandLogo} resizeMode="contain" />
-            <Text style={styles.topBrandName}>Renew<Text style={styles.topBrandAccent}>X</Text></Text>
+          {/* Top Bar matching Mockup (Logo left, Skip right) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10, width: '100%' }}>
+            <RenewXLogo size="md" showTagline={true} />
+            <TouchableOpacity
+              onPress={() => (navigation as any).navigate('MainTabs', { screen: 'Home' })}
+              style={{ paddingVertical: 6, paddingHorizontal: 10 }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }}>Skip</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Floating Gadgets Orbit */}
-          <View style={styles.gadgetField}>
-            {CURATED_GADGETS.map((g) => (
-              <Animated.View
-                key={g.id}
-                style={[
-                  styles.gadgetCard,
-                  {
-                    top: g.top as any,
-                    bottom: g.bottom as any,
-                    left: g.left as any,
-                    right: g.right as any,
-                    transform: [
-                      { rotate: g.rotate },
-                      { scale: pulseAnim },
-                    ],
-                  },
-                ]}
-              >
-                <Image source={g.source} style={styles.gadgetImage} resizeMode="contain" />
-                <View style={styles.gadgetIconBadge}>
-                  <Ionicons name={g.icon} size={12} color="#0f172a" />
-                </View>
-              </Animated.View>
-            ))}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 24, paddingBottom: 32, width: '100%' }}>
+            {/* Header Title matching Mockup */}
+            <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 12 }}>
+              <Text style={{ fontSize: 26, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 }}>Welcome to</Text>
+              <Text style={{ fontSize: 30, fontWeight: '900', color: '#0F172A', letterSpacing: -0.6 }}>RenewX</Text>
+              <Text style={{ fontSize: 13.5, color: '#64748B', textAlign: 'center', lineHeight: 20, marginTop: 6, fontWeight: '500' }}>
+                Buy certified refurbished devices,
+sell your old ones, and upgrade
+to what you love.
+              </Text>
+            </View>
 
-            {/* Central Official Logo Badge */}
-            <View style={styles.centerHero}>
-              <View style={styles.centerLogoFrame}>
-                <Image source={LOGO_IMG} style={styles.centerLogoImage} resizeMode="contain" />
+            {/* Glowing Hero Image matching Mockup */}
+            <View style={{ alignItems: 'center', justifyContent: 'center', position: 'relative', width: 280, height: 210, marginVertical: 10 }}>
+              <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: '#FEF08A', opacity: 0.55 }} />
+              <Image source={HERO_IMG} style={{ width: '100%', height: '100%', borderRadius: 18 }} resizeMode="contain" />
+            </View>
+
+            {/* Action Buttons matching Mockup */}
+            <View style={{ width: '100%', maxWidth: 380, marginTop: 8 }}>
+              {/* 1. Continue with Google */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#FACC15',
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  marginBottom: 12,
+                  shadowColor: '#FACC15',
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 2,
+                }}
+                onPress={handleGoogleSignIn}
+                disabled={googleLoading}
+                activeOpacity={0.88}
+              >
+                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                  <Ionicons name="logo-google" size={17} color="#EA4335" />
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A' }}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              {/* 2. Continue with Apple */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                  paddingVertical: 14,
+                  marginBottom: 14,
+                }}
+                onPress={() => (navigation as any).navigate('OnboardingProfile', { initialStage: 'account' })}
+                activeOpacity={0.88}
+              >
+                <Ionicons name="logo-apple" size={20} color="#000000" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Continue with Apple</Text>
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2, marginBottom: 12 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+                <Text style={{ marginHorizontal: 12, fontSize: 12, color: '#94A3B8', fontWeight: '500' }}>or</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+              </View>
+
+              {/* 3. Sign up with Email */}
+              <TouchableOpacity
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#F1F5F9',
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  marginBottom: 16,
+                }}
+                onPress={() => (navigation as any).navigate('OnboardingProfile', { initialStage: 'email_entry' })}
+                activeOpacity={0.88}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Sign up with Email</Text>
+              </TouchableOpacity>
+
+              {/* Footer Login Prompt */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 13.5, color: '#64748B', fontWeight: '500' }}>Already have an account? </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsSignUp(false);
+                    setSignInWithOtpMode(false);
+                    setError(null);
+                    setErrorCode(null);
+                    setStep('email');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 13.5, color: '#EAB308', fontWeight: '800' }}>Login</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </View>
-
-          {/* Two Big Options: Sign in & Create Account */}
-          <View style={styles.bottomSection}>
-            <View style={styles.heroTextSection}>
-              <Text style={styles.bottomHeroTitle}>
-                Discover your next{'\n'}certified brand
-              </Text>
-              <Text style={styles.bottomHeroSubtitle}>
-                Buy & Sell tested pre-owned devices with ease
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.primaryBigBtn}
-              onPress={() => {
-                setIsSignUp(false);
-                setSignInWithOtpMode(false);
-                setError(null);
-                setErrorCode(null);
-                setStep('email');
-              }}
-              activeOpacity={0.88}
-              accessibilityRole="button"
-              accessibilityLabel="Sign in"
-            >
-              <Text style={styles.primaryBigBtnText}>Sign In</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryBigBtn}
-              onPress={() => {
-                setIsSignUp(true);
-                setError(null);
-                setErrorCode(null);
-                setStep('email');
-              }}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Create account"
-            >
-              <Text style={styles.secondaryBigBtnText}>Create Account</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.googlePillBtn}
-              onPress={handleGoogleSignIn}
-              disabled={googleLoading}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="logo-google" size={16} color="#0f172a" />
-              <Text style={styles.googlePillText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.termsNotice}>
-              By proceeding, you agree to RenewX{' '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => setLegalModal('terms')}
-              >
-                Terms of Service
-              </Text>{' '}
-              and{' '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => setLegalModal('privacy')}
-              >
-                Privacy Policy
-              </Text>
-              .
-            </Text>
-          </View>
+          </ScrollView>
         </View>
       )}
 
+      {/* ========================================================================= */}
       {/* ========================================================================= */}
       {/* 2. AUTH FORM MODAL (CREATE ACCOUNT & SIGN IN)                             */}
       {/* ========================================================================= */}

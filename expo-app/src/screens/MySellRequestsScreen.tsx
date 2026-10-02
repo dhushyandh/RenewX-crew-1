@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Alert, Platform } from 'react-native';
+import { useCallback, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Alert, Platform, TextInput } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useToast } from '@/context/ToastContext';
@@ -29,6 +30,7 @@ export default function MySellRequestsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -49,6 +51,30 @@ export default function MySellRequestsScreen() {
     const timer = setInterval(load, 30000);
     return () => clearInterval(timer);
   }, [load]));
+
+  const handleCopyId = async (id: string) => {
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(id);
+      } else {
+        await Clipboard.setStringAsync(id);
+      }
+      toast.success(`Copied Sell Request ID #${id.slice(-8).toUpperCase()}!`);
+    } catch {
+      toast.info(`Sell Request ID: #${id.slice(-8).toUpperCase()}`);
+    }
+  };
+
+  const handleTrackLive = (item: any) => {
+    const id = String(item.id || item._id);
+    navigation.navigate('MainTabs', {
+      screen: 'Track',
+      params: {
+        type: 'sell_requests',
+        id,
+      },
+    });
+  };
 
   const handleCancelRequest = (item: any) => {
     const id = String(item.id || item._id);
@@ -85,6 +111,24 @@ export default function MySellRequestsScreen() {
     }
   };
 
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.trim().toLowerCase();
+    return items.filter((it) => {
+      const id = String(it.id || it._id || '').toLowerCase();
+      const brand = String(it.brand || '').toLowerCase();
+      const model = String(it.model || '').toLowerCase();
+      const category = String(it.category || '').toLowerCase();
+      return (
+        id.includes(q) ||
+        `rx-sell-${id}`.includes(q) ||
+        brand.includes(q) ||
+        model.includes(q) ||
+        category.includes(q)
+      );
+    });
+  }, [items, searchQuery]);
+
   const renderItem = ({ item }: { item: any }) => {
     const id = String(item.id || item._id);
     const status = String(item.status || 'pending');
@@ -101,7 +145,7 @@ export default function MySellRequestsScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.deviceName}>{item.brand} {item.model}</Text>
-            <Text style={styles.deviceMeta}>{item.category} • {item.storage}</Text>
+            <Text style={styles.deviceMeta}>{item.category} • {item.storage || 'Standard'}</Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
             <Ionicons name={meta.icon} size={14} color={meta.color} />
@@ -110,17 +154,30 @@ export default function MySellRequestsScreen() {
         </View>
 
         <View style={styles.divider} />
+        
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Seller quote</Text>
+          <Text style={styles.label}>Valuation Quote</Text>
           <Text style={styles.amount}>₹{amount.toLocaleString('en-IN')}</Text>
         </View>
+
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Request ID</Text>
-          <Text style={styles.value}>#{id.slice(-8).toUpperCase()}</Text>
+          <Text style={styles.label}>Sell Request ID</Text>
+          <View style={styles.idChipRow}>
+            <Text style={styles.value}>#RX-SELL-{id.slice(-8).toUpperCase()}</Text>
+            <TouchableOpacity
+              onPress={() => handleCopyId(id)}
+              style={styles.copyBadge}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="copy-outline" size={12} color="#0284c7" />
+              <Text style={styles.copyBadgeText}>Copy</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Submitted</Text>
-          <Text style={styles.value}>{item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN') : '—'}</Text>
+          <Text style={styles.label}>Submitted On</Text>
+          <Text style={styles.value}>{item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</Text>
         </View>
 
         {status === 'approved' && (
@@ -128,41 +185,41 @@ export default function MySellRequestsScreen() {
             <Ionicons name="checkmark-circle" size={18} color="#047857" />
             <View style={{ flex: 1 }}>
               <Text style={styles.approvedTitle}>Sell request approved</Text>
-              <Text style={styles.approvedSub}>Your sell request has been approved by admin and confirmed. Cancellation is no longer available.</Text>
+              <Text style={styles.approvedSub}>Your quote has been approved! Doorstep pickup will be scheduled shortly.</Text>
             </View>
           </View>
         )}
 
-        {/* Customer Cancellation Button */}
-        {canCancel && (
-          <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', flexDirection: 'row', justifyContent: 'flex-end' }}>
+        {/* Action Buttons: Live Tracking & Customer Cancellation */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            onPress={() => handleTrackLive(item)}
+            style={styles.trackBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="navigate-outline" size={14} color="#ffffff" />
+            <Text style={styles.trackBtnText}>Track Live Status</Text>
+            <Ionicons name="chevron-forward" size={13} color="#ffffff" />
+          </TouchableOpacity>
+
+          {canCancel && (
             <TouchableOpacity
               onPress={() => handleCancelRequest(item)}
               disabled={isCancelling}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingVertical: 7,
-                paddingHorizontal: 12,
-                borderRadius: 8,
-                backgroundColor: '#fef2f2',
-                borderWidth: 1,
-                borderColor: '#fca5a5',
-              }}
+              style={styles.cancelBtn}
               activeOpacity={0.8}
             >
               {isCancelling ? (
                 <ActivityIndicator size="small" color="#dc2626" />
               ) : (
                 <>
-                  <Ionicons name="close-circle-outline" size={15} color="#dc2626" />
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#dc2626' }}>Cancel Request</Text>
+                  <Ionicons name="close-circle-outline" size={14} color="#dc2626" />
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     );
   };
@@ -179,12 +236,41 @@ export default function MySellRequestsScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>My Sell Requests</Text>
-          <Text style={styles.subtitle}>Track approval and pickup status</Text>
+          <Text style={styles.subtitle}>Track approval, pickup & payout status</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Track', params: { type: 'sell_requests' } })}
+          style={styles.liveTrackerBadge}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="radio-outline" size={14} color="#059669" />
+          <Text style={styles.liveTrackerBadgeText}>Tracker</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={load} style={styles.refresh}>
           <Ionicons name="refresh-outline" size={20} color="#0f172a" />
         </TouchableOpacity>
       </View>
+
+      {/* Search Input for Request ID or Device */}
+      {items.length > 0 && (
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={16} color="#64748b" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by Sell Request ID (e.g. 104) or Device..."
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
       {error ? (
         <View style={styles.empty}>
@@ -202,10 +288,19 @@ export default function MySellRequestsScreen() {
             <Text style={styles.retryText}>Sell a Device</Text>
           </TouchableOpacity>
         </View>
+      ) : filteredItems.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="search-outline" size={40} color="#94a3b8" />
+          <Text style={styles.emptyTitle}>No matches found</Text>
+          <Text style={styles.emptyText}>No sell request matching "{searchQuery}"</Text>
+          <TouchableOpacity style={styles.retry} onPress={() => setSearchQuery('')}>
+            <Text style={styles.retryText}>Clear Search</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
-          data={items}
-          keyExtractor={(item) => String(item.id)}
+          data={filteredItems}
+          keyExtractor={(item) => String(item.id || item._id)}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
@@ -240,6 +335,19 @@ const styles=StyleSheet.create({
   approvedBox:{flexDirection:'row',gap:9,alignItems:'center',marginTop:8,padding:11,borderRadius:12,backgroundColor:'#ecfdf5',borderWidth:1,borderColor:'#a7f3d0'},
   approvedTitle:{fontSize:12,fontWeight:'900',color:'#065f46'},
   approvedSub:{fontSize:10,color:'#047857',marginTop:2},
+  liveTrackerBadge:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#ecfdf5',paddingHorizontal:10,paddingVertical:6,borderRadius:12,borderWidth:1,borderColor:'#a7f3d0'},
+  liveTrackerBadgeText:{fontSize:11,fontWeight:'800',color:'#047857'},
+  searchContainer:{paddingHorizontal:16,paddingTop:12,paddingBottom:4},
+  searchBar:{flexDirection:'row',alignItems:'center',backgroundColor:'#fff',paddingHorizontal:12,paddingVertical:9,borderRadius:12,borderWidth:1,borderColor:'#e2e8f0',gap:8},
+  searchInput:{flex:1,fontSize:12,fontWeight:'600',color:'#0f172a',padding:0},
+  idChipRow:{flexDirection:'row',alignItems:'center',gap:6},
+  copyBadge:{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:'#e0f2fe',paddingHorizontal:6,paddingVertical:2,borderRadius:6},
+  copyBadgeText:{fontSize:10,fontWeight:'700',color:'#0284c7'},
+  actionRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10,marginTop:12,paddingTop:12,borderTopWidth:1,borderTopColor:'#f1f5f9'},
+  trackBtn:{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:'#0f172a',paddingVertical:9,paddingHorizontal:12,borderRadius:10},
+  trackBtnText:{fontSize:12,fontWeight:'800',color:'#ffffff'},
+  cancelBtn:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#fef2f2',paddingVertical:8,paddingHorizontal:12,borderRadius:10,borderWidth:1,borderColor:'#fca5a5'},
+  cancelBtnText:{fontSize:11,fontWeight:'800',color:'#dc2626'},
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:30},
   emptyTitle:{fontSize:17,fontWeight:'900',color:'#0f172a',marginTop:10},
   emptyText:{fontSize:12,color:'#64748b',textAlign:'center',lineHeight:18,marginTop:5,marginBottom:16},

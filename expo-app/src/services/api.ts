@@ -319,8 +319,8 @@ export const api = {
     updateNotificationPreferences: async (payload: { order_updates?: boolean; sell_request_updates?: boolean; marketing?: boolean }) =>
       request<any>('/users/me/notification-preferences', { method: 'PATCH', body: JSON.stringify(payload) }),
     getAll: async () => request<any[]>('/users'),
-    updateRole: async (id: string, role: 'admin' | 'customer') =>
-      request<any>(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+    updateRole: async (id: string, role?: 'admin' | 'customer' | string, status?: 'active' | 'inactive' | 'blocked' | string) =>
+      request<any>(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role, status }) }),
     delete: async (id: string) =>
       request<any>(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },

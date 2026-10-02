@@ -6,6 +6,7 @@ export interface IUser {
   email: string;
   password?: string;
   role: 'admin' | 'customer';
+  status?: 'active' | 'inactive' | 'blocked';
   full_name?: string;
   avatar_url?: string;
   phone?: string;
@@ -36,6 +37,7 @@ export interface UserProfile {
   id: string;
   email: string;
   role: 'admin' | 'customer';
+  status?: 'active' | 'inactive' | 'blocked';
   full_name?: string;
   avatar_url?: string;
   phone?: string;
@@ -49,7 +51,8 @@ export interface UserProfile {
 }
 
 export interface UpdateUserRoleDTO {
-  role: 'admin' | 'customer';
+  role?: 'admin' | 'customer';
+  status?: 'active' | 'inactive' | 'blocked';
 }
 
 const UserSchema = new Schema<IUser>(
@@ -70,6 +73,12 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ['admin', 'customer'],
       default: 'customer',
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'blocked'],
+      default: 'active',
       index: true,
     },
     full_name: {

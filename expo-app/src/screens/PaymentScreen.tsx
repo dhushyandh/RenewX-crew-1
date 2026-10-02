@@ -347,23 +347,48 @@ export default function PaymentScreen() {
 
             <View style={styles.optionInfo}>
               <View style={styles.optionTitleRow}>
-                <Text style={styles.optionTitle}>Online Payment (Razorpay)</Text>
+                <Text style={styles.optionTitle}>Razorpay Secure</Text>
+                <View style={[styles.recommendedBadge, { backgroundColor: '#0284C7' }]}>
+                  <Text style={[styles.recommendedText, { color: '#FFFFFF' }]}>RAZORPAY</Text>
+                </View>
                 <View style={styles.recommendedBadge}>
-                  <Text style={styles.recommendedText}>Fastest</Text>
+                  <Text style={styles.recommendedText}>Recommended</Text>
                 </View>
               </View>
               <Text style={styles.optionSubtitle}>
-                UPI (GPay, PhonePe, Paytm), Cards & NetBanking
+                UPI (Google Pay, PhonePe, Paytm), Cards & 50+ Banks NetBanking
               </Text>
 
+              {/* Supported payment method chips */}
+              <View style={[styles.badgesRow, { marginBottom: 6 }]}>
+                <View style={styles.methodTag}>
+                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>⚡ UPI / QR</Text>
+                </View>
+                <View style={styles.methodTag}>
+                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>💳 Cards</Text>
+                </View>
+                <View style={styles.methodTag}>
+                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>🏦 NetBanking</Text>
+                </View>
+                <View style={styles.methodTag}>
+                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>👛 Wallets</Text>
+                </View>
+              </View>
+
               <View style={styles.badgesRow}>
+                <View style={[styles.methodTag, { backgroundColor: '#E0F2FE' }]}>
+                  <Ionicons name="globe-outline" size={12} color="#0284C7" />
+                  <Text style={[styles.methodTagText, { color: '#0284C7', fontWeight: '700' }]}>
+                    Web & Native Supported
+                  </Text>
+                </View>
                 <View style={styles.methodTag}>
                   <Ionicons name="flash-outline" size={12} color="#059669" />
                   <Text style={styles.methodTagText}>Instant Confirmation</Text>
                 </View>
                 <View style={styles.methodTag}>
                   <Ionicons name="shield-checkmark-outline" size={12} color="#059669" />
-                  <Text style={styles.methodTagText}>100% Secure</Text>
+                  <Text style={styles.methodTagText}>100% Encrypted</Text>
                 </View>
               </View>
             </View>

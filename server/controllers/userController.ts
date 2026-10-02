@@ -31,15 +31,7 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
 export async function updateUserRole(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    const { role } = req.body;
-
-    const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
-    const newRole: 'admin' | 'customer' = normalizedRole === 'user' ? 'customer' : (normalizedRole as any);
-
-    if (!['admin', 'customer'].includes(newRole)) {
-      res.status(400).json({ success: false, error: { message: "Role must be 'admin' or 'customer'" } });
-      return;
-    }
+    const { role, status } = req.body;
 
     let targetUser = null;
     if (mongoose.Types.ObjectId.isValid(id)) {
@@ -54,16 +46,34 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // Safety check: protect primary admin from demotion
-    if (env.ADMIN_EMAIL && targetUser.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase() && newRole !== 'admin') {
-      res.status(400).json({
-        success: false,
-        error: { message: 'Primary administrator role cannot be demoted.', code: 'PROTECTED_USER' },
-      });
-      return;
+    if (role !== undefined) {
+      const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+      const newRole: 'admin' | 'customer' = normalizedRole === 'user' ? 'customer' : (normalizedRole as any);
+
+      if (!['admin', 'customer'].includes(newRole)) {
+        res.status(400).json({ success: false, error: { message: "Role must be 'admin' or 'customer'" } });
+        return;
+      }
+
+      // Safety check: protect primary admin from demotion
+      if (env.ADMIN_EMAIL && targetUser.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase() && newRole !== 'admin') {
+        res.status(400).json({
+          success: false,
+          error: { message: 'Primary administrator role cannot be demoted.', code: 'PROTECTED_USER' },
+        });
+        return;
+      }
+
+      targetUser.role = newRole;
     }
 
-    targetUser.role = newRole;
+    if (status !== undefined) {
+      const normalizedStatus = typeof status === 'string' ? status.trim().toLowerCase() : '';
+      if (['active', 'inactive', 'blocked'].includes(normalizedStatus)) {
+        targetUser.status = normalizedStatus as any;
+      }
+    }
+
     await targetUser.save();
 
     // Role persistence must not fail because a notification provider is unavailable.
@@ -72,7 +82,7 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
         action: 'account_security_update',
         userId: targetUser.id,
         title: 'Account/security update',
-        message: `Your account role has been updated to ${newRole}.`,
+        message: `Your account details have been updated by admin.`,
       });
     } catch (notificationError) {
       console.warn('[Users] Role updated but notification failed:', notificationError);
@@ -80,11 +90,12 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
 
     res.json({
       success: true,
-      message: `User role updated to ${newRole}`,
+      message: `User updated successfully`,
       data: {
         id: targetUser.id,
         email: targetUser.email,
         role: targetUser.role,
+        status: targetUser.status || 'active',
         full_name: targetUser.full_name,
         created_at: targetUser.created_at,
       },
@@ -102,6 +113,9 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
     if (mongoose.Types.ObjectId.isValid(id)) {
       targetUser = await User.findById(id);
     }
+    if (!targetUser) {
+      targetUser = await User.findOne({ $or: [{ id }, { email: id }] });
+    }
 
     if (!targetUser) {
       res.status(404).json({ success: false, error: { message: 'User not found' } });
@@ -109,7 +123,7 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
     }
 
     // Safety check: protect primary admin from deletion
-    if (targetUser.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()) {
+    if (env.ADMIN_EMAIL && targetUser.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()) {
       res.status(400).json({
         success: false,
         error: { message: 'Primary administrator account cannot be deleted.', code: 'PROTECTED_USER' },

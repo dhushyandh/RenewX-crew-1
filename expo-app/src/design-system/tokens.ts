@@ -13,6 +13,15 @@ export const renewxColors = {
   greenLight: '#E7F8EC',
   greenSoft: '#F4FCF6',
 
+  // Zepto / Quick-commerce Lush Mint & Emerald Palette
+  mint: '#E8F7ED',
+  mintLight: '#F0FDF4',
+  mintDark: '#064E2E',
+  mintBorder: '#D4EBDC',
+  emerald: '#0C7A43',
+  cream: '#FFFDF5',
+  gold: '#F59E0B',
+
   yellow: '#FFC400',
   yellowDark: '#D9A600',
   yellowLight: '#FFF4C2',

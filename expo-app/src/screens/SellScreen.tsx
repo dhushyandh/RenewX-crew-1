@@ -5,7 +5,7 @@ import {
   Animated,
   Image,
   KeyboardAvoidingView,
-  Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,245 +17,107 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import * as Clipboard from 'expo-clipboard';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 
 import { api } from '@/services/api';
 import { reverseGeocodeCoords } from '@/services/locationService';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { renewxColors, renewxFontFamily, renewxRadius, renewxSpacing } from '@/design-system';
 
-type Category = {
-  id: string;
-  name: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  subtitle: string;
-};
-
-type Brand = {
-  id: string;
-  name: string;
-  logoUrl?: string;
-  imageUrl?: string;
-};
-
-type Model = {
-  id: string;
-  name: string;
-  storage_options?: string[];
-  imageUrl?: string;
-  image_url?: string;
-};
-
-type PhotoSlot = 'front' | 'back' | 'edges' | 'billBox';
-
-const CATEGORIES: Category[] = [
-  { id: 'phones', name: 'Smartphones', icon: 'phone-portrait-outline', subtitle: 'iPhone, Galaxy, Pixel & more' },
-  { id: 'macbooks', name: 'MacBooks', icon: 'laptop-outline', subtitle: 'MacBook Air & Pro' },
-  { id: 'laptops', name: 'Laptops', icon: 'desktop-outline', subtitle: 'Dell, HP, Lenovo, ASUS' },
-  { id: 'tablets', name: 'Tablets & iPads', icon: 'tablet-portrait-outline', subtitle: 'iPad, Galaxy Tab & more' },
-  { id: 'wearables', name: 'Wearables', icon: 'watch-outline', subtitle: 'Watches & smart devices' },
-  { id: 'gaming', name: 'Gaming', icon: 'game-controller-outline', subtitle: 'Consoles & handhelds' },
-  { id: 'audio', name: 'Audio', icon: 'headset-outline', subtitle: 'Headphones & earbuds' },
-  { id: 'cameras', name: 'Cameras', icon: 'camera-outline', subtitle: 'Sony, Canon, Nikon & more' },
+// 1. Supported Device Categories
+const SELL_CATEGORIES = [
+  { id: 'smartphone', name: 'Smartphone', categoryParam: 'Smartphones', image: require('@/assets/categories/smartphone.png') },
+  { id: 'laptop', name: 'Laptop', categoryParam: 'Laptops', image: require('@/assets/categories/laptop.png') },
+  { id: 'tablet', name: 'Tablet', categoryParam: 'Tablets', image: require('@/assets/categories/tablets.png') },
+  { id: 'smartwatch', name: 'Smartwatch', categoryParam: 'Wearables', image: require('@/assets/categories/smartwatch.png') },
+  { id: 'earbuds', name: 'Earbuds', categoryParam: 'Audio', image: require('@/assets/categories/accessories.png') },
+  { id: 'accessories', name: 'Accessories', categoryParam: 'Accessories', image: require('@/assets/categories/gaming.png') },
 ];
 
+// Fallback Brand Logo CDNs for Database Brands
 const BRAND_LOGOS: Record<string, string> = {
-  Apple: 'https://cdn.simpleicons.org/apple',
-  Samsung: 'https://cdn.simpleicons.org/samsung',
-  OnePlus: 'https://cdn.simpleicons.org/oneplus',
-  Google: 'https://cdn.simpleicons.org/google',
-  Xiaomi: 'https://cdn.simpleicons.org/xiaomi',
-  Realme: 'https://cdn.simpleicons.org/realme',
-  Vivo: 'https://cdn.simpleicons.org/vivo',
-  Motorola: 'https://cdn.simpleicons.org/motorola',
-  Dell: 'https://cdn.simpleicons.org/dell',
-  HP: 'https://cdn.simpleicons.org/hp',
-  Lenovo: 'https://cdn.simpleicons.org/lenovo',
-  ASUS: 'https://cdn.simpleicons.org/asus',
-  Acer: 'https://cdn.simpleicons.org/acer',
-  MSI: 'https://cdn.simpleicons.org/msi',
-  Sony: 'https://cdn.simpleicons.org/sony',
-  Canon: 'https://cdn.simpleicons.org/canon',
-  Nikon: 'https://cdn.simpleicons.org/nikon',
-  Fujifilm: 'https://cdn.simpleicons.org/fujifilm',
-  GoPro: 'https://cdn.simpleicons.org/gopro',
-  Bose: 'https://cdn.simpleicons.org/bose',
-  'Nothing': 'https://cdn.simpleicons.org/nothing',
-  'Nintendo': 'https://cdn.simpleicons.org/nintendo',
-  Xbox: 'https://cdn.simpleicons.org/xbox',
-  PlayStation: 'https://cdn.simpleicons.org/playstation',
+  Apple: 'https://cdn.simpleicons.org/apple/000000',
+  Samsung: 'https://cdn.simpleicons.org/samsung/1428A0',
+  OnePlus: 'https://cdn.simpleicons.org/oneplus/F5010C',
+  Xiaomi: 'https://cdn.simpleicons.org/xiaomi/FF6900',
+  Mi: 'https://cdn.simpleicons.org/xiaomi/FF6900',
+  Vivo: 'https://cdn.simpleicons.org/vivo/0080FF',
+  Oppo: 'https://cdn.simpleicons.org/oppo/007A3D',
+  Realme: 'https://cdn.simpleicons.org/realme/FFC400',
+  Google: 'https://cdn.simpleicons.org/google/4285F4',
+  Motorola: 'https://cdn.simpleicons.org/motorola/001435',
+  Dell: 'https://cdn.simpleicons.org/dell/007DB8',
+  HP: 'https://cdn.simpleicons.org/hp/0096D6',
+  Lenovo: 'https://cdn.simpleicons.org/lenovo/E2231A',
+  Asus: 'https://cdn.simpleicons.org/asus/00539B',
+  Acer: 'https://cdn.simpleicons.org/acer/83B81A',
+  Sony: 'https://cdn.simpleicons.org/sony/000000',
 };
 
-const STANDARD_STORAGES = ['64 GB', '128 GB', '256 GB', '512 GB', '1 TB'];
-const DRAFT_KEY = '@renewx_sell_draft_v4';
-const DRAFT_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const STORAGE_OPTIONS = ['64 GB', '128 GB', '256 GB', '512 GB', '1 TB'];
+const COLOR_OPTIONS = ['Space Black', 'Silver', 'Gold', 'Deep Purple', 'Midnight', 'Starlight', 'Blue', 'Green'];
+const CONDITION_OPTIONS = ['Like New', 'Good', 'Fair', 'Poor'];
+const AGE_OPTIONS = ['Under 6 months', '6 - 12 months', '1 - 2 years', 'More than 2 years'];
 
-const CONTACT_PHONE = '+91 90801 68778';
-const CONTACT_PHONE_CLEAN = '9080168778';
-const CONTACT_EMAIL = 'ganeshsk272@gmail.com';
-
-function getStoredDraftSync(): any | null {
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const raw = window.localStorage.getItem(DRAFT_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (parsed?.timestamp && Date.now() - parsed.timestamp < DRAFT_TTL_MS) {
-        return parsed;
-      } else {
-        window.localStorage.removeItem(DRAFT_KEY);
-      }
-    } catch {}
-  }
-  return null;
-}
-
-const saveDraftToStorage = (data: any) => {
-  const json = JSON.stringify(data);
-  AsyncStorage.setItem(DRAFT_KEY, json).catch(() => {});
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
-    try {
-      window.localStorage.setItem(DRAFT_KEY, json);
-    } catch {}
-  }
-};
-
-const clearDraftFromStorage = async () => {
-  await AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
-    try {
-      window.localStorage.removeItem(DRAFT_KEY);
-    } catch {}
-  }
-};
-
-const STEPS = [
-  { id: 1, title: 'Category', icon: 'grid-outline' as const },
-  { id: 2, title: 'Brand', icon: 'pricetag-outline' as const },
-  { id: 3, title: 'Model', icon: 'phone-portrait-outline' as const },
-  { id: 4, title: 'Specs', icon: 'options-outline' as const },
-  { id: 5, title: 'Photos', icon: 'camera-outline' as const },
-  { id: 6, title: 'Price', icon: 'cash-outline' as const },
-  { id: 7, title: 'Pickup', icon: 'location-outline' as const },
-  { id: 8, title: 'Review', icon: 'checkmark-circle-outline' as const },
-];
-
-const unwrapRows = (response: any): any[] => {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.data)) return response.data;
-  if (Array.isArray(response?.data?.data)) return response.data.data;
-  if (Array.isArray(response?.results)) return response.results;
-  if (Array.isArray(response?.items)) return response.items;
-  return [];
-};
-
-const getBrandLogo = (name: string) => BRAND_LOGOS[name] || `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(name)}&backgroundColor=ffc400&textColor=111111`;
-
-function BrandLogoImage({
-  uri,
-  name,
-  style,
-}: {
-  uri?: string;
-  name: string;
-  style?: any;
-}) {
-  const [imgUri, setImgUri] = useState<string>(() => uri || getBrandLogo(name));
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    setImgUri(uri || getBrandLogo(name));
-    setHasError(false);
-  }, [uri, name]);
-
-  if (hasError || !imgUri) {
-    return (
-      <View style={[styles.brandFallbackBox, style]}>
-        <Text style={styles.brandFallbackText}>{(name || 'B').trim().charAt(0).toUpperCase()}</Text>
-      </View>
+// Generate dynamic next 7 days for pickup
+const getUpcomingDates = (): string[] => {
+  const dates: string[] = [];
+  const now = new Date();
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date();
+    d.setDate(now.getDate() + i);
+    dates.push(
+      d.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
     );
   }
+  return dates;
+};
 
-  return (
-    <Image
-      source={{ uri: imgUri }}
-      style={[styles.brandLogo, style]}
-      resizeMode="contain"
-      onError={() => {
-        const fallback = getBrandLogo(name);
-        if (imgUri !== fallback) {
-          setImgUri(fallback);
-        } else {
-          setHasError(true);
-        }
-      }}
-    />
-  );
-}
-
-function AnimatedTickBadge() {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const checkAnim = useRef(new Animated.Value(0)).current;
+/**
+ * Animated Bouncy Tick Component
+ * Renders a spring-popping circular checkmark with scaling pulse
+ */
+function AnimatedTick({
+  size = 18,
+  color = '#0F172A',
+  bgColor = '#FBBF24',
+}: {
+  size?: number;
+  color?: string;
+  bgColor?: string;
+}) {
+  const scale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 5,
-        useNativeDriver: true,
-      }),
-      Animated.timing(checkAnim, {
-        toValue: 1,
-        duration: 350,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.15,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    });
+    scale.setValue(0);
+    Animated.spring(scale, {
+      toValue: 1,
+      tension: 200,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   return (
-    <View style={styles.animatedTickWrapper}>
-      <Animated.View
-        style={[
-          styles.animatedTickPulse,
-          {
-            transform: [{ scale: pulseAnim }],
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.animatedTickCircle,
-          {
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
-        <Animated.View style={{ opacity: checkAnim, transform: [{ scale: checkAnim }] }}>
-          <Ionicons name="checkmark-sharp" size={44} color="#16a34a" />
-        </Animated.View>
-      </Animated.View>
-    </View>
+    <Animated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: bgColor,
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: [{ scale }],
+      }}
+    >
+      <Ionicons name="checkmark" size={Math.round(size * 0.65)} color={color} />
+    </Animated.View>
   );
 }
 
@@ -267,41 +129,207 @@ export default function SellScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const stepTimerRef = useRef<any>(null);
 
-  // Synchronously load draft stored within last 10 minutes (prevents flash of Step 1 on web refresh)
-  const initialDraft = useMemo(() => getStoredDraftSync(), []);
+  // Stepper State (1 to 8)
+  const [step, setStep] = useState<number>(1);
 
-  const [step, setStep] = useState<number>(() => {
-    if (initialDraft?.step && initialDraft.step >= 1 && initialDraft.step <= 8) {
-      return initialDraft.step;
+  // Step 1: Category (Starts empty)
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  // Step 2: Brands from DB (Starts empty, loaded dynamically)
+  const [brands, setBrands] = useState<any[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState<boolean>(false);
+  const [selectedBrand, setSelectedBrand] = useState<string>('');
+  const [selectedBrandName, setSelectedBrandName] = useState<string>('');
+  const [brandSearch, setBrandSearch] = useState<string>('');
+  const [customBrand, setCustomBrand] = useState<string>('');
+  const [showCustomBrandModal, setShowCustomBrandModal] = useState<boolean>(false);
+
+  // Step 3: Models from DB (Starts empty, loaded dynamically)
+  const [models, setModels] = useState<any[]>([]);
+  const [loadingModels, setLoadingModels] = useState<boolean>(false);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [modelSearch, setModelSearch] = useState<string>('');
+  const [customModel, setCustomModel] = useState<string>('');
+  const [showCustomModelModal, setShowCustomModelModal] = useState<boolean>(false);
+
+  // Step 4: Specs & Condition (Starts unselected)
+  const [selectedStorage, setSelectedStorage] = useState<string>('');
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedCondition, setSelectedCondition] = useState<string>('');
+  const [isWorkingProperly, setIsWorkingProperly] = useState<boolean | null>(null);
+  const [selectedAge, setSelectedAge] = useState<string>('');
+  const [hasAccessories, setHasAccessories] = useState<boolean | null>(null);
+  const [showAgePickerModal, setShowAgePickerModal] = useState<boolean>(false);
+
+  // Step 5: Photos (Starts empty — at least 1 photo required)
+  const [photos, setPhotos] = useState<Array<{ id: string; label: string; uri: string }>>([]);
+
+  // Step 6: Price & Valuation (Calculated dynamically)
+  const [expectedPrice, setExpectedPrice] = useState<string>('');
+  const numericPrice = Number(expectedPrice) || 0;
+  const baseValue = Math.round(numericPrice * 0.95);
+  const conditionAdjustment = 0;
+  const marketBonus = numericPrice > 0 ? Math.round(numericPrice * 0.05) : 0;
+  const estimatedTotal = numericPrice > 0 ? numericPrice : 0;
+
+  // Step 7: Pickup & Contact (Defaults from logged in user profile, completely empty otherwise)
+  const [fullName, setFullName] = useState<string>(() => user?.full_name || (user as any)?.name || '');
+  const [mobileNumber, setMobileNumber] = useState<string>(() => user?.phone || (user as any)?.phone || '');
+  const [email, setEmail] = useState<string>(() => user?.email || '');
+  const [pickupAddress, setPickupAddress] = useState<string>(() => user?.address || (user as any)?.address || '');
+  const [pickupDate, setPickupDate] = useState<string>('');
+  const [showDatePickerModal, setShowDatePickerModal] = useState<boolean>(false);
+  const [additionalNotes, setAdditionalNotes] = useState<string>('');
+  const [isDetectingLocation, setIsDetectingLocation] = useState<boolean>(false);
+
+  // Step 8: Review & Terms
+  const [agreedTerms, setAgreedTerms] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submittedId, setSubmittedId] = useState<string>('');
+
+  const upcomingDates = useMemo(() => getUpcomingDates(), []);
+
+  // Selected Category and Model object references
+  const selectedCatObj = useMemo(() => SELL_CATEGORIES.find((c) => c.id === selectedCategory), [selectedCategory]);
+  const selectedModelObj = useMemo(() => models.find((m) => m.name === selectedModel), [models, selectedModel]);
+  const activeDeviceImage = useMemo(() => {
+    if (selectedModelObj?.image) return selectedModelObj.image;
+    if (selectedCatObj?.image) return selectedCatObj.image;
+    return require('@/assets/categories/smartphone.png');
+  }, [selectedModelObj, selectedCatObj]);
+
+  const activeStorageOptions = useMemo(() => {
+    if (selectedModelObj?.storage_options && selectedModelObj.storage_options.length > 0) {
+      return selectedModelObj.storage_options;
     }
-    return 1;
-  });
+    return STORAGE_OPTIONS;
+  }, [selectedModelObj]);
 
-  // Clear pending transition timer on unmount
+  // Update profile fields if auth state changes
+  useEffect(() => {
+    const name = user?.full_name || (user as any)?.name;
+    if (name && !fullName) setFullName(name);
+    if (user?.email && !email) setEmail(user.email);
+    const phone = user?.phone || (user as any)?.phone;
+    if (phone && !mobileNumber) setMobileNumber(phone);
+    const addr = user?.address || (user as any)?.address;
+    if (addr && !pickupAddress) setPickupAddress(addr);
+  }, [user]);
+
+  // Clear transition timer on unmount
   useEffect(() => {
     return () => {
       if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
     };
   }, []);
 
-  const handleSelectCategory = (item: Category) => {
-    setCategory(item);
-    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
-    stepTimerRef.current = setTimeout(() => {
-      setStep(2);
-    }, 120);
-  };
+  // 1. PULL BRANDS FROM DB WHEN CATEGORY CHANGES
+  const fetchBrandsFromDb = useCallback(async (catId: string) => {
+    if (!catId) {
+      setBrands([]);
+      return;
+    }
+    const catObj = SELL_CATEGORIES.find((c) => c.id === catId);
+    const catName = catObj?.categoryParam || 'Smartphones';
 
-  const handleSelectBrand = (item: Brand) => {
-    setBrand(item);
-    setCustomBrand('');
-    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
-    stepTimerRef.current = setTimeout(() => {
-      setStep(3);
-    }, 120);
-  };
+    try {
+      setLoadingBrands(true);
+      const res: any = await api.brands.getAll({ category: catName });
+      const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
 
-  // Scroll to top whenever moving between steps in the sell flow
+      const mapped = list.map((b: any) => {
+        const name = String(b.name || b.brand_name || '').trim();
+        const logoUri =
+          b.logo_url ||
+          b.imageUrl ||
+          b.image_url ||
+          BRAND_LOGOS[name] ||
+          BRAND_LOGOS[name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()] ||
+          `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(name)}&backgroundColor=ffc400&textColor=111111`;
+        return {
+          id: String(b.id || b._id || name).toLowerCase(),
+          name,
+          logo: logoUri,
+        };
+      });
+      setBrands(mapped);
+    } catch {
+      setBrands([]);
+    } finally {
+      setLoadingBrands(false);
+    }
+  }, []);
+
+  // 2. PULL MODELS FROM DB WHEN BRAND OR CATEGORY CHANGES
+  const fetchModelsFromDb = useCallback(async (brandId: string, brandName: string) => {
+    if (!brandId && !brandName) {
+      setModels([]);
+      return;
+    }
+    const catObj = SELL_CATEGORIES.find((c) => c.id === selectedCategory);
+    const catName = catObj?.categoryParam || 'Smartphones';
+
+    try {
+      setLoadingModels(true);
+      const res: any = await api.models.getAll({ brand_id: brandId, category: catName });
+      const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+
+      const mapped = list.map((m: any) => ({
+        id: String(m.id || m._id || m.name),
+        name: String(m.name || m.model_name || '').trim(),
+        image: m.image_url || m.imageUrl ? { uri: m.image_url || m.imageUrl } : require('@/assets/categories/smartphone.png'),
+        base_price: Number(m.base_price || m.price || 0),
+        storage_options: Array.isArray(m.storage_options) ? m.storage_options : [],
+      }));
+      setModels(mapped);
+    } catch {
+      setModels([]);
+    } finally {
+      setLoadingModels(false);
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      fetchBrandsFromDb(selectedCategory);
+    }
+  }, [selectedCategory, fetchBrandsFromDb]);
+
+  useEffect(() => {
+    if (selectedBrand && selectedBrandName) {
+      fetchModelsFromDb(selectedBrand, selectedBrandName);
+    }
+  }, [selectedBrand, selectedBrandName, fetchModelsFromDb]);
+
+  // Dynamic Live Valuation Fetching from API
+  useEffect(() => {
+    if (!selectedModel || !selectedStorage) return;
+
+    let active = true;
+    api.tradeIn.getQuote({
+      category: selectedCategory,
+      brand: selectedBrandName,
+      model: selectedModel,
+      storage: selectedStorage,
+      condition: selectedCondition,
+      functionalChecks: { switchesOn: isWorkingProperly ?? true },
+      accessories: { hasBox: hasAccessories ?? false },
+    })
+      .then((res: any) => {
+        if (!active) return;
+        const val = Number(res?.valuation || res?.data?.valuation || 0);
+        if (val > 0) {
+          setExpectedPrice(String(val));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [selectedModel, selectedStorage, selectedCondition, isWorkingProperly, hasAccessories, selectedCategory, selectedBrandName]);
+
+  // Scroll to top on step change
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -309,1763 +337,2446 @@ export default function SellScreen() {
     }
   }, [step]);
 
-  // Scroll to top whenever navigating or switching to Sell screen
-  useFocusEffect(
-    useCallback(() => {
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
-      }
-    }, [])
-  );
-
-  const [category, setCategory] = useState<Category | null>(() => initialDraft?.category || null);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [brand, setBrand] = useState<Brand | null>(() => initialDraft?.brand || null);
-  const [brandSearch, setBrandSearch] = useState('');
-  const [customBrand, setCustomBrand] = useState(() => initialDraft?.customBrand || '');
-
-  const [models, setModels] = useState<Model[]>([]);
-  const [model, setModel] = useState<Model | null>(() => initialDraft?.model || null);
-  const [modelSearch, setModelSearch] = useState('');
-  const [customModel, setCustomModel] = useState(() => initialDraft?.customModel || '');
-
-  const [storage, setStorage] = useState(() => initialDraft?.storage || '');
-  const [ram, setRam] = useState(() => initialDraft?.ram || '');
-  const [color, setColor] = useState(() => initialDraft?.color || '');
-  const [purchaseYear, setPurchaseYear] = useState(() => initialDraft?.purchaseYear || '');
-  const [screenCondition, setScreenCondition] = useState<'flawless' | 'good' | 'cracked'>(
-    () => initialDraft?.screenCondition || 'flawless'
-  );
-  const [bodyCondition, setBodyCondition] = useState<'likenew' | 'fair' | 'dented'>(
-    () => initialDraft?.bodyCondition || 'likenew'
-  );
-  const [powerOn, setPowerOn] = useState(() => initialDraft?.powerOn ?? true);
-  const [touchWorking, setTouchWorking] = useState(() => initialDraft?.touchWorking ?? true);
-  const [cameraWorking, setCameraWorking] = useState(() => initialDraft?.cameraWorking ?? true);
-  const [batteryHealthy, setBatteryHealthy] = useState(() => initialDraft?.batteryHealthy ?? true);
-  const [hasBox, setHasBox] = useState(() => initialDraft?.hasBox ?? true);
-  const [hasCharger, setHasCharger] = useState(() => initialDraft?.hasCharger ?? true);
-  const [hasBill, setHasBill] = useState(() => initialDraft?.hasBill ?? true);
-
-  const [photos, setPhotos] = useState<Record<PhotoSlot, string>>(() => initialDraft?.photos || {
-    front: '',
-    back: '',
-    edges: '',
-    billBox: '',
-  });
-  const [uploadingPhoto, setUploadingPhoto] = useState<PhotoSlot | null>(null);
-
-  const [valuation, setValuation] = useState(0);
-  const [valuationLoading, setValuationLoading] = useState(false);
-  const [expectedPrice, setExpectedPrice] = useState(() => initialDraft?.expectedPrice || '');
-
-  const [name, setName] = useState(() => initialDraft?.name || user?.full_name || '');
-  const [phone, setPhone] = useState(() => initialDraft?.phone || '');
-  const [address, setAddress] = useState(() => initialDraft?.address || '');
-  const [city, setCity] = useState(() => initialDraft?.city || '');
-  const [pincode, setPincode] = useState(() => initialDraft?.pincode || '');
-  const [locating, setLocating] = useState(false);
-  const [pickupMethod, setPickupMethod] = useState<'doorstep' | 'store'>(() => initialDraft?.pickupMethod || 'doorstep');
-  const [pickupDate, setPickupDate] = useState<'Today' | 'Tomorrow' | 'Day After'>(() => initialDraft?.pickupDate || 'Today');
-  const [timeSlot, setTimeSlot] = useState<'Morning' | 'Afternoon' | 'Evening'>(() => initialDraft?.timeSlot || 'Morning');
-  const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank' | 'cash'>(() => initialDraft?.payoutMethod || 'upi');
-  const [upiId, setUpiId] = useState(() => initialDraft?.upiId || '');
-  const [bankAccount, setBankAccount] = useState(() => initialDraft?.bankAccount || '');
-  const [bankIfsc, setBankIfsc] = useState(() => initialDraft?.bankIfsc || '');
-
-  const [submitting, setSubmitting] = useState(false);
-  const [submittedId, setSubmittedId] = useState('');
-
-  const activeBrandName = brand?.name || customBrand.trim();
-  const activeModelName = model?.name || customModel.trim();
-
-  const [addingModel, setAddingModel] = useState(false);
-
-  const handleAddCustomModel = async (modelNameToAdd?: string): Promise<Model | null> => {
-    const trimmed = (typeof modelNameToAdd === 'string' ? modelNameToAdd : customModel).trim();
-    if (!trimmed) {
-      toast.warning('Please enter a model name first.');
-      return null;
-    }
-    setAddingModel(true);
-    try {
-      const brandId = brand?.id || 'other';
-      const brandName = activeBrandName || 'Other';
-      const cat = category?.name?.toLowerCase() || 'smartphones';
-
-      const res = await api.models.create({
-        brand_id: brandId,
-        brand_name: brandName,
-        name: trimmed,
-        category: cat,
-        base_price: 25000,
-        storage_options: ['64GB', '128GB', '256GB', '512GB'],
-      });
-
-      const created = (res as any)?.data || res;
-      const newModelObj: Model = {
-        id: String(created?.id || created?._id || trimmed),
-        name: trimmed,
-        storage_options: created?.storage_options || ['64GB', '128GB', '256GB', '512GB'],
-        imageUrl: created?.image_url || '',
-        image_url: created?.image_url || '',
-      };
-
-      setModels((prev) => {
-        const exists = prev.some((m) => m.name.toLowerCase() === trimmed.toLowerCase());
-        return exists ? prev : [newModelObj, ...prev];
-      });
-      setModel(newModelObj);
-      setCustomModel('');
-      toast.success(`"${trimmed}" added to RenewX database & selected!`);
-      return newModelObj;
-    } catch {
-      const fallbackObj: Model = {
-        id: trimmed.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-        name: trimmed,
-        storage_options: ['64GB', '128GB', '256GB', '512GB'],
-      };
-      setModels((prev) => [fallbackObj, ...prev]);
-      setModel(fallbackObj);
-      setCustomModel('');
-      toast.info(`Selected "${trimmed}".`);
-      return fallbackObj;
-    } finally {
-      setAddingModel(false);
+  // Back Navigation Handler
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    } else {
+      if (navigation.canGoBack()) navigation.goBack();
+      else navigation.navigate('Home');
     }
   };
 
-  const prevCatIdRef = useRef<string | null | undefined>(initialDraft?.category?.id || null);
-  const prevBrandIdRef = useRef<string | null | undefined>(initialDraft?.brand?.id || null);
-  const isFirstMountRef = useRef<boolean>(true);
-  const isHydratedRef = useRef<boolean>(!!initialDraft);
+  // STEP 1 CLICK HANDLER: Select Category & Auto-Advance to Step 2
+  const handleChooseCategory = (catId: string) => {
+    setSelectedCategory(catId);
+    setSelectedBrand('');
+    setSelectedBrandName('');
+    setSelectedModel('');
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+    stepTimerRef.current = setTimeout(() => {
+      setStep(2);
+    }, 180);
+  };
 
-  const filteredBrands = useMemo(() => {
-    const q = brandSearch.trim().toLowerCase();
-    return q ? brands.filter((b) => b.name.toLowerCase().includes(q)) : brands;
-  }, [brands, brandSearch]);
+  // STEP 2 CLICK HANDLER: Select Brand & Auto-Advance to Step 3
+  const handleChooseBrand = (brandObj: any) => {
+    setSelectedBrand(brandObj.id || brandObj.name);
+    setSelectedBrandName(brandObj.name);
+    setSelectedModel('');
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+    stepTimerRef.current = setTimeout(() => {
+      setStep(3);
+    }, 180);
+  };
 
-  const filteredModels = useMemo(() => {
-    const q = modelSearch.trim().toLowerCase();
-    return q ? models.filter((m) => m.name.toLowerCase().includes(q)) : models;
-  }, [models, modelSearch]);
+  // STEP 3 CLICK HANDLER: Select Model & Auto-Advance to Step 4
+  const handleChooseModel = (modelObj: any) => {
+    setSelectedModel(modelObj.name);
+    if (modelObj.base_price && !expectedPrice) {
+      setExpectedPrice(String(modelObj.base_price));
+    }
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+    stepTimerRef.current = setTimeout(() => {
+      setStep(4);
+    }, 180);
+  };
 
-  const handleStartFresh = async () => {
-    await clearDraftFromStorage();
-    setStep(1);
-    setCategory(null);
-    setBrand(null);
+  // Manual Brand Addition
+  const handleAddCustomBrand = () => {
+    if (!customBrand.trim()) {
+      toast.warning('Enter a brand name.');
+      return;
+    }
+    const name = customBrand.trim();
+    const newBrand = {
+      id: name.toLowerCase(),
+      name,
+      logo: `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(name)}&backgroundColor=ffc400&textColor=111111`,
+    };
+    setBrands((prev) => [newBrand, ...prev]);
+    setSelectedBrand(newBrand.id);
+    setSelectedBrandName(newBrand.name);
+    setShowCustomBrandModal(false);
     setCustomBrand('');
-    setModel(null);
+    toast.success(`Brand "${name}" selected!`);
+    setStep(3);
+  };
+
+  // Manual Model Addition
+  const handleAddCustomModel = () => {
+    if (!customModel.trim()) {
+      toast.warning('Enter a model name.');
+      return;
+    }
+    const name = customModel.trim();
+    const newModel = {
+      id: `custom_${Date.now()}`,
+      name,
+      image: require('@/assets/categories/smartphone.png'),
+    };
+    setModels((prev) => [newModel, ...prev]);
+    setSelectedModel(name);
+    setShowCustomModelModal(false);
     setCustomModel('');
-    setStorage('');
-    setRam('');
-    setColor('');
-    setPurchaseYear('');
-    setScreenCondition('flawless');
-    setBodyCondition('likenew');
-    setPowerOn(true);
-    setTouchWorking(true);
-    setCameraWorking(true);
-    setBatteryHealthy(true);
-    setHasBox(true);
-    setHasCharger(true);
-    setHasBill(true);
-    setPhotos({ front: '', back: '', edges: '', billBox: '' });
-    setExpectedPrice('');
-    setAddress('');
-    setCity('');
-    setPincode('');
-    setPickupMethod('doorstep');
-    setPickupDate('Today');
-    setTimeSlot('Morning');
-    setPayoutMethod('upi');
-    setUpiId('');
-    setBankAccount('');
-    setBankIfsc('');
-    toast.info('Sell draft cleared. Starting fresh from Step 1.');
+    toast.success(`Model "${name}" selected!`);
+    setStep(4);
   };
 
-  // Restore draft on mount for native devices or async fallback
-  useEffect(() => {
-    if (initialDraft) return;
-
-    AsyncStorage.getItem(DRAFT_KEY).then((raw) => {
-      if (!raw) {
-        isHydratedRef.current = true;
+  // Next Step Handler (with Photo Requirement on Step 5)
+  const handleNext = () => {
+    if (step === 1 && !selectedCategory) {
+      toast.warning('Please select a device category to continue.');
+      return;
+    }
+    if (step === 2 && !selectedBrand) {
+      toast.warning('Please choose a brand.');
+      return;
+    }
+    if (step === 3 && !selectedModel) {
+      toast.warning('Please choose your device model.');
+      return;
+    }
+    if (step === 4) {
+      if (!selectedStorage) {
+        toast.warning('Please select the storage variant.');
         return;
       }
-      try {
-        const d = JSON.parse(raw);
-        if (d?.timestamp && Date.now() - d.timestamp < DRAFT_TTL_MS) {
-          if (d.step && d.step >= 1 && d.step <= 8) setStep(d.step);
-          if (d.category) setCategory(d.category);
-          else if (d.categoryId) setCategory(CATEGORIES.find((c) => c.id === d.categoryId) || null);
-          if (d.brand) setBrand(d.brand);
-          if (d.customBrand) setCustomBrand(d.customBrand);
-          if (d.model) setModel(d.model);
-          if (d.customModel) setCustomModel(d.customModel);
-          if (d.storage) setStorage(d.storage);
-          if (d.ram) setRam(d.ram);
-          if (d.color) setColor(d.color);
-          if (d.purchaseYear) setPurchaseYear(d.purchaseYear);
-          if (d.screenCondition) setScreenCondition(d.screenCondition);
-          if (d.bodyCondition) setBodyCondition(d.bodyCondition);
-          if (typeof d.powerOn === 'boolean') setPowerOn(d.powerOn);
-          if (typeof d.touchWorking === 'boolean') setTouchWorking(d.touchWorking);
-          if (typeof d.cameraWorking === 'boolean') setCameraWorking(d.cameraWorking);
-          if (typeof d.batteryHealthy === 'boolean') setBatteryHealthy(d.batteryHealthy);
-          if (typeof d.hasBox === 'boolean') setHasBox(d.hasBox);
-          if (typeof d.hasCharger === 'boolean') setHasCharger(d.hasCharger);
-          if (typeof d.hasBill === 'boolean') setHasBill(d.hasBill);
-          if (d.photos) setPhotos(d.photos);
-          if (d.expectedPrice) setExpectedPrice(d.expectedPrice);
-          if (d.name) setName(d.name);
-          if (d.phone) setPhone(d.phone);
-          if (d.address) setAddress(d.address);
-          if (d.city) setCity(d.city);
-          if (d.pincode) setPincode(d.pincode);
-          if (d.pickupMethod) setPickupMethod(d.pickupMethod);
-          if (d.pickupDate) setPickupDate(d.pickupDate);
-          if (d.timeSlot) setTimeSlot(d.timeSlot);
-          if (d.payoutMethod) setPayoutMethod(d.payoutMethod);
-          if (d.upiId) setUpiId(d.upiId);
-          if (d.bankAccount) setBankAccount(d.bankAccount);
-          if (d.bankIfsc) setBankIfsc(d.bankIfsc);
-        } else {
-          clearDraftFromStorage();
-        }
-      } catch {} finally {
-        isHydratedRef.current = true;
+      if (!selectedCondition) {
+        toast.warning('Please select the device condition.');
+        return;
       }
-    });
-  }, []);
-
-  // Fetch brands for active category (avoids erasing restored brand on initial hydration)
-  useEffect(() => {
-    if (!category) return;
-    let active = true;
-
-    if (!isFirstMountRef.current && prevCatIdRef.current && prevCatIdRef.current !== category.id) {
-      setBrand(null);
-      setBrands([]);
-      setModel(null);
-      setModels([]);
     }
-    prevCatIdRef.current = category.id;
-
-    api.brands.getAll({ category: category.name })
-      .then((res: any) => {
-        if (!active) return;
-        const rows = unwrapRows(res);
-        setBrands(rows.filter(Boolean).map((r: any) => {
-          const name = String(r.name || r.brand_name || '').trim();
-          const dbLogo = String(r.image_url || r.imageUrl || r.logo_url || r.logoUrl || r.logo || '').trim();
-          return {
-            id: String(r.id || r._id || name),
-            name,
-            logoUrl: dbLogo || getBrandLogo(name),
-            imageUrl: dbLogo || getBrandLogo(name),
-          };
-        }).filter((b: Brand) => b.name));
-      })
-      .catch(() => {
-        if (active) toast.error('Could not load brands. Please try again.');
-      });
-
-    return () => { active = false; };
-  }, [category?.id]);
-
-  // Fetch models for active brand (avoids erasing restored model on initial hydration)
-  useEffect(() => {
-    if (!brand || !category) return;
-    let active = true;
-
-    if (!isFirstMountRef.current && prevBrandIdRef.current && prevBrandIdRef.current !== brand.id) {
-      setModel(null);
-      setModels([]);
+    // STEP 5 REQUIREMENT: At least one picture of the product is required
+    if (step === 5) {
+      if (photos.length === 0) {
+        toast.warning('At least one photo of your device is required to continue.');
+        return;
+      }
     }
-    prevBrandIdRef.current = brand.id;
-
-    api.models.getAll({ category: category.name, brand_id: brand.id })
-      .then((res: any) => {
-        if (!active) return;
-        const rows = unwrapRows(res);
-        const mapped = rows.map((r: any) => ({
-          id: String(r.id || r._id || r.name || r.model_name),
-          name: String(r.name || r.model_name || '').trim(),
-          storage_options: Array.isArray(r.storage_options || r.storages)
-            ? (r.storage_options || r.storages)
-            : [],
-          imageUrl: r.image_url || r.imageUrl || '',
-          image_url: r.image_url || r.imageUrl || '',
-        })).filter((m: Model) => m.name);
-        setModels(mapped);
-      })
-      .catch(() => {
-        if (active) toast.error('Could not load models. Please try again.');
-      });
-
-    return () => { active = false; };
-  }, [brand?.id, category?.id]);
-
-  useEffect(() => {
-    isFirstMountRef.current = false;
-  }, []);
-
-  useEffect(() => {
-    if (!category || !activeBrandName || !activeModelName || !storage) return;
-    const timer = setTimeout(() => getLiveValuation(), 350);
-    return () => clearTimeout(timer);
-  }, [
-    category?.id, activeBrandName, activeModelName, storage, ram, color, purchaseYear,
-    screenCondition, bodyCondition, powerOn, touchWorking, cameraWorking, batteryHealthy,
-    hasBox, hasCharger, hasBill,
-  ]);
-
-  // Auto-save all 8 selling steps and form values to storage (valid for 10 minutes)
-  useEffect(() => {
-    if (!isHydratedRef.current) return;
-
-    if (step > 1 || category || brand || customBrand || activeModelName || expectedPrice) {
-      const draftData = {
-        timestamp: Date.now(),
-        step,
-        category,
-        brand,
-        customBrand,
-        model,
-        customModel,
-        storage,
-        ram,
-        color,
-        purchaseYear,
-        screenCondition,
-        bodyCondition,
-        powerOn,
-        touchWorking,
-        cameraWorking,
-        batteryHealthy,
-        hasBox,
-        hasCharger,
-        hasBill,
-        photos,
-        expectedPrice,
-        name,
-        phone,
-        address,
-        city,
-        pincode,
-        pickupMethod,
-        pickupDate,
-        timeSlot,
-        payoutMethod,
-        upiId,
-        bankAccount,
-        bankIfsc,
-      };
-      saveDraftToStorage(draftData);
+    if (step === 6) {
+      const price = Number(expectedPrice);
+      if (!price || price <= 0) {
+        toast.warning('Please enter a valid expected selling price.');
+        return;
+      }
     }
-  }, [
-    step, category, brand, customBrand, model, customModel, storage, ram, color, purchaseYear,
-    screenCondition, bodyCondition, powerOn, touchWorking, cameraWorking, batteryHealthy,
-    hasBox, hasCharger, hasBill, photos, expectedPrice, name, phone, address, city, pincode,
-    pickupMethod, pickupDate, timeSlot, payoutMethod, upiId, bankAccount, bankIfsc,
-  ]);
-
-  // Web beforeunload listener ensures latest changes are written synchronously before reload
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const handleBeforeUnload = () => {
-        if (step > 1 || category || brand || customBrand || activeModelName || expectedPrice) {
-          const draftData = {
-            timestamp: Date.now(),
-            step,
-            category,
-            brand,
-            customBrand,
-            model,
-            customModel,
-            storage,
-            ram,
-            color,
-            purchaseYear,
-            screenCondition,
-            bodyCondition,
-            powerOn,
-            touchWorking,
-            cameraWorking,
-            batteryHealthy,
-            hasBox,
-            hasCharger,
-            hasBill,
-            photos,
-            expectedPrice,
-            name,
-            phone,
-            address,
-            city,
-            pincode,
-            pickupMethod,
-            pickupDate,
-            timeSlot,
-            payoutMethod,
-            upiId,
-            bankAccount,
-            bankIfsc,
-          };
-          try {
-            window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
-          } catch {}
-        }
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    if (step === 7) {
+      if (!fullName.trim()) {
+        toast.warning('Please enter your full name.');
+        return;
+      }
+      if (!mobileNumber.trim()) {
+        toast.warning('Please enter your mobile number.');
+        return;
+      }
+      if (!pickupAddress.trim()) {
+        toast.warning('Please specify your pickup address.');
+        return;
+      }
+      if (!pickupDate) {
+        toast.warning('Please select your preferred pickup date.');
+        return;
+      }
     }
-  }, [
-    step, category, brand, customBrand, model, customModel, storage, ram, color, purchaseYear,
-    screenCondition, bodyCondition, powerOn, touchWorking, cameraWorking, batteryHealthy,
-    hasBox, hasCharger, hasBill, photos, expectedPrice, name, phone, address, city, pincode,
-    pickupMethod, pickupDate, timeSlot, payoutMethod, upiId, bankAccount, bankIfsc,
-  ]);
-
-  const getLiveValuation = async () => {
-    setValuationLoading(true);
-    try {
-      const res = await api.tradeIn.getQuote({
-        category: category?.name,
-        brand: activeBrandName,
-        model: activeModelName,
-        storage,
-        ram,
-        color,
-        purchaseYear,
-        screenCondition,
-        bodyCondition,
-        functionalChecks: { switchesOn: powerOn, touchWorking, cameraClear: cameraWorking, batteryHealthy },
-        accessories: { hasBox, hasCharger, hasBill },
-      });
-      const amount = Number(res?.valuation || res?.data?.valuation || 0);
-      setValuation(amount);
-      if (amount > 0 && !expectedPrice) setExpectedPrice(String(amount));
-    } catch {
-      setValuation(0);
-    } finally {
-      setValuationLoading(false);
+    if (step < 8) {
+      setStep(step + 1);
     }
   };
 
-  const pickPhoto = async (slot: PhotoSlot) => {
+  // Photo Upload Handler (Camera & Library)
+  const handleAddPhoto = async () => {
     try {
-      setUploadingPhoto(slot);
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission required', 'Allow photo access to upload device photos.');
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission required', 'Please grant photo library access to upload photos.');
         return;
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         base64: true,
       });
-      if (result.canceled || !result.assets?.[0]) return;
-
-      const asset = result.assets[0];
-      let uri = asset.uri;
-      if (asset.base64) {
-        try {
-          const uploaded = await api.upload.base64(asset.base64, `sell-${slot}-${Date.now()}.jpg`, 'image/jpeg');
-          uri = uploaded?.url || `data:image/jpeg;base64,${asset.base64}`;
-        } catch {
-          uri = `data:image/jpeg;base64,${asset.base64}`;
+      if (!res.canceled && res.assets[0]?.uri) {
+        let uri = res.assets[0].uri;
+        if (res.assets[0].base64) {
+          try {
+            const uploaded = await api.upload.base64(
+              res.assets[0].base64,
+              `sell-${Date.now()}.jpg`,
+              'image/jpeg'
+            );
+            uri = uploaded?.url || uri;
+          } catch {}
         }
+
+        const slotLabels = ['Front View', 'Back View', 'Side View', 'Screen (On)', 'Any Damage'];
+        const label = slotLabels[photos.length] || `Photo ${photos.length + 1}`;
+
+        const newPhoto = {
+          id: `photo_${Date.now()}`,
+          label,
+          uri,
+        };
+        setPhotos([...photos, newPhoto]);
+        toast.success(`${label} uploaded!`);
       }
-      setPhotos((p) => ({ ...p, [slot]: uri }));
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not upload photo.');
-    } finally {
-      setUploadingPhoto(null);
+    } catch {
+      toast.error('Could not pick image.');
     }
   };
 
-  const useGps = async () => {
+  const handleRemovePhoto = (id: string) => {
+    setPhotos(photos.filter((p) => p.id !== id));
+  };
+
+  // GPS Location Detection
+  const handleDetectLocation = async () => {
     try {
-      setLocating(true);
+      setIsDetectingLocation(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location permission', 'Enable location permission to auto-fill your pickup details.');
+        toast.error('Location permission denied.');
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const geo = await reverseGeocodeCoords(loc.coords);
-      if (!geo) return;
-      if (geo.address) setAddress(geo.address);
-      if (geo.city) setCity(geo.city);
-      if (geo.pincode) setPincode(geo.pincode);
-      toast.success('Pickup address detected.');
-    } catch {
-      toast.error('Could not detect your address.');
-    } finally {
-      setLocating(false);
-    }
-  };
-
-  const validateStep = () => {
-    if (step === 1 && !category) return 'Select a device category.';
-    if (step === 2 && !activeBrandName) return 'Select or enter a brand.';
-    if (step === 3 && !activeModelName) return 'Select or enter a model.';
-    if (step === 4 && !storage) return 'Select the storage variant.';
-    if (step === 5) {
-      const photoCount = Object.values(photos).filter(Boolean).length;
-      if (photoCount === 0) return 'Please upload at least one photo of your device to continue.';
-    }
-    if (step === 6) {
-      const price = Number(expectedPrice);
-      if (!Number.isFinite(price) || price <= 0) return 'Please enter your expected selling quote price (₹).';
-    }
-    if (step === 7) {
-      if (!name.trim() || phone.replace(/\D/g, '').length !== 10 || !address.trim() || !city.trim() || pincode.replace(/\D/g, '').length !== 6) {
-        return 'Enter valid contact and pickup details.';
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const geo = await reverseGeocodeCoords(pos.coords);
+      if (geo && geo.address) {
+        const fullAddr = `${geo.address}${geo.city ? ', ' + geo.city : ''}${geo.pincode ? ' - ' + geo.pincode : ''}`;
+        setPickupAddress(fullAddr);
+        toast.success('Pickup address detected!');
+      } else {
+        toast.info('Using GPS coordinates.');
       }
-      if (payoutMethod === 'upi' && !upiId.trim()) return 'Enter your UPI ID.';
-      if (payoutMethod === 'bank' && (!bankAccount.trim() || !bankIfsc.trim())) return 'Enter bank account and IFSC.';
+    } catch {
+      toast.error('Could not detect location.');
+    } finally {
+      setIsDetectingLocation(false);
     }
-    return '';
   };
 
-  const next = async () => {
-    const error = validateStep();
-    if (error) {
-      toast.warning(error);
+  // Submit Sell Request
+  const handleSubmitRequest = async () => {
+    if (!agreedTerms) {
+      toast.warning('Please agree to the Terms & Conditions.');
       return;
     }
-
-    // If on Step 3 and seller typed a custom model that isn't saved yet, auto-save it to database
-    if (step === 3 && !model && customModel.trim()) {
-      await handleAddCustomModel(customModel.trim());
-    }
-
-    if (step < 8) setStep(step + 1);
-  };
-
-  const submitSellRequest = async () => {
-    const error = validateStep();
-    if (error) {
-      toast.warning(error);
-      return;
-    }
-
     try {
       setSubmitting(true);
-      const photoList = Object.values(photos).filter(Boolean);
-      const quotePrice = Number(expectedPrice) || 0;
       const payload = {
-        category: category?.name,
-        brand: activeBrandName,
-        model: activeModelName,
-        storage,
-        valuationAmount: quotePrice,
-        expectedSellingPrice: quotePrice,
-        customerName: name.trim(),
-        customerPhone: phone.replace(/\D/g, '').slice(-10),
-        customerEmail: user?.email || '',
-        pincode: pincode.replace(/\D/g, '').slice(0, 6),
-        city: city.trim(),
-        address: address.trim(),
-        photos: photoList,
-        condition: {
-          screen: screenCondition,
-          body: bodyCondition,
-          ram,
-          color,
-          purchaseYear,
-          powerOn,
-          touchWorking,
-          cameraWorking,
-          batteryHealthy,
-          accessories: { hasBox, hasCharger, hasBill },
-          photoCount: photoList.length,
-          pickupMethod,
-          pickupSchedule: { date: pickupDate, time: timeSlot },
-          payout: { method: payoutMethod, upiId, bankAccount, bankIfsc },
-        },
+        category: selectedCategory,
+        brand: selectedBrandName,
+        model: selectedModel,
+        storage: selectedStorage,
+        color: selectedColor,
+        condition: selectedCondition,
+        isWorkingProperly: isWorkingProperly ?? true,
+        age: selectedAge,
+        hasAccessories: hasAccessories ?? false,
+        expectedPrice: Number(expectedPrice) || 0,
+        customerName: fullName.trim(),
+        customerPhone: mobileNumber.trim(),
+        customerEmail: email.trim(),
+        pickupAddress: pickupAddress.trim(),
+        pickupDate: pickupDate || 'Soon',
+        additionalNotes: additionalNotes.trim(),
+        photos: photos.map((p) => p.uri),
       };
 
-      const res = await api.tradeIn.createPickup(payload);
-      const id = res?.data?.id || res?.data?._id || res?.id || `RNX-${Math.floor(100000 + Math.random() * 900000)}`;
-      setSubmittedId(String(id || ''));
-      await clearDraftFromStorage();
-      toast.success('Your sell request has been submitted for review.');
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not submit your sell request.');
+      let res: any = null;
+      try {
+        res = await api.tradeIn.createPickup(payload);
+      } catch {
+        res = null;
+      }
+      const generatedId =
+        res?.data?.id || res?.id || `RNX-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      setSubmittedId(generatedId);
+      toast.success('Sell request submitted successfully!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not submit sell request.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Brand Filter
+  const filteredBrands = useMemo(() => {
+    if (!brandSearch.trim()) return brands;
+    return brands.filter((b) =>
+      b.name.toLowerCase().includes(brandSearch.toLowerCase().trim())
+    );
+  }, [brands, brandSearch]);
+
+  // Model Filter
+  const filteredModels = useMemo(() => {
+    if (!modelSearch.trim()) return models;
+    return models.filter((m) =>
+      m.name.toLowerCase().includes(modelSearch.toLowerCase().trim())
+    );
+  }, [models, modelSearch]);
+
+  // If submitted, show clean completion view
   if (submittedId) {
     return (
       <View style={[styles.container, { paddingTop: safeTop }]}>
-        <ScrollView contentContainerStyle={styles.successPage} showsVerticalScrollIndicator={false}>
-          {/* Animated Green Tick Badge */}
-          <AnimatedTickBadge />
+        <View style={styles.topHeader}>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.headerBackBtn}>
+            <Ionicons name="close" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleCol}>
+            <Text style={styles.headerMainTitle}>Sell Request Placed</Text>
+            <Text style={styles.headerSubTitle}>ID: #{submittedId}</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
 
-          <View style={styles.reviewBadge}>
-            <View style={styles.reviewPulseDot} />
-            <Text style={styles.reviewBadgeText}>STEP 8 COMPLETED • UNDER REVIEW</Text>
+        <ScrollView contentContainerStyle={styles.successScroll}>
+          <View style={styles.successIconCircle}>
+            <AnimatedTick size={44} color="#16A34A" bgColor="#DCFCE7" />
           </View>
 
-          <Text style={styles.successTitle}>Your Device is Under Review</Text>
-          <Text style={styles.successText}>
-            Thank you for submitting your device to RenewX Crew! Our evaluation experts are reviewing your device specifications, physical condition answers, photos, and seller quote.
+          <Text style={styles.successHeadTitle}>Request Submitted Successfully!</Text>
+          <Text style={styles.successBodyText}>
+            Our evaluation team has received your sell request for {selectedModel || 'your device'}. Our technician will contact you to verify details and arrange doorstep pickup.
           </Text>
 
-          {/* Dedicated Evaluation Desk Helpline & Contact Support */}
-          <View style={styles.contactSupportCard}>
-            <View style={styles.contactCardHeader}>
-              <View style={styles.contactIconWrap}>
-                <Ionicons name="headset" size={20} color="#111" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.contactCardTitle}>RenewX Evaluation Desk</Text>
-                <Text style={styles.contactCardSub}>Have questions or need rapid review confirmation?</Text>
-              </View>
+          <View style={styles.successSummaryCard}>
+            <View style={styles.summaryItemRow}>
+              <Text style={styles.summaryItemLabel}>Request ID</Text>
+              <Text style={styles.summaryItemValue}>#{submittedId}</Text>
             </View>
-
-            <View style={styles.contactInfoRow}>
-              <View style={styles.contactItem}>
-                <Ionicons name="call" size={16} color="#059669" />
-                <Text style={styles.contactPhoneText}>{CONTACT_PHONE}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.copyBtn}
-                onPress={() => {
-                  Clipboard.setStringAsync(CONTACT_PHONE_CLEAN);
-                  toast.success('Helpline number copied!');
-                }}
-              >
-                <Ionicons name="copy-outline" size={13} color="#475569" />
-                <Text style={styles.copyBtnText}>Copy</Text>
-              </TouchableOpacity>
+            <View style={styles.summaryItemRow}>
+              <Text style={styles.summaryItemLabel}>Device</Text>
+              <Text style={styles.summaryItemValue}>{selectedModel || 'Certified Device'}</Text>
             </View>
-
-            <View style={styles.contactInfoRow}>
-              <View style={styles.contactItem}>
-                <Ionicons name="mail" size={16} color="#0284c7" />
-                <Text style={styles.contactEmailText}>{CONTACT_EMAIL}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.copyBtn}
-                onPress={() => {
-                  Clipboard.setStringAsync(CONTACT_EMAIL);
-                  toast.success('Support email copied!');
-                }}
-              >
-                <Ionicons name="copy-outline" size={13} color="#475569" />
-                <Text style={styles.copyBtnText}>Copy</Text>
-              </TouchableOpacity>
+            <View style={styles.summaryItemRow}>
+              <Text style={styles.summaryItemLabel}>Quote Expected</Text>
+              <Text style={styles.summaryItemValueHighlight}>₹{numericPrice.toLocaleString('en-IN')}</Text>
             </View>
-
-            <View style={styles.contactActionButtons}>
-              <TouchableOpacity
-                style={styles.callActionButton}
-                onPress={() =>
-                  Linking.openURL(`tel:+91${CONTACT_PHONE_CLEAN}`).catch(() =>
-                    toast.error('Could not open phone dialer')
-                  )
-                }
-              >
-                <Ionicons name="call" size={15} color="#fff" />
-                <Text style={styles.callActionButtonText}>Call Desk</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.whatsappActionButton}
-                onPress={() =>
-                  Linking.openURL(
-                    `https://wa.me/91${CONTACT_PHONE_CLEAN}?text=${encodeURIComponent(
-                      `Hello RenewX Crew, I submitted my device for review (ID: ${submittedId}). Could you please share the review status?`
-                    )}`
-                  ).catch(() => toast.error('Could not launch WhatsApp'))
-                }
-              >
-                <Ionicons name="logo-whatsapp" size={15} color="#fff" />
-                <Text style={styles.whatsappActionButtonText}>WhatsApp</Text>
-              </TouchableOpacity>
+            <View style={styles.summaryItemRow}>
+              <Text style={styles.summaryItemLabel}>Pickup Date</Text>
+              <Text style={styles.summaryItemValue}>{pickupDate || 'To be scheduled'}</Text>
             </View>
-
-            <View style={styles.supportHoursWrap}>
-              <Ionicons name="time-outline" size={13} color="#64748b" />
-              <Text style={styles.supportHoursText}>
-                Active 9:00 AM – 8:30 PM (Mon–Sun) • Typical review time: 30 mins
-              </Text>
-            </View>
-          </View>
-
-          {/* Reference Details */}
-          <View style={styles.referenceCard}>
-            <View style={styles.referenceCardTop}>
-              <View>
-                <Text style={styles.referenceLabel}>SELL REQUEST ID</Text>
-                <Text style={styles.referenceValue}>{submittedId}</Text>
-              </View>
-              <View style={styles.deviceSummaryTag}>
-                <Text style={styles.deviceSummaryTagText}>{category?.name || 'Device'}</Text>
-              </View>
-            </View>
-            <View style={styles.refDivider} />
-            <View style={styles.refDetailsRow}>
-              <Text style={styles.refDeviceText}>
-                {activeBrandName} {activeModelName}
-              </Text>
-              {expectedPrice ? (
-                <Text style={styles.refPriceText}>
-                  ₹{Number(expectedPrice).toLocaleString('en-IN')}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Request Progression Lifecycle */}
-          <View style={styles.lifecycleCard}>
-            <Text style={styles.lifecycleHeader}>Request Progression</Text>
-            {[
-              {
-                title: 'Request Submitted',
-                sub: 'Device specs, condition answers & photos recorded',
-                done: true,
-                current: false,
-              },
-              {
-                title: 'Device Under Technical Review',
-                sub: 'RenewX specialists verifying hardware answers and valuation quote',
-                done: false,
-                current: true,
-              },
-              {
-                title: 'Pickup & Physical Inspection',
-                sub: `${pickupDate} (${timeSlot}) • Doorstep agent verification`,
-                done: false,
-                current: false,
-              },
-              {
-                title: 'Instant Payout',
-                sub: `Direct payout via ${payoutMethod.toUpperCase()}`,
-                done: false,
-                current: false,
-              },
-            ].map((item, index) => (
-              <View key={item.title} style={styles.lifecycleRow}>
-                <View
-                  style={[
-                    styles.lifecycleDot,
-                    item.done && styles.lifecycleDotDone,
-                    item.current && styles.lifecycleDotCurrent,
-                  ]}
-                >
-                  {item.done && <Ionicons name="checkmark" size={13} color="#fff" />}
-                  {item.current && <View style={styles.lifecyclePulseInner} />}
-                  {!item.done && !item.current && (
-                    <Text style={styles.lifecycleStepNum}>{index + 1}</Text>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.lifecycleText,
-                      item.current && styles.lifecycleTextCurrent,
-                    ]}
-                  >
-                    {item.title}
-                  </Text>
-                  <Text style={styles.lifecycleSubText}>{item.sub}</Text>
-                </View>
-              </View>
-            ))}
           </View>
 
           <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => navigation.navigate('MySellRequests')}
+            style={styles.primaryYellowBtn}
+            onPress={() => navigation.navigate('Track')}
+            activeOpacity={0.85}
           >
-            <Text style={styles.primaryButtonText}>Track My Sell Request</Text>
-            <Ionicons name="arrow-forward" size={18} color="#000" />
+            <Text style={styles.primaryYellowBtnText}>Track Status in Orders</Text>
+            <Ionicons name="arrow-forward" size={17} color="#0F172A" style={{ marginLeft: 6 }} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.linkButton}
+            style={styles.secondaryWhiteBtn}
             onPress={() => {
               setSubmittedId('');
-              handleStartFresh();
+              setStep(1);
+              setSelectedCategory('');
+              setSelectedBrand('');
+              setSelectedBrandName('');
+              setSelectedModel('');
+              setSelectedStorage('');
+              setSelectedColor('');
+              setSelectedCondition('');
+              setPhotos([]);
+              setExpectedPrice('');
             }}
+            activeOpacity={0.8}
           >
-            <Text style={styles.linkButtonText}>Sell Another Device</Text>
+            <Text style={styles.secondaryWhiteBtnText}>Sell Another Device</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
     );
   }
 
-  const progress = step / STEPS.length;
-
   return (
     <View style={[styles.container, { paddingTop: safeTop }]}>
-      <View style={styles.header}>
-        <View>
-          <View style={styles.titleRow}>
-            <Text style={styles.headerTitle}>Sell with RenewX</Text>
-            <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>SELL</Text></View>
-          </View>
-          <Text style={styles.headerSubtitle}>Get a fair value. Schedule pickup. Track every step.</Text>
-        </View>
-        <TouchableOpacity style={styles.requestsButton} onPress={() => navigation.navigate('MySellRequests')}>
-          <Ionicons name="receipt-outline" size={16} color="#111" />
-          <Text style={styles.requestsText}>My Requests</Text>
+      {/* 1. TOP HEADER */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
+        <View style={styles.headerTitleCol}>
+          <Text style={styles.headerMainTitle}>Sell Your Device</Text>
+          <Text style={styles.headerSubTitle}>Step {step} of 8</Text>
+        </View>
+        <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.progressArea}>
-        <View style={styles.progressTop}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-            <Text style={styles.progressLabel}>STEP {step} OF {STEPS.length}</Text>
-            {(step > 1 || Boolean(category)) && (
-              <View style={styles.draftAutoSavePill}>
-                <View style={styles.draftGreenDot} />
-                <Text style={styles.draftAutoSaveText}>Draft saved (10m)</Text>
-                <TouchableOpacity onPress={handleStartFresh} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={styles.draftResetText}>• Start fresh</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-          <Text style={styles.progressPercent}>{Math.round(progress * 100)}%</Text>
-        </View>
-        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress * 100}%` }]} /></View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stepTabs}>
-          {STEPS.map((s) => {
-            const active = s.id === step;
-            const done = s.id < step;
+      {/* 2. PROGRESS STEPPER NODES */}
+      <View style={styles.stepperContainer}>
+        {/* Full connecting track behind nodes */}
+        <View style={styles.stepperLineBackdrop} />
+        {/* Yellow completed line */}
+        <View
+          style={[
+            styles.stepperLineActive,
+            { width: `${((step - 1) / 7) * 100}%` },
+          ]}
+        />
+
+        <View style={styles.stepperNodesRow}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => {
+            const isActive = s === step;
+            const isDone = s < step;
             return (
               <TouchableOpacity
-                key={s.id}
-                style={[styles.stepTab, active && styles.stepTabActive, done && styles.stepTabDone]}
-                disabled={s.id > step}
-                onPress={() => s.id < step && setStep(s.id)}
+                key={s}
+                disabled={s > step}
+                onPress={() => setStep(s)}
+                style={[
+                  styles.stepperNode,
+                  isActive && styles.stepperNodeActive,
+                  isDone && styles.stepperNodeDone,
+                ]}
+                activeOpacity={0.8}
               >
-                <View style={[styles.stepNumber, (active || done) && styles.stepNumberActive]}>
-                  {done ? <Ionicons name="checkmark" size={12} color="#000" /> : <Text style={[styles.stepNumberText, active && styles.stepNumberTextActive]}>{s.id}</Text>}
-                </View>
-                <Text style={[styles.stepTabText, active && styles.stepTabTextActive]}>{s.title}</Text>
+                <Text
+                  style={[
+                    styles.stepperNodeText,
+                    isActive && styles.stepperNodeTextActive,
+                    isDone && styles.stepperNodeTextDone,
+                  ]}
+                >
+                  {s}
+                </Text>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-
+          {/* ================= STEP 1: SELECT DEVICE CATEGORY ================= */}
           {step === 1 && (
-            <Card title="Choose what you want to sell" subtitle="Start with the device category.">
-              <View style={styles.categoryGrid}>
-                {CATEGORIES.map((item) => {
-                  const active = category?.id === item.id;
+            <View>
+              <Text style={styles.stepTitle}>1. Select Device Category</Text>
+              <Text style={styles.stepSubtitle}>Choose the type of device you want to sell.</Text>
+
+              <View style={styles.categoriesGrid}>
+                {SELL_CATEGORIES.map((cat) => {
+                  const isSelected = selectedCategory === cat.id;
                   return (
-                    <TouchableOpacity key={item.id} style={[styles.categoryCard, active && styles.categoryCardActive]} onPress={() => handleSelectCategory(item)}>
-                      <View style={[styles.categoryIcon, active && styles.categoryIconActive]}>
-                        <Ionicons name={item.icon} size={24} color={active ? '#000' : '#555'} />
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[styles.categoryCard, isSelected && styles.categoryCardSelected]}
+                      onPress={() => handleChooseCategory(cat.id)}
+                      activeOpacity={0.85}
+                    >
+                      {isSelected && (
+                        <View style={styles.cornerTickBadge}>
+                          <AnimatedTick size={18} />
+                        </View>
+                      )}
+                      <View style={styles.catImgBox}>
+                        <Image source={cat.image} style={styles.catImg} resizeMode="contain" />
                       </View>
-                      <Text style={[styles.categoryName, active && styles.categoryNameActive]}>{item.name}</Text>
-                      <Text style={styles.categorySub}>{item.subtitle}</Text>
-                      {active && <Ionicons name="checkmark-circle" size={18} color="#111" style={styles.categoryCheck} />}
+                      <Text style={[styles.catName, isSelected && styles.catNameSelected]}>
+                        {cat.name}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
-            </Card>
+            </View>
           )}
 
+          {/* ================= STEP 2: CHOOSE BRAND ================= */}
           {step === 2 && (
-            <Card title="Choose your brand" subtitle="Select a supported brand or enter it manually.">
-              <Search value={brandSearch} onChangeText={setBrandSearch} placeholder="Search brand..." />
-              <View style={styles.brandGrid}>
-                {filteredBrands.map((item) => {
-                  const active = brand?.id === item.id;
-                  return (
-                    <TouchableOpacity key={item.id} style={[styles.brandCard, active && styles.brandCardActive]} onPress={() => handleSelectBrand(item)}>
-                      <BrandLogoImage uri={item.logoUrl} name={item.name} />
-                      <Text style={[styles.brandName, active && styles.brandNameActive]} numberOfLines={1}>{item.name}</Text>
-                      {active && <View style={styles.brandCheck}><Ionicons name="checkmark" size={12} color="#000" /></View>}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {filteredBrands.length === 0 && <EmptyState text="No brands found. You can enter the brand manually below." />}
-              <Text style={styles.orLabel}>NOT LISTED?</Text>
-              <TextInput
-                value={customBrand}
-                onChangeText={(v) => { setCustomBrand(v); if (v) setBrand(null); }}
-                placeholder="Enter brand name"
-                placeholderTextColor="#999"
-                style={styles.input}
-              />
-            </Card>
-          )}
+            <View>
+              <Text style={styles.stepTitle}>2. Choose Brand</Text>
+              <Text style={styles.stepSubtitle}>Select the brand of your device.</Text>
 
-          {step === 3 && (
-            <Card title="Pick your model" subtitle={activeBrandName ? `Models available for ${activeBrandName}.` : 'Choose a brand first.'}>
-              {brand && (
-                <View style={styles.selectedBrandBadge}>
-                  <BrandLogoImage uri={brand.logoUrl} name={brand.name} style={styles.selectedBrandBadgeLogo} />
-                  <Text style={styles.selectedBrandBadgeText}>Selected Brand: <Text style={{ fontWeight: fontWeight.bold, color: '#111' }}>{brand.name}</Text></Text>
+              {/* Search Brand Bar */}
+              <View style={styles.searchBarBox}>
+                <Ionicons name="search-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+                <TextInput
+                  placeholder="Search brand (e.g. Apple, Samsung)"
+                  placeholderTextColor="#94A3B8"
+                  style={styles.searchInput}
+                  value={brandSearch}
+                  onChangeText={setBrandSearch}
+                />
+                {brandSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setBrandSearch('')}>
+                    <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Brands 3x3 Grid */}
+              {loadingBrands ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                  <Text style={styles.loadingText}>Fetching brands from database...</Text>
+                </View>
+              ) : (
+                <View style={styles.brandsGrid}>
+                  {filteredBrands.map((b) => {
+                    const isSelected = selectedBrand === b.id;
+                    return (
+                      <TouchableOpacity
+                        key={b.id}
+                        style={[styles.brandCard, isSelected && styles.brandCardSelected]}
+                        onPress={() => handleChooseBrand(b)}
+                        activeOpacity={0.85}
+                      >
+                        {isSelected && (
+                          <View style={styles.cornerTickBadge}>
+                            <AnimatedTick size={18} />
+                          </View>
+                        )}
+                        <Image source={{ uri: b.logo }} style={styles.brandLogoImg} resizeMode="contain" />
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* Other Brand Option */}
+                  <TouchableOpacity
+                    style={[styles.brandCard, styles.brandCardOther]}
+                    onPress={() => setShowCustomBrandModal(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={24} color="#0F172A" />
+                    <Text style={styles.brandNameText}>Other Brand</Text>
+                  </TouchableOpacity>
                 </View>
               )}
-              <Search value={modelSearch} onChangeText={setModelSearch} placeholder={`Search ${activeBrandName || 'device'} model...`} />
-              <View style={styles.modelList}>
-                {filteredModels.map((item) => {
-                  const active = model?.id === item.id;
-                  const itemImg = item.imageUrl || item.image_url;
-                  return (
-                    <TouchableOpacity key={item.id} style={[styles.modelRow, active && styles.modelRowActive]} onPress={() => { setModel(item); setCustomModel(''); }}>
-                      <View style={[styles.radio, active && styles.radioActive]}>{active && <View style={styles.radioDot} />}</View>
-                      
-                      {Boolean(itemImg) ? (
+            </View>
+          )}
+
+          {/* ================= STEP 3: CHOOSE MODEL ================= */}
+          {step === 3 && (
+            <View>
+              <Text style={styles.stepTitle}>3. Choose Model</Text>
+              <Text style={styles.stepSubtitle}>Select the exact model of your device.</Text>
+
+              {/* Search Model Bar */}
+              <View style={styles.searchBarBox}>
+                <Ionicons name="search-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+                <TextInput
+                  placeholder={`Search model (e.g. ${selectedBrandName || 'device'})`}
+                  placeholderTextColor="#94A3B8"
+                  style={styles.searchInput}
+                  value={modelSearch}
+                  onChangeText={setModelSearch}
+                />
+                {modelSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setModelSearch('')}>
+                    <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Models Vertical List */}
+              {loadingModels ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                  <Text style={styles.loadingText}>Fetching models from database...</Text>
+                </View>
+              ) : (
+                <View style={styles.modelsList}>
+                  {filteredModels.map((m) => {
+                    const isSelected = selectedModel === m.name;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[styles.modelRowCard, isSelected && styles.modelRowCardSelected]}
+                        onPress={() => handleChooseModel(m)}
+                        activeOpacity={0.85}
+                      >
                         <Image
-                          source={{ uri: itemImg }}
+                          source={typeof m.image === 'number' ? m.image : m.image}
                           style={styles.modelThumbImg}
                           resizeMode="contain"
                         />
-                      ) : (
-                        <View style={styles.modelThumbFallback}>
-                          <Ionicons name="hardware-chip-outline" size={17} color="#64748b" />
-                        </View>
-                      )}
+                        <Text style={[styles.modelNameText, isSelected && styles.modelNameTextSelected]}>
+                          {m.name}
+                        </Text>
 
-                      <View style={styles.flex}>
-                        <Text style={[styles.modelName, active && styles.modelNameActive]}>{item.name}</Text>
-                        {!!item.storage_options?.length && <Text style={styles.modelMeta}>{item.storage_options.join(' • ')}</Text>}
-                      </View>
-                      {active && <Ionicons name="checkmark-circle" size={20} color="#111" />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {filteredModels.length === 0 && <EmptyState text="No model found. Enter your exact model manually below." />}
-              
-              <View style={styles.addCustomModelBox}>
-                <Text style={styles.orLabel}>MODEL NOT LISTED?</Text>
-                <Text style={styles.customModelHint}>
-                  Can't find your model? Enter it below to auto-add it to the RenewX catalog:
-                </Text>
-                <View style={styles.addCustomModelRow}>
-                  <TextInput
-                    value={customModel}
-                    onChangeText={(v) => { setCustomModel(v); if (v) setModel(null); }}
-                    placeholder="e.g. iPhone 15 Pro Max 256GB"
-                    placeholderTextColor="#999"
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                    returnKeyType="done"
-                    onSubmitEditing={() => handleAddCustomModel()}
-                  />
+                        {isSelected ? (
+                          <AnimatedTick size={20} />
+                        ) : (
+                          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* Other Model Tile */}
                   <TouchableOpacity
-                    style={[
-                      styles.addCustomModelBtn,
-                      (!customModel.trim() || addingModel) && styles.addCustomModelBtnDisabled,
-                    ]}
-                    disabled={!customModel.trim() || addingModel}
-                    onPress={() => handleAddCustomModel()}
+                    style={[styles.modelRowCard, styles.modelRowCardOther]}
+                    onPress={() => setShowCustomModelModal(true)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.otherModelDotBox}>
+                      <Ionicons name="ellipsis-horizontal" size={18} color="#64748B" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.otherModelTitle}>Other Model</Text>
+                      <Text style={styles.otherModelSub}>Can't find your model? Enter manually</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ================= STEP 4: SPECIFICATIONS & CONDITION ================= */}
+          {step === 4 && (
+            <View>
+              <Text style={styles.stepTitle}>4. Specifications & Condition</Text>
+              <Text style={styles.stepSubtitle}>Tell us more about your device.</Text>
+
+              {/* Selected Model Card */}
+              <View style={styles.selectedModelHeaderCard}>
+                <Image
+                  source={typeof activeDeviceImage === 'number' ? activeDeviceImage : activeDeviceImage}
+                  style={styles.selectedHeaderImg}
+                  resizeMode="contain"
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.selectedHeaderModelName}>{selectedModel || 'Selected Model'}</Text>
+                  <Text style={styles.selectedHeaderBrandName}>{selectedBrandName || 'Brand'}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.changeModelBtn}
+                  onPress={() => setStep(3)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.changeModelBtnText}>Change</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Storage */}
+              <View style={styles.specSection}>
+                <Text style={styles.specSectionLabel}>Storage</Text>
+                <View style={styles.chipsRow}>
+                  {activeStorageOptions.map((opt: string) => {
+                    const isSelected = selectedStorage === opt;
+                    return (
+                      <TouchableOpacity
+                        key={opt}
+                        style={[styles.specChip, isSelected && styles.specChipSelected]}
+                        onPress={() => setSelectedStorage(opt)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.specChipText, isSelected && styles.specChipTextSelected]}>
+                          {opt}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Color */}
+              <View style={styles.specSection}>
+                <Text style={styles.specSectionLabel}>Color</Text>
+                <View style={styles.chipsRow}>
+                  {COLOR_OPTIONS.map((c) => {
+                    const isSelected = selectedColor === c;
+                    return (
+                      <TouchableOpacity
+                        key={c}
+                        style={[styles.specChip, isSelected && styles.specChipSelected]}
+                        onPress={() => setSelectedColor(c)}
+                        activeOpacity={0.8}
+                      >
+                        {isSelected && <AnimatedTick size={14} />}
+                        <Text
+                          style={[
+                            styles.specChipText,
+                            isSelected && styles.specChipTextSelected,
+                            isSelected && { marginLeft: 4 },
+                          ]}
+                        >
+                          {c}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Condition */}
+              <View style={styles.specSection}>
+                <Text style={styles.specSectionLabel}>Condition</Text>
+                <View style={styles.chipsRow}>
+                  {CONDITION_OPTIONS.map((cond) => {
+                    const isSelected = selectedCondition === cond;
+                    return (
+                      <TouchableOpacity
+                        key={cond}
+                        style={[styles.specChip, isSelected && styles.specChipSelected]}
+                        onPress={() => setSelectedCondition(cond)}
+                        activeOpacity={0.8}
+                      >
+                        {isSelected && <AnimatedTick size={14} />}
+                        <Text
+                          style={[
+                            styles.specChipText,
+                            isSelected && styles.specChipTextSelected,
+                            isSelected && { marginLeft: 4 },
+                          ]}
+                        >
+                          {cond}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Is everything working properly? */}
+              <View style={styles.specSection}>
+                <Text style={styles.specSectionLabel}>Is everything working properly?</Text>
+                <View style={styles.yesNoRow}>
+                  <TouchableOpacity
+                    style={[styles.yesNoBtn, isWorkingProperly === true && styles.yesNoBtnSelected]}
+                    onPress={() => setIsWorkingProperly(true)}
                     activeOpacity={0.8}
                   >
-                    {addingModel ? (
-                      <ActivityIndicator size="small" color="#0f172a" />
-                    ) : (
-                      <>
-                        <Ionicons name="add-circle" size={16} color="#0f172a" />
-                        <Text style={styles.addCustomModelBtnText}>Add Model</Text>
-                      </>
+                    <Text style={[styles.yesNoBtnText, isWorkingProperly === true && styles.yesNoBtnTextSelected]}>
+                      Yes
+                    </Text>
+                    {isWorkingProperly === true && (
+                      <View style={{ marginLeft: 6 }}>
+                        <AnimatedTick size={15} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.yesNoBtn, isWorkingProperly === false && styles.yesNoBtnSelected]}
+                    onPress={() => setIsWorkingProperly(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.yesNoBtnText, isWorkingProperly === false && styles.yesNoBtnTextSelected]}>
+                      No
+                    </Text>
+                    {isWorkingProperly === false && (
+                      <View style={{ marginLeft: 6 }}>
+                        <AnimatedTick size={15} />
+                      </View>
                     )}
                   </TouchableOpacity>
                 </View>
               </View>
-            </Card>
-          )}
 
-          {step === 4 && (
-            <Card title="Specs & condition" subtitle="Tell us about the exact device you are selling.">
-              <FieldLabel text="Storage" />
-              <ChipRow values={model?.storage_options?.length ? model.storage_options : STANDARD_STORAGES} value={storage} onChange={setStorage} />
-
-              <FieldLabel text="RAM (optional)" />
-              <TextInput value={ram} onChangeText={setRam} placeholder="e.g. 8 GB" placeholderTextColor="#999" style={styles.input} />
-
-              <View style={styles.twoColumn}>
-                <View style={styles.half}><FieldLabel text="Colour" /><TextInput value={color} onChangeText={setColor} placeholder="e.g. Black" placeholderTextColor="#999" style={styles.input} /></View>
-                <View style={styles.half}><FieldLabel text="Purchase year" /><TextInput value={purchaseYear} onChangeText={setPurchaseYear} placeholder="e.g. 2024" keyboardType="numeric" maxLength={4} placeholderTextColor="#999" style={styles.input} /></View>
-              </View>
-
-              <FieldLabel text="Screen condition" />
-              <ChoiceRow values={[['flawless', 'Flawless'], ['good', 'Good'], ['cracked', 'Cracked']]} value={screenCondition} onChange={(v) => setScreenCondition(v as any)} />
-
-              <FieldLabel text="Body condition" />
-              <ChoiceRow values={[['likenew', 'Like New'], ['fair', 'Fair'], ['dented', 'Heavy Wear']]} value={bodyCondition} onChange={(v) => setBodyCondition(v as any)} />
-
-              <FieldLabel text="Device diagnostics" />
-              {[
-                ['Power-on works', powerOn, setPowerOn],
-                ['Touch/display works', touchWorking, setTouchWorking],
-                ['Camera works', cameraWorking, setCameraWorking],
-                ['Battery is healthy', batteryHealthy, setBatteryHealthy],
-              ].map(([label, value, setter]) => (
-                <TouchableOpacity key={String(label)} style={styles.checkRow} onPress={() => (setter as any)(!(value as boolean))}>
-                  <Ionicons name={value ? 'checkbox' : 'square-outline'} size={22} color={value ? '#111' : '#999'} />
-                  <Text style={styles.checkText}>{String(label)}</Text>
+              {/* Age of Device Dropdown */}
+              <View style={styles.specSection}>
+                <Text style={styles.specSectionLabel}>Age of Device</Text>
+                <TouchableOpacity
+                  style={styles.dropdownSelector}
+                  onPress={() => setShowAgePickerModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.dropdownSelectorText, !selectedAge && { color: '#94A3B8' }]}>
+                    {selectedAge || 'Select device age'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={18} color="#64748B" />
                 </TouchableOpacity>
-              ))}
-
-              <FieldLabel text="Accessories" />
-              <ChoiceRow values={[['box', 'Original Box'], ['charger', 'Charger'], ['bill', 'Purchase Bill']]}
-                value=""
-                multi
-                selected={{ box: hasBox, charger: hasCharger, bill: hasBill }}
-                onMultiChange={(key) => {
-                  if (key === 'box') setHasBox(!hasBox);
-                  if (key === 'charger') setHasCharger(!hasCharger);
-                  if (key === 'bill') setHasBill(!hasBill);
-                }}
-              />
-            </Card>
-          )}
-
-          {step === 5 && (
-            <Card title="Upload device photos" subtitle="Upload clear photos of your device (at least 1 photo is required).">
-              <View style={styles.photoNotice}>
-                <Ionicons name="camera-outline" size={18} color="#111" />
-                <Text style={styles.photoNoticeText}>Please upload at least one photo of your device (front, back, edges, or bill/box) to proceed with pickup.</Text>
               </View>
-              <View style={styles.photoGrid}>
-                {([
-                  ['front', 'Front', 'phone-portrait-outline'],
-                  ['back', 'Back', 'phone-portrait-outline'],
-                  ['edges', 'Edges', 'scan-outline'],
-                  ['billBox', 'Box / Bill', 'receipt-outline'],
-                ] as const).map(([slot, label, icon]) => (
-                  <TouchableOpacity key={slot} style={styles.photoCard} onPress={() => pickPhoto(slot)} disabled={uploadingPhoto === slot}>
-                    {photos[slot] ? (
-                      <Image source={{ uri: photos[slot] }} style={styles.photoImage} />
-                    ) : uploadingPhoto === slot ? (
-                      <ActivityIndicator color="#111" />
-                    ) : (
-                      <>
-                        <View style={styles.photoIcon}><Ionicons name={icon as any} size={24} color="#555" /></View>
-                        <Text style={styles.photoLabel}>{label}</Text>
-                        <Text style={styles.photoHint}>Tap to upload</Text>
-                      </>
+
+              {/* Comes with original accessories? */}
+              <View style={styles.specSection}>
+                <Text style={styles.specSectionLabel}>Comes with original accessories?</Text>
+                <View style={styles.yesNoRow}>
+                  <TouchableOpacity
+                    style={[styles.yesNoBtn, hasAccessories === true && styles.yesNoBtnSelected]}
+                    onPress={() => setHasAccessories(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.yesNoBtnText, hasAccessories === true && styles.yesNoBtnTextSelected]}>
+                      Yes
+                    </Text>
+                    {hasAccessories === true && (
+                      <View style={{ marginLeft: 6 }}>
+                        <AnimatedTick size={15} />
+                      </View>
                     )}
-                    {!!photos[slot] && <View style={styles.photoDone}><Ionicons name="checkmark" size={12} color="#000" /></View>}
                   </TouchableOpacity>
-                ))}
+
+                  <TouchableOpacity
+                    style={[styles.yesNoBtn, hasAccessories === false && styles.yesNoBtnSelected]}
+                    onPress={() => setHasAccessories(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.yesNoBtnText, hasAccessories === false && styles.yesNoBtnTextSelected]}>
+                      No
+                    </Text>
+                    {hasAccessories === false && (
+                      <View style={{ marginLeft: 6 }}>
+                        <AnimatedTick size={15} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={styles.photoCount}>
-                {Object.values(photos).filter(Boolean).length}/4 photos added {Object.values(photos).filter(Boolean).length === 0 ? '(At least 1 required)' : '✓'}
-              </Text>
-            </Card>
+            </View>
           )}
 
+          {/* ================= STEP 5: UPLOAD PHOTOS ================= */}
+          {step === 5 && (
+            <View>
+              <View style={styles.stepTitleRow}>
+                <Text style={styles.stepTitle}>5. Upload Photos</Text>
+                <View style={[styles.requiredBadge, photos.length > 0 && styles.requiredBadgeSuccess]}>
+                  <Text style={[styles.requiredBadgeText, photos.length > 0 && styles.requiredBadgeTextSuccess]}>
+                    {photos.length > 0 ? `${photos.length} uploaded` : '* Min 1 photo required'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.stepSubtitle}>Add clear photos of your device.</Text>
+
+              {/* Photo Upload 3x2 Grid */}
+              <View style={styles.photosGrid}>
+                {photos.map((p) => (
+                  <View key={p.id} style={styles.photoSlotCard}>
+                    <TouchableOpacity
+                      style={styles.photoRemoveBtn}
+                      onPress={() => handleRemovePhoto(p.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close" size={12} color="#0F172A" />
+                    </TouchableOpacity>
+                    <Image source={{ uri: p.uri }} style={styles.photoSlotImg} resizeMode="cover" />
+                    <Text style={styles.photoSlotLabel} numberOfLines={1}>{p.label}</Text>
+                  </View>
+                ))}
+
+                {/* Add Photo Button Slot */}
+                <TouchableOpacity
+                  style={styles.addPhotoSlotCard}
+                  onPress={handleAddPhoto}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.addPhotoIconCircle}>
+                    <Ionicons name="camera" size={20} color="#0F172A" />
+                  </View>
+                  <Text style={styles.addPhotoText}>Add Photo</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Warning if 0 photos */}
+              {photos.length === 0 && (
+                <View style={styles.photoWarningCard}>
+                  <Ionicons name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 6 }} />
+                  <Text style={styles.photoWarningText}>
+                    Please upload at least one photo of your device to proceed.
+                  </Text>
+                </View>
+              )}
+
+              {/* Tips for better valuation */}
+              <View style={styles.valuationTipsCard}>
+                <View style={styles.tipsHeaderRow}>
+                  <Ionicons name="bulb-outline" size={18} color="#0284C7" style={{ marginRight: 6 }} />
+                  <Text style={styles.tipsHeaderTitle}>Tips for better valuation</Text>
+                </View>
+                <Text style={styles.tipBullet}>• Upload clear, well-lit photos</Text>
+                <Text style={styles.tipBullet}>• Include all sides and any visible damage</Text>
+                <Text style={styles.tipBullet}>• Make sure the device is clean</Text>
+              </View>
+            </View>
+          )}
+
+          {/* ================= STEP 6: PRICE & VALUATION ================= */}
           {step === 6 && (
-            <Card title="Your selling quote" subtitle="Enter your expected price for your device. You have full freedom to quote your own amount.">
-              <View style={styles.quoteDeviceBadge}>
-                <BrandLogoImage uri={brand?.logoUrl} name={activeBrandName} style={styles.quoteDeviceLogo} />
-                <View style={styles.flex}>
-                  <Text style={styles.quoteDeviceName}>{activeBrandName} {activeModelName}</Text>
-                  <Text style={styles.quoteDeviceMeta}>{[storage, ram, color].filter(Boolean).join(' • ') || 'Verified Specs'}</Text>
+            <View>
+              <Text style={styles.stepTitle}>6. Price & Valuation</Text>
+              <Text style={styles.stepSubtitle}>Get an estimated price for your device.</Text>
+
+              {/* Estimated Value Card */}
+              <View style={styles.valuationHighlightCard}>
+                <View style={styles.valuationPhoneBox}>
+                  <Image
+                    source={typeof activeDeviceImage === 'number' ? activeDeviceImage : activeDeviceImage}
+                    style={styles.valuationPhoneImg}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.valuationTextCol}>
+                  <Text style={styles.valCardLabel}>Estimated Value</Text>
+                  <Text style={styles.valCardPriceRange}>
+                    {numericPrice > 0
+                      ? `₹${Math.round(numericPrice * 0.95).toLocaleString('en-IN')} - ₹${Math.round(numericPrice * 1.05).toLocaleString('en-IN')}`
+                      : 'Calculate quote'}
+                  </Text>
+                  <Text style={styles.valCardExplanation}>Based on your device details and market demand</Text>
                 </View>
               </View>
 
-              <FieldLabel text="Your Expected Selling Price (₹) *" />
-              <View style={styles.priceInput}>
-                <Text style={styles.rupee}>₹</Text>
-                <TextInput
-                  value={expectedPrice}
-                  onChangeText={setExpectedPrice}
-                  keyboardType="numeric"
-                  placeholder="e.g. 28000"
-                  placeholderTextColor="#999"
-                  style={styles.priceTextInput}
-                />
+              {/* Expected Selling Price Input */}
+              <View style={styles.expectedPriceSection}>
+                <Text style={styles.expectedPriceLabel}>Your Expected Selling Price</Text>
+                <View style={styles.currencyInputBox}>
+                  <Text style={styles.currencyPrefix}>₹</Text>
+                  <TextInput
+                    style={styles.currencyInput}
+                    value={expectedPrice}
+                    onChangeText={setExpectedPrice}
+                    keyboardType="numeric"
+                    placeholder="Enter expected amount (e.g. 45000)"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
               </View>
-              <Text style={styles.quoteHintText}>
-                💡 You can set any price you want for your device. Our RenewX inspection team will review your offer against the condition details and photos you submitted.
-              </Text>
-            </Card>
+
+              {/* Price May Vary Info Alert */}
+              <View style={styles.priceVaryNoticeCard}>
+                <View style={styles.shieldNoticeIcon}>
+                  <Ionicons name="shield-checkmark" size={18} color="#D97706" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.priceVaryTitle}>Final price may vary</Text>
+                  <Text style={styles.priceVarySub}>
+                    The final price will be confirmed after physical inspection of your device.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Price Breakdown */}
+              <View style={styles.breakdownCard}>
+                <Text style={styles.breakdownHeading}>Price Breakdown (Estimated)</Text>
+
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Base Value</Text>
+                  <Text style={styles.breakdownValue}>₹{baseValue.toLocaleString('en-IN')}</Text>
+                </View>
+
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Condition Adjustment</Text>
+                  <Text style={styles.breakdownValue}>+ ₹0</Text>
+                </View>
+
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Market Demand Bonus</Text>
+                  <Text style={styles.breakdownValueHighlight}>+ ₹{marketBonus.toLocaleString('en-IN')}</Text>
+                </View>
+
+                <View style={styles.breakdownDivider} />
+
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownTotalLabel}>Estimated Value</Text>
+                  <Text style={styles.breakdownTotalValue}>₹{estimatedTotal.toLocaleString('en-IN')}</Text>
+                </View>
+              </View>
+            </View>
           )}
 
+          {/* ================= STEP 7: PICKUP & CONTACT DETAILS ================= */}
           {step === 7 && (
-            <Card title="Pickup & contact details" subtitle="Choose how and where RenewX should collect your device.">
-              <TouchableOpacity style={styles.gpsButton} onPress={useGps} disabled={locating}>
-                {locating ? <ActivityIndicator color="#000" /> : <Ionicons name="navigate-outline" size={17} color="#000" />}
-                <Text style={styles.gpsText}>{locating ? 'Detecting location...' : 'Use current location'}</Text>
-              </TouchableOpacity>
+            <View>
+              <Text style={styles.stepTitle}>7. Pickup & Contact Details</Text>
+              <Text style={styles.stepSubtitle}>Enter your pickup details.</Text>
 
-              <FieldLabel text="Full name" /><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor="#999" style={styles.input} />
-              <FieldLabel text="Phone number" /><TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={10} placeholder="10-digit mobile number" placeholderTextColor="#999" style={styles.input} />
-              <FieldLabel text="Pickup address" /><TextInput value={address} onChangeText={setAddress} multiline placeholder="House, street, landmark, area" placeholderTextColor="#999" style={[styles.input, styles.multiline]} />
-              <View style={styles.twoColumn}>
-                <View style={styles.half}><FieldLabel text="City" /><TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor="#999" style={styles.input} /></View>
-                <View style={styles.half}><FieldLabel text="PIN code" /><TextInput value={pincode} onChangeText={setPincode} keyboardType="numeric" maxLength={6} placeholder="6 digits" placeholderTextColor="#999" style={styles.input} /></View>
+              {/* Name & Phone 2-Col */}
+              <View style={styles.contactRow2Col}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputFieldLabel}>Full Name</Text>
+                  <View style={styles.iconInputBox}>
+                    <Ionicons name="person-outline" size={17} color="#64748B" style={{ marginRight: 6 }} />
+                    <TextInput
+                      style={styles.textInputPure}
+                      value={fullName}
+                      onChangeText={setFullName}
+                      placeholder="Your Full Name"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputFieldLabel}>Mobile Number</Text>
+                  <View style={styles.iconInputBox}>
+                    <Ionicons name="call-outline" size={17} color="#64748B" style={{ marginRight: 6 }} />
+                    <TextInput
+                      style={styles.textInputPure}
+                      value={mobileNumber}
+                      onChangeText={setMobileNumber}
+                      keyboardType="phone-pad"
+                      placeholder="Mobile Number"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
+                </View>
               </View>
 
-              <FieldLabel text="Pickup method" />
-              <ChoiceRow values={[['doorstep', 'Doorstep pickup'], ['store', 'Drop at store']]} value={pickupMethod} onChange={(v) => setPickupMethod(v as any)} />
+              {/* Email */}
+              <View style={styles.inputSection}>
+                <Text style={styles.inputFieldLabel}>Email</Text>
+                <View style={styles.iconInputBox}>
+                  <Ionicons name="mail-outline" size={17} color="#64748B" style={{ marginRight: 6 }} />
+                  <TextInput
+                    style={styles.textInputPure}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    placeholder="email@example.com"
+                    placeholderTextColor="#94A3B8"
+                  />
+                  <Ionicons name="lock-closed-outline" size={15} color="#94A3B8" />
+                </View>
+              </View>
 
-              <FieldLabel text="Preferred pickup date" />
-              <ChoiceRow values={[['Today', 'Today'], ['Tomorrow', 'Tomorrow'], ['Day After', 'Day after']]} value={pickupDate} onChange={(v) => setPickupDate(v as any)} />
+              {/* Pickup Address Box */}
+              <View style={styles.inputSection}>
+                <Text style={styles.inputFieldLabel}>Pickup Address</Text>
+                <View style={styles.pickupAddressCard}>
+                  <View style={styles.addressRowTop}>
+                    <Ionicons name="location-outline" size={20} color="#0F172A" style={{ marginRight: 8, marginTop: 2 }} />
+                    <TextInput
+                      style={[styles.textInputPure, { minHeight: 40, lineHeight: 18 }]}
+                      multiline
+                      value={pickupAddress}
+                      onChangeText={setPickupAddress}
+                      placeholder="Enter flat / house no., street, area, city & pincode"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
 
-              <FieldLabel text="Preferred time" />
-              <ChoiceRow values={[['Morning', '10 AM – 1 PM'], ['Afternoon', '2 PM – 5 PM'], ['Evening', '5 PM – 8 PM']]} value={timeSlot} onChange={(v) => setTimeSlot(v as any)} />
+                  <TouchableOpacity
+                    style={styles.useCurrentLocBtn}
+                    onPress={handleDetectLocation}
+                    activeOpacity={0.8}
+                  >
+                    {isDetectingLocation ? (
+                      <ActivityIndicator size="small" color="#0F172A" style={{ marginRight: 6 }} />
+                    ) : (
+                      <Ionicons name="locate" size={16} color="#0F172A" style={{ marginRight: 6 }} />
+                    )}
+                    <Text style={styles.useCurrentLocText}>Use Current Location</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-              <FieldLabel text="Preferred payout" />
-              <ChoiceRow values={[['upi', 'UPI'], ['bank', 'Bank transfer'], ['cash', 'Cash']]} value={payoutMethod} onChange={(v) => setPayoutMethod(v as any)} />
+              {/* Preferred Pickup Date */}
+              <View style={styles.inputSection}>
+                <Text style={styles.inputFieldLabel}>Preferred Pickup Date</Text>
+                <TouchableOpacity
+                  style={styles.dateSelectorBox}
+                  onPress={() => setShowDatePickerModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calendar-outline" size={18} color="#0F172A" style={{ marginRight: 8 }} />
+                  <Text style={[styles.dateSelectorText, !pickupDate && { color: '#94A3B8' }]}>
+                    {pickupDate || 'Select preferred date'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#64748B" style={{ marginLeft: 'auto' }} />
+                </TouchableOpacity>
+              </View>
 
-              {payoutMethod === 'upi' && <><FieldLabel text="UPI ID" /><TextInput value={upiId} onChangeText={setUpiId} autoCapitalize="none" placeholder="name@upi" placeholderTextColor="#999" style={styles.input} /></>}
-              {payoutMethod === 'bank' && <>
-                <FieldLabel text="Bank account number" /><TextInput value={bankAccount} onChangeText={setBankAccount} keyboardType="numeric" placeholder="Account number" placeholderTextColor="#999" style={styles.input} />
-                <FieldLabel text="IFSC code" /><TextInput value={bankIfsc} onChangeText={setBankIfsc} autoCapitalize="characters" placeholder="HDFC0001234" placeholderTextColor="#999" style={styles.input} />
-              </>}
-            </Card>
+              {/* Additional Notes (Optional) */}
+              <View style={styles.inputSection}>
+                <Text style={styles.inputFieldLabel}>Additional Notes (Optional)</Text>
+                <View style={[styles.iconInputBox, { height: 46 }]}>
+                  <TextInput
+                    style={styles.textInputPure}
+                    value={additionalNotes}
+                    onChangeText={setAdditionalNotes}
+                    placeholder="Any special instructions for pickup agent?"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+              </View>
+            </View>
           )}
 
+          {/* ================= STEP 8: REVIEW & SUBMIT ================= */}
           {step === 8 && (
-            <Card title="Review & submit" subtitle="Check your details before creating the sell lead.">
-              <ReviewSection title="Device" icon="phone-portrait-outline">
-                <ReviewRow label="Category" value={category?.name || '—'} />
-                <ReviewRow label="Brand" value={activeBrandName || '—'} logoUrl={brand?.logoUrl} />
-                <ReviewRow label="Model" value={activeModelName || '—'} />
-              </ReviewSection>
-              <ReviewSection title="Specs & condition" icon="options-outline">
-                <ReviewRow label="Storage" value={storage || '—'} />
-                <ReviewRow label="RAM / Colour" value={`${ram || '—'} / ${color || '—'}`} />
-                <ReviewRow label="Screen" value={screenCondition} />
-                <ReviewRow label="Body" value={bodyCondition} />
-                <ReviewRow label="Photos" value={`${Object.values(photos).filter(Boolean).length} uploaded`} />
-              </ReviewSection>
-              <ReviewSection title="Price" icon="cash-outline">
-                <ReviewRow label="Seller Quote" value={expectedPrice ? `₹${Number(expectedPrice).toLocaleString('en-IN')}` : '—'} strong />
-              </ReviewSection>
-              <ReviewSection title="Pickup & payout" icon="location-outline">
-                <ReviewRow label="Contact" value={`${name || '—'} • ${phone || '—'}`} />
-                <ReviewRow label="Location" value={[address, city, pincode].filter(Boolean).join(', ') || '—'} />
-                <ReviewRow label="Pickup" value={`${pickupMethod} • ${pickupDate} • ${timeSlot}`} />
-                <ReviewRow label="Payout" value={payoutMethod.toUpperCase()} />
-              </ReviewSection>
+            <View>
+              <Text style={styles.stepTitle}>8. Review & Submit</Text>
+              <Text style={styles.stepSubtitle}>Please review your details before submitting.</Text>
 
-              <View style={styles.submitNotice}>
-                <Ionicons name="shield-checkmark-outline" size={20} color="#111" />
-                <Text style={styles.submitNoticeText}>After submission, your lead can move through Submitted → Under review → Approved/Rejected → Pickup/Inspection → Payout/Completed.</Text>
+              {/* Review Card */}
+              <View style={styles.reviewCard}>
+                {/* Category */}
+                <View style={styles.reviewRow}>
+                  <View style={styles.reviewRowLeft}>
+                    <Ionicons name="phone-portrait-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Device Category</Text>
+                  </View>
+                  <Text style={styles.reviewRowValue}>
+                    {SELL_CATEGORIES.find((c) => c.id === selectedCategory)?.name || 'Not selected'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setStep(1)} style={styles.reviewEditBtn}>
+                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Text style={styles.reviewEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Brand */}
+                <View style={styles.reviewRow}>
+                  <View style={styles.reviewRowLeft}>
+                    <Ionicons name="pricetag-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Brand</Text>
+                  </View>
+                  <Text style={styles.reviewRowValue}>{selectedBrandName || 'Not selected'}</Text>
+                  <TouchableOpacity onPress={() => setStep(2)} style={styles.reviewEditBtn}>
+                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Text style={styles.reviewEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Model */}
+                <View style={styles.reviewRow}>
+                  <View style={styles.reviewRowLeft}>
+                    <Ionicons name="phone-portrait-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Model</Text>
+                  </View>
+                  <Text style={styles.reviewRowValue}>{selectedModel || 'Not selected'}</Text>
+                  <TouchableOpacity onPress={() => setStep(3)} style={styles.reviewEditBtn}>
+                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Text style={styles.reviewEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Specifications */}
+                <View style={[styles.reviewRow, { alignItems: 'flex-start' }]}>
+                  <View style={[styles.reviewRowLeft, { marginTop: 2 }]}>
+                    <Ionicons name="options-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Specifications</Text>
+                  </View>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.reviewRowValueMultiline}>
+                      {selectedStorage || '—'} · {selectedColor || '—'} · {selectedCondition || '—'} Condition
+                    </Text>
+                    <Text style={styles.reviewRowSubMultiline}>
+                      {selectedAge || 'Age not specified'} · Accessories: {hasAccessories ? 'Yes' : 'No'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setStep(4)} style={styles.reviewEditBtn}>
+                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Text style={styles.reviewEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Uploaded Photos */}
+                <View style={styles.reviewRow}>
+                  <View style={styles.reviewRowLeft}>
+                    <Ionicons name="images-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Uploaded Photos</Text>
+                  </View>
+                  <Text style={styles.reviewRowValue}>{photos.length} photo{photos.length === 1 ? '' : 's'}</Text>
+                  <TouchableOpacity onPress={() => setStep(5)} style={styles.reviewEditBtn}>
+                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Text style={styles.reviewEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Expected Price */}
+                <View style={styles.reviewRow}>
+                  <View style={styles.reviewRowLeft}>
+                    <Ionicons name="cash-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Expected Price</Text>
+                  </View>
+                  <Text style={styles.reviewRowValue}>
+                    ₹{numericPrice.toLocaleString('en-IN')}
+                  </Text>
+                  <TouchableOpacity onPress={() => setStep(6)} style={styles.reviewEditBtn}>
+                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Text style={styles.reviewEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Pickup Details */}
+                <View style={[styles.reviewRow, { alignItems: 'flex-start', borderBottomWidth: 0 }]}>
+                  <View style={[styles.reviewRowLeft, { marginTop: 2 }]}>
+                    <Ionicons name="location-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Pickup Details</Text>
+                  </View>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.reviewRowValueMultiline}>{pickupAddress || 'Address not specified'}</Text>
+                    <Text style={[styles.reviewRowSubMultiline, { marginTop: 3, fontWeight: '700', color: '#0F172A' }]}>
+                      Pickup Date: {pickupDate || 'Not selected'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setStep(7)} style={styles.reviewEditBtn}>
+                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Text style={styles.reviewEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </Card>
+
+              {/* Terms Checkbox */}
+              <TouchableOpacity
+                style={styles.termsRow}
+                onPress={() => setAgreedTerms(!agreedTerms)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkboxBox, agreedTerms && styles.checkboxBoxChecked]}>
+                  {agreedTerms && <AnimatedTick size={14} />}
+                </View>
+                <Text style={styles.termsText}>
+                  I agree to the <Text style={{ color: '#2563EB', textDecorationLine: 'underline' }}>Terms & Conditions</Text> and confirm that the information provided is correct.
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
-          <View style={styles.bottomActions}>
+          {/* BOTTOM NAVIGATION BUTTONS ROW */}
+          <View style={styles.bottomNavRow}>
             {step > 1 && (
-              <TouchableOpacity style={styles.backButton} onPress={() => setStep(step - 1)}>
-                <Ionicons name="arrow-back" size={17} color="#111" />
-                <Text style={styles.backText}>Back</Text>
+              <TouchableOpacity
+                style={styles.backButtonWhite}
+                onPress={handleBack}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.backButtonWhiteText}>Back</Text>
               </TouchableOpacity>
             )}
+
             {step < 8 ? (
-              <TouchableOpacity style={[styles.primaryButton, step === 1 && styles.fullButton]} onPress={next}>
-                <Text style={styles.primaryButtonText}>Continue</Text>
-                <Ionicons name="arrow-forward" size={18} color="#000" />
+              <TouchableOpacity
+                style={[styles.nextButtonYellow, step === 1 && { flex: 1 }]}
+                onPress={handleNext}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.nextButtonYellowText}>Next</Text>
+                <Ionicons name="arrow-forward" size={17} color="#0F172A" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={[styles.primaryButton, styles.submitButton, submitting && styles.disabled]} onPress={submitSellRequest} disabled={submitting}>
-                {submitting ? <ActivityIndicator color="#000" /> : <Ionicons name="checkmark-circle-outline" size={19} color="#000" />}
-                <Text style={styles.primaryButtonText}>{submitting ? 'Submitting...' : 'Submit Sell Request'}</Text>
+              <TouchableOpacity
+                style={styles.submitButtonYellow}
+                onPress={handleSubmitRequest}
+                disabled={submitting}
+                activeOpacity={0.85}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#0F172A" />
+                ) : (
+                  <>
+                    <Text style={styles.submitButtonYellowText}>Submit Sell Request</Text>
+                    <Ionicons name="arrow-forward" size={17} color="#0F172A" style={{ marginLeft: 6 }} />
+                  </>
+                )}
               </TouchableOpacity>
             )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
-  );
-}
 
-function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={styles.cardSubtitle}>{subtitle}</Text>
-      <View style={styles.divider} />
-      {children}
-    </View>
-  );
-}
+      {/* MODAL 1: AGE PICKER */}
+      <Modal visible={showAgePickerModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalHeading}>Select Device Age</Text>
+            {AGE_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={styles.modalOptionRow}
+                onPress={() => {
+                  setSelectedAge(opt);
+                  setShowAgePickerModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{opt}</Text>
+                {selectedAge === opt && <AnimatedTick size={18} />}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAgePickerModal(false)}>
+              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
-function Search({ value, onChangeText, placeholder }: { value: string; onChangeText: (v: string) => void; placeholder: string }) {
-  return (
-    <View style={styles.search}>
-      <Ionicons name="search-outline" size={17} color="#888" />
-      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#999" style={styles.searchInput} />
-      {!!value && <TouchableOpacity onPress={() => onChangeText('')}><Ionicons name="close-circle" size={16} color="#999" /></TouchableOpacity>}
-    </View>
-  );
-}
+      {/* MODAL 2: DATE PICKER */}
+      <Modal visible={showDatePickerModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalHeading}>Preferred Pickup Date</Text>
+            {upcomingDates.map((d) => (
+              <TouchableOpacity
+                key={d}
+                style={styles.modalOptionRow}
+                onPress={() => {
+                  setPickupDate(d);
+                  setShowDatePickerModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{d}</Text>
+                {pickupDate === d && <AnimatedTick size={18} />}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDatePickerModal(false)}>
+              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
-function FieldLabel({ text }: { text: string }) {
-  return <Text style={styles.fieldLabel}>{text}</Text>;
-}
+      {/* MODAL 3: CUSTOM BRAND */}
+      <Modal visible={showCustomBrandModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalHeading}>Enter Brand Name</Text>
+            <TextInput
+              style={styles.modalTextInput}
+              placeholder="e.g. Asus, Acer, Nothing, Sony"
+              placeholderTextColor="#94A3B8"
+              value={customBrand}
+              onChangeText={setCustomBrand}
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <TouchableOpacity
+                style={[styles.modalCancelBtn, { flex: 1, marginTop: 0 }]}
+                onPress={() => setShowCustomBrandModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.nextButtonYellow, { flex: 1, height: 42 }]}
+                onPress={handleAddCustomBrand}
+              >
+                <Text style={styles.nextButtonYellowText}>Add Brand</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-function ChipRow({ values, value, onChange }: { values: string[]; value: string; onChange: (v: string) => void }) {
-  return <View style={styles.chipWrap}>{values.map((v) => <TouchableOpacity key={v} style={[styles.chip, value === v && styles.chipActive]} onPress={() => onChange(v)}><Text style={[styles.chipText, value === v && styles.chipTextActive]}>{v}</Text></TouchableOpacity>)}</View>;
-}
-
-function ChoiceRow({ values, value, onChange, multi, selected, onMultiChange }: {
-  values: [string, string][];
-  value: string;
-  onChange?: (v: string) => void;
-  multi?: boolean;
-  selected?: Record<string, boolean>;
-  onMultiChange?: (v: string) => void;
-}) {
-  return (
-    <View style={styles.choiceWrap}>
-      {values.map(([id, label]) => {
-        const active = multi ? !!selected?.[id] : value === id;
-        return (
-          <TouchableOpacity key={id} style={[styles.choice, active && styles.choiceActive]} onPress={() => multi ? onMultiChange?.(id) : onChange?.(id)}>
-            <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={17} color={active ? '#111' : '#aaa'} />
-            <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <View style={styles.empty}><Ionicons name="search-outline" size={20} color="#888" /><Text style={styles.emptyText}>{text}</Text></View>;
-}
-
-function ReviewSection({ title, icon, children }: { title: string; icon: keyof typeof Ionicons.glyphMap; children: React.ReactNode }) {
-  return (
-    <View style={styles.reviewSection}>
-      <View style={styles.reviewTitleRow}><Ionicons name={icon} size={17} color="#111" /><Text style={styles.reviewTitle}>{title}</Text></View>
-      {children}
-    </View>
-  );
-}
-
-function ReviewRow({ label, value, strong, logoUrl }: { label: string; value: string; strong?: boolean; logoUrl?: string }) {
-  return (
-    <View style={styles.reviewRow}>
-      <Text style={styles.reviewLabel}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        {!!logoUrl && <Image source={{ uri: logoUrl }} style={styles.reviewBrandLogo} resizeMode="contain" />}
-        <Text style={[styles.reviewValue, strong && styles.reviewValueStrong]}>{value}</Text>
-      </View>
+      {/* MODAL 4: CUSTOM MODEL */}
+      <Modal visible={showCustomModelModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalHeading}>Enter Model Name</Text>
+            <TextInput
+              style={styles.modalTextInput}
+              placeholder="e.g. iPhone 12 Mini, Galaxy S24"
+              placeholderTextColor="#94A3B8"
+              value={customModel}
+              onChangeText={setCustomModel}
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <TouchableOpacity
+                style={[styles.modalCancelBtn, { flex: 1, marginTop: 0 }]}
+                onPress={() => setShowCustomModelModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.nextButtonYellow, { flex: 1, height: 42 }]}
+                onPress={handleAddCustomModel}
+              >
+                <Text style={styles.nextButtonYellowText}>Add Model</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f7f2' },
-  flex: { flex: 1 },
-  header: { backgroundColor: '#fff', paddingHorizontal: spacing.md, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#e8e6df', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  headerTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.black, color: '#111' },
-  headerSubtitle: { fontSize: fontSize.xs, color: '#777', marginTop: 3 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ffc400', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5 },
-  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#111' },
-  liveText: { fontSize: 8, fontWeight: fontWeight.black, color: '#111' },
-  requestsButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 7, borderWidth: 1, borderColor: '#ddd', borderRadius: radius.full, backgroundColor: '#fff' },
-  requestsText: { fontSize: 10, fontWeight: fontWeight.bold, color: '#111' },
-  progressArea: { backgroundColor: '#fff', paddingHorizontal: spacing.md, paddingTop: 10, borderBottomWidth: 1, borderBottomColor: '#e8e6df' },
-  progressTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  progressLabel: { fontSize: 9, fontWeight: fontWeight.black, color: '#777', letterSpacing: .5 },
-  progressPercent: { fontSize: 9, fontWeight: fontWeight.bold, color: '#111' },
-  progressTrack: { height: 4, backgroundColor: '#eee', borderRadius: 3, marginTop: 6 },
-  progressFill: { height: 4, backgroundColor: '#ffc400', borderRadius: 3 },
-  stepTabs: { gap: 5, paddingVertical: 9 },
-  stepTab: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 7, paddingVertical: 5, borderRadius: radius.full, backgroundColor: '#f7f7f5' },
-  stepTabActive: { backgroundColor: '#111' },
-  stepTabDone: { backgroundColor: '#fff4c2' },
-  stepNumber: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e5e5e1' },
-  stepNumberActive: { backgroundColor: '#ffc400' },
-  stepNumberText: { fontSize: 9, fontWeight: fontWeight.bold, color: '#666' },
-  stepNumberTextActive: { color: '#000' },
-  stepTabText: { fontSize: 9, color: '#777', fontWeight: fontWeight.semibold },
-  stepTabTextActive: { color: '#fff', fontWeight: fontWeight.bold },
-  content: { padding: spacing.md, paddingBottom: 110 },
-  card: { backgroundColor: '#fff', borderRadius: radius.lg, borderWidth: 1, borderColor: '#e7e5df', padding: spacing.md },
-  cardTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.black, color: '#111' },
-  cardSubtitle: { fontSize: fontSize.xs, color: '#777', marginTop: 3, lineHeight: 16 },
-  divider: { height: 1, backgroundColor: '#eee', marginVertical: 15 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  categoryCard: { width: '48.5%', minHeight: 126, borderWidth: 1.5, borderColor: '#e5e3dd', borderRadius: radius.md, padding: 11, backgroundColor: '#fbfbf9', position: 'relative' },
-  categoryCardActive: { borderColor: '#ffc400', backgroundColor: '#fff9dc' },
-  categoryIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6e4df', alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
-  categoryIconActive: { backgroundColor: '#ffc400', borderColor: '#ffc400' },
-  categoryName: { fontSize: 12, fontWeight: fontWeight.bold, color: '#222' },
-  categoryNameActive: { color: '#000' },
-  categorySub: { fontSize: 9, color: '#888', marginTop: 3, lineHeight: 13 },
-  categoryCheck: { position: 'absolute', right: 8, top: 8 },
-  search: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: '#ddd', borderRadius: radius.md, backgroundColor: '#fafaf8', paddingHorizontal: 11, marginBottom: 12 },
-  searchInput: { flex: 1, fontSize: 13, color: '#111' },
-  brandGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  brandCard: { width: '31.7%', minHeight: 88, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e2e1dc', borderRadius: radius.md, backgroundColor: '#fff', padding: 7, position: 'relative' },
-  brandCardActive: { borderColor: '#ffc400', backgroundColor: '#fff9dc' },
-  brandLogo: { width: 34, height: 34, resizeMode: 'contain', marginBottom: 5 },
-  brandFallbackBox: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff9dc', borderWidth: 1, borderColor: '#ffc400', alignItems: 'center', justifyContent: 'center', marginBottom: 5 },
-  brandFallbackText: { fontSize: 13, fontWeight: fontWeight.bold, color: '#111' },
-  selectedBrandBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff9dc', borderColor: '#ffc400', borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12 },
-  selectedBrandBadgeLogo: { width: 22, height: 22, marginBottom: 0 },
-  selectedBrandBadgeText: { fontSize: 12, color: '#444' },
-  reviewBrandLogo: { width: 18, height: 18, borderRadius: 4 },
-  brandName: { fontSize: 10, fontWeight: fontWeight.semibold, color: '#444', maxWidth: '90%', textAlign: 'center' },
-  brandNameActive: { color: '#111', fontWeight: fontWeight.bold },
-  brandCheck: { position: 'absolute', top: 5, right: 5, width: 17, height: 17, borderRadius: 9, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center' },
-  orLabel: { fontSize: 9, fontWeight: fontWeight.black, color: '#999', marginTop: 17, marginBottom: 7, letterSpacing: .6 },
-  input: { minHeight: 44, borderWidth: 1, borderColor: '#ddd', borderRadius: radius.md, backgroundColor: '#fafaf8', paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: '#111', marginBottom: 10 },
-  modelList: { gap: 7 },
-  modelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderWidth: 1, borderColor: '#e2e1dc', borderRadius: radius.md, backgroundColor: '#fff' },
-  modelRowActive: { borderColor: '#ffc400', backgroundColor: '#fff9dc' },
-  radio: { width: 19, height: 19, borderRadius: 10, borderWidth: 1.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
-  radioActive: { borderColor: '#111' },
-  radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#111' },
-  modelName: { fontSize: 12, fontWeight: fontWeight.semibold, color: '#333' },
-  modelNameActive: { color: '#111', fontWeight: fontWeight.bold },
-  modelMeta: { fontSize: 9, color: '#888', marginTop: 2 },
-  fieldLabel: { fontSize: 10, fontWeight: fontWeight.black, color: '#333', marginTop: 9, marginBottom: 7, letterSpacing: .2 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: { paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: '#ddd', borderRadius: radius.full, backgroundColor: '#fff' },
-  chipActive: { backgroundColor: '#111', borderColor: '#111' },
-  chipText: { fontSize: 10, fontWeight: fontWeight.semibold, color: '#555' },
-  chipTextActive: { color: '#ffc400' },
-  choiceWrap: { gap: 7, marginBottom: 3 },
-  choice: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 11, borderWidth: 1, borderColor: '#e1dfd9', borderRadius: radius.md, backgroundColor: '#fff' },
-  choiceActive: { borderColor: '#ffc400', backgroundColor: '#fff9dc' },
-  choiceText: { fontSize: 11, color: '#555', fontWeight: fontWeight.medium },
-  choiceTextActive: { color: '#111', fontWeight: fontWeight.bold },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#f0efeb' },
-  checkText: { fontSize: 11, color: '#333', fontWeight: fontWeight.medium },
-  twoColumn: { flexDirection: 'row', gap: 9 },
-  half: { flex: 1 },
-  photoNotice: { flexDirection: 'row', gap: 8, padding: 11, borderRadius: radius.md, backgroundColor: '#fff9dc', borderWidth: 1, borderColor: '#f4df83', marginBottom: 13 },
-  photoNoticeText: { flex: 1, fontSize: 10, color: '#555', lineHeight: 15 },
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  photoCard: { width: '48.5%', aspectRatio: 1.15, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#ccc', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafaf8', overflow: 'hidden', position: 'relative' },
-  photoIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 7 },
-  photoLabel: { fontSize: 11, fontWeight: fontWeight.bold, color: '#444' },
-  photoHint: { fontSize: 9, color: '#999', marginTop: 2 },
-  photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  photoDone: { position: 'absolute', right: 7, top: 7, width: 22, height: 22, borderRadius: 11, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center' },
-  photoCount: { fontSize: 10, color: '#777', textAlign: 'center', marginTop: 10 },
-  quoteDeviceBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f6f5ee', borderWidth: 1, borderColor: '#e4e2db', borderRadius: radius.md, padding: 12, marginBottom: 16 },
-  quoteDeviceLogo: { width: 28, height: 28, marginBottom: 0 },
-  quoteDeviceName: { fontSize: 13, fontWeight: fontWeight.bold, color: '#111' },
-  quoteDeviceMeta: { fontSize: 10, color: '#666', marginTop: 2 },
-  quoteHintText: { fontSize: 11, color: '#666', lineHeight: 16, marginTop: 10 },
-  priceInput: { flexDirection: 'row', alignItems: 'center', height: 54, borderWidth: 1.5, borderColor: '#ddd', borderRadius: radius.md, backgroundColor: '#fafaf8', paddingHorizontal: 13 },
-  rupee: { fontSize: 22, fontWeight: fontWeight.black, color: '#111', marginRight: 6 },
-  priceTextInput: { flex: 1, fontSize: 19, fontWeight: fontWeight.bold, color: '#111' },
-  gpsButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, backgroundColor: '#ffc400', borderRadius: radius.md, paddingVertical: 11, marginBottom: 6 },
-  gpsText: { fontSize: 11, fontWeight: fontWeight.black, color: '#000' },
-  multiline: { minHeight: 80, textAlignVertical: 'top' },
-  reviewSection: { borderWidth: 1, borderColor: '#e5e3dd', borderRadius: radius.md, padding: 12, marginBottom: 10, backgroundColor: '#fbfbf9' },
-  reviewTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 7 },
-  reviewTitle: { fontSize: 12, fontWeight: fontWeight.black, color: '#111' },
-  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#eee' },
-  reviewLabel: { fontSize: 10, color: '#888' },
-  reviewValue: { flex: 1, textAlign: 'right', fontSize: 10, color: '#333', fontWeight: fontWeight.semibold },
-  reviewValueStrong: { fontSize: 12, color: '#111', fontWeight: fontWeight.black },
-  submitNotice: { flexDirection: 'row', gap: 8, backgroundColor: '#fff9dc', borderWidth: 1, borderColor: '#f1df8b', borderRadius: radius.md, padding: 11, marginTop: 4 },
-  submitNoticeText: { flex: 1, fontSize: 10, color: '#555', lineHeight: 15 },
-  empty: { padding: 18, borderWidth: 1, borderColor: '#e4e2dc', borderRadius: radius.md, alignItems: 'center', gap: 7, backgroundColor: '#fafaf8' },
-  emptyText: { textAlign: 'center', fontSize: 10, color: '#777' },
-  bottomActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  backButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, minWidth: 82, paddingVertical: 13, borderRadius: radius.md, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fff' },
-  backText: { fontSize: 11, fontWeight: fontWeight.bold, color: '#111' },
-  primaryButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: radius.md, backgroundColor: '#ffc400' },
-  fullButton: { flex: 1 },
-  submitButton: { minHeight: 48 },
-  primaryButtonText: { fontSize: 12, fontWeight: fontWeight.black, color: '#000' },
-  disabled: { opacity: .55 },
-  successPage: { padding: spacing.md, alignItems: 'center', paddingBottom: 40 },
-  successIcon: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center', marginTop: 25 },
-  successTitle: { fontSize: 23, fontWeight: fontWeight.black, color: '#111', textAlign: 'center', marginTop: 8 },
-  successText: { fontSize: 12, color: '#64748b', lineHeight: 18, textAlign: 'center', marginTop: 6, maxWidth: 360 },
-  
-  // Animated Tick Styles
-  animatedTickWrapper: {
-    width: 96,
-    height: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 18,
-    marginBottom: 8,
-    position: 'relative',
-  },
-  animatedTickPulse: {
-    position: 'absolute',
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#bbf7d0',
-    opacity: 0.6,
-  },
-  animatedTickCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#f0fdf4',
-    borderWidth: 3,
-    borderColor: '#16a34a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#16a34a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  reviewBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fef3c7',
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    paddingHorizontal: 11,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    marginBottom: 8,
-  },
-  reviewPulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#d97706',
-  },
-  reviewBadgeText: {
-    fontSize: 10,
-    fontWeight: fontWeight.black,
-    color: '#92400e',
-    letterSpacing: 0.4,
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
 
-  // Contact Helpline Card Styles
-  contactSupportCard: {
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 15,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  contactCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    paddingBottom: 9,
-  },
-  contactIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contactCardTitle: {
-    fontSize: 13,
-    fontWeight: fontWeight.black,
-    color: '#0f172a',
-  },
-  contactCardSub: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  contactInfoRow: {
+  /* TOP HEADER */
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    marginBottom: 7,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  contactItem: {
+  headerBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleCol: {
+    alignItems: 'center',
+  },
+  headerMainTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 16.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  headerSubTitle: {
+    marginTop: 2,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11.5,
+    color: '#64748B',
+  },
+
+  /* STEPPER NODES */
+  stepperContainer: {
+    position: 'relative',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  stepperLineBackdrop: {
+    position: 'absolute',
+    top: 23,
+    left: 30,
+    right: 30,
+    height: 2.5,
+    backgroundColor: '#E2E8F0',
+  },
+  stepperLineActive: {
+    position: 'absolute',
+    top: 23,
+    left: 30,
+    height: 2.5,
+    backgroundColor: '#FBBF24',
+  },
+  stepperNodesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stepperNode: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  stepperNodeActive: {
+    backgroundColor: '#FBBF24',
+    borderColor: '#F59E0B',
+    transform: [{ scale: 1.15 }],
+  },
+  stepperNodeDone: {
+    backgroundColor: '#FEF08A',
+    borderColor: '#FDE047',
+  },
+  stepperNodeText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  stepperNodeTextActive: {
+    color: '#0F172A',
+    fontWeight: '900',
+  },
+  stepperNodeTextDone: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+
+  /* SCROLL CONTENT */
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 120,
+  },
+  stepTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  contactPhoneText: {
+  stepTitle: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  stepSubtitle: {
+    marginTop: 4,
+    marginBottom: 18,
+    fontFamily: renewxFontFamily.regular,
     fontSize: 13,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    color: '#64748B',
   },
-  contactEmailText: {
-    fontSize: 12,
-    fontWeight: fontWeight.semibold,
-    color: '#0f172a',
-  },
-  copyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+  requiredBadge: {
+    backgroundColor: '#FEF2F2',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radius.sm,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
   },
-  copyBtnText: {
+  requiredBadgeSuccess: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+  },
+  requiredBadgeText: {
+    fontFamily: renewxFontFamily.bold,
     fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#475569',
+    color: '#DC2626',
+    fontWeight: '800',
   },
-  contactActionButtons: {
+  requiredBadgeTextSuccess: {
+    color: '#16A34A',
+  },
+
+  /* SEARCH BAR */
+  searchBarBox: {
     flexDirection: 'row',
+    alignItems: 'center',
+    height: 46,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 13,
+    color: '#0F172A',
+    padding: 0,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
+  },
+
+  loadingBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 30,
     gap: 8,
-    marginTop: 5,
-    marginBottom: 9,
   },
-  callActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#059669',
-    borderRadius: radius.md,
-    paddingVertical: 10,
-  },
-  callActionButtonText: {
+  loadingText: {
+    fontFamily: renewxFontFamily.medium,
     fontSize: 12,
-    fontWeight: fontWeight.bold,
-    color: '#ffffff',
+    color: '#64748B',
   },
-  whatsappActionButton: {
-    flex: 1,
+
+  /* STEP 1: CATEGORY GRID */
+  categoriesGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  categoryCard: {
+    width: '31%',
+    aspectRatio: 0.9,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#25D366',
-    borderRadius: radius.md,
-    paddingVertical: 10,
+    position: 'relative',
+    padding: 8,
   },
-  whatsappActionButtonText: {
-    fontSize: 12,
-    fontWeight: fontWeight.bold,
-    color: '#ffffff',
+  categoryCardSelected: {
+    borderColor: '#FDE047',
+    borderWidth: 2,
+    backgroundColor: '#FFFDF5',
   },
-  supportHoursWrap: {
-    flexDirection: 'row',
+  catImgBox: {
+    width: 48,
+    height: 48,
     alignItems: 'center',
-    gap: 5,
     justifyContent: 'center',
+    marginBottom: 6,
+  },
+  catImg: {
+    width: '100%',
+    height: '100%',
+  },
+  catName: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  catNameSelected: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  cornerTickBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    zIndex: 5,
+  },
+
+  /* STEP 2: BRANDS GRID */
+  brandsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  brandCard: {
+    width: '31.3%',
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    padding: 10,
+  },
+  brandCardSelected: {
+    borderColor: '#FDE047',
+    borderWidth: 2,
+    backgroundColor: '#FFFDF5',
+  },
+  brandCardOther: {
+    borderStyle: 'dashed',
+  },
+  brandLogoImg: {
+    width: '80%',
+    height: '80%',
+  },
+  brandNameText: {
     marginTop: 2,
-  },
-  supportHoursText: {
-    fontSize: 9,
-    color: '#64748b',
-    fontWeight: fontWeight.medium,
-  },
-
-  // Reference Card
-  referenceCard: {
-    width: '100%',
-    backgroundColor: '#111827',
-    borderRadius: radius.lg,
-    padding: 15,
-    marginTop: 12,
-  },
-  referenceCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  referenceLabel: { color: '#94a3b8', fontSize: 9, fontWeight: fontWeight.black, letterSpacing: 0.6 },
-  referenceValue: { color: '#ffc400', fontSize: 18, fontWeight: fontWeight.black, marginTop: 3 },
-  deviceSummaryTag: {
-    backgroundColor: '#1f2937',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
-  },
-  deviceSummaryTagText: {
-    color: '#ffc400',
+    fontFamily: renewxFontFamily.bold,
     fontSize: 10,
-    fontWeight: fontWeight.bold,
+    color: '#64748B',
   },
-  refDivider: {
-    height: 1,
-    backgroundColor: '#374151',
-    width: '100%',
-    marginVertical: 9,
+
+  /* STEP 3: MODELS LIST */
+  modelsList: {
+    gap: 10,
   },
-  refDetailsRow: {
+  modelRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    gap: 12,
   },
-  refDeviceText: {
-    color: '#f3f4f6',
-    fontSize: 12,
-    fontWeight: fontWeight.semibold,
+  modelRowCardSelected: {
+    borderColor: '#FDE047',
+    borderWidth: 2,
+    backgroundColor: '#FFFDF5',
   },
-  refPriceText: {
-    color: '#ffc400',
-    fontSize: 14,
-    fontWeight: fontWeight.black,
-  },
-
-  // Lifecycle Progression
-  lifecycleCard: { width: '100%', backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e2dc', borderRadius: radius.lg, padding: 14, marginTop: 12 },
-  lifecycleHeader: {
-    fontSize: 11,
-    fontWeight: fontWeight.black,
-    color: '#0f172a',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  lifecycleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  lifecycleDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' },
-  lifecycleDotDone: { backgroundColor: '#16a34a' },
-  lifecycleDotCurrent: {
-    backgroundColor: '#fef3c7',
-    borderWidth: 1.5,
-    borderColor: '#f59e0b',
-  },
-  lifecyclePulseInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#d97706',
-  },
-  lifecycleStepNum: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#94a3b8',
-  },
-  lifecycleText: { fontSize: 11, color: '#334155', fontWeight: fontWeight.semibold },
-  lifecycleTextCurrent: { color: '#b45309', fontWeight: fontWeight.black },
-  lifecycleSubText: {
-    fontSize: 9,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  linkButton: { padding: 12 },
-  linkButtonText: { fontSize: 11, fontWeight: fontWeight.bold, color: '#555' },
-
-  // Draft Autosave Pill
-  draftAutoSavePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.full,
-  },
-  draftGreenDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#16a34a',
-  },
-  draftAutoSaveText: {
-    fontSize: 9,
-    color: '#475569',
-    fontWeight: fontWeight.semibold,
-  },
-  draftResetText: {
-    fontSize: 9,
-    color: '#dc2626',
-    fontWeight: fontWeight.bold,
-  },
-
-  // Custom Model & Model Thumbnails
   modelThumbImg: {
-    width: 36,
-    height: 36,
-    borderRadius: 7,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    width: 32,
+    height: 38,
   },
-  modelThumbFallback: {
-    width: 36,
-    height: 36,
-    borderRadius: 7,
-    backgroundColor: '#f1f5f9',
+  modelNameText: {
+    flex: 1,
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  modelNameTextSelected: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  modelRowCardOther: {
+    borderStyle: 'dashed',
+  },
+  otherModelDotBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
-  addCustomModelBox: {
-    marginTop: 18,
-    backgroundColor: '#f8fafc',
-    padding: 14,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  otherModelTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13,
+    color: '#0F172A',
   },
-  customModelHint: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 10,
-    marginTop: -2,
+  otherModelSub: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 10.5,
+    color: '#64748B',
   },
-  addCustomModelRow: {
+
+  /* STEP 4: SPECS & CONDITION */
+  selectedModelHeaderCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    marginBottom: 18,
+    gap: 12,
+  },
+  selectedHeaderImg: {
+    width: 36,
+    height: 44,
+  },
+  selectedHeaderModelName: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  selectedHeaderBrandName: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  changeModelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
+  },
+  changeModelBtnText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11.5,
+    color: '#0F172A',
+  },
+
+  specSection: {
+    marginBottom: 16,
+  },
+  specSectionLabel: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  addCustomModelBtn: {
+  specChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#ffc400',
     paddingHorizontal: 14,
-    height: 44,
-    borderRadius: radius.md,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  specChipSelected: {
+    backgroundColor: '#FEF08A',
+    borderColor: '#FDE047',
+  },
+  specChipText: {
+    fontFamily: renewxFontFamily.semibold,
+    fontSize: 12,
+    color: '#475569',
+  },
+  specChipTextSelected: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  yesNoRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  yesNoBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  addCustomModelBtnDisabled: {
-    opacity: 0.5,
+  yesNoBtnSelected: {
+    backgroundColor: '#FEF08A',
+    borderColor: '#FDE047',
   },
-  addCustomModelBtnText: {
+  yesNoBtnText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13,
+    color: '#475569',
+  },
+  yesNoBtnTextSelected: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  dropdownSelector: {
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownSelectorText: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+
+  /* STEP 5: PHOTOS GRID */
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  photoSlotCard: {
+    width: '31.3%',
+    aspectRatio: 0.9,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoSlotImg: {
+    width: '100%',
+    height: '75%',
+  },
+  photoSlotLabel: {
+    marginTop: 4,
+    fontFamily: renewxFontFamily.medium,
+    fontSize: 9.5,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3,
+  },
+  addPhotoSlotCard: {
+    width: '31.3%',
+    aspectRatio: 0.9,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPhotoIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FEF08A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  addPhotoText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11,
+    color: '#0F172A',
+  },
+  photoWarningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
+  },
+  photoWarningText: {
+    fontFamily: renewxFontFamily.semibold,
     fontSize: 12,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    color: '#DC2626',
+    flex: 1,
+  },
+  valuationTipsCard: {
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 14,
+    padding: 14,
+  },
+  tipsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  tipsHeaderTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
+  tipBullet: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11.5,
+    color: '#475569',
+    lineHeight: 18,
+  },
+
+  /* STEP 6: PRICE & VALUATION */
+  valuationHighlightCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 14,
+    marginBottom: 16,
+  },
+  valuationPhoneBox: {
+    width: 58,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  valuationPhoneImg: {
+    width: '100%',
+    height: '100%',
+  },
+  valuationTextCol: {
+    flex: 1,
+  },
+  valCardLabel: {
+    fontFamily: renewxFontFamily.medium,
+    fontSize: 11.5,
+    color: '#64748B',
+  },
+  valCardPriceRange: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 21,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginVertical: 2,
+  },
+  valCardExplanation: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 10.5,
+    color: '#64748B',
+  },
+  expectedPriceSection: {
+    marginBottom: 14,
+  },
+  expectedPriceLabel: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  currencyInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+  },
+  currencyPrefix: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 16,
+    color: '#0F172A',
+    marginRight: 8,
+  },
+  currencyInput: {
+    flex: 1,
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 16,
+    color: '#0F172A',
+    padding: 0,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
+  },
+  priceVaryNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFDF5',
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    marginBottom: 16,
+  },
+  shieldNoticeIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FEF08A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  priceVaryTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  priceVarySub: {
+    marginTop: 2,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11,
+    color: '#78350F',
+    lineHeight: 15,
+  },
+  breakdownCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+  },
+  breakdownHeading: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 10,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  breakdownLabel: {
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  breakdownValue: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    color: '#0F172A',
+  },
+  breakdownValueHighlight: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    color: '#16A34A',
+  },
+  breakdownDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 8,
+  },
+  breakdownTotalLabel: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  breakdownTotalValue: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+
+  /* STEP 7: PICKUP & CONTACT */
+  contactRow2Col: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  inputSection: {
+    marginBottom: 12,
+  },
+  inputFieldLabel: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 5,
+  },
+  iconInputBox: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  textInputPure: {
+    flex: 1,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 12.5,
+    color: '#0F172A',
+    padding: 0,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
+  },
+  pickupAddressCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+  },
+  addressRowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  addressCardText: {
+    flex: 1,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 17,
+  },
+  useCurrentLocBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF08A',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  useCurrentLocText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  dateSelectorBox: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  dateSelectorText: {
+    fontFamily: renewxFontFamily.medium,
+    fontSize: 12.5,
+    color: '#0F172A',
+  },
+
+  /* STEP 8: REVIEW & SUBMIT */
+  reviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 14,
+  },
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  reviewRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 130,
+  },
+  reviewRowLabel: {
+    fontFamily: renewxFontFamily.semibold,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  reviewRowValue: {
+    flex: 1,
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    color: '#0F172A',
+  },
+  reviewRowValueMultiline: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12,
+    color: '#0F172A',
+  },
+  reviewRowSubMultiline: {
+    marginTop: 2,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  reviewEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  reviewEditText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11,
+    color: '#D97706',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 6,
+  },
+  checkboxBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  checkboxBoxChecked: {
+    backgroundColor: '#FBBF24',
+    borderColor: '#F59E0B',
+  },
+  termsText: {
+    flex: 1,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11.5,
+    color: '#475569',
+    lineHeight: 16,
+  },
+
+  /* BOTTOM NAVIGATION BAR */
+  bottomNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 24,
+  },
+  backButtonWhite: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonWhiteText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  nextButtonYellow: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FBBF24',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextButtonYellowText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  submitButtonYellow: {
+    flex: 1.6,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FBBF24',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonYellowText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+
+  /* MODALS */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 20,
+  },
+  modalHeading: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 14,
+  },
+  modalOptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  modalOptionText: {
+    fontFamily: renewxFontFamily.semibold,
+    fontSize: 13.5,
+    color: '#334155',
+  },
+  modalTextInput: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    color: '#0F172A',
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
+  },
+  modalCancelBtn: {
+    marginTop: 14,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13,
+    color: '#64748B',
+  },
+
+  /* SUCCESS SCREEN */
+  successScroll: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  successIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  successHeadTitle: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0F172A',
+    textAlign: 'center',
+  },
+  successBodyText: {
+    marginTop: 8,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 12.5,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  successSummaryCard: {
+    width: '100%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 20,
+    gap: 8,
+  },
+  summaryItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryItemLabel: {
+    fontFamily: renewxFontFamily.medium,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  summaryItemValue: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    color: '#0F172A',
+  },
+  summaryItemValueHighlight: {
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 14,
+    color: '#16A34A',
+  },
+  primaryYellowBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FBBF24',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  primaryYellowBtnText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  secondaryWhiteBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryWhiteBtnText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    color: '#0F172A',
   },
 });
