@@ -9,6 +9,8 @@ export function mapProductRow(row: any): Product {
     _uuid: row?.id ?? row?._id,
     name: row?.name ?? 'Unnamed product',
     brand: row?.brand ?? 'Unknown brand',
+    model: row?.model ?? '',
+    images: Array.isArray(row?.images) ? row.images.filter((url: unknown) => typeof url === 'string' && url.trim()) : [],
     category: row?.category as Product['category'],
     originalPrice: Number.isFinite(originalPrice) ? originalPrice : price,
     price: Number.isFinite(price) ? price : 0,
