@@ -1,7 +1,13 @@
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Product } from '@/types';
-import { colors, fontSize, fontWeight, radius, spacing, conditionColors } from '@/theme';
+import {
+  renewxColors,
+  renewxRadius,
+  renewxSpacing,
+  renewxTypography,
+  renewxShadows,
+} from '@/design-system';
 
 interface ProductCardProps {
   product: Product;
@@ -13,64 +19,95 @@ interface ProductCardProps {
 export default function ProductCard({ product, onPress, onAddToCart, onShare }: ProductCardProps) {
   const price = Number(product.price) || 0;
   const originalPrice = Number(product.originalPrice) || price;
-  const discount = Math.round(
-    originalPrice > 0 ? ((originalPrice - price) / originalPrice) * 100 : 0
+  const discount = Math.max(
+    0,
+    Math.round(originalPrice > 0 ? ((originalPrice - price) / originalPrice) * 100 : 0),
   );
-  const cond = conditionColors[product.condition] || conditionColors.Good;
+  const stock = Number(product.stock) || 0;
+  const isLowStock = stock > 0 && stock <= 5;
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.card} activeOpacity={0.88}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.card}
+      activeOpacity={0.92}
+      accessibilityRole="button"
+      accessibilityLabel={product.name}
+    >
       <View style={styles.imageContainer}>
-        <Image source={product.image ? { uri: product.image } : null} style={styles.image} resizeMode="cover" />
-        {discount > 0 && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>-{discount}%</Text>
+        <View style={styles.imageWash} />
+        {product.image ? (
+          <Image source={{ uri: product.image }} style={styles.image} resizeMode="contain" />
+        ) : (
+          <View style={styles.imageFallback}>
+            <Ionicons name="phone-portrait-outline" size={34} color={renewxColors.textMuted} />
           </View>
         )}
+
+        <View style={styles.topBadges}>
+          <View style={styles.conditionBadge}>
+            <Ionicons name="shield-checkmark" size={10} color={renewxColors.greenDark} />
+            <Text style={styles.conditionText}>{product.condition}</Text>
+          </View>
+
+          {discount > 0 && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>-{discount}%</Text>
+            </View>
+          )}
+        </View>
+
         {onShare && (
           <TouchableOpacity
             style={styles.shareBtn}
-            onPress={(e) => {
-              (e as any)?.stopPropagation?.();
+            onPress={(event) => {
+              (event as any)?.stopPropagation?.();
               onShare();
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Share product"
           >
-            <Ionicons name="share-social-outline" size={13} color="#334155" />
+            <Ionicons name="share-social-outline" size={15} color={renewxColors.text} />
           </TouchableOpacity>
         )}
-        <View style={[styles.conditionBadge, { backgroundColor: cond.bg }]}>
-          <Text style={[styles.conditionText, { color: cond.text }]}>{product.condition}</Text>
-        </View>
       </View>
 
       <View style={styles.content}>
-        <View style={styles.ratingRow}>
-          <Ionicons name="star" size={12} color="#f59e0b" />
-          <Text style={styles.ratingText}>{product.rating}</Text>
-          <Text style={styles.reviewsText}>({product.reviews})</Text>
-          <Text style={styles.brandText}>{product.brand}</Text>
+        <View style={styles.brandRow}>
+          <Text style={styles.brand} numberOfLines={1}>{product.brand}</Text>
+          <View style={styles.rating}>
+            <Ionicons name="star" size={11} color={renewxColors.yellowDark} />
+            <Text style={styles.ratingText}>{product.rating}</Text>
+          </View>
         </View>
 
-        <Text style={styles.name} numberOfLines={2}>
-          {product.name}
-        </Text>
+        <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
 
-        {product.stock <= 5 && (
-          <View style={styles.stockRow}>
-            <Text style={styles.stockText}>Only {product.stock} left in stock</Text>
-          </View>
-        )}
+        <View style={styles.metaRow}>
+          <Text style={styles.reviews}>({product.reviews || 0} reviews)</Text>
+          {isLowStock && (
+            <Text style={styles.stock}>Only {stock} left</Text>
+          )}
+        </View>
 
         <View style={styles.bottomRow}>
           <View style={styles.priceContainer}>
             <Text style={styles.price}>₹{price.toLocaleString('en-IN')}</Text>
-            <Text style={styles.originalPrice}>₹{originalPrice.toLocaleString('en-IN')}</Text>
+            {originalPrice > price && (
+              <Text style={styles.originalPrice}>₹{originalPrice.toLocaleString('en-IN')}</Text>
+            )}
           </View>
-          <TouchableOpacity onPress={onAddToCart} style={styles.addButton} activeOpacity={0.7}>
-            <Ionicons name="add" size={14} color="#000000" />
-            <Text style={styles.addButtonText}>Add</Text>
+
+          <TouchableOpacity
+            onPress={(event) => {
+              (event as any)?.stopPropagation?.();
+              onAddToCart();
+            }}
+            style={styles.addButton}
+            activeOpacity={0.78}
+            accessibilityLabel={`Add ${product.name} to cart`}
+          >
+            <Ionicons name="add" size={17} color={renewxColors.black} />
           </TouchableOpacity>
         </View>
       </View>
@@ -81,139 +118,175 @@ export default function ProductCard({ product, onPress, onAddToCart, onShare }: 
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
+    minWidth: 0,
+    marginBottom: renewxSpacing.sm,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
+    borderRadius: renewxRadius.lg,
     borderWidth: 1,
-    borderColor: '#ece8dc',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
+    ...renewxShadows.card,
   },
   imageContainer: {
     position: 'relative',
-    aspectRatio: 1,
-    backgroundColor: '#f7f5ec',
+    aspectRatio: 0.94,
+    overflow: 'hidden',
+    backgroundColor: renewxColors.background,
+  },
+  imageWash: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    top: 24,
+    left: '50%',
+    marginLeft: -75,
+    backgroundColor: renewxColors.yellowSoft,
   },
   image: {
     width: '100%',
     height: '100%',
+    padding: 10,
   },
-  discountBadge: {
+  imageFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBadges: {
     position: 'absolute',
-    top: spacing.xs + 2,
-    left: spacing.xs + 2,
-    backgroundColor: '#000000',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-  },
-  discountText: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: fontWeight.black,
+    top: 9,
+    left: 9,
+    right: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   conditionBadge: {
-    position: 'absolute',
-    top: spacing.xs + 2,
-    right: spacing.xs + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.full,
+    paddingVertical: 5,
+    borderRadius: renewxRadius.pill,
+    backgroundColor: renewxColors.greenLight,
+  },
+  conditionText: {
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 9,
+    color: renewxColors.greenDark,
+  },
+  discountBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: renewxRadius.pill,
+    backgroundColor: renewxColors.black,
+  },
+  discountText: {
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 9,
+    color: renewxColors.yellow,
   },
   shareBtn: {
     position: 'absolute',
-    bottom: spacing.xs + 3,
-    right: spacing.xs + 3,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    right: 9,
+    bottom: 9,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.94)',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  conditionText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
+    borderColor: renewxColors.border,
   },
   content: {
-    padding: 10,
+    padding: renewxSpacing.sm,
+    paddingTop: 11,
   },
-  ratingRow: {
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  brand: {
+    flex: 1,
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 9,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: renewxColors.textSecondary,
+  },
+  rating: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    marginBottom: 4,
   },
   ratingText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-  },
-  reviewsText: {
-    fontSize: 10,
-    color: '#9b9588',
-  },
-  brandText: {
-    fontSize: 10,
-    color: '#9b9588',
-    marginLeft: 'auto',
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 9,
+    color: renewxColors.textSecondary,
   },
   name: {
-    fontSize: 12,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    lineHeight: 16,
-    marginBottom: 6,
+    marginTop: 5,
+    minHeight: 32,
+    fontFamily: renewxTypography.bodySemibold.fontFamily,
+    fontSize: 13,
+    lineHeight: 17,
+    color: renewxColors.text,
   },
-  stockRow: {
+  metaRow: {
+    minHeight: 18,
+    marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    gap: 5,
   },
-  stockText: {
-    fontSize: 10,
-    color: '#c47e00',
-    fontWeight: fontWeight.bold,
-    marginLeft: 'auto',
+  reviews: {
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 9,
+    color: renewxColors.textMuted,
+  },
+  stock: {
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 9,
+    color: renewxColors.warning,
   },
   bottomRow: {
+    marginTop: 9,
+    paddingTop: 9,
+    borderTopWidth: 1,
+    borderTopColor: renewxColors.border,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   priceContainer: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 4,
+    gap: 5,
   },
   price: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.black,
-    color: colors.text,
+    fontFamily: renewxTypography.price.fontFamily,
+    fontSize: 15,
+    color: renewxColors.text,
   },
   originalPrice: {
-    fontSize: 10,
-    color: '#9b9588',
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 9,
+    color: renewxColors.textMuted,
     textDecorationLine: 'line-through',
   },
   addButton: {
-    flexDirection: 'row',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#ffc400',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.sm,
-  },
-  addButtonText: {
-    color: '#000000',
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
+    justifyContent: 'center',
+    backgroundColor: renewxColors.yellow,
   },
 });
