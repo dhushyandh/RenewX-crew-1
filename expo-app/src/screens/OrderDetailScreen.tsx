@@ -208,7 +208,7 @@ export default function OrderDetailScreen() {
     try {
       setInvoiceLoading(true);
       await downloadOrderInvoicePdf(order, user);
-      toast.show('Invoice ready', 'success');
+      toast.success('Invoice ready');
     } catch (err: any) {
       Alert.alert('Invoice unavailable', err?.message || 'Unable to generate the invoice right now.');
     } finally {
