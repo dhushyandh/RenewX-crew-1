@@ -1,7 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
-
+import { renewxColors, renewxRadius, renewxSpacing, renewxTypography } from '@/design-system';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 interface HomeHeaderProps {
@@ -26,37 +25,57 @@ export default function HomeHeader({
   return (
     <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.topRow}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('@/assets/logo.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+        <View style={styles.brandRow}>
+          <Image source={require('@/assets/logo.png')} style={styles.logo} resizeMode="contain" />
+          <View style={styles.brandMeta}>
+            <Text style={styles.eyebrow}>CERTIFIED DEVICES</Text>
+            <Text style={styles.subline}>Buy better. Sell smarter.</Text>
+          </View>
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity onPress={onSearch} style={styles.iconButton}>
-            <Ionicons name="search" size={20} color={colors.text} />
+          <TouchableOpacity
+            onPress={onSearch}
+            style={styles.iconButton}
+            accessibilityLabel="Search products"
+            activeOpacity={0.75}
+          >
+            <Ionicons name="search-outline" size={21} color={renewxColors.black} />
           </TouchableOpacity>
 
           {isAdmin && onAdmin && (
-            <TouchableOpacity onPress={onAdmin} style={styles.iconButton}>
-              <Ionicons name="grid-outline" size={20} color={colors.primaryDark} />
+            <TouchableOpacity
+              onPress={onAdmin}
+              style={styles.iconButton}
+              accessibilityLabel="Open admin dashboard"
+              activeOpacity={0.75}
+            >
+              <Ionicons name="grid-outline" size={20} color={renewxColors.greenDark} />
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity onPress={onCart} style={styles.iconButton}>
-            <Ionicons name="cart-outline" size={22} color={colors.text} />
+          <TouchableOpacity
+            onPress={onCart}
+            style={styles.iconButton}
+            accessibilityLabel={cartCount > 0 ? `Cart, ${cartCount} items` : 'Cart'}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="bag-handle-outline" size={21} color={renewxColors.black} />
             {cartCount > 0 && (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{cartCount}</Text>
+                <Text style={styles.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
               </View>
             )}
           </TouchableOpacity>
 
           {onLogout && (
-            <TouchableOpacity onPress={onLogout} style={styles.iconButton}>
-              <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+            <TouchableOpacity
+              onPress={onLogout}
+              style={styles.iconButton}
+              accessibilityLabel="Sign out"
+              activeOpacity={0.75}
+            >
+              <Ionicons name="log-out-outline" size={20} color={renewxColors.error} />
             </TouchableOpacity>
           )}
         </View>
@@ -67,57 +86,80 @@ export default function HomeHeader({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: 12,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: renewxSpacing.md,
+    paddingBottom: renewxSpacing.sm,
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: renewxColors.border,
   },
   topRow: {
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: renewxSpacing.sm,
   },
-  logoContainer: {
+  brandRow: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: renewxSpacing.xs,
   },
-  logoImage: {
-    width: 125,
+  logo: {
+    width: 112,
     height: 38,
+  },
+  brandMeta: {
+    flexShrink: 1,
+    paddingLeft: 2,
+  },
+  eyebrow: {
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 8,
+    lineHeight: 10,
+    letterSpacing: 1.1,
+    color: renewxColors.green,
+  },
+  subline: {
+    marginTop: 1,
+    fontFamily: renewxTypography.caption.fontFamily,
+    fontSize: 9,
+    lineHeight: 12,
+    color: renewxColors.textSecondary,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
+    width: 40,
+    height: 40,
+    borderRadius: renewxRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
   },
   badge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: colors.primary,
+    top: -4,
+    right: -4,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 2,
+    borderColor: renewxColors.surface,
   },
   badgeText: {
-    color: colors.black,
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
+    fontFamily: renewxTypography.label.fontFamily,
+    fontSize: 8,
+    color: renewxColors.black,
   },
 });
