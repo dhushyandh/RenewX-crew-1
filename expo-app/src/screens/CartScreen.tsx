@@ -1,4 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
+import React from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -31,9 +32,21 @@ export default function CartScreen() {
     savings,
     totalItems,
     hydrated,
+    refreshInventory,
   } = useCart();
 
   const navigation = useNavigation<any>();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!hydrated || items.length === 0) return;
+      refreshInventory().catch(() => {
+        // Checkout performs a blocking inventory validation, so a passive
+        // refresh failure should not prevent browsing the local cart.
+      });
+    }, [hydrated, items.length, refreshInventory]),
+  );
+
 
   const handleRemove = (item: any) => {
     const itemId = item.id ?? item._uuid ?? item._id;
