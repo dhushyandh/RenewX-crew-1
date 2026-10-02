@@ -40,7 +40,7 @@ if (Platform.OS !== 'web') {
     (Text as any).defaultProps = {};
   }
   (Text as any).defaultProps.style = [
-    { fontFamily: 'Outfit_400Regular' },
+    { fontFamily: renewxFontFamily.regular },
     (Text as any).defaultProps.style,
   ];
 
@@ -54,6 +54,7 @@ if (Platform.OS !== 'web') {
 }
 import type { Product } from '@/types';
 import { colors } from '@/theme';
+import { renewxColors, renewxFontFamily, renewxRadius } from '@/design-system';
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ToastProvider } from '@/context/ToastContext';
@@ -661,7 +662,7 @@ function App() {
               {fontsLoaded ? (
                 <MainAppNavigation />
               ) : (
-                <View style={{ flex: 1, backgroundColor: '#ffffff' }} />
+                <View style={{ flex: 1, backgroundColor: renewxColors.surface }} />
               )}
               {!splashFinished && (
                 <AnimatedSplashScreen
@@ -682,7 +683,7 @@ export default Sentry.wrap(App);
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -698,16 +699,16 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     height: 64,
     position: 'relative',
-    borderRadius: 9999,
+    borderRadius: renewxRadius.pill,
     boxShadow: '0px 10px 32px rgba(15, 23, 42, 0.12)',
     elevation: 12,
   },
   floatingBlurBackground: {
     borderRadius: 9999,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: 'rgba(255, 255, 255, 0.96)',
   },
   floatingCapsuleRow: {
     flexDirection: 'row',
@@ -724,7 +725,7 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
   },
   floatingTabItemActive: {
-    backgroundColor: 'rgba(15, 23, 42, 0.05)',
+    backgroundColor: renewxColors.greenSoft,
   },
   floatingIconBox: {
     alignItems: 'center',
@@ -738,16 +739,17 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#f59e0b',
+    backgroundColor: renewxColors.green,
   },
   floatingTabLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#64748b',
+    fontFamily: renewxFontFamily.semibold,
+    color: renewxColors.textSecondary,
     marginTop: 4,
   },
   floatingTabLabelActive: {
-    color: '#0f172a',
+    color: renewxColors.black,
     fontWeight: '800',
   },
   floatingSellBtnContainer: {
@@ -760,16 +762,16 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3.5,
-    borderColor: '#ffffff',
+    borderColor: renewxColors.surface,
     boxShadow: '0px 6px 18px rgba(255, 196, 0, 0.45)',
     elevation: 10,
   },
   floatingSellCircleActive: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: renewxColors.yellowDark,
     borderColor: '#ffffff',
     transform: [{ scale: 1.06 }],
   },
@@ -787,7 +789,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   floatingSellLabelActive: {
-    color: '#d97706',
+    color: renewxColors.greenDark,
     fontWeight: '800',
   },
 });
