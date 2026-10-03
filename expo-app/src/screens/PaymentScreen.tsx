@@ -9,6 +9,7 @@ import {
   ScrollView,
   SafeAreaView,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -324,101 +325,104 @@ export default function PaymentScreen() {
         {/* Option 1: Razorpay Online Payment */}
         <TouchableOpacity
           style={[
-            styles.paymentOption,
-            paymentMethod === 'razorpay' && styles.paymentOptionSelected,
+            styles.cleanPaymentCard,
+            paymentMethod === 'razorpay' && styles.cleanPaymentCardSelectedRazorpay,
           ]}
           onPress={() => setPaymentMethod('razorpay')}
           activeOpacity={0.88}
           disabled={processing}
         >
-          <View style={styles.radioRow}>
-            <View style={[styles.radio, paymentMethod === 'razorpay' && styles.radioActive]}>
-              {paymentMethod === 'razorpay' && <View style={styles.radioDot} />}
+          <View style={styles.cleanPaymentTopRow}>
+            <View
+              style={[
+                styles.cleanRadio,
+                paymentMethod === 'razorpay' && styles.cleanRadioActiveRazorpay,
+              ]}
+            >
+              {paymentMethod === 'razorpay' && <View style={styles.cleanRadioDotRazorpay} />}
             </View>
 
-            <View style={styles.optionInfo}>
-              <View style={styles.optionTitleRow}>
-                <Text style={styles.optionTitle}>Razorpay Secure</Text>
-                <View style={[styles.recommendedBadge, { backgroundColor: '#0284C7' }]}>
-                  <Text style={[styles.recommendedText, { color: '#FFFFFF' }]}>RAZORPAY</Text>
-                </View>
-                <View style={styles.recommendedBadge}>
-                  <Text style={styles.recommendedText}>Recommended</Text>
+            <View style={styles.cleanPaymentBody}>
+              <View style={styles.cleanTitleRow}>
+                <Image
+                  source={require('@/assets/razorpay-logo.png')}
+                  style={styles.razorpayBrandLogo}
+                  resizeMode="contain"
+                />
+                <View style={styles.cleanBadgeBlue}>
+                  <Ionicons name="flash" size={10} color="#0284C7" />
+                  <Text style={styles.cleanBadgeBlueText}>Instant</Text>
                 </View>
               </View>
-              <Text style={styles.optionSubtitle}>
-                UPI (Google Pay, PhonePe, Paytm), Cards & 50+ Banks NetBanking
+
+              <Text style={styles.cleanSubtitle}>
+                UPI (Google Pay, PhonePe, Paytm), Cards & NetBanking
               </Text>
 
-              {/* Supported payment method chips */}
-              <View style={[styles.badgesRow, { marginBottom: 6 }]}>
-                <View style={styles.methodTag}>
-                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>⚡ UPI / QR</Text>
-                </View>
-                <View style={styles.methodTag}>
-                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>💳 Cards</Text>
-                </View>
-                <View style={styles.methodTag}>
-                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>🏦 NetBanking</Text>
-                </View>
-                <View style={styles.methodTag}>
-                  <Text style={[styles.methodTagText, { fontWeight: '700', color: '#0F172A' }]}>👛 Wallets</Text>
-                </View>
-              </View>
-
-              <View style={styles.badgesRow}>
-                <View style={[styles.methodTag, { backgroundColor: '#E0F2FE' }]}>
-                  <Ionicons name="globe-outline" size={12} color="#0284C7" />
-                  <Text style={[styles.methodTagText, { color: '#0284C7', fontWeight: '700' }]}>
-                    Web & Native Supported
-                  </Text>
-                </View>
-                <View style={styles.methodTag}>
-                  <Ionicons name="flash-outline" size={12} color="#059669" />
-                  <Text style={styles.methodTagText}>Instant Confirmation</Text>
-                </View>
-                <View style={styles.methodTag}>
-                  <Ionicons name="shield-checkmark-outline" size={12} color="#059669" />
-                  <Text style={styles.methodTagText}>100% Encrypted</Text>
-                </View>
+              <View style={styles.cleanFooterRow}>
+                <Ionicons name="shield-checkmark" size={13} color="#059669" />
+                <Text style={styles.cleanFooterText}>100% Encrypted</Text>
+                <Text style={styles.cleanFooterDot}>•</Text>
+                <Text style={styles.cleanFooterText}>50+ Banks & UPI Apps</Text>
               </View>
             </View>
+
+            <Ionicons
+              name={paymentMethod === 'razorpay' ? 'checkmark-circle' : 'chevron-forward'}
+              size={20}
+              color={paymentMethod === 'razorpay' ? '#0284C7' : '#CBD5E1'}
+            />
           </View>
         </TouchableOpacity>
 
         {/* Option 2: Cash on Delivery */}
         <TouchableOpacity
           style={[
-            styles.paymentOption,
-            paymentMethod === 'cod' && styles.paymentOptionSelected,
+            styles.cleanPaymentCard,
+            paymentMethod === 'cod' && styles.cleanPaymentCardSelectedCod,
           ]}
           onPress={() => setPaymentMethod('cod')}
           activeOpacity={0.88}
           disabled={processing}
         >
-          <View style={styles.radioRow}>
-            <View style={[styles.radio, paymentMethod === 'cod' && styles.radioActive]}>
-              {paymentMethod === 'cod' && <View style={styles.radioDot} />}
+          <View style={styles.cleanPaymentTopRow}>
+            <View
+              style={[
+                styles.cleanRadio,
+                paymentMethod === 'cod' && styles.cleanRadioActiveCod,
+              ]}
+            >
+              {paymentMethod === 'cod' && <View style={styles.cleanRadioDotCod} />}
             </View>
 
-            <View style={styles.optionInfo}>
-              <View style={styles.optionTitleRow}>
-                <Text style={styles.optionTitle}>Cash on Delivery (COD)</Text>
-                <View style={styles.codBadge}>
-                  <Text style={styles.codBadgeText}>Doorstep</Text>
+            <View style={styles.cleanPaymentBody}>
+              <View style={styles.cleanTitleRow}>
+                <View style={styles.codTitleBox}>
+                  <View style={styles.codIconBadge}>
+                    <Ionicons name="cash-outline" size={16} color="#059669" />
+                  </View>
+                  <Text style={styles.codMainTitle}>Cash on Delivery</Text>
+                </View>
+                <View style={styles.cleanBadgeGreen}>
+                  <Text style={styles.cleanBadgeGreenText}>Doorstep</Text>
                 </View>
               </View>
-              <Text style={styles.optionSubtitle}>
+
+              <Text style={styles.cleanSubtitle}>
                 Pay with cash or UPI QR scan when your courier arrives
               </Text>
 
-              <View style={styles.badgesRow}>
-                <View style={styles.methodTag}>
-                  <Ionicons name="checkmark-circle-outline" size={12} color="#475569" />
-                  <Text style={styles.methodTagText}>Zero Extra Fee</Text>
-                </View>
+              <View style={styles.cleanFooterRow}>
+                <Ionicons name="checkmark-circle-outline" size={13} color="#64748B" />
+                <Text style={styles.cleanFooterText}>Zero Advance Payment Needed</Text>
               </View>
             </View>
+
+            <Ionicons
+              name={paymentMethod === 'cod' ? 'checkmark-circle' : 'chevron-forward'}
+              size={20}
+              color={paymentMethod === 'cod' ? '#059669' : '#CBD5E1'}
+            />
           </View>
         </TouchableOpacity>
 
@@ -575,102 +579,130 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 4,
   },
-  paymentOption: {
-    backgroundColor: '#fff',
+  cleanPaymentCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
-    padding: spacing.md,
     borderWidth: 1.5,
     borderColor: colors.border,
+    padding: 14,
     marginBottom: 12,
   },
-  paymentOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#fffbeb',
+  cleanPaymentCardSelectedRazorpay: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#0284C7',
   },
-  radioRow: {
+  cleanPaymentCardSelectedCod: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#059669',
+  },
+  cleanPaymentTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
   },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  cleanRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#cbd5e1',
+    borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  radioActive: {
-    borderColor: '#000',
+  cleanRadioActiveRazorpay: {
+    borderColor: '#0284C7',
   },
-  radioDot: {
+  cleanRadioDotRazorpay: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.primary,
+    backgroundColor: '#0284C7',
   },
-  optionInfo: {
+  cleanRadioActiveCod: {
+    borderColor: '#059669',
+  },
+  cleanRadioDotCod: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#059669',
+  },
+  cleanPaymentBody: {
     flex: 1,
   },
-  optionTitleRow: {
+  cleanTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  optionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+  razorpayBrandLogo: {
+    width: 105,
+    height: 22,
   },
-  recommendedBadge: {
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  recommendedText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#15803d',
-  },
-  codBadge: {
-    backgroundColor: '#e0f2fe',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  codBadgeText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#0369a1',
-  },
-  optionSubtitle: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  methodTag: {
+  cleanBadgeBlue: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
+    gap: 3,
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
   },
-  methodTagText: {
+  cleanBadgeBlueText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  cleanBadgeGreen: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  cleanBadgeGreenText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  codTitleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  codIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  codMainTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  cleanSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 17,
+    marginBottom: 6,
+  },
+  cleanFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  cleanFooterText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  cleanFooterDot: {
     fontSize: 10,
-    color: '#475569',
-    fontWeight: fontWeight.medium,
+    color: '#94A3B8',
   },
   securityBox: {
     flexDirection: 'row',

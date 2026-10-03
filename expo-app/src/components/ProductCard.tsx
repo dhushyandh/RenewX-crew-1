@@ -31,7 +31,6 @@ export default function ProductCard({ product, onPress, onAddToCart, onShare }: 
       onPress={onPress}
       style={styles.card}
       activeOpacity={0.92}
-      accessibilityRole="button"
       accessibilityLabel={product.name}
     >
       <View style={styles.imageContainer}>

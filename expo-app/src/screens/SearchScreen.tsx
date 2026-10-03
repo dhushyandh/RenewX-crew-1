@@ -15,7 +15,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '@/App';
@@ -160,6 +160,16 @@ export default function SearchScreen() {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const toast = useToast();
+  const listRef = useRef<FlatList>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const inputRef = useRef<TextInput>(null);
 
@@ -471,6 +481,7 @@ export default function SearchScreen() {
             onPress={() => {
               addToCart(item);
               toast?.success?.('Added to cart!', name);
+              navigation.navigate('Cart');
             }}
             activeOpacity={0.85}
           >
@@ -581,6 +592,7 @@ export default function SearchScreen() {
       {/* 6. Product Listing 2-Column Grid */}
       {!showSuggestions && (
         <FlatList
+          ref={listRef}
           data={loading ? [] : filteredProducts}
           keyExtractor={(item, index) =>
             String((item as AnyProduct)._uuid ?? (item as AnyProduct).id ?? index)

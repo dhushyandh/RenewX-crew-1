@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,10 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/App';
 import type { Product } from '@/types';
@@ -170,8 +171,18 @@ export default function ShopScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<any>();
   const { addToCart, totalItems } = useCart();
-  const { isInWishlist, toggleWishlist } = useWishlist();
+  const { isInWishlist, toggleWishlist, totalWishlistItems } = useWishlist();
   const toast = useToast();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -221,16 +232,18 @@ export default function ShopScreen() {
 
   const handleToggleWishlist = (product: Product) => {
     const isNowWishlisted = toggleWishlist(product);
+    const nextCount = isNowWishlisted ? totalWishlistItems + 1 : Math.max(0, totalWishlistItems - 1);
     if (isNowWishlisted) {
-      toast.success(`Saved "${product.name}" to wishlist`);
+      toast.success(product.name, `Added to Wishlist (${nextCount} ${nextCount === 1 ? 'item' : 'items'})`);
     } else {
-      toast.info('Removed from wishlist');
+      toast.info(product.name, `Removed from Wishlist (${nextCount} ${nextCount === 1 ? 'item' : 'items'})`);
     }
   };
 
   const handleAddToCart = (product: Product) => {
     addToCart(product);
-    toast.success(`Added ${product.name} to cart!`);
+    toast.success(product.name, 'Added to Cart');
+    navigation.navigate('Cart');
   };
 
   const handleCategoryPress = (catId: string) => {
@@ -369,7 +382,6 @@ export default function ShopScreen() {
         style={styles.productCard}
         onPress={() => navigation.navigate('ProductDetail', { id: String(item.id), product: item })}
         activeOpacity={0.88}
-        accessibilityRole="button"
         accessibilityLabel={`${item.name}, ₹${price.toLocaleString('en-IN')}`}
       >
         {/* Top Row: Badge + Wishlist Heart */}
@@ -392,7 +404,10 @@ export default function ShopScreen() {
 
           <TouchableOpacity
             style={styles.wishlistHit}
-            onPress={() => handleToggleWishlist(item)}
+            onPress={(e) => {
+              (e as any)?.stopPropagation?.();
+              handleToggleWishlist(item);
+            }}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
@@ -454,7 +469,10 @@ export default function ShopScreen() {
         {/* Add to Cart Yellow CTA */}
         <TouchableOpacity
           style={styles.addToCartBtn}
-          onPress={() => handleAddToCart(item)}
+          onPress={(e) => {
+            (e as any)?.stopPropagation?.();
+            handleAddToCart(item);
+          }}
           activeOpacity={0.88}
           accessibilityRole="button"
           accessibilityLabel={`Add ${item.name} to cart`}
@@ -480,6 +498,7 @@ export default function ShopScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={

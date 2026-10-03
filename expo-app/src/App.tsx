@@ -303,7 +303,7 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
             <Text style={styles.floatingCartText}>You've unlocked FREE delivery</Text>
           </View>
           <View style={styles.floatingCartRightBtn}>
-            <Ionicons name="bag-handle" size={14} color="#FFFFFF" />
+            <Ionicons name="cart" size={14} color="#FFFFFF" />
             <Text style={styles.floatingCartCount}>{totalItems}</Text>
             <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
           </View>
@@ -662,6 +662,18 @@ function MainAppNavigation() {
         onStateChange={() => {
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+            try {
+              document.body.scrollTop = 0;
+              document.documentElement.scrollTop = 0;
+              const root = document.getElementById('root');
+              if (root) root.scrollTop = 0;
+              // Reset any scrollable elements in web view so new screen starts from top
+              document.querySelectorAll('[data-focusable="true"], [style*="overflow"], [dir="auto"], div').forEach((el: any) => {
+                if (el && typeof el.scrollTop === 'number' && el.scrollTop > 0) {
+                  el.scrollTop = 0;
+                }
+              });
+            } catch {}
             try {
               const current = navigationRef.current?.getCurrentRoute();
               if (current?.name) {

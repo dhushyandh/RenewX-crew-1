@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { api } from '@/services/api';
@@ -32,6 +32,16 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
   const route = useRoute<any>();
   const toast = useToast();
   const { user, token: authToken, loginWithToken, signOut } = useAuth();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   // Route / Query params (e.g. from /security?token=xyz&email=abc)
   const paramToken = route?.params?.token || '';
@@ -254,7 +264,11 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
       />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Segmented Tab Selector */}
           <View style={styles.tabContainer}>
             <TouchableOpacity
@@ -551,7 +565,7 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
                 } catch {
                   navigation.navigate('Auth');
                 }
-                toast.success('Signed out successfully.');
+                toast.success('Signed out successfully.', 'Signed Out');
               }}
               activeOpacity={0.8}
             >

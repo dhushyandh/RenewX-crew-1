@@ -18,7 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { api } from '@/services/api';
 import { reverseGeocodeCoords } from '@/services/locationService';
@@ -133,6 +133,24 @@ export default function SellScreen() {
 
   // Stepper State (1 to 8)
   const [step, setStep] = useState<number>(1);
+
+  // Scroll to top when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
+
+  // Scroll to top when user moves to next/prev step (Step 1 -> 8)
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+    }
+  }, [step]);
 
   // Step 1: Category (Starts empty)
   const [selectedCategory, setSelectedCategory] = useState<string>('');

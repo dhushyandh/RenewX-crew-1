@@ -1,358 +1,151 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   Easing,
   Image,
   Platform,
   StyleSheet,
-  Text,
-  View,
+  useWindowDimensions,
 } from 'react-native';
 
-const LOGO_IMG = require('@/assets/splash.png');
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SPLASH_POSTER = require('../../assets/image.png');
 
 interface AnimatedSplashScreenProps {
   onFinish?: () => void;
   isReady?: boolean;
+  minDurationMs?: number;
 }
 
 export default function AnimatedSplashScreen({
   onFinish,
   isReady = true,
+  minDurationMs = 1200,
 }: AnimatedSplashScreenProps) {
-  // Animation drivers
-  const logoScale = useRef(new Animated.Value(0.78)).current;
-  const logoTranslateY = useRef(new Animated.Value(14)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-  // Ambient aura glow
-  const auraScale = useRef(new Animated.Value(0.7)).current;
-  const auraOpacity = useRef(new Animated.Value(0)).current;
+  // Screen entrance & exit animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.98)).current;
+  const [minTimePassed, setMinTimePassed] = useState(false);
 
-  // Text & badge elements
-  const textTranslateY = useRef(new Animated.Value(12)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-
-  // Sleek progress hairline track
-  const progressWidth = useRef(new Animated.Value(0)).current;
-  const progressOpacity = useRef(new Animated.Value(0)).current;
-
-  // Container fade out
-  const containerOpacity = useRef(new Animated.Value(1)).current;
-
-  const [hasEntered, setHasEntered] = useState(false);
-
+  // 1. Entrance animation
   useEffect(() => {
-    // Phase 1: Upgraded Cinematic LinkedIn Entrance
     Animated.parallel([
-      // Logo Entrance
-      Animated.timing(logoScale, {
+      Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 560,
-        easing: Easing.bezier(0.16, 1, 0.3, 1), // Silky spring-like curve
-        useNativeDriver: true,
-      }),
-      Animated.timing(logoTranslateY, {
-        toValue: 0,
-        duration: 560,
-        easing: Easing.bezier(0.16, 1, 0.3, 1),
-        useNativeDriver: true,
-      }),
-      Animated.timing(logoOpacity, {
-        toValue: 1,
-        duration: 440,
+        duration: 350,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 450,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-      // Ambient Aura Expansion
-      Animated.sequence([
-        Animated.timing(auraOpacity, {
-          toValue: 0.5,
+    const minTimer = setTimeout(() => {
+      setMinTimePassed(true);
+    }, minDurationMs);
+
+    return () => clearTimeout(minTimer);
+  }, []);
+
+  // 2. Graceful exit transition when app is ready and minimum display time elapsed
+  useEffect(() => {
+    if (minTimePassed && isReady) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1.02,
           duration: 350,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(auraOpacity, {
-          toValue: 0.15,
-          duration: 450,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(auraScale, {
-        toValue: 1.35,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-
-      // Typography Entrance (staggered slightly)
-      Animated.timing(textTranslateY, {
-        toValue: 0,
-        duration: 500,
-        delay: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(textOpacity, {
-        toValue: 1,
-        duration: 480,
-        delay: 180,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-
-      // Progress bar fill
-      Animated.timing(progressOpacity, {
-        toValue: 1,
-        duration: 300,
-        delay: 240,
-        useNativeDriver: false,
-      }),
-      Animated.timing(progressWidth, {
-        toValue: 1,
-        duration: 750,
-        delay: 240,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]).start(() => {
-      // Phase 2: Gentle micro breathing pulse (LinkedIn signature)
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(logoScale, {
-            toValue: 1.035,
-            duration: 700,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoScale, {
-            toValue: 1.0,
-            duration: 700,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-
-      setHasEntered(true);
-    });
-  }, []);
-
-  // Phase 3: Upgraded Cinematic Portal Exit (Anticipation Dip -> Zoom-through)
-  useEffect(() => {
-    if (!hasEntered || !isReady) return;
-
-    const timer = setTimeout(() => {
-      // Step A: Crisp 90ms anticipation dip
-      Animated.timing(logoScale, {
-        toValue: 0.95,
-        duration: 100,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start(() => {
-        // Step B: Expansive Hero Portal Zoom & Container Fade
-        Animated.parallel([
-          Animated.timing(logoScale, {
-            toValue: 2.1,
-            duration: 380,
-            easing: Easing.bezier(0.4, 0, 0.2, 1),
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoOpacity, {
-            toValue: 0,
-            duration: 280,
-            easing: Easing.in(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(textOpacity, {
-            toValue: 0,
-            duration: 200,
-            easing: Easing.in(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(progressOpacity, {
-            toValue: 0,
-            duration: 180,
-            useNativeDriver: false,
-          }),
-          Animated.timing(containerOpacity, {
-            toValue: 0,
-            duration: 380,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          if (onFinish) {
-            onFinish();
-          }
-        });
+      ]).start(() => {
+        onFinish?.();
       });
-    }, 180);
+    }
+  }, [minTimePassed, isReady]);
 
-    return () => clearTimeout(timer);
-  }, [hasEntered, isReady]);
-
-  const progressLineWidth = progressWidth.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, Math.min(140, SCREEN_WIDTH * 0.35)],
-  });
+  // Responsive desktop / mobile frame handling
+  const isDesktop = Platform.OS === 'web' && windowWidth > 540;
+  const containerWidth = isDesktop ? Math.min(430, windowWidth * 0.9) : windowWidth;
+  const containerHeight = isDesktop ? Math.min(880, windowHeight * 0.94) : windowHeight;
 
   return (
     <Animated.View
       pointerEvents="none"
       style={[
-        styles.container,
+        styles.overlay,
         {
-          opacity: containerOpacity,
+          opacity: fadeAnim,
         },
       ]}
     >
-      <View style={styles.centerBox}>
-        {/* Soft Ambient Radial Halo */}
-        <Animated.View
-          style={[
-            styles.auraHalo,
-            {
-              opacity: auraOpacity,
-              transform: [{ scale: auraScale }],
-            },
-          ]}
+      <Animated.View
+        style={[
+          styles.cardContainer,
+          isDesktop && styles.desktopCard,
+          {
+            width: containerWidth,
+            height: containerHeight,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <Image
+          source={SPLASH_POSTER}
+          style={styles.splashImage}
+          resizeMode={isDesktop ? 'contain' : 'cover'}
         />
-
-        {/* Hero Logo with Silky Elevation */}
-        <Animated.View
-          style={[
-            styles.logoContainer,
-            {
-              opacity: logoOpacity,
-              transform: [
-                { translateY: logoTranslateY },
-                { scale: logoScale },
-              ],
-            },
-          ]}
-        >
-          <Image source={LOGO_IMG} style={styles.logoImage} resizeMode="contain" />
-        </Animated.View>
-      </View>
-
-      {/* Brand Footer with Hairline Shimmer Progress */}
-      <View style={styles.bottomBrandBox}>
-        <Animated.View
-          style={{
-            alignItems: 'center',
-            opacity: textOpacity,
-            transform: [{ translateY: textTranslateY }],
-          }}
-        >
-          <Text style={styles.brandTitle}>
-            Renew<Text style={styles.brandAccent}>X</Text>
-          </Text>
-          <Text style={styles.brandSubtitle}>Certified Pre-Owned Electronics</Text>
-        </Animated.View>
-
-        {/* Sleek hairline loading indicator */}
-        <Animated.View
-          style={[
-            styles.progressTrack,
-            {
-              opacity: progressOpacity,
-            },
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles.progressBar,
-              {
-                width: progressLineWidth,
-              },
-            ]}
-          />
-        </Animated.View>
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#ffffff',
-    zIndex: 99999,
-    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    zIndex: 999999,
     alignItems: 'center',
-  },
-  centerBox: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+  },
+  cardContainer: {
     position: 'relative',
-  },
-  auraHalo: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: '#ffc400',
-    filter: Platform.OS === 'web' ? 'blur(28px)' : undefined,
-  },
-  logoContainer: {
-    width: 104,
-    height: 104,
-    borderRadius: 24,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 8,
   },
-  logoImage: {
-    width: 90,
-    height: 90,
+  desktopCard: {
+    borderRadius: 28,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.12)',
+      },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+        elevation: 12,
+      },
+    }),
   },
-  bottomBrandBox: {
-    paddingBottom: 48,
-    alignItems: 'center',
-  },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.6,
-  },
-  brandAccent: {
-    color: '#ffc400',
-  },
-  brandSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#94a3b8',
-    marginTop: 4,
-    letterSpacing: 0.3,
-  },
-  progressTrack: {
-    width: 140,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#f1f5f9',
-    marginTop: 18,
-    overflow: 'hidden',
-    alignItems: 'flex-start',
-  },
-  progressBar: {
+  splashImage: {
+    width: '100%',
     height: '100%',
-    borderRadius: 2,
-    backgroundColor: '#ffc400',
   },
 });

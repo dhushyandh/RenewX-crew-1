@@ -37,16 +37,20 @@ export async function markNotificationRead(
       return;
     }
 
+    const { id } = req.params;
+    let filter: any;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      filter = { _id: id, user_id: req.user.id };
+    } else {
+      filter = { user_id: req.user.id, $or: [{ reference_id: id }, { type: id }] };
+    }
+
     const notification = await NotificationModel.findOneAndUpdate(
-      { _id: req.params.id, user_id: req.user.id },
+      filter,
       { $set: { read_at: new Date() } },
       { new: true }
     );
-
-    if (!notification) {
-      res.status(404).json({ success: false, error: { message: 'Notification not found', code: 'NOT_FOUND' } });
-      return;
-    }
 
     res.json({ success: true, data: notification });
   } catch (err) {
@@ -88,17 +92,19 @@ export async function deleteNotification(
     }
 
     const { id } = req.params;
-    const deleted = await NotificationModel.findOneAndDelete({
-      _id: id,
-      user_id: req.user.id,
-    });
+    let filter: any;
 
-    if (!deleted) {
-      res.status(404).json({ success: false, error: { message: 'Notification not found', code: 'NOT_FOUND' } });
-      return;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      filter = { _id: id, user_id: req.user.id };
+    } else {
+      filter = {
+        user_id: req.user.id,
+        $or: [{ reference_id: id }, { type: id }],
+      };
     }
 
-    res.json({ success: true, message: 'Notification deleted' });
+    const deleted = await NotificationModel.findOneAndDelete(filter);
+    res.json({ success: true, message: 'Notification deleted', deleted: !!deleted });
   } catch (err) {
     next(err);
   }

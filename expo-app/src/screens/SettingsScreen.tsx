@@ -467,12 +467,14 @@ export default function SettingsScreen() {
                     gap: 10,
                   }}
                   onPress={async () => {
+                    toast.detecting('Please wait, this may take a few seconds.', 'Detecting your location...');
                     const res = await detectLocation();
                     if (res) {
-                      toast.success(`📍 Location detected: ${res}`);
+                      const formatted = res.replace(/\s*-\s*/g, ' • ');
+                      toast.success(formatted, 'Location updated');
                       setActiveModal(null);
                     } else {
-                      toast.show('Permission denied or unavailable');
+                      toast.permission('Allow location access to detect your district and pincode.', 'Location permission required');
                     }
                   }}
                   disabled={isDetecting}
@@ -504,7 +506,8 @@ export default function SettingsScreen() {
                     onPress={() => {
                       setLocationManually(loc);
                       setActiveModal(null);
-                      toast.show(`Delivery location set to ${loc}`);
+                      const formatted = loc.replace(/\s*-\s*/g, ' • ');
+                      toast.manual(formatted, 'Location saved');
                     }}
                   >
                     <Text style={styles.modalOptionText}>{loc}</Text>

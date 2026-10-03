@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '@/App';
@@ -36,6 +36,16 @@ export default function AccountScreen() {
   const { user, isAdmin, signOut, refreshUser } = useAuth();
   const { totalWishlistItems } = useWishlist();
   const toast = useToast();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const [orderStats, setOrderStats] = useState({
     total: 0,
@@ -106,10 +116,10 @@ export default function AccountScreen() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      toast.success('Signed out successfully.');
+      toast.success('Signed out successfully.', 'Signed Out');
       navigation.navigate('Auth' as any);
     } catch {
-      toast.error('Failed to sign out');
+      toast.error('Failed to sign out', 'Sign Out');
     }
   };
 
@@ -135,6 +145,7 @@ export default function AccountScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={

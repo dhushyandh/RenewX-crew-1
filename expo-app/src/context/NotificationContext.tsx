@@ -120,54 +120,60 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   // Mark single notification as read
   const markAsRead = useCallback(async (id: string) => {
+    if (!id) return;
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+
     try {
       await api.notifications.markRead(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch {
-      // Ignore failure
+      // Ignore background failure
     }
   }, []);
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
+    );
+    setUnreadCount(0);
+
     try {
       await api.notifications.markAllRead();
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
-      );
-      setUnreadCount(0);
     } catch {
-      // Ignore failure
+      // Ignore background failure
     }
   }, []);
 
-  // Delete single notification
+  // Delete single notification (optimistic UI update)
   const deleteNotification = useCallback(async (id: string) => {
+    if (!id) return;
+    setNotifications((prev) => {
+      const target = prev.find((n) => n.id === id);
+      if (target && !target.read_at) {
+        setUnreadCount((c) => Math.max(0, c - 1));
+      }
+      return prev.filter((n) => n.id !== id);
+    });
+
     try {
       await api.notifications.delete(id);
-      setNotifications((prev) => {
-        const target = prev.find((n) => n.id === id);
-        if (target && !target.read_at) {
-          setUnreadCount((c) => Math.max(0, c - 1));
-        }
-        return prev.filter((n) => n.id !== id);
-      });
-    } catch {
-      // Ignore failure
+    } catch (err) {
+      console.warn('[NotificationContext] Server delete failed:', err);
     }
   }, []);
 
-  // Clear all notifications
+  // Clear all notifications (optimistic UI update)
   const clearAll = useCallback(async () => {
+    setNotifications([]);
+    setUnreadCount(0);
+
     try {
       await api.notifications.clearAll();
-      setNotifications([]);
-      setUnreadCount(0);
-    } catch {
-      // Ignore failure
+    } catch (err) {
+      console.warn('[NotificationContext] Server clearAll failed:', err);
     }
   }, []);
 

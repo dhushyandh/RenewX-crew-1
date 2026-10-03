@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -21,6 +21,7 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { api } from '@/services/api';
 import HomeHeader from '@/components/HomeHeader';
 import RazorpayModal from '@/components/RazorpayModal';
+import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 import {
   openRazorpay,
   isNativeRazorpayAvailable,
@@ -48,6 +49,16 @@ export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { items: contextItems, clearCart } = useCart();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   // Address state initialized from user profile or empty
   const [addresses, setAddresses] = useState<AddressItem[]>(() => {
@@ -81,11 +92,12 @@ export default function CheckoutScreen() {
   // Delivery options state: 'standard' | 'express'
   const [deliveryOption, setDeliveryOption] = useState<'standard' | 'express'>('standard');
 
-  // Payment method: 'razorpay' | 'upi' | 'card' | 'netbanking' | 'wallets' | 'cod'
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi' | 'card' | 'netbanking' | 'wallets' | 'cod'>('razorpay');
+  // Payment method: 'razorpay' | 'cod'
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
 
-  // Processing state
+  // Processing & Success Animation state
   const [processing, setProcessing] = useState(false);
+  const [orderSuccessOverlay, setOrderSuccessOverlay] = useState(false);
 
   // Razorpay Modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -192,8 +204,20 @@ export default function CheckoutScreen() {
     setAddressModalVisible(false);
   };
 
+  // Trigger instant visual confirmation with animated green tick overlay, then navigate to confirmation screen
+  const triggerSuccessAndNavigate = (targetParams: any) => {
+    setProcessing(false);
+    setOrderSuccessOverlay(true);
+    clearCart();
+    setTimeout(() => {
+      setOrderSuccessOverlay(false);
+      navigation.navigate('OrderConfirm', targetParams);
+    }, 850);
+  };
+
   // Place Order handler
   const handlePlaceOrder = async () => {
+    if (processing || orderSuccessOverlay) return;
     setProcessing(true);
     const orderNum = `RX${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -237,9 +261,7 @@ export default function CheckoutScreen() {
         );
 
         if (paymentMethod === 'cod') {
-          clearCart();
-          setProcessing(false);
-          navigation.navigate('OrderConfirm', {
+          triggerSuccessAndNavigate({
             ...orderPayload,
             order: checkoutRes.order,
             orderId: checkoutRes.order?.id || orderNum,
@@ -301,15 +323,13 @@ export default function CheckoutScreen() {
       }
     }
 
-    // Simulate direct placement fallback
+    // Direct placement fallback (fast, instant responsiveness)
     setTimeout(() => {
-      setProcessing(false);
-      clearCart();
-      navigation.navigate('OrderConfirm', {
+      triggerSuccessAndNavigate({
         ...orderPayload,
         orderId: orderNum,
       });
-    }, 700);
+    }, 120);
   };
 
   const completeOnlineVerification = async (
@@ -327,8 +347,7 @@ export default function CheckoutScreen() {
           razorpay_signature: paymentResult.razorpay_signature,
         });
 
-        clearCart();
-        navigation.navigate('OrderConfirm', {
+        triggerSuccessAndNavigate({
           ...orderPayload,
           order: verifiedOrder,
           orderId: String(verifiedOrder?.id || verifiedOrder?._id || orderId),
@@ -337,8 +356,7 @@ export default function CheckoutScreen() {
         });
       } catch (verifyErr: any) {
         console.warn('[Checkout] Verification pending/fallback:', verifyErr?.message);
-        clearCart();
-        navigation.navigate('OrderConfirm', {
+        triggerSuccessAndNavigate({
           ...orderPayload,
           order: activeOrderRef.current,
           orderId: orderId,
@@ -347,9 +365,8 @@ export default function CheckoutScreen() {
         });
       }
     } catch (err: any) {
-      Alert.alert('Payment Confirmation', err?.message || 'Could not confirm payment.');
-    } finally {
       setProcessing(false);
+      Alert.alert('Payment Confirmation', err?.message || 'Could not confirm payment.');
     }
   };
 
@@ -381,8 +398,7 @@ export default function CheckoutScreen() {
     if (result && result.razorpay_payment_id) {
       await completeOnlineVerification(confirmedOrderId, result, currentOrderPayload);
     } else {
-      clearCart();
-      navigation.navigate('OrderConfirm', currentOrderPayload);
+      triggerSuccessAndNavigate(currentOrderPayload);
     }
   };
 
@@ -419,6 +435,7 @@ export default function CheckoutScreen() {
       ) : (
         <>
           <ScrollView
+            ref={scrollRef}
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
@@ -642,146 +659,107 @@ export default function CheckoutScreen() {
               </View>
             </View>
 
-            {/* Prominent Razorpay Card */}
+            {/* 1. Razorpay Online Payment */}
             <TouchableOpacity
               style={[
-                styles.razorpayCardContainer,
-                paymentMethod === 'razorpay' && styles.razorpayCardContainerSelected,
+                styles.cleanPaymentCard,
+                paymentMethod === 'razorpay' && styles.cleanPaymentCardSelectedRazorpay,
               ]}
               onPress={() => setPaymentMethod('razorpay')}
               activeOpacity={0.88}
             >
-              <View style={styles.razorpayTopRow}>
+              <View style={styles.cleanPaymentTopRow}>
                 <View
                   style={[
-                    styles.radioOuter,
-                    paymentMethod === 'razorpay' && styles.radioOuterSelected,
+                    styles.cleanRadio,
+                    paymentMethod === 'razorpay' && styles.cleanRadioActiveRazorpay,
                   ]}
                 >
-                  {paymentMethod === 'razorpay' && <View style={styles.radioInner} />}
+                  {paymentMethod === 'razorpay' && <View style={styles.cleanRadioDotRazorpay} />}
                 </View>
 
-                <View style={[styles.paymentIconBox, { backgroundColor: '#0284C7' }]}>
-                  <Ionicons name="shield-checkmark" size={17} color="#FFFFFF" />
-                </View>
-
-                <View style={{ flex: 1, paddingRight: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-                    <Text style={styles.paymentMethodTitle}>Razorpay Secure</Text>
-                    <View style={styles.razorpayBadge}>
-                      <Text style={styles.razorpayBadgeText}>RAZORPAY</Text>
-                    </View>
-                    <View style={styles.recommendedPill}>
-                      <Text style={styles.recommendedPillText}>Recommended</Text>
+                <View style={styles.cleanPaymentBody}>
+                  <View style={styles.cleanTitleRow}>
+                    <Image
+                      source={require('@/assets/razorpay-logo.png')}
+                      style={styles.razorpayBrandLogo}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.cleanBadgeBlue}>
+                      <Ionicons name="flash" size={10} color="#0284C7" />
+                      <Text style={styles.cleanBadgeBlueText}>Instant</Text>
                     </View>
                   </View>
-                  <Text style={styles.paymentMethodDesc}>
-                    UPI (GPay, PhonePe, Paytm), Cards, NetBanking & Wallets
+
+                  <Text style={styles.cleanSubtitle}>
+                    UPI (Google Pay, PhonePe, Paytm), Cards & NetBanking
                   </Text>
+
+                  <View style={styles.cleanFooterRow}>
+                    <Ionicons name="shield-checkmark" size={13} color="#059669" />
+                    <Text style={styles.cleanFooterText}>100% Encrypted</Text>
+                    <Text style={styles.cleanFooterDot}>•</Text>
+                    <Text style={styles.cleanFooterText}>50+ Banks & UPI Apps</Text>
+                  </View>
                 </View>
 
                 <Ionicons
                   name={paymentMethod === 'razorpay' ? 'checkmark-circle' : 'chevron-forward'}
-                  size={18}
-                  color={paymentMethod === 'razorpay' ? '#0284C7' : '#94A3B8'}
+                  size={20}
+                  color={paymentMethod === 'razorpay' ? '#0284C7' : '#CBD5E1'}
                 />
-              </View>
-
-              {/* Supported payment method chips */}
-              <View style={styles.razorpaySupportedRow}>
-                <View style={[styles.methodChip, paymentMethod === 'razorpay' && styles.methodChipActive]}>
-                  <Text style={styles.methodChipText}>⚡ UPI / QR</Text>
-                </View>
-                <View style={[styles.methodChip, paymentMethod === 'razorpay' && styles.methodChipActive]}>
-                  <Text style={styles.methodChipText}>💳 Cards</Text>
-                </View>
-                <View style={[styles.methodChip, paymentMethod === 'razorpay' && styles.methodChipActive]}>
-                  <Text style={styles.methodChipText}>🏦 50+ Banks</Text>
-                </View>
-                <View style={[styles.methodChip, paymentMethod === 'razorpay' && styles.methodChipActive]}>
-                  <Text style={styles.methodChipText}>👛 Wallets</Text>
-                </View>
-              </View>
-
-              {/* Web & Native indicator banner */}
-              <View style={styles.platformTagRow}>
-                <View style={styles.platformTag}>
-                  <Ionicons name="globe-outline" size={12} color="#0284C7" />
-                  <Text style={styles.platformTagText}>Web & Native Supported</Text>
-                </View>
-                <Text style={{ fontSize: 10, color: '#94A3B8' }}>•</Text>
-                <View style={styles.platformTag}>
-                  <Ionicons name="flash" size={11} color="#059669" />
-                  <Text style={styles.secureTagText}>Instant Gateway Confirmation</Text>
-                </View>
               </View>
             </TouchableOpacity>
 
-            {/* Other Payment Methods */}
-            {[
-              {
-                id: 'upi',
-                label: 'UPI (Google Pay, PhonePe, Paytm)',
-                desc: 'Pay directly via any UPI application or VPA ID',
-                icon: 'flash',
-              },
-              {
-                id: 'card',
-                label: 'Credit / Debit Card',
-                desc: 'Visa, Mastercard, RuPay & Maestro cards',
-                icon: 'card-outline',
-              },
-              {
-                id: 'netbanking',
-                label: 'Net Banking',
-                desc: 'All major Indian banks with instant verification',
-                icon: 'business-outline',
-              },
-              {
-                id: 'wallets',
-                label: 'Wallets',
-                desc: 'Amazon Pay, Paytm Wallet, PhonePe & Mobikwik',
-                icon: 'wallet-outline',
-              },
-              {
-                id: 'cod',
-                label: 'Cash on Delivery (COD)',
-                desc: 'Pay with cash or UPI QR scan when your courier arrives',
-                icon: 'cash-outline',
-              },
-            ].map((method) => {
-              const isSelected = paymentMethod === method.id;
-              return (
-                <TouchableOpacity
-                  key={method.id}
+            {/* 2. Cash on Delivery */}
+            <TouchableOpacity
+              style={[
+                styles.cleanPaymentCard,
+                paymentMethod === 'cod' && styles.cleanPaymentCardSelectedCod,
+              ]}
+              onPress={() => setPaymentMethod('cod')}
+              activeOpacity={0.88}
+            >
+              <View style={styles.cleanPaymentTopRow}>
+                <View
                   style={[
-                    styles.paymentMethodRow,
-                    isSelected && { backgroundColor: '#F8FAFC' },
+                    styles.cleanRadio,
+                    paymentMethod === 'cod' && styles.cleanRadioActiveCod,
                   ]}
-                  onPress={() => setPaymentMethod(method.id as any)}
-                  activeOpacity={0.85}
                 >
-                  <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
-                    {isSelected && <View style={styles.radioInner} />}
+                  {paymentMethod === 'cod' && <View style={styles.cleanRadioDotCod} />}
+                </View>
+
+                <View style={styles.cleanPaymentBody}>
+                  <View style={styles.cleanTitleRow}>
+                    <View style={styles.codTitleBox}>
+                      <View style={styles.codIconBadge}>
+                        <Ionicons name="cash-outline" size={16} color="#059669" />
+                      </View>
+                      <Text style={styles.codMainTitle}>Cash on Delivery</Text>
+                    </View>
+                    <View style={styles.cleanBadgeGreen}>
+                      <Text style={styles.cleanBadgeGreenText}>Doorstep</Text>
+                    </View>
                   </View>
 
-                  <View style={styles.paymentIconBox}>
-                    <Ionicons name={method.icon as any} size={17} color="#0F172A" />
-                  </View>
+                  <Text style={styles.cleanSubtitle}>
+                    Pay with cash or UPI QR scan when your courier arrives
+                  </Text>
 
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={styles.paymentMethodTitle}>{method.label}</Text>
-                    <Text style={styles.paymentMethodDesc}>{method.desc}</Text>
+                  <View style={styles.cleanFooterRow}>
+                    <Ionicons name="checkmark-circle-outline" size={13} color="#64748B" />
+                    <Text style={styles.cleanFooterText}>Zero Advance Payment Needed</Text>
                   </View>
+                </View>
 
-                  <Ionicons
-                    name={isSelected ? 'checkmark-circle' : 'chevron-forward'}
-                    size={16}
-                    color={isSelected ? '#0F172A' : '#94A3B8'}
-                  />
-                </TouchableOpacity>
-              );
-            })}
+                <Ionicons
+                  name={paymentMethod === 'cod' ? 'checkmark-circle' : 'chevron-forward'}
+                  size={20}
+                  color={paymentMethod === 'cod' ? '#059669' : '#CBD5E1'}
+                />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* 7. Price Details */}
@@ -838,13 +816,24 @@ export default function CheckoutScreen() {
 
         <View style={styles.bottomButtonCol}>
           <TouchableOpacity
-            style={styles.placeOrderBtn}
+            style={[
+              styles.placeOrderBtn,
+              orderSuccessOverlay && { backgroundColor: '#16A34A' },
+            ]}
             onPress={handlePlaceOrder}
-            disabled={processing}
+            disabled={processing || orderSuccessOverlay}
             activeOpacity={0.88}
           >
-            {processing ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+            {orderSuccessOverlay ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                <Text style={styles.placeOrderText}>Order Confirmed!</Text>
+              </View>
+            ) : processing ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.placeOrderText}>Placing Order...</Text>
+              </View>
             ) : (
               <Text style={styles.placeOrderText}>Place Order →</Text>
             )}
@@ -944,6 +933,23 @@ export default function CheckoutScreen() {
           onClose={() => setModalVisible(false)}
         />
       )}
+
+      {/* Order Confirmed Animated Green Tick Overlay */}
+      <Modal visible={orderSuccessOverlay} transparent animationType="fade">
+        <View style={styles.successModalBackdrop}>
+          <View style={styles.successModalCard}>
+            <AnimatedOrderSuccessTick size={92} showParticles={true} />
+            <Text style={styles.successModalTitle}>Order Placed!</Text>
+            <Text style={styles.successModalSubtitle}>
+              Thank you for shopping with RenewX
+            </Text>
+            <View style={styles.successModalPill}>
+              <Ionicons name="checkmark-done" size={14} color="#15803D" />
+              <Text style={styles.successModalPillText}>Order Placed Successfully</Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1354,116 +1360,130 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
   },
-  razorpayCardContainer: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+  cleanPaymentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    padding: 12,
-    marginBottom: 8,
+    padding: 14,
+    marginBottom: 10,
   },
-  razorpayCardContainerSelected: {
+  cleanPaymentCardSelectedRazorpay: {
     backgroundColor: '#F0F9FF',
     borderColor: '#0284C7',
   },
-  razorpayTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cleanPaymentCardSelectedCod: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#059669',
   },
-  razorpayBadge: {
+  cleanPaymentTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  cleanRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  cleanRadioActiveRazorpay: {
+    borderColor: '#0284C7',
+  },
+  cleanRadioDotRazorpay: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#0284C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
   },
-  razorpayBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 8.5,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  cleanRadioActiveCod: {
+    borderColor: '#059669',
   },
-  recommendedPill: {
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  cleanRadioDotCod: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#059669',
   },
-  recommendedPillText: {
-    color: '#059669',
-    fontSize: 9,
-    fontWeight: '700',
+  cleanPaymentBody: {
+    flex: 1,
   },
-  razorpaySupportedRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-    paddingLeft: 34,
-  },
-  methodChip: {
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  methodChipActive: {
-    backgroundColor: '#BAE6FD',
-  },
-  methodChipText: {
-    fontSize: 9.5,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  platformTagRow: {
+  cleanTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-    paddingLeft: 34,
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  platformTag: {
+  razorpayBrandLogo: {
+    width: 105,
+    height: 22,
+  },
+  cleanBadgeBlue: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
   },
-  platformTagText: {
-    fontSize: 10,
+  cleanBadgeBlueText: {
+    fontSize: 10.5,
+    fontWeight: '700',
     color: '#0284C7',
-    fontWeight: '600',
   },
-  secureTagText: {
-    fontSize: 10,
-    color: '#059669',
-    fontWeight: '600',
+  cleanBadgeGreen: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
   },
-  paymentMethodRow: {
+  cleanBadgeGreenText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  codTitleBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    gap: 7,
   },
-  paymentIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+  codIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
-  paymentMethodTitle: {
-    fontSize: 13.5,
+  codMainTitle: {
+    fontSize: 14,
     fontWeight: '700',
     color: '#0F172A',
   },
-  paymentMethodDesc: {
+  cleanSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 17,
+    marginBottom: 6,
+  },
+  cleanFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  cleanFooterText: {
     fontSize: 11,
     color: '#64748B',
-    marginTop: 1,
+    fontWeight: '500',
+  },
+  cleanFooterDot: {
+    fontSize: 10,
+    color: '#94A3B8',
   },
 
   // Price details
@@ -1663,5 +1683,62 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  successModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  successModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 14 },
+        shadowOpacity: 0.28,
+        shadowRadius: 28,
+      },
+      android: {
+        elevation: 14,
+      },
+      web: {
+        boxShadow: '0 16px 36px rgba(0, 0, 0, 0.24)',
+      },
+    }),
+  },
+  successModalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  successModalSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  successModalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  successModalPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803D',
   },
 });

@@ -194,7 +194,7 @@ function getProductImageSource(product: AnyProduct): any {
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart, totalItems } = useCart();
-  const { isInWishlist, toggleWishlist } = useWishlist();
+  const { isInWishlist, toggleWishlist, totalWishlistItems } = useWishlist();
   const { isAdmin, signOut } = useAuth();
   const toast = useToast();
 
@@ -322,6 +322,7 @@ export default function HomeScreen() {
         onSearch={() => navigation.navigate('Search')}
         cartCount={totalItems}
         onCart={() => navigation.navigate('Cart')}
+        wishlistCount={totalWishlistItems}
         isAdmin={isAdmin}
         onAdmin={() => navigation.navigate('Admin', { screen: 'dashboard' })}
         onLogout={signOut}
@@ -465,7 +466,17 @@ export default function HomeScreen() {
                   {/* Top Right Wishlist Heart */}
                   <TouchableOpacity
                     style={styles.wishlistHeartBtn}
-                    onPress={() => toggleWishlist(item)}
+                    onPress={() => {
+                      const isNowWishlisted = toggleWishlist(item);
+                      const nextCount = isNowWishlisted
+                        ? totalWishlistItems + 1
+                        : Math.max(0, totalWishlistItems - 1);
+                      if (isNowWishlisted) {
+                        toast?.success?.(name, `Added to Wishlist (${nextCount} ${nextCount === 1 ? 'item' : 'items'})`);
+                      } else {
+                        toast?.info?.(name, `Removed from Wishlist (${nextCount} ${nextCount === 1 ? 'item' : 'items'})`);
+                      }
+                    }}
                     activeOpacity={0.7}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
@@ -520,6 +531,7 @@ export default function HomeScreen() {
                     onPress={() => {
                       addToCart(item);
                       toast?.success?.('Added to cart!', name);
+                      (navigation as any).navigate('Cart');
                     }}
                     activeOpacity={0.85}
                   >

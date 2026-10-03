@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import HomeHeader from '@/components/HomeHeader';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { useToast } from '@/context/ToastContext';
 import { confirmAction } from '@/lib/confirmAction';
 import { api } from '@/services/api';
 
@@ -28,7 +29,18 @@ function formatMoney(value: number) {
 export default function CartScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
+  const toast = useToast();
   const { user, isAdmin } = useAuth();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
   const {
     items: contextItems,
     updateQuantity,
@@ -215,6 +227,7 @@ export default function CartScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -461,7 +474,7 @@ export default function CartScreen() {
                           description: prod.specs,
                           specs: [prod.specs],
                         });
-                        Alert.alert('Added', `${prod.name} added to cart.`);
+                        toast.success(prod.name, 'Added to Cart');
                       }}
                     >
                       <Ionicons name="cart" size={15} color="#000000" />

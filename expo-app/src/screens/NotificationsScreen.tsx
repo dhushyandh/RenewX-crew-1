@@ -297,42 +297,46 @@ export default function NotificationsScreen() {
           items.map((item) => {
             const visual = getEventVisuals(item);
             return (
-              <TouchableOpacity
+              <View
                 key={item.id}
                 style={[styles.notificationCard, !item.read_at && styles.unreadCard]}
-                onPress={() => handleNotificationPress(item)}
-                activeOpacity={0.8}
               >
-                <View style={[styles.iconCircle, { backgroundColor: visual.bg }]}>
-                  {visual.useCustomIcon ? (
-                    <Image
-                      source={require('@/assets/notification-icon.png')}
-                      style={{ width: 22, height: 22 }}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <Ionicons name={visual.icon as any} size={20} color={visual.color} />
-                  )}
-                </View>
-                <View style={styles.textWrap}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-                    {!item.read_at && <View style={styles.unreadDot} />}
-                    <TouchableOpacity
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={styles.deleteBtn}
-                      onPress={(e) => {
-                        e.stopPropagation?.();
-                        deleteNotification(item.id);
-                      }}
-                    >
-                      <Ionicons name="close" size={15} color="#94a3b8" />
-                    </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cardMainContent}
+                  onPress={() => handleNotificationPress(item)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.iconCircle, { backgroundColor: visual.bg }]}>
+                    {visual.useCustomIcon ? (
+                      <Image
+                        source={require('@/assets/notification-icon.png')}
+                        style={{ width: 22, height: 22 }}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Ionicons name={visual.icon as any} size={20} color={visual.color} />
+                    )}
                   </View>
-                  <Text style={styles.body}>{item.body}</Text>
-                  <Text style={styles.time}>{formatDate(item.created_at)}</Text>
-                </View>
-              </TouchableOpacity>
+                  <View style={styles.textWrap}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
+                      {!item.read_at && <View style={styles.unreadDot} />}
+                    </View>
+                    <Text style={styles.body}>{item.body}</Text>
+                    <Text style={styles.time}>{formatDate(item.created_at)}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={styles.deleteBtn}
+                  onPress={() => deleteNotification(item.id)}
+                  activeOpacity={0.6}
+                  accessibilityLabel="Delete notification"
+                >
+                  <Ionicons name="close" size={17} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
             );
           })
         )}
@@ -431,8 +435,20 @@ const styles = StyleSheet.create({
   },
   emptyLogo: { width: 64, height: 64, marginBottom: 10 },
   notificationCard: {
-    flexDirection: 'row', gap: 12, backgroundColor: '#fff', padding: 14,
-    borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: '#e8e4da',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e8e4da',
+  },
+  cardMainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
   },
   unreadCard: { borderColor: '#fcd34d', backgroundColor: '#fffbeb' },
   iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center' },
@@ -440,7 +456,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   itemTitle: { flex: 1, fontSize: 13, fontWeight: '900', color: '#111827' },
   unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#f59e0b' },
-  deleteBtn: { padding: 4, marginLeft: 4 },
+  deleteBtn: { padding: 4, marginLeft: 8, marginTop: -2 },
   body: { fontSize: 11, lineHeight: 16, color: '#4b5563', marginTop: 4 },
   time: { fontSize: 9, color: '#9ca3af', marginTop: 7 },
   stateCard: { backgroundColor: '#fff', borderRadius: 18, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#e8e4da' },

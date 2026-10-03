@@ -23,6 +23,7 @@ import RenewXLogo from '@/components/RenewXLogo';
 
 const LOGO_IMG = require('@/assets/logo.png');
 const HERO_IMG = require('@/assets/onboarding_hero.jpg');
+const SPLASH_HERO_TOP = require('../../assets/splash_hero_top.png');
 
 type AuthStep = 'splash' | 'email' | 'otp' | 'password' | 'signing_in';
 
@@ -150,6 +151,24 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
 
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+
+  // Scroll to top when step changes (splash -> email -> otp)
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      try {
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+        const root = document.getElementById('root');
+        if (root) root.scrollTop = 0;
+        document.querySelectorAll('[data-focusable="true"], [style*="overflow"], [dir="auto"], div').forEach((el: any) => {
+          if (el && typeof el.scrollTop === 'number' && el.scrollTop > 0) {
+            el.scrollTop = 0;
+          }
+        });
+      } catch {}
+    }
+  }, [step]);
 
   // Gentle float animation
   useEffect(() => {
@@ -461,49 +480,32 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* ========================================================================= */}
-      {/* 1. PRODUCTION-READY SPLASH / WELCOME SCREEN                                 */}
+      {/* ========================================================================= */}
+      {/* 1. PRODUCTION-READY SPLASH / WELCOME SCREEN MATCHING MOCKUP               */}
       {/* ========================================================================= */}
       {step === 'splash' && (
-        <View style={[styles.splashContainer, { paddingTop: safeTop }]}>
-          {/* Top Bar */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 14, width: '100%' }}>
-            <RenewXLogo size="md" showTagline={true} />
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 24, paddingBottom: 32, width: '100%' }}>
-            {/* Header Title matching Mockup */}
-            <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 12 }}>
-              <Text style={{ fontSize: 26, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 }}>Welcome to</Text>
-              <Text style={{ fontSize: 30, fontWeight: '900', color: '#0F172A', letterSpacing: -0.6 }}>RenewX</Text>
-              <Text style={{ fontSize: 13.5, color: '#64748B', textAlign: 'center', lineHeight: 20, marginTop: 6, fontWeight: '500' }}>
-                Buy certified pre-owned devices,{'\n'}sell your old ones, and upgrade{'\n'}to what you love.
-              </Text>
+        <View style={styles.splashScreenContainer}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.splashScrollContent,
+              { paddingTop: Math.max(safeTop, 8) },
+            ]}
+          >
+            {/* Top Branded Hero Poster: Waves, Logo, Tagline, Devices, and 3 Badges */}
+            <View style={styles.splashHeroFrame}>
+              <Image
+                source={SPLASH_HERO_TOP}
+                style={styles.splashHeroImage}
+                resizeMode="contain"
+              />
             </View>
 
-            {/* Glowing Hero Image matching Mockup */}
-            <View style={{ alignItems: 'center', justifyContent: 'center', position: 'relative', width: 280, height: 210, marginVertical: 10 }}>
-              <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: '#FEF08A', opacity: 0.55 }} />
-              <Image source={HERO_IMG} style={{ width: '100%', height: '100%', borderRadius: 18 }} resizeMode="contain" />
-            </View>
-
-            {/* Mandatory Auth Actions: Login, Get started, Continue with Google */}
-            <View style={{ width: '100%', maxWidth: 380, marginTop: 12 }}>
-              {/* 1. Login */}
+            {/* Action Buttons Matching Mockup Exactly */}
+            <View style={styles.splashActionCol}>
+              {/* 1. Yellow Sign In Pill Button */}
               <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#FACC15',
-                  borderRadius: 14,
-                  paddingVertical: 15,
-                  marginBottom: 12,
-                  shadowColor: '#FACC15',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.28,
-                  shadowRadius: 6,
-                  elevation: 3,
-                }}
+                style={styles.signInPillBtn}
                 onPress={() => {
                   setIsSignUp(false);
                   setSignInWithOtpMode(false);
@@ -513,28 +515,18 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
                 }}
                 activeOpacity={0.88}
                 accessibilityRole="button"
-                accessibilityLabel="Login to your account"
+                accessibilityLabel="Sign In"
               >
-                <Ionicons name="log-in-outline" size={20} color="#0F172A" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.2 }}>Login</Text>
+                <View style={styles.btnIconLeftBox}>
+                  <Ionicons name="person-outline" size={20} color="#0F172A" />
+                </View>
+                <Text style={styles.signInPillText}>Sign In</Text>
+                <Ionicons name="arrow-forward" size={19} color="#0F172A" />
               </TouchableOpacity>
 
-              {/* 2. Get started */}
+              {/* 2. White Create Account Pill Button */}
               <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#0F172A',
-                  borderRadius: 14,
-                  paddingVertical: 15,
-                  marginBottom: 16,
-                  shadowColor: '#000000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 5,
-                  elevation: 2,
-                }}
+                style={styles.createAccountPillBtn}
                 onPress={() => {
                   setIsSignUp(true);
                   setSignInWithOtpMode(false);
@@ -544,32 +536,25 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
                 }}
                 activeOpacity={0.88}
                 accessibilityRole="button"
-                accessibilityLabel="Get started and create account"
+                accessibilityLabel="Create Account"
               >
-                <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 }}>Get started</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FACC15" style={{ marginLeft: 8 }} />
+                <View style={styles.btnIconLeftBox}>
+                  <Ionicons name="person-add-outline" size={20} color="#0F172A" />
+                </View>
+                <Text style={styles.createAccountPillText}>Create Account</Text>
+                <Ionicons name="arrow-forward" size={19} color="#0F172A" />
               </TouchableOpacity>
 
               {/* Divider */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
-                <Text style={{ marginHorizontal: 12, fontSize: 12, color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>or</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
               </View>
 
-              {/* 3. Continue with Google */}
+              {/* 3. Continue with Google Pill Button */}
               <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 14,
-                  borderWidth: 1.5,
-                  borderColor: '#E2E8F0',
-                  paddingVertical: 14,
-                  marginBottom: 10,
-                }}
+                style={styles.googlePillWhiteBtn}
                 onPress={handleGoogleSignIn}
                 disabled={googleLoading}
                 activeOpacity={0.88}
@@ -580,10 +565,10 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
                   <ActivityIndicator size="small" color="#0F172A" />
                 ) : (
                   <>
-                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                      <Ionicons name="logo-google" size={17} color="#EA4335" />
+                    <View style={styles.googleIconBox}>
+                      <Ionicons name="logo-google" size={18} color="#EA4335" />
                     </View>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Continue with Google</Text>
+                    <Text style={styles.googleBtnLabel}>Continue with Google</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1841,5 +1826,142 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
+  },
+  splashScreenContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  splashScrollContent: {
+    alignItems: 'center',
+    paddingBottom: 36,
+    width: '100%',
+  },
+  splashHeroFrame: {
+    width: '100%',
+    maxWidth: 440,
+    aspectRatio: 576 / 690,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  splashHeroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  splashActionCol: {
+    width: '100%',
+    maxWidth: 380,
+    paddingHorizontal: 20,
+    marginTop: 8,
+  },
+  signInPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FACC15',
+    borderRadius: 28,
+    height: 54,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FACC15',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 4px 14px rgba(250, 204, 21, 0.38)',
+      },
+    }),
+  },
+  signInPillText: {
+    fontSize: 16.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    flex: 1,
+    marginLeft: 14,
+    letterSpacing: -0.2,
+  },
+  createAccountPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 28,
+    height: 54,
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  createAccountPillText: {
+    fontSize: 16.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    flex: 1,
+    marginLeft: 14,
+    letterSpacing: -0.2,
+  },
+  btnIconLeftBox: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E2E8F0',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 1.5,
+  },
+  googlePillWhiteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 28,
+    height: 54,
+    paddingHorizontal: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+      },
+    }),
+  },
+  googleIconBox: {
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleBtnLabel: {
+    fontSize: 15.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: -0.1,
   },
 });

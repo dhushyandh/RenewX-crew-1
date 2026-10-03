@@ -8,29 +8,34 @@ import {
   PanResponder,
   Platform,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = 'success' | 'detecting' | 'warning' | 'error' | 'info' | 'manual';
 
 export interface ToastOptions {
   message: string;
   title?: string;
   type?: ToastType;
   duration?: number;
+  position?: 'bottom' | 'top';
   action?: {
     label: string;
     onPress: () => void;
   };
 }
 
-interface ToastContextValue {
+export interface ToastContextValue {
   show: (options: ToastOptions | string) => void;
   success: (message: string, title?: string, options?: Partial<ToastOptions>) => void;
   error: (message: string, title?: string, options?: Partial<ToastOptions>) => void;
   warning: (message: string, title?: string, options?: Partial<ToastOptions>) => void;
   info: (message: string, title?: string, options?: Partial<ToastOptions>) => void;
+  detecting: (message?: string, title?: string, options?: Partial<ToastOptions>) => void;
+  permission: (message?: string, title?: string, options?: Partial<ToastOptions>) => void;
+  manual: (message: string, title?: string, options?: Partial<ToastOptions>) => void;
   hide: () => void;
 }
 
@@ -41,35 +46,59 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TOAST_THEMES: Record<
   ToastType,
   {
-    icon: keyof typeof Ionicons.glyphMap;
-    circleColor: string;
-    iconColor: string;
+    accentColor: string;
+    circleBg: string;
     defaultTitle: string;
+    renderIcon: () => React.ReactNode;
   }
 > = {
   success: {
-    icon: 'checkmark-sharp',
-    circleColor: '#10b981',
-    iconColor: '#ffffff',
+    accentColor: '#10B981',
+    circleBg: '#ECFDF5',
     defaultTitle: 'Success',
+    renderIcon: () => <Ionicons name="checkmark" size={24} color="#10B981" />,
   },
-  error: {
-    icon: 'close-sharp',
-    circleColor: '#ff4d4f',
-    iconColor: '#ffffff',
-    defaultTitle: 'Error',
+  detecting: {
+    accentColor: '#EAB308',
+    circleBg: '#FEF9C3',
+    defaultTitle: 'Detecting Location...',
+    renderIcon: () => (
+      <View style={styles.detectingSpinnerContainer}>
+        <ActivityIndicator size="small" color="#EAB308" />
+      </View>
+    ),
   },
   warning: {
-    icon: 'alert-sharp',
-    circleColor: '#f59e0b',
-    iconColor: '#ffffff',
+    accentColor: '#F59E0B',
+    circleBg: '#FFF7ED',
     defaultTitle: 'Warning',
+    renderIcon: () => <Ionicons name="warning-outline" size={22} color="#F59E0B" />,
+  },
+  error: {
+    accentColor: '#EF4444',
+    circleBg: '#FEF2F2',
+    defaultTitle: 'Error',
+    renderIcon: () => <Ionicons name="close" size={22} color="#EF4444" />,
+  },
+  manual: {
+    accentColor: '#10B981',
+    circleBg: '#ECFDF5',
+    defaultTitle: 'Location Saved',
+    renderIcon: () => (
+      <View style={styles.solidSuccessCircle}>
+        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+      </View>
+    ),
   },
   info: {
-    icon: 'information-sharp',
-    circleColor: '#3b82f6',
-    iconColor: '#ffffff',
+    accentColor: '#3B82F6',
+    circleBg: '#EFF6FF',
     defaultTitle: 'Notice',
+    renderIcon: () => (
+      <View style={styles.solidInfoCircle}>
+        <Ionicons name="information" size={16} color="#FFFFFF" />
+      </View>
+    ),
   },
 };
 
@@ -81,13 +110,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     left: 0,
     right: 0,
   };
+
   const [currentToast, setCurrentToast] = useState<ToastOptions | null>(null);
 
+  // Default toast position is bottom (above tab bar as in design mockup)
+  const position = currentToast?.position || 'bottom';
+  const initialTranslate = position === 'bottom' ? 80 : -80;
+
   // Animation values
-  const translateY = useRef(new Animated.Value(-120)).current;
+  const translateY = useRef(new Animated.Value(initialTranslate)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.92)).current;
-  const progressAnim = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(0.94)).current;
 
   const timerRef = useRef<any>(null);
 
@@ -97,41 +130,49 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       timerRef.current = null;
     }
 
+    const exitTranslate = position === 'bottom' ? 80 : -80;
+
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: -120,
-        duration: 220,
+        toValue: exitTranslate,
+        duration: 200,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 180,
+        duration: 160,
         useNativeDriver: true,
       }),
       Animated.timing(scale, {
-        toValue: 0.9,
-        duration: 200,
+        toValue: 0.92,
+        duration: 180,
         useNativeDriver: true,
       }),
     ]).start(() => {
       setCurrentToast(null);
-      progressAnim.setValue(1);
     });
-  }, [opacity, progressAnim, scale, translateY]);
+  }, [opacity, position, scale, translateY]);
 
   const show = useCallback(
     (opts: ToastOptions | string) => {
-      const normalized: ToastOptions = typeof opts === 'string' ? { message: opts } : opts;
+      const normalized: ToastOptions =
+        typeof opts === 'string'
+          ? { message: opts, type: 'info', position: 'bottom' }
+          : { position: 'bottom', ...opts };
 
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
 
-      setCurrentToast(normalized);
-      progressAnim.setValue(1);
+      const toastPosition = normalized.position || 'bottom';
+      translateY.setValue(toastPosition === 'bottom' ? 80 : -80);
+      opacity.setValue(0);
+      scale.setValue(0.94);
 
-      // Spring in
+      setCurrentToast(normalized);
+
+      // Spring into view
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -152,20 +193,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         }),
       ]).start();
 
-      const duration = normalized.duration || 3600;
-
-      // Progress bar animation
-      Animated.timing(progressAnim, {
-        toValue: 0,
-        duration,
-        useNativeDriver: false,
-      }).start();
+      const duration = normalized.duration || 3800;
 
       timerRef.current = setTimeout(() => {
         hide();
       }, duration);
     },
-    [hide, opacity, progressAnim, scale, translateY]
+    [hide, opacity, scale, translateY]
   );
 
   const success = useCallback(
@@ -196,24 +230,67 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [show]
   );
 
-  // Swipe up to dismiss gesture
+  const detecting = useCallback(
+    (
+      message: string = 'Please wait, this may take a few seconds.',
+      title: string = 'Detecting your location...',
+      options?: Partial<ToastOptions>
+    ) => {
+      show({ message, title, type: 'detecting', duration: 3000, ...options });
+    },
+    [show]
+  );
+
+  const permission = useCallback(
+    (
+      message: string = 'Allow location access to detect your district and pincode.',
+      title: string = 'Location permission required',
+      options?: Partial<ToastOptions>
+    ) => {
+      show({ message, title, type: 'warning', ...options });
+    },
+    [show]
+  );
+
+  const manual = useCallback(
+    (message: string, title: string = 'Location saved', options?: Partial<ToastOptions>) => {
+      show({ message, title, type: 'manual', ...options });
+    },
+    [show]
+  );
+
+  // Swipe gesture to dismiss
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 6,
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy < 0) {
+        if (position === 'bottom' && gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        } else if (position === 'top' && gestureState.dy < 0) {
           translateY.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy < -25 || gestureState.vy < -0.4) {
-          hide();
+        if (position === 'bottom') {
+          if (gestureState.dy > 25 || gestureState.vy > 0.4) {
+            hide();
+          } else {
+            Animated.spring(translateY, {
+              toValue: 0,
+              friction: 7,
+              useNativeDriver: true,
+            }).start();
+          }
         } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            friction: 7,
-            useNativeDriver: true,
-          }).start();
+          if (gestureState.dy < -25 || gestureState.vy < -0.4) {
+            hide();
+          } else {
+            Animated.spring(translateY, {
+              toValue: 0,
+              friction: 7,
+              useNativeDriver: true,
+            }).start();
+          }
         }
       },
     })
@@ -225,49 +302,145 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const theme = currentToast ? TOAST_THEMES[currentToast.type || 'info'] : TOAST_THEMES.info;
-  const title = currentToast?.title;
-  const topOffset = insets.top > 0 ? insets.top + 10 : (Platform.OS === 'ios' ? 50 : 24);
+function resolveToastText(
+  rawTitle?: string,
+  rawMessage?: string,
+  type: ToastType = 'info',
+  themeDefaultTitle: string = 'Notice'
+): { title: string; subtitle: string } {
+  const title = (rawTitle || '').trim();
+  const message = (rawMessage || '').trim();
+
+  // 1. Explicit title was provided by caller
+  if (title) {
+    const subtitle = message.toLowerCase() === title.toLowerCase() ? '' : message;
+    return { title, subtitle };
+  }
+
+  // 2. Message has newline separator (e.g. "Title\nSubtitle")
+  if (message.includes('\n')) {
+    const [first, ...rest] = message.split('\n');
+    return { title: first.trim(), subtitle: rest.join('\n').trim() };
+  }
+
+  const lower = message.toLowerCase();
+
+  // 3. Cart actions
+  if (lower.includes('cart')) {
+    if (lower.includes('removed')) return { title: 'Removed from Cart', subtitle: message };
+    return { title: 'Added to Cart', subtitle: message };
+  }
+
+  // 4. Wishlist actions
+  if (lower.includes('wishlist')) {
+    if (lower.includes('removed')) return { title: 'Removed from Wishlist', subtitle: message };
+    return { title: 'Saved to Wishlist', subtitle: message };
+  }
+
+  // 5. Auth / Sign In / Sign Out / Password
+  if (lower.includes('sign out') || lower.includes('signed out') || lower.includes('logged out')) {
+    return { title: 'Signed Out', subtitle: message };
+  }
+  if (lower.includes('signed in') || lower.includes('logged in') || lower.includes('welcome')) {
+    return { title: 'Welcome', subtitle: message };
+  }
+  if (lower.includes('password')) {
+    return { title: 'Password', subtitle: message };
+  }
+  if (lower.includes('profile')) {
+    return { title: 'Profile Updated', subtitle: message };
+  }
+
+  // 6. Orders / Invoices
+  if (lower.includes('order')) {
+    if (lower.includes('placed') || lower.includes('confirmed')) return { title: 'Order Confirmed', subtitle: message };
+    if (lower.includes('cancelled')) return { title: 'Order Cancelled', subtitle: message };
+    return { title: 'Order Update', subtitle: message };
+  }
+  if (lower.includes('invoice')) {
+    return { title: 'Tax Invoice', subtitle: message };
+  }
+
+  // 7. Clipboard
+  if (lower.includes('copied') || lower.includes('clipboard')) {
+    return { title: 'Copied to Clipboard', subtitle: message };
+  }
+
+  // 8. Location actions (ONLY if message explicitly mentions location/pincode/gps/address)
+  if (lower.includes('location') || lower.includes('pincode') || lower.includes('address') || lower.includes('gps')) {
+    if (lower.includes('saved')) return { title: 'Location Saved', subtitle: message };
+    if (lower.includes('permission')) return { title: 'Location Permission', subtitle: message };
+    if (lower.includes('detecting')) return { title: 'Detecting Location...', subtitle: message };
+    return { title: 'Location', subtitle: message };
+  }
+
+  // 9. General fallback from theme
+  return { title: themeDefaultTitle, subtitle: message };
+}
+
+  const toastType = currentToast?.type || 'info';
+  const theme = TOAST_THEMES[toastType] || TOAST_THEMES.info;
+
+  // Intelligent title and subtitle resolution
+  const { title: displayTitle, subtitle: displaySubtitle } = resolveToastText(
+    currentToast?.title,
+    currentToast?.message,
+    toastType,
+    theme.defaultTitle
+  );
+
+  // Position offsets
+  const bottomOffset = Math.max(insets.bottom || 12, 12) + 76;
+  const topOffset = insets.top > 0 ? insets.top + 10 : Platform.OS === 'ios' ? 50 : 24;
 
   return (
-    <ToastContext.Provider value={{ show, success, error, warning, info, hide }}>
+    <ToastContext.Provider
+      value={{
+        show,
+        success,
+        error,
+        warning,
+        info,
+        detecting,
+        permission,
+        manual,
+        hide,
+      }}
+    >
       {children}
 
       {currentToast && (
         <Animated.View
           {...panResponder.panHandlers}
+          pointerEvents="box-none"
           style={[
             styles.toastWrapper,
+            position === 'bottom' ? { bottom: bottomOffset } : { top: topOffset },
             {
-              top: topOffset,
               opacity,
               transform: [{ translateY }, { scale }],
             },
           ]}
         >
-          <TouchableOpacity
-            activeOpacity={0.94}
-            onPress={hide}
-            style={styles.toastCard}
-          >
-            {/* Left Circular Badge matching Screenshot */}
-            <View style={[styles.iconCircle, { backgroundColor: theme.circleColor }]}>
-              <Ionicons name={theme.icon} size={15} color={theme.iconColor} />
+          <View style={styles.toastCard}>
+            {/* Left curved colored accent bar matching user screenshot */}
+            <View style={[styles.leftAccentBar, { backgroundColor: theme.accentColor }]} />
+
+            {/* Icon Circle */}
+            <View style={[styles.iconCircle, { backgroundColor: theme.circleBg }]}>
+              {theme.renderIcon()}
             </View>
 
             {/* Message Body */}
             <View style={styles.textContainer}>
-              {title &&
-              title.toLowerCase() !== currentToast.type &&
-              title.toLowerCase() !== theme.defaultTitle.toLowerCase() &&
-              title !== currentToast.message ? (
-                <Text style={styles.titleText} numberOfLines={1}>
-                  {title}
+              <Text style={styles.titleText} numberOfLines={1}>
+                {displayTitle}
+              </Text>
+              {displaySubtitle ? (
+                <Text style={styles.subtitleText} numberOfLines={2}>
+                  {displaySubtitle}
                 </Text>
               ) : null}
-              <Text style={styles.messageText} numberOfLines={2}>
-                {currentToast.message}
-              </Text>
             </View>
 
             {/* Optional Action Button */}
@@ -277,15 +450,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   currentToast.action?.onPress();
                   hide();
                 }}
-                style={[styles.actionBtn, { borderColor: theme.circleColor }]}
+                style={[styles.actionBtn, { borderColor: theme.accentColor }]}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.actionBtnText, { color: theme.circleColor }]}>
+                <Text style={[styles.actionBtnText, { color: theme.accentColor }]}>
                   {currentToast.action.label}
                 </Text>
               </TouchableOpacity>
             )}
-          </TouchableOpacity>
+
+            {/* Right Close "✕" Button */}
+            <TouchableOpacity
+              onPress={hide}
+              style={styles.closeBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={17} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       )}
     </ToastContext.Provider>
@@ -308,52 +491,90 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     alignItems: 'center',
     alignSelf: 'center',
-    pointerEvents: 'box-none',
   },
   toastCard: {
+    width: '100%',
+    maxWidth: Math.min(SCREEN_WIDTH - 24, 460),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
-    paddingVertical: 12,
+    borderColor: '#F1F5F9',
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    maxWidth: Math.min(SCREEN_WIDTH - 32, 540),
+    overflow: 'hidden',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowRadius: 22,
+    elevation: 10,
+  },
+  leftAccentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    borderTopLeftRadius: 22,
+    borderBottomLeftRadius: 22,
   },
   iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 2,
     marginRight: 12,
     flexShrink: 0,
   },
-  textContainer: {
-    flexShrink: 1,
+  solidSuccessCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 2,
+  },
+  solidInfoCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detectingSpinnerContainer: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 6,
   },
   titleText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0f172a',
-    fontFamily: Platform.select({ web: "'Outfit', sans-serif", default: 'Outfit_700Bold' }),
-    marginBottom: 2,
-  },
-  messageText: {
     fontSize: 15,
-    color: '#1f2937',
-    fontWeight: '600',
-    fontFamily: Platform.select({ web: "'Outfit', sans-serif", default: 'Outfit_500Medium' }),
-    lineHeight: 20,
-    letterSpacing: -0.1,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: Platform.select({ web: "'Outfit', sans-serif", default: 'Outfit_700Bold' }),
+    letterSpacing: -0.2,
+  },
+  subtitleText: {
+    fontSize: 12.5,
+    color: '#64748B',
+    lineHeight: 17,
+    marginTop: 2,
+    fontFamily: Platform.select({ web: "'Outfit', sans-serif", default: 'Outfit_400Regular' }),
+  },
+  closeBtn: {
+    padding: 6,
+    marginLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionBtn: {
     paddingHorizontal: 10,
@@ -361,6 +582,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     marginLeft: 8,
+    marginRight: 4,
   },
   actionBtnText: {
     fontSize: 12,

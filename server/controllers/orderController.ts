@@ -657,27 +657,34 @@ export async function createCheckoutOrder(
           order_items: orderItems,
         });
 
-        await notifyUserEvent({
-          action: 'order_placed',
-          userId: req.user.id,
-          orderId: codOrder.id,
-          subtotal: codOrder.subtotal,
-          paymentMethod: 'Cash on Delivery',
-        });
+        // Dispatch notifications asynchronously in background to ensure instant order placement response (<100ms)
+        setImmediate(async () => {
+          try {
+            await notifyUserEvent({
+              action: 'order_placed',
+              userId: req.user.id,
+              orderId: codOrder.id,
+              subtotal: codOrder.subtotal,
+              paymentMethod: 'Cash on Delivery',
+            });
 
-        await notifyAdminsNewOrder({
-          orderId: codOrder.id,
-          subtotal: codOrder.subtotal,
-          customerName: customer.name.trim(),
-          customerPhone: customer.phone,
-          customerAddress: customer.address.trim(),
-          paymentMethod: 'Cash on Delivery',
-          itemCount: orderItems.reduce((acc, it) => acc + it.quantity, 0),
-          items: orderItems.map((it) => ({
-            name: it.product_name,
-            quantity: it.quantity,
-            price: it.price,
-          })),
+            await notifyAdminsNewOrder({
+              orderId: codOrder.id,
+              subtotal: codOrder.subtotal,
+              customerName: customer.name.trim(),
+              customerPhone: customer.phone,
+              customerAddress: customer.address.trim(),
+              paymentMethod: 'Cash on Delivery',
+              itemCount: orderItems.reduce((acc, it) => acc + it.quantity, 0),
+              items: orderItems.map((it) => ({
+                name: it.product_name,
+                quantity: it.quantity,
+                price: it.price,
+              })),
+            });
+          } catch (notifErr) {
+            console.error('[Orders] Failed to dispatch background COD notifications:', notifErr);
+          }
         });
 
         res.status(201).json({
@@ -935,33 +942,40 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
     // Courier, tracking number and ETA are assigned by admin after dispatch.
     await order.save();
 
-    await notifyUserEvent({
-      action: 'payment_successful',
-      userId: order.user_id,
-      orderId: order.id,
-      subtotal: order.subtotal,
-    });
-    await notifyUserEvent({
-      action: 'order_placed',
-      userId: order.user_id,
-      orderId: order.id,
-      subtotal: order.subtotal,
-      paymentMethod: 'Razorpay',
-    });
+    // Dispatch payment & order notifications asynchronously in background
+    setImmediate(async () => {
+      try {
+        await notifyUserEvent({
+          action: 'payment_successful',
+          userId: order.user_id,
+          orderId: order.id,
+          subtotal: order.subtotal,
+        });
+        await notifyUserEvent({
+          action: 'order_placed',
+          userId: order.user_id,
+          orderId: order.id,
+          subtotal: order.subtotal,
+          paymentMethod: 'Razorpay',
+        });
 
-    await notifyAdminsNewOrder({
-      orderId: order.id,
-      subtotal: order.subtotal,
-      customerName: order.customer_info?.name || 'Customer',
-      customerPhone: order.customer_info?.phone || '',
-      customerAddress: order.customer_info?.address || '',
-      paymentMethod: 'Razorpay (Paid)',
-      itemCount: order.order_items?.reduce((acc: number, it: any) => acc + it.quantity, 0) || 1,
-      items: order.order_items?.map((it: any) => ({
-        name: it.product_name,
-        quantity: it.quantity,
-        price: it.price,
-      })) || [],
+        await notifyAdminsNewOrder({
+          orderId: order.id,
+          subtotal: order.subtotal,
+          customerName: order.customer_info?.name || 'Customer',
+          customerPhone: order.customer_info?.phone || '',
+          customerAddress: order.customer_info?.address || '',
+          paymentMethod: 'Razorpay (Paid)',
+          itemCount: order.order_items?.reduce((acc: number, it: any) => acc + it.quantity, 0) || 1,
+          items: order.order_items?.map((it: any) => ({
+            name: it.product_name,
+            quantity: it.quantity,
+            price: it.price,
+          })) || [],
+        });
+      } catch (notifErr) {
+        console.error('[Orders] Failed to dispatch background payment notifications:', notifErr);
+      }
     });
 
     return order;

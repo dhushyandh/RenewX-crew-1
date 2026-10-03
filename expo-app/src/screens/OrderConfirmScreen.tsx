@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,11 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 import HomeHeader from '@/components/HomeHeader';
+import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 
 function formatMoney(value: number) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -42,6 +43,16 @@ export default function OrderConfirmScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, 'OrderConfirm'>>();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const params = route.params || {};
   const order = params.order || {};
@@ -141,31 +152,15 @@ export default function OrderConfirmScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Success Hero Section with Confetti & Big Checkmark */}
+        {/* 2. Success Hero Section with Animated Green Tick (Zoom-in to Zoom-out) */}
         <View style={styles.heroSection}>
-          {/* Confetti Particles (Accurate to Image 3) */}
-          <View style={styles.confettiContainer} pointerEvents="none">
-            {/* Green and blue particles */}
-            <View style={[styles.confettiPiece, { top: 10, left: 40, backgroundColor: '#3B82F6', width: 8, height: 12, transform: [{ rotate: '45deg' }] }]} />
-            <View style={[styles.confettiPiece, { top: 24, left: 80, backgroundColor: '#F59E0B', width: 10, height: 10, borderRadius: 2, transform: [{ rotate: '20deg' }] }]} />
-            <View style={[styles.confettiPiece, { top: 8, left: 120, backgroundColor: '#EC4899', width: 7, height: 7, borderRadius: 3.5 }]} />
-            <View style={[styles.confettiPiece, { top: 38, left: 60, backgroundColor: '#10B981', width: 12, height: 5, transform: [{ rotate: '-30deg' }] }]} />
-
-            {/* Right side confetti */}
-            <View style={[styles.confettiPiece, { top: 12, right: 110, backgroundColor: '#10B981', width: 10, height: 14, transform: [{ rotate: '-25deg' }] }]} />
-            <View style={[styles.confettiPiece, { top: 22, right: 60, backgroundColor: '#F59E0B', width: 8, height: 8, transform: [{ rotate: '40deg' }] }]} />
-            <View style={[styles.confettiPiece, { top: 34, right: 90, backgroundColor: '#3B82F6', width: 12, height: 10, transform: [{ rotate: '15deg' }] }]} />
-            <View style={[styles.confettiPiece, { top: 46, right: 40, backgroundColor: '#8B5CF6', width: 11, height: 6, transform: [{ rotate: '-45deg' }] }]} />
-            <View style={[styles.confettiPiece, { top: 60, right: 75, backgroundColor: '#10B981', width: 14, height: 6, transform: [{ rotate: '30deg' }] }]} />
-          </View>
-
-          {/* Big Green Circle with Checkmark */}
-          <View style={styles.successCheckCircle}>
-            <Ionicons name="checkmark" size={46} color="#FFFFFF" />
+          <View style={{ marginBottom: 8, alignItems: 'center', justifyContent: 'center' }}>
+            <AnimatedOrderSuccessTick size={88} showParticles={true} />
           </View>
 
           <Text style={styles.successTitle}>Order Confirmed!</Text>

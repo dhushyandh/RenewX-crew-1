@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
@@ -50,6 +50,23 @@ export default function ProductDetailScreen() {
   const { addToCart, totalItems } = useCart();
   const toast = useToast();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
+
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+    }
+  }, [params.productId, params.id, params.product]);
 
   const [fetchedProduct, setFetchedProduct] = useState<any>(null);
   const [loadingProduct, setLoadingProduct] = useState<boolean>(!params.product && !!(params.productId || params.id));
@@ -158,7 +175,8 @@ export default function ProductDetailScreen() {
       ],
     });
     toast.success('Added to your cart', `${baseProduct.name} (${selectedStorage})`);
-  }, [addToCart, baseProduct, currentPrice, currentOriginalPrice, selectedStorage, selectedColor, toast]);
+    navigation.navigate('Cart');
+  }, [addToCart, baseProduct, currentPrice, currentOriginalPrice, selectedStorage, selectedColor, toast, navigation]);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -245,6 +263,7 @@ export default function ProductDetailScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

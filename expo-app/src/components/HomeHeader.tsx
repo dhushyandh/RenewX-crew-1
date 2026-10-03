@@ -142,15 +142,17 @@ export default function HomeHeader({
 
   const handleUseMyLocation = async () => {
     try {
+      toast.detecting('Please wait, this may take a few seconds.', 'Detecting your location...');
       const res = await detectLocation();
       if (res) {
-        toast.success(`📍 Location detected: ${res}`);
+        const formatted = res.replace(/\s*-\s*/g, ' • ');
+        toast.success(formatted, 'Location updated');
         setModalVisible(false);
       } else {
-        toast.show('Location permission denied or unavailable. Please choose from popular hubs below.');
+        toast.permission('Allow location access to detect your district and pincode.', 'Location permission required');
       }
     } catch {
-      toast.show('Unable to detect location automatically. Please enter your pincode.');
+      toast.error('Please try again.', "Couldn't detect your location");
     }
   };
 
@@ -162,7 +164,7 @@ export default function HomeHeader({
     }
     const newLoc = `Delivery Area - ${pin}`;
     setLocationManually(newLoc);
-    toast.success(`Delivery set to pincode ${pin}`);
+    toast.manual(`Delivery Area • ${pin}`, 'Location saved');
     setPincodeInput('');
     setModalVisible(false);
   };
@@ -227,6 +229,13 @@ export default function HomeHeader({
               activeOpacity={0.8}
             >
               <Ionicons name="heart-outline" size={19} color="#0F172A" />
+              {wishlistCount > 0 && (
+                <View style={styles.cartYellowBadge}>
+                  <Text style={styles.cartYellowBadgeText}>
+                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -270,6 +279,24 @@ export default function HomeHeader({
               <Ionicons name="search-outline" size={19} color="#0F172A" />
             </TouchableOpacity>
 
+            {onWishlist && (
+              <TouchableOpacity
+                onPress={onWishlist}
+                style={styles.iconCircleBtn}
+                accessibilityLabel="Wishlist"
+                activeOpacity={0.8}
+              >
+                <Ionicons name="heart-outline" size={19} color="#0F172A" />
+                {wishlistCount > 0 && (
+                  <View style={styles.cartYellowBadge}>
+                    <Text style={styles.cartYellowBadgeText}>
+                      {wishlistCount > 99 ? '99+' : wishlistCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               onPress={onCart}
               style={styles.iconCircleBtn}
@@ -277,9 +304,13 @@ export default function HomeHeader({
               activeOpacity={0.8}
             >
               <Ionicons name="cart-outline" size={20} color="#0F172A" />
-              <View style={styles.cartYellowBadge}>
-                <Text style={styles.cartYellowBadgeText}>{cartCount > 0 ? cartCount : 3}</Text>
-              </View>
+              {cartCount > 0 && (
+                <View style={styles.cartYellowBadge}>
+                  <Text style={styles.cartYellowBadgeText}>
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -404,6 +435,13 @@ export default function HomeHeader({
                 size={20}
                 color={isWishlisted ? '#EF4444' : '#0F172A'}
               />
+              {wishlistCount > 0 && (
+                <View style={styles.cartYellowBadge}>
+                  <Text style={styles.cartYellowBadgeText}>
+                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -437,7 +475,7 @@ export default function HomeHeader({
             >
               <Ionicons name="cart-outline" size={20} color="#0F172A" />
               <View style={styles.cartYellowBadge}>
-                <Text style={styles.cartYellowBadgeText}>{cartCount > 0 ? cartCount : 3}</Text>
+                <Text style={styles.cartYellowBadgeText}>{cartCount > 0 ? cartCount : 0}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -594,12 +632,14 @@ export default function HomeHeader({
               accessibilityLabel="Wishlist"
               activeOpacity={0.8}
             >
-              <Ionicons name="heart-outline" size={20} color="#0F172A" />
-              <View style={styles.cartYellowBadge}>
-                <Text style={styles.cartYellowBadgeText}>
-                  {wishlistCount > 0 ? wishlistCount : 5}
-                </Text>
-              </View>
+              <Ionicons name="heart" size={20} color="#EF4444" />
+              {wishlistCount > 0 && (
+                <View style={styles.cartYellowBadge}>
+                  <Text style={styles.cartYellowBadgeText}>
+                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -705,6 +745,13 @@ export default function HomeHeader({
               {onWishlist && (
                 <TouchableOpacity onPress={onWishlist} style={styles.iconCircleBtn} activeOpacity={0.8}>
                   <Ionicons name="heart-outline" size={19} color="#0F172A" />
+                  {wishlistCount > 0 && (
+                    <View style={styles.cartYellowBadge}>
+                      <Text style={styles.cartYellowBadgeText}>
+                        {wishlistCount > 99 ? '99+' : wishlistCount}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               )}
               {onNotifications && (
@@ -816,7 +863,7 @@ export default function HomeHeader({
             </TouchableOpacity>
 
             <TouchableOpacity onPress={onCart} style={styles.trailingIconBtn}>
-              <Ionicons name="clipboard-outline" size={17} color="#475569" />
+              <Ionicons name="cart-outline" size={17} color="#475569" />
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -941,7 +988,7 @@ export default function HomeHeader({
                   onPress={() => {
                     const loc = `${hub.name} - ${hub.pin}`;
                     setLocationManually(loc);
-                    toast.success(`Location set to ${loc}`);
+                    toast.manual(`${hub.name} • ${hub.pin}`, 'Location saved');
                     setModalVisible(false);
                   }}
                   activeOpacity={0.75}
@@ -1100,7 +1147,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#FACC15',
+    backgroundColor: '#EF4444',
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -1113,7 +1160,7 @@ const styles = StyleSheet.create({
   cartYellowBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#000000',
+    color: '#ffffff',
   },
 
   /* Secure badge pill (Checkout) */

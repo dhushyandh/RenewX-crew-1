@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import {
   FlatList,
   Image,
@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -32,6 +32,16 @@ export default function WishlistScreen() {
   const { wishlist, removeFromWishlist, totalWishlistItems, refreshWishlist } = useWishlist();
   const { addToCart, totalItems: cartCount } = useCart();
   const toast = useToast();
+  const listRef = useRef<FlatList>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [])
+  );
 
   const [selectedProductForMenu, setSelectedProductForMenu] = useState<Product | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,15 +68,16 @@ export default function WishlistScreen() {
   const handleAddToCart = useCallback(
     (product: Product) => {
       addToCart(product);
-      toast.success(`${product.name} added to cart!`);
+      toast.success(product.name, 'Added to Cart');
+      navigation.navigate('Cart');
     },
-    [addToCart, toast]
+    [addToCart, toast, navigation]
   );
 
   const handleRemove = useCallback(
     (productId: string | number, productName: string) => {
       removeFromWishlist(productId);
-      toast.show(`${productName} removed from wishlist`);
+      toast.info(productName, 'Removed from Wishlist');
     },
     [removeFromWishlist, toast]
   );
@@ -234,6 +245,7 @@ export default function WishlistScreen() {
       />
 
       <FlatList
+        ref={listRef}
         data={wishlist}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderWishlistItem}
