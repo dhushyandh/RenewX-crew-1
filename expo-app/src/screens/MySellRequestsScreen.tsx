@@ -259,41 +259,52 @@ export default function MySellRequestsScreen() {
         </View>
       )}
 
-      {error ? (
-        <View style={styles.empty}>
-          <Ionicons name="cloud-offline-outline" size={40} color="#64748b" />
-          <Text style={styles.emptyTitle}>Couldn't load requests</Text>
-          <Text style={styles.emptyText}>{error}</Text>
-          <TouchableOpacity style={styles.retry} onPress={load}><Text style={styles.retryText}>Retry</Text></TouchableOpacity>
-        </View>
-      ) : items.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="pricetag-outline" size={44} color="#94a3b8" />
-          <Text style={styles.emptyTitle}>No sell requests yet</Text>
-          <Text style={styles.emptyText}>Submit a device from Sell and your request will appear here.</Text>
-          <TouchableOpacity style={styles.retry} onPress={() => navigation.navigate('MainTabs', { screen: 'Sell' })}>
-            <Text style={styles.retryText}>Sell a Device</Text>
-          </TouchableOpacity>
-        </View>
-      ) : filteredItems.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="search-outline" size={40} color="#94a3b8" />
-          <Text style={styles.emptyTitle}>No matches found</Text>
-          <Text style={styles.emptyText}>No sell request matching "{searchQuery}"</Text>
-          <TouchableOpacity style={styles.retry} onPress={() => setSearchQuery('')}>
-            <Text style={styles.retryText}>Clear Search</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item) => String(item.id || item._id)}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      <FlatList
+        data={filteredItems}
+        keyExtractor={(item) => String(item.id || item._id)}
+        renderItem={renderItem}
+        contentContainerStyle={[styles.list, filteredItems.length === 0 && { flexGrow: 1, justifyContent: 'center' }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load(); }}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          error ? (
+            <View style={styles.empty}>
+              <Ionicons name="cloud-offline-outline" size={40} color="#64748b" />
+              <Text style={styles.emptyTitle}>Couldn't load requests</Text>
+              <Text style={styles.emptyText}>{error}</Text>
+              <TouchableOpacity style={styles.retry} onPress={() => { setRefreshing(true); load(); }}>
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : items.length === 0 ? (
+            <View style={styles.empty}>
+              <Ionicons name="pricetag-outline" size={44} color="#94a3b8" />
+              <Text style={styles.emptyTitle}>No sell requests yet</Text>
+              <Text style={styles.emptyText}>Submit a device from Sell and your request will appear here.</Text>
+              <TouchableOpacity style={styles.retry} onPress={() => navigation.navigate('MainTabs', { screen: 'Sell' })}>
+                <Text style={styles.retryText}>Sell a Device</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Ionicons name="search-outline" size={40} color="#94a3b8" />
+              <Text style={styles.emptyTitle}>No matches found</Text>
+              <Text style={styles.emptyText}>No sell request matching "{searchQuery}"</Text>
+              <TouchableOpacity style={styles.retry} onPress={() => setSearchQuery('')}>
+                <Text style={styles.retryText}>Clear Search</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        }
+      />
     </View>
   );
 }

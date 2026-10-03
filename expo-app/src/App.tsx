@@ -60,6 +60,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { WishlistProvider } from '@/context/WishlistContext';
 import { LocationProvider } from '@/context/LocationContext';
+import { NotificationProvider } from '@/context/NotificationContext';
 import {
   useFonts,
   Outfit_400Regular,
@@ -93,6 +94,7 @@ import SecurityScreen from '@/screens/SecurityScreen';
 import EditProfileScreen from '@/screens/EditProfileScreen';
 import OnboardingProfileScreen from '@/screens/OnboardingProfileScreen';
 import CategoriesScreen from '@/screens/CategoriesScreen';
+import ManageAddressesScreen from '@/screens/ManageAddressesScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
@@ -133,7 +135,8 @@ export type RootStackParamList = {
   } | undefined;
   MySellRequests: undefined;
   Settings: undefined;
-  AboutRenewX: undefined;
+  ManageAddresses: undefined;
+  AboutRenewX: { tab?: 'howItWorks' | 'aboutUs' | 'contact' | 'privacy' | 'terms'; initialTab?: string } | undefined;
   Notifications: undefined;
   EditProfile: undefined;
   OnboardingProfile: undefined;
@@ -158,10 +161,11 @@ export type RootStackParamList = {
   AdminOrders: undefined;
   AdminUsers: undefined;
   AdminTradeIns: undefined;
+  AdminPromotions: undefined;
 
   // Container fallback
   Admin: {
-    screen?: 'dashboard' | 'products' | 'brands' | 'orders' | 'users' | 'addProduct' | 'editProduct' | 'addBrand' | 'addModel';
+    screen?: 'dashboard' | 'products' | 'brands' | 'orders' | 'users' | 'tradeIns' | 'promotions' | 'addProduct' | 'editProduct' | 'addBrand' | 'addModel';
     productId?: string;
     brandId?: string;
     id?: string;
@@ -218,6 +222,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Payment: 'payment',
       MySellRequests: 'sell-requests',
       Settings: 'settings',
+      ManageAddresses: 'manage-address',
       AboutRenewX: 'about',
       Notifications: 'notifications',
       EditProfile: 'edit-profile',
@@ -233,6 +238,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       AdminOrders: 'admin/orders',
       AdminUsers: 'admin/users',
       AdminTradeIns: 'admin/trade-ins',
+      AdminPromotions: 'admin/promotions',
       Admin: 'admin',
     },
   },
@@ -494,6 +500,10 @@ const ProtectedOrderConfirmScreen = withProtectedRoute(OrderConfirmScreen, {
   requireAuth: true,
 });
 
+const ProtectedManageAddressesScreen = withProtectedRoute(ManageAddressesScreen, {
+  requireAuth: true,
+});
+
 function MainAppNavigation() {
   const { user, loading, needsProfileSetup } = useAuth();
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
@@ -661,6 +671,7 @@ function MainAppNavigation() {
                   Sell: 'Sell Your Device for Instant Cash | RenewX',
                   Track: 'Live Order Tracking | RenewX',
                   Account: 'My Account | RenewX',
+                  ManageAddresses: 'Manage Delivery Addresses | RenewX',
                   Cart: 'Shopping Cart | RenewX',
                   Checkout: 'Secure Checkout | RenewX',
                   ProductDetail: 'Product Specifications | RenewX',
@@ -706,6 +717,7 @@ function MainAppNavigation() {
               <Stack.Screen name="Payment" component={ProtectedPaymentScreen} />
               <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
               <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
+              <Stack.Screen name="ManageAddresses" component={ProtectedManageAddressesScreen} />
               <Stack.Screen name="AboutRenewX" component={AboutRenewXScreen} />
               <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
               <Stack.Screen name="EditProfile" component={ProtectedEditProfileScreen} />
@@ -723,6 +735,7 @@ function MainAppNavigation() {
               <Stack.Screen name="AdminOrders" component={ProtectedAdminPanel} />
               <Stack.Screen name="AdminUsers" component={ProtectedAdminPanel} />
               <Stack.Screen name="AdminTradeIns" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminPromotions" component={ProtectedAdminPanel} />
               <Stack.Screen name="Admin" component={ProtectedAdminPanel} />
             </Stack.Group>
           )}
@@ -753,6 +766,7 @@ function App() {
             <CartProvider>
               <WishlistProvider>
                 <LocationProvider>
+                  <NotificationProvider>
               {fontsLoaded ? (
                 <MainAppNavigation />
               ) : (
@@ -764,6 +778,7 @@ function App() {
                   onFinish={() => setSplashFinished(true)}
                 />
               )}
+                  </NotificationProvider>
                 </LocationProvider>
               </WishlistProvider>
             </CartProvider>

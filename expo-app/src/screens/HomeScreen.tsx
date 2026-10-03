@@ -25,6 +25,7 @@ import { api } from '@/services/api';
 import { mapProductRow } from '@/lib/productMapper';
 import HomeHeader from '@/components/HomeHeader';
 import { renewxFontFamily } from '@/design-system';
+import { ProductRowSkeleton } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type AnyProduct = Product & Record<string, any>;
@@ -340,7 +341,9 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#FACC15"
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
           />
         }
       >
@@ -441,9 +444,7 @@ export default function HomeScreen() {
         </View>
 
         {loading && featuredDevices.length === 0 ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color="#FACC15" />
-          </View>
+          <ProductRowSkeleton count={4} />
         ) : (
           <ScrollView
             horizontal

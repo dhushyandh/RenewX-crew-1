@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +16,7 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useCart } from '@/context/CartContext';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
+import { api } from '@/services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -77,6 +79,16 @@ export default function CategoriesScreen() {
   const navigation = useNavigation<any>();
   const { totalItems } = useCart();
   const [selectedCatId, setSelectedCatId] = useState<string>('Smartphones');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await api.brands.getAll().catch(() => {});
+    } finally {
+      setTimeout(() => setRefreshing(false), 400);
+    }
+  }, []);
 
   const handleSelectCategory = (cat: typeof CATEGORY_ITEMS[0]) => {
     setSelectedCatId(cat.id);
@@ -109,13 +121,22 @@ export default function CategoriesScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
 
         {/* 3. HEADING & SUBTITLE */}
         <View style={styles.headingSection}>
           <Text style={styles.mainTitle}>Shop by Category</Text>
           <Text style={styles.subtitle}>
-            Explore our wide range of refurbished devices.
+            Explore our wide range of pre-owned and verified devices.
           </Text>
         </View>
 
@@ -173,7 +194,7 @@ export default function CategoriesScreen() {
 
           <View style={styles.bannerLeftContent}>
             <View style={styles.certifiedBadge}>
-              <Text style={styles.certifiedBadgeText}>CERTIFIED REFURBISHED</Text>
+              <Text style={styles.certifiedBadgeText}>CERTIFIED PRE-OWNED</Text>
             </View>
 
             <Text style={styles.bannerHeadline}>
@@ -189,7 +210,7 @@ export default function CategoriesScreen() {
               onPress={handleExploreBanner}
               activeOpacity={0.88}
               accessibilityRole="button"
-              accessibilityLabel="Explore refurbished devices"
+              accessibilityLabel="Explore pre-owned devices"
             >
               <Text style={styles.bannerCtaText}>Explore Now →</Text>
             </TouchableOpacity>

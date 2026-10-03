@@ -4,6 +4,7 @@ import {
   Image,
   Modal,
   Platform,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -28,11 +29,23 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function WishlistScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
-  const { wishlist, removeFromWishlist, totalWishlistItems } = useWishlist();
+  const { wishlist, removeFromWishlist, totalWishlistItems, refreshWishlist } = useWishlist();
   const { addToCart, totalItems: cartCount } = useCart();
   const toast = useToast();
 
   const [selectedProductForMenu, setSelectedProductForMenu] = useState<Product | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (refreshWishlist) {
+        await refreshWishlist();
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshWishlist]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -190,7 +203,7 @@ export default function WishlistScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Delivery & Warranty Footer Badges */}
+            {/* Delivery & Quality Badges */}
             <View style={styles.cardFooterRow}>
               <View style={styles.footerBadgeItem}>
                 <Ionicons name="bicycle-outline" size={13} color="#475569" />
@@ -199,9 +212,7 @@ export default function WishlistScreen() {
 
               <View style={styles.footerBadgeItem}>
                 <Ionicons name="shield-checkmark-outline" size={13} color="#475569" />
-                <Text style={styles.footerBadgeText}>
-                  {item.warrantyMonths ? `${item.warrantyMonths} Months Warranty` : '6 Months Warranty'}
-                </Text>
+                <Text style={styles.footerBadgeText}>Quality Tested</Text>
               </View>
             </View>
           </View>
@@ -228,6 +239,15 @@ export default function WishlistScreen() {
         renderItem={renderWishlistItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
         ListHeaderComponent={
           <View style={styles.headerBlock}>
             {/* Title & Pill Count */}

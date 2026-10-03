@@ -6,14 +6,17 @@ import {
   deleteNotification,
   clearAllNotifications,
   triggerTestNotification,
+  sendPromotionNotification,
 } from '../controllers/notificationController';
-import { authenticateToken, requireAuthenticated } from '../middleware/auth';
+import { authenticateToken, requireAuthenticated, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
 router.get('/', authenticateToken, requireAuthenticated, getNotifications);
 router.post('/test', authenticateToken, triggerTestNotification);
 router.post('/test-event', authenticateToken, triggerTestNotification);
+router.post('/admin/promotion', authenticateToken, requireAdmin, sendPromotionNotification);
+router.post('/promotion', authenticateToken, requireAdmin, sendPromotionNotification);
 router.patch('/read-all', authenticateToken, requireAuthenticated, markAllNotificationsRead);
 router.patch('/:id/read', authenticateToken, requireAuthenticated, markNotificationRead);
 router.delete('/clear-all', authenticateToken, requireAuthenticated, clearAllNotifications);

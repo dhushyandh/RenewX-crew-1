@@ -13,7 +13,7 @@ export default function Footer() {
               <span className="text-lg font-bold text-white">Renew<span className="text-emerald-400">X</span></span>
             </div>
             <p className="text-sm leading-relaxed">
-              Premium refurbished electronics with warranty. Save money, save the planet.
+              Premium verified pre-owned electronics. Save money, save the planet.
             </p>
             <div className="flex gap-3 mt-4">
               {[Twitter, Instagram, Facebook].map((Icon, i) => (
@@ -38,7 +38,7 @@ export default function Footer() {
             <h4 className="text-white font-semibold text-sm mb-4">Company</h4>
             <ul className="space-y-2.5 text-sm">
               <li><a href="#how" className="hover:text-emerald-400 transition-colors">How It Works</a></li>
-              <li><a href="#warranty" className="hover:text-emerald-400 transition-colors">Warranty</a></li>
+              <li><a href="#standards" className="hover:text-emerald-400 transition-colors">Quality Standards</a></li>
               <li><a href="#" className="hover:text-emerald-400 transition-colors">Sustainability</a></li>
               <li><a href="#" className="hover:text-emerald-400 transition-colors">Contact</a></li>
             </ul>

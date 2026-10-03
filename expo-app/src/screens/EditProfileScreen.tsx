@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,28 +16,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
-import { colors, spacing, radius, fontFamily } from '@/theme';
+import { colors, spacing, radius, fontSize, fontWeight } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const safeTop = useSafeHeaderTop();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { user, updateUser } = useAuth();
   const toast = useToast();
 
-  // Profile fields
+  // Profile fields state
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [address, setAddress] = useState(user?.address || '');
-  const [city, setCity] = useState(user?.city || '');
-  const [stateName, setStateName] = useState(user?.state || '');
+  const [city, setCity] = useState(user?.city || 'Bangalore');
+  const [stateName, setStateName] = useState(user?.state || 'Karnataka');
   const [pincode, setPincode] = useState(user?.pincode || '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -51,13 +52,28 @@ export default function EditProfileScreen() {
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [codeSentTo, setCodeSentTo] = useState('');
 
-  // 1. Pick & Upload Profile Image
+  // Calculate profile completion percentage
+  const completionPercentage = useMemo(() => {
+    let score = 0;
+    if (fullName.trim()) score += 20;
+    if (user?.email) score += 20;
+    if (phone.trim()) score += 20;
+    if (address.trim()) score += 20;
+    if (pincode.trim()) score += 10;
+    if (avatarUrl.trim()) score += 10;
+    return Math.min(score, 100);
+  }, [fullName, user?.email, phone, address, pincode, avatarUrl]);
+
+  // 1. Pick & Upload Profile Photo
   const handlePickImage = async () => {
     try {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Please grant permission to access your photo library to set an avatar.');
+          Alert.alert(
+            'Permission Required',
+            'Please grant permission to access your photo library to set an avatar.'
+          );
           return;
         }
       }
@@ -80,16 +96,27 @@ export default function EditProfileScreen() {
         const res = await api.upload.base64(asset.base64, 'avatar.jpg', 'image/jpeg');
         uploadedUrl = res.url;
       } else if (asset.uri) {
-        const res = await api.upload.image({ uri: asset.uri, name: 'avatar.jpg', type: 'image/jpeg' });
+        const res = await api.upload.image({
+          uri: asset.uri,
+          name: 'avatar.jpg',
+          type: 'image/jpeg',
+        });
         uploadedUrl = res.url;
       }
 
       if (uploadedUrl) {
         setAvatarUrl(uploadedUrl);
-        toast.show({ title: 'Photo Uploaded', message: 'Remember to save changes to keep your new profile picture.', type: 'success' });
+        toast.show({
+          title: 'Photo Uploaded',
+          message: 'Remember to tap Save Changes below to update your profile.',
+          type: 'success',
+        });
       }
     } catch (err: any) {
-      Alert.alert('Upload Failed', err?.message || 'Could not upload selected photo. Please try again.');
+      Alert.alert(
+        'Upload Failed',
+        err?.message || 'Could not upload selected photo. Please try again.'
+      );
     } finally {
       setUploadingImage(false);
     }
@@ -97,29 +124,38 @@ export default function EditProfileScreen() {
 
   const handleRemovePhoto = () => {
     setAvatarUrl('');
+    toast.show({
+      title: 'Photo Removed',
+      message: 'Tap Save Changes to commit.',
+      type: 'info',
+    });
   };
 
-  // 2. Save Full Profile Details
+  // 2. Save Full Profile Details to DB
   const handleSaveProfile = async () => {
     const trimmedName = fullName.trim();
     if (!trimmedName) {
-      Alert.alert('Validation Error', 'Please enter your full name.');
+      Alert.alert('Required', 'Please enter your full name.');
       return;
     }
 
     setSavingProfile(true);
     try {
-      const res = await api.users.updateProfile({
+      const payload = {
         full_name: trimmedName,
         avatar_url: avatarUrl.trim(),
         phone: phone.trim(),
         bio: bio.trim(),
         address: address.trim(),
-        city: city.trim(),
-        state: stateName.trim(),
+        city: city.trim() || 'Bangalore',
+        state: stateName.trim() || 'Karnataka',
         pincode: pincode.trim(),
-      });
+      };
 
+      // 1. Save directly into MongoDB database
+      const res = await api.users.updateProfile(payload);
+
+      // 2. Synchronize local AuthContext state
       if (res?.data) {
         await updateUser({
           full_name: res.data.full_name,
@@ -130,17 +166,29 @@ export default function EditProfileScreen() {
           city: res.data.city,
           state: res.data.state,
           pincode: res.data.pincode,
+          saved_addresses: res.data.saved_addresses,
         });
+
+        // Update local AsyncStorage addresses cache if address changed
+        if (res.data.saved_addresses) {
+          await AsyncStorage.setItem(
+            '@renewx_saved_addresses',
+            JSON.stringify(res.data.saved_addresses)
+          ).catch(() => {});
+        }
       }
 
       toast.show({
-        title: 'Profile Updated',
-        message: 'Your profile details have been saved successfully.',
+        title: 'Profile Saved',
+        message: 'Your profile and delivery coordinates have been updated in the database.',
         type: 'success',
       });
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Update Failed', err?.message || 'Unable to update profile. Please try again.');
+      Alert.alert(
+        'Save Failed',
+        err?.message || 'Unable to update profile in database. Please try again.'
+      );
     } finally {
       setSavingProfile(false);
     }
@@ -163,13 +211,13 @@ export default function EditProfileScreen() {
 
     setSendingCode(true);
     try {
-      const res = await api.users.requestEmailVerification(trimmed);
+      await api.users.requestEmailVerification(trimmed);
       setCodeSentTo(trimmed);
       setVerificationPending(true);
       setVerificationCode('');
       toast.show({
         title: 'Verification Code Sent',
-        message: `A 6-digit code was sent to ${trimmed}. Check your inbox.`,
+        message: `A 6-digit confirmation code was sent to ${trimmed}. Check your inbox.`,
         type: 'success',
       });
     } catch (err: any) {
@@ -179,11 +227,14 @@ export default function EditProfileScreen() {
     }
   };
 
-  // 4. Verify Code and Commit Email Change
+  // 4. Verify Code and Commit Email Change to DB
   const handleVerifyEmailCode = async () => {
     const cleanCode = verificationCode.trim();
     if (!cleanCode || cleanCode.length !== 6) {
-      Alert.alert('Validation Error', 'Please enter the 6-digit verification code sent to your new email.');
+      Alert.alert(
+        'Validation Error',
+        'Please enter the 6-digit verification code sent to your new email.'
+      );
       return;
     }
 
@@ -197,7 +248,7 @@ export default function EditProfileScreen() {
       }
 
       toast.show({
-        title: 'Email Verified & Updated',
+        title: 'Email Updated in DB',
         message: `Your account email is now ${res?.data?.email || codeSentTo}.`,
         type: 'success',
       });
@@ -219,24 +270,24 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      {/* Top Bar */}
+      {/* Top Bar Header */}
       <HomeHeader
         mode="standard"
         title="Edit Profile"
         onBack={() => navigation.goBack()}
         rightComponent={
           <TouchableOpacity
-            style={[styles.navSaveBtn, savingProfile && styles.btnDisabled]}
+            style={[styles.headerSaveBtn, savingProfile && styles.btnDisabled]}
             onPress={handleSaveProfile}
             disabled={savingProfile}
             activeOpacity={0.8}
           >
             {savingProfile ? (
-              <ActivityIndicator size="small" color="#000000" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
-                <Ionicons name="checkmark" size={14} color="#000000" />
-                <Text style={styles.navSaveText}>Save</Text>
+                <Ionicons name="checkmark-sharp" size={16} color="#FFFFFF" />
+                <Text style={styles.headerSaveBtnText}>Save</Text>
               </>
             )}
           </TouchableOpacity>
@@ -245,256 +296,327 @@ export default function EditProfileScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets?.bottom || 0, 24) + 40 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets?.bottom || 0, 24) + 60 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Luxury Avatar Section */}
-        <View style={styles.avatarCard}>
-          <View style={styles.avatarGlow} />
-          <View style={styles.avatarWrapper}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} resizeMode="cover" />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>
-                  {(fullName?.charAt(0) || user?.email?.charAt(0) || 'U').toUpperCase()}
-                </Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.cameraBadge}
-              onPress={handlePickImage}
-              disabled={uploadingImage}
-              activeOpacity={0.85}
-            >
-              {uploadingImage ? (
-                <ActivityIndicator size="small" color="#000000" />
+        {/* 1. HERO AVATAR & COMPLETION CARD */}
+        <View style={styles.heroCard}>
+          <View style={styles.avatarSection}>
+            <View style={styles.avatarOuterRing}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} resizeMode="cover" />
               ) : (
-                <Ionicons name="camera" size={16} color="#000000" />
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarFallbackLetter}>
+                    {(fullName?.charAt(0) || user?.email?.charAt(0) || 'U').toUpperCase()}
+                  </Text>
+                </View>
               )}
-            </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cameraIconBadge}
+                onPress={handlePickImage}
+                disabled={uploadingImage}
+                activeOpacity={0.85}
+              >
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="camera" size={16} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.heroInfoCol}>
+              <Text style={styles.heroName} numberOfLines={1}>
+                {fullName || 'Your Name'}
+              </Text>
+              <Text style={styles.heroEmail} numberOfLines={1}>
+                {user?.email || ''}
+              </Text>
+
+              {/* Photo Action Buttons */}
+              <View style={styles.photoActionsRow}>
+                <TouchableOpacity
+                  style={styles.photoBtn}
+                  onPress={handlePickImage}
+                  disabled={uploadingImage}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="image-outline" size={13} color="#0F172A" />
+                  <Text style={styles.photoBtnText}>
+                    {uploadingImage ? 'Uploading...' : 'Change Photo'}
+                  </Text>
+                </TouchableOpacity>
+
+                {avatarUrl ? (
+                  <TouchableOpacity
+                    style={[styles.photoBtn, styles.photoBtnRemove]}
+                    onPress={handleRemovePhoto}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                    <Text style={[styles.photoBtnText, { color: '#EF4444' }]}>Remove</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
           </View>
 
-          <Text style={styles.avatarTip}>
-            {uploadingImage ? 'Uploading photo...' : 'Tap the camera button to change your photo'}
-          </Text>
-
-          <View style={styles.avatarActionsRow}>
-            <TouchableOpacity
-              style={styles.actionPill}
-              onPress={handlePickImage}
-              disabled={uploadingImage}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="image-outline" size={14} color="#0f172a" />
-              <Text style={styles.actionPillText}>{uploadingImage ? 'Uploading...' : 'Choose from Library'}</Text>
-            </TouchableOpacity>
-
-            {avatarUrl ? (
-              <TouchableOpacity
-                style={[styles.actionPill, styles.actionPillDestructive]}
-                onPress={handleRemovePhoto}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="trash-outline" size={14} color="#dc2626" />
-                <Text style={[styles.actionPillText, { color: '#dc2626' }]}>Remove</Text>
-              </TouchableOpacity>
-            ) : null}
+          {/* Profile Completion Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressHeaderRow}>
+              <Text style={styles.progressTitle}>Profile Strength</Text>
+              <Text style={styles.progressPercent}>{completionPercentage}%</Text>
+            </View>
+            <View style={styles.progressBarTrack}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${completionPercentage}%` },
+                  completionPercentage >= 80 && styles.progressBarFillHigh,
+                ]}
+              />
+            </View>
+            <Text style={styles.progressTip}>
+              {completionPercentage >= 100
+                ? 'Your profile is fully completed and optimized for express delivery!'
+                : 'Add address, phone number & avatar to enable 1-click doorstep delivery.'}
+            </Text>
           </View>
         </View>
 
-        {/* Section 1: Personal Information */}
-        <Text style={styles.sectionHeader}>Personal Details</Text>
-        <View style={styles.formCard}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Full Name</Text>
-            <View style={styles.inputWrapper}>
-              <View style={styles.inputIconBox}>
-                <Ionicons name="person-outline" size={18} color="#64748b" />
-              </View>
+        {/* 2. PERSONAL DETAILS CARD */}
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeaderIcon}>
+            <Ionicons name="person" size={16} color="#059669" />
+          </View>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+        </View>
+
+        <View style={styles.cardContainer}>
+          {/* Full Name */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              Full Name <Text style={styles.asterisk}>*</Text>
+            </Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={18} color="#94A3B8" />
               <TextInput
                 style={styles.textInput}
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Enter your full name"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor="#94A3B8"
                 autoCapitalize="words"
               />
               {fullName.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setFullName('')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close-circle" size={18} color="#cbd5e1" />
+                <TouchableOpacity onPress={() => setFullName('')}>
+                  <Ionicons name="close-circle" size={16} color="#CBD5E1" />
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          <View style={styles.dividerLine} />
+          <View style={styles.fieldDivider} />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Phone Number</Text>
-            <View style={styles.inputWrapper}>
-              <View style={styles.inputIconBox}>
-                <Ionicons name="call-outline" size={18} color="#64748b" />
-              </View>
+          {/* Mobile Phone */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Mobile Phone</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={18} color="#94A3B8" />
               <TextInput
                 style={styles.textInput}
                 value={phone}
-                onChangeText={setPhone}
-                placeholder="+91 98765 43210"
-                placeholderTextColor="#94a3b8"
+                onChangeText={(val) => setPhone(val.replace(/\D/g, ''))}
+                placeholder="10-digit mobile number"
+                placeholderTextColor="#94A3B8"
                 keyboardType="phone-pad"
+                maxLength={10}
               />
               {phone.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setPhone('')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close-circle" size={18} color="#cbd5e1" />
+                <TouchableOpacity onPress={() => setPhone('')}>
+                  <Ionicons name="close-circle" size={16} color="#CBD5E1" />
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          <View style={styles.dividerLine} />
+          <View style={styles.fieldDivider} />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Bio / About</Text>
-            <View style={[styles.inputWrapper, { height: 'auto', minHeight: 48, paddingVertical: 8, alignItems: 'flex-start' }]}>
-              <View style={[styles.inputIconBox, { marginTop: 4 }]}>
-                <Ionicons name="document-text-outline" size={18} color="#64748b" />
-              </View>
+          {/* Bio / About */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.fieldLabelRow}>
+              <Text style={styles.fieldLabel}>Bio / Status</Text>
+              <Text style={styles.charCount}>{bio.length}/150</Text>
+            </View>
+            <View style={[styles.inputContainer, styles.bioInputContainer]}>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={18}
+                color="#94A3B8"
+                style={{ marginTop: 2 }}
+              />
               <TextInput
-                style={[styles.textInput, { minHeight: 40, textAlignVertical: 'top' }]}
+                style={[styles.textInput, styles.bioInput]}
                 value={bio}
-                onChangeText={setBio}
-                placeholder="A brief line about yourself"
-                placeholderTextColor="#94a3b8"
+                onChangeText={(val) => setBio(val.slice(0, 150))}
+                placeholder="Brief note about your tech interests..."
+                placeholderTextColor="#94A3B8"
                 multiline
                 numberOfLines={2}
               />
             </View>
           </View>
 
-          <View style={styles.dividerLine} />
+          <View style={styles.fieldDivider} />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Account Status</Text>
-            <View style={styles.roleCard}>
-              <View style={[styles.roleIconCircle, { backgroundColor: user?.role === 'admin' ? '#fef3c7' : '#ecfdf5' }]}>
-                <Ionicons
-                  name={user?.role === 'admin' ? 'shield-checkmark' : 'sparkles'}
-                  size={18}
-                  color={user?.role === 'admin' ? '#d97706' : '#059669'}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.roleTitle}>
-                  {user?.role === 'admin' ? 'Administrator Account' : 'Verified Member Account'}
-                </Text>
-                <Text style={styles.roleSub}>
-                  {user?.role === 'admin'
-                    ? 'Full permissions to manage store and orders'
-                    : 'Authorized to shop, sell devices and track orders'}
-                </Text>
-              </View>
+          {/* Account Role & Tier */}
+          <View style={styles.roleBanner}>
+            <View
+              style={[
+                styles.roleBadgeCircle,
+                { backgroundColor: user?.role === 'admin' ? '#FEF3C7' : '#ECFDF5' },
+              ]}
+            >
+              <Ionicons
+                name={user?.role === 'admin' ? 'shield-checkmark' : 'sparkles'}
+                size={16}
+                color={user?.role === 'admin' ? '#D97706' : '#059669'}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.roleTitle}>
+                {user?.role === 'admin' ? 'RenewX Administrator' : 'RenewX Verified Customer'}
+              </Text>
+              <Text style={styles.roleSub}>
+                {user?.role === 'admin'
+                  ? 'Authorized with management and store administration privileges'
+                  : 'Full access to pre-owned marketplace, instant trade-ins & live tracking'}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Section 2: Address & Shipping Details */}
-        <Text style={styles.sectionHeader}>Address & Delivery Details</Text>
-        <View style={styles.formCard}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Street / Building / Flat</Text>
-            <View style={styles.inputWrapper}>
-              <View style={styles.inputIconBox}>
-                <Ionicons name="home-outline" size={18} color="#64748b" />
-              </View>
+        {/* 3. PRIMARY DELIVERY ADDRESS CARD */}
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeaderIcon}>
+            <Ionicons name="location" size={16} color="#059669" />
+          </View>
+          <Text style={styles.sectionTitle}>Primary Delivery Address</Text>
+          <TouchableOpacity
+            style={styles.sectionLinkBtn}
+            onPress={() => navigation.navigate('ManageAddresses')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.sectionLinkBtnText}>Manage All</Text>
+            <Ionicons name="chevron-forward" size={14} color="#059669" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.cardContainer}>
+          {/* Street Address */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Flat / Building / Street</Text>
+            <View style={[styles.inputContainer, { height: 60, alignItems: 'flex-start', paddingTop: 8 }]}>
+              <Ionicons name="home-outline" size={18} color="#94A3B8" style={{ marginTop: 2 }} />
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { height: '100%', textAlignVertical: 'top' }]}
                 value={address}
                 onChangeText={setAddress}
-                placeholder="House / Apartment no., Street name"
-                placeholderTextColor="#94a3b8"
+                placeholder="House / Apartment no., Street name, Locality"
+                placeholderTextColor="#94A3B8"
+                multiline
               />
             </View>
           </View>
 
-          <View style={styles.dividerLine} />
+          <View style={styles.fieldDivider} />
 
-          <View style={styles.twoColumnRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 6 }]}>
-              <Text style={styles.inputLabel}>City</Text>
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputIconBox}>
-                  <Ionicons name="business-outline" size={17} color="#64748b" />
-                </View>
+          {/* City & PIN Code 2-Column Row */}
+          <View style={styles.twoColRow}>
+            <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.fieldLabel}>City</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="business-outline" size={18} color="#94A3B8" />
                 <TextInput
                   style={styles.textInput}
                   value={city}
                   onChangeText={setCity}
-                  placeholder="e.g. Chennai"
-                  placeholderTextColor="#94a3b8"
+                  placeholder="Bangalore"
+                  placeholderTextColor="#94A3B8"
                 />
               </View>
             </View>
 
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 6 }]}>
-              <Text style={styles.inputLabel}>PIN / Postal Code</Text>
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputIconBox}>
-                  <Ionicons name="pin-outline" size={17} color="#64748b" />
-                </View>
+            <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.fieldLabel}>PIN Code</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={18} color="#94A3B8" />
                 <TextInput
                   style={styles.textInput}
                   value={pincode}
-                  onChangeText={setPincode}
-                  placeholder="600001"
-                  placeholderTextColor="#94a3b8"
-                  keyboardType="numeric"
+                  onChangeText={(val) => setPincode(val.replace(/\D/g, ''))}
+                  placeholder="560001"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
+                  maxLength={6}
                 />
               </View>
             </View>
           </View>
 
-          <View style={styles.dividerLine} />
+          <View style={styles.fieldDivider} />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>State / Region</Text>
-            <View style={styles.inputWrapper}>
-              <View style={styles.inputIconBox}>
-                <Ionicons name="map-outline" size={18} color="#64748b" />
-              </View>
+          {/* State */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>State / Region</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="map-outline" size={18} color="#94A3B8" />
               <TextInput
                 style={styles.textInput}
                 value={stateName}
                 onChangeText={setStateName}
-                placeholder="e.g. Tamil Nadu"
-                placeholderTextColor="#94a3b8"
+                placeholder="Karnataka"
+                placeholderTextColor="#94A3B8"
               />
             </View>
           </View>
+
+          <View style={styles.fieldDivider} />
+
+          <View style={styles.addressTipRow}>
+            <Ionicons name="information-circle-outline" size={16} color="#059669" />
+            <Text style={styles.addressTipText}>
+              This address is stored in your database record and synchronized with your saved delivery locations.
+            </Text>
+          </View>
         </View>
 
-        {/* Section 2: Email & Verification */}
-        <Text style={styles.sectionHeader}>Email & Security</Text>
-        <View style={styles.formCard}>
-          {/* Current Email Display */}
-          <View style={styles.emailDisplayRow}>
-            <View style={styles.emailIconCircle}>
+        {/* 4. EMAIL & SECURITY CARD */}
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeaderIcon}>
+            <Ionicons name="shield-checkmark" size={16} color="#059669" />
+          </View>
+          <Text style={styles.sectionTitle}>Account & Credentials</Text>
+        </View>
+
+        <View style={styles.cardContainer}>
+          {/* Active Email Display */}
+          <View style={styles.activeEmailRow}>
+            <View style={styles.activeEmailIconCircle}>
               <Ionicons name="mail" size={18} color="#059669" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.emailDisplayLabel}>Active Email</Text>
-              <Text style={styles.emailDisplayValue}>{user?.email}</Text>
+              <Text style={styles.activeEmailLabel}>Registered Email</Text>
+              <Text style={styles.activeEmailValue}>{user?.email}</Text>
             </View>
-            <View style={styles.activePill}>
+            <View style={styles.verifiedBadge}>
               <Ionicons name="checkmark-circle" size={12} color="#059669" />
-              <Text style={styles.activePillText}>Verified</Text>
+              <Text style={styles.verifiedBadgeText}>VERIFIED</Text>
             </View>
           </View>
 
@@ -508,39 +630,37 @@ export default function EditProfileScreen() {
               }}
               activeOpacity={0.75}
             >
-              <Ionicons name="swap-horizontal" size={16} color="#0f172a" />
+              <Ionicons name="swap-horizontal" size={16} color="#0F172A" />
               <Text style={styles.changeEmailToggleText}>Change Email Address</Text>
             </TouchableOpacity>
           ) : (
-            <View style={styles.changeEmailSection}>
-              <View style={styles.securityNotice}>
-                <Ionicons name="shield-checkmark-outline" size={16} color="#0369a1" />
-                <Text style={styles.securityNoticeText}>
-                  For security, your current email remains active until you confirm the 6-digit code sent to the new address.
+            <View style={styles.changeEmailContainer}>
+              <View style={styles.securityAlert}>
+                <Ionicons name="shield-checkmark" size={16} color="#0284C7" />
+                <Text style={styles.securityAlertText}>
+                  Your current email remains active until you verify the 6-digit code sent to your new address.
                 </Text>
               </View>
 
               {!verificationPending ? (
                 /* Step 1: Input New Email */
                 <View>
-                  <Text style={styles.inputLabel}>New Email Address</Text>
-                  <View style={styles.inputWrapper}>
-                    <View style={styles.inputIconBox}>
-                      <Ionicons name="mail-outline" size={18} color="#64748b" />
-                    </View>
+                  <Text style={styles.fieldLabel}>New Email Address</Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="mail-outline" size={18} color="#94A3B8" />
                     <TextInput
                       style={styles.textInput}
                       value={newEmail}
                       onChangeText={setNewEmail}
-                      placeholder="name@example.com"
-                      placeholderTextColor="#94a3b8"
+                      placeholder="newemail@example.com"
+                      placeholderTextColor="#94A3B8"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
                   </View>
 
-                  <View style={styles.actionBtnRow}>
+                  <View style={styles.emailActionsRow}>
                     <TouchableOpacity
                       style={[styles.sendCodeBtn, sendingCode && styles.btnDisabled]}
                       onPress={handleRequestEmailCode}
@@ -548,97 +668,114 @@ export default function EditProfileScreen() {
                       activeOpacity={0.85}
                     >
                       {sendingCode ? (
-                        <ActivityIndicator size="small" color="#000000" />
+                        <ActivityIndicator size="small" color="#FFFFFF" />
                       ) : (
                         <>
-                          <Ionicons name="send" size={14} color="#000000" style={{ marginRight: 6 }} />
+                          <Ionicons name="send" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
                           <Text style={styles.sendCodeBtnText}>Send 6-Digit Code</Text>
                         </>
                       )}
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.cancelActionBtn}
+                      style={styles.cancelEmailBtn}
                       onPress={() => {
                         setShowEmailChange(false);
                         setNewEmail('');
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.cancelActionBtnText}>Cancel</Text>
+                      <Text style={styles.cancelEmailBtnText}>Cancel</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 /* Step 2: Verification Code Input */
-                <View style={styles.codeVerifyContainer}>
-                  <View style={styles.codeHeaderRow}>
+                <View>
+                  <View style={styles.stepHeaderRow}>
                     <View style={styles.stepBadge}>
                       <Text style={styles.stepBadgeText}>STEP 2 OF 2</Text>
                     </View>
                     <Text style={styles.sentToText} numberOfLines={1}>
-                      Sent to: <Text style={styles.sentToBold}>{codeSentTo}</Text>
+                      Code sent to: <Text style={{ fontWeight: '700' }}>{codeSentTo}</Text>
                     </Text>
                   </View>
 
-                  <Text style={styles.inputLabel}>Enter 6-Digit Code</Text>
+                  <Text style={styles.fieldLabel}>Enter 6-Digit Confirmation Code</Text>
                   <TextInput
                     style={styles.otpInput}
                     value={verificationCode}
                     onChangeText={setVerificationCode}
                     placeholder="• • • • • •"
-                    placeholderTextColor="#cbd5e1"
+                    placeholderTextColor="#CBD5E1"
                     keyboardType="number-pad"
                     maxLength={6}
-                    autoFocus
                   />
 
-                  <View style={styles.actionBtnRow}>
+                  <View style={styles.emailActionsRow}>
                     <TouchableOpacity
-                      style={[styles.verifySubmitBtn, verifyingCode && styles.btnDisabled]}
+                      style={[styles.verifyBtn, verifyingCode && styles.btnDisabled]}
                       onPress={handleVerifyEmailCode}
                       disabled={verifyingCode}
                       activeOpacity={0.85}
                     >
                       {verifyingCode ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
+                        <ActivityIndicator size="small" color="#FFFFFF" />
                       ) : (
                         <>
-                          <Ionicons name="checkmark-circle" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-                          <Text style={styles.verifySubmitBtnText}>Verify & Save</Text>
+                          <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={styles.verifyBtnText}>Verify & Save to DB</Text>
                         </>
                       )}
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.resendActionBtn}
+                      style={styles.resendBtn}
                       onPress={handleRequestEmailCode}
                       disabled={sendingCode}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.resendActionBtnText}>Resend</Text>
+                      <Text style={styles.resendBtnText}>Resend</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               )}
             </View>
           )}
+
+          <View style={styles.fieldDivider} />
+
+          {/* Quick link to Security / Password screen */}
+          <TouchableOpacity
+            style={styles.securityNavRow}
+            onPress={() => navigation.navigate('Security')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.securityNavIconBox}>
+              <Ionicons name="key-outline" size={18} color="#0F172A" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.securityNavTitle}>Password & Security</Text>
+              <Text style={styles.securityNavSub}>Change password, 2FA, session devices</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+          </TouchableOpacity>
         </View>
 
-        {/* Big Bottom Save CTA */}
+        {/* 5. BOTTOM SAVE CTA BUTTON */}
         <TouchableOpacity
-          style={[styles.bigPrimaryBtn, savingProfile && styles.btnDisabled]}
+          style={[styles.bigSaveBtn, savingProfile && styles.btnDisabled]}
           onPress={handleSaveProfile}
           disabled={savingProfile}
           activeOpacity={0.85}
         >
           {savingProfile ? (
-            <ActivityIndicator size="small" color="#000000" style={{ marginRight: 8 }} />
+            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
           ) : (
-            <Ionicons name="checkmark-circle" size={19} color="#000000" style={{ marginRight: 8 }} />
+            <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
           )}
-          <Text style={styles.bigPrimaryBtnText}>
-            {savingProfile ? 'Saving Changes...' : 'Save Profile Changes'}
+          <Text style={styles.bigSaveBtnText}>
+            {savingProfile ? 'Saving to Database...' : 'Save Profile Changes'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -649,478 +786,552 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f7f2',
-  },
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ebe7dd',
-    backgroundColor: '#f8f7f2',
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e8e4da',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  navTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  navTitle: {
-    fontFamily: fontFamily.bold,
-    fontSize: 20,
-    color: '#0f172a',
-    letterSpacing: -0.3,
-  },
-  navSub: {
-    fontFamily: fontFamily.regular,
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 1,
-  },
-  navSaveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ffc400',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: '#ffc400',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  navSaveText: {
-    fontFamily: fontFamily.bold,
-    color: '#000000',
-    fontSize: 13,
-  },
-  btnDisabled: {
-    opacity: 0.6,
+    backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    padding: spacing.md,
   },
-  avatarCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
-    paddingVertical: 24,
-    paddingHorizontal: 16,
+
+  // Header Save Button
+  headerSaveBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radius.full,
+    gap: 4,
+  },
+  headerSaveBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
+  },
+  btnDisabled: {
+    opacity: 0.65,
+  },
+
+  // Hero Card
+  heroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#e8e4da',
-    marginBottom: 20,
-    position: 'relative',
-    overflow: 'hidden',
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
   },
-  avatarGlow: {
-    position: 'absolute',
-    top: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 196, 0, 0.08)',
+  avatarSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  avatarWrapper: {
+  avatarOuterRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 3,
+    borderColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
     position: 'relative',
-    marginBottom: 12,
+    backgroundColor: '#F1F5F9',
   },
-  avatarImg: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 3,
-    borderColor: '#ffc400',
+  avatarImage: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
   },
-  avatarPlaceholder: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#0f172a',
-    alignItems: 'center',
+  avatarFallback: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#ffc400',
+    alignItems: 'center',
   },
-  avatarInitial: {
-    fontFamily: fontFamily.bold,
-    fontSize: 34,
-    color: '#ffffff',
+  avatarFallbackLetter: {
+    fontSize: 30,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
   },
-  cameraBadge: {
+  cameraIconBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#ffc400',
-    alignItems: 'center',
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#059669',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
     justifyContent: 'center',
-    borderWidth: 2.5,
-    borderColor: '#ffffff',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  avatarTip: {
-    fontFamily: fontFamily.medium,
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 14,
-  },
-  avatarActionsRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
   },
-  actionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  heroInfoCol: {
+    flex: 1,
   },
-  actionPillDestructive: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+  heroName: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: '#0F172A',
+    marginBottom: 2,
   },
-  actionPillText: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 12,
-    color: '#0f172a',
-  },
-  sectionHeader: {
-    fontFamily: fontFamily.bold,
-    fontSize: 11,
-    color: '#64748b',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginLeft: 6,
+  heroEmail: {
+    fontSize: fontSize.xs,
+    color: '#64748B',
     marginBottom: 8,
   },
-  formCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
+  photoActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: '#F1F5F9',
+    borderRadius: radius.full,
+    gap: 4,
+  },
+  photoBtnRemove: {
+    backgroundColor: '#FEF2F2',
+  },
+  photoBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: '#0F172A',
+  },
+
+  // Progress Bar
+  progressContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#e8e4da',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: '#E2E8F0',
   },
-  inputGroup: {
-    marginBottom: 8,
-  },
-  inputLabel: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 12,
-    color: '#475569',
+  progressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 6,
   },
-  inputWrapper: {
+  progressTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#334155',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  progressPercent: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#059669',
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#3B82F6',
+    borderRadius: 3,
+  },
+  progressBarFillHigh: {
+    backgroundColor: '#059669',
+  },
+  progressTip: {
+    fontSize: fontSize.xs,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+
+  // Section Headers
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 12,
-    height: 48,
+    marginBottom: spacing.xs,
+    paddingHorizontal: 2,
+    marginTop: spacing.sm,
   },
-  inputIconBox: {
+  sectionHeaderIcon: {
     width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
   },
-  textInput: {
+  sectionTitle: {
     flex: 1,
-    fontFamily: fontFamily.regular,
-    fontSize: 14,
-    color: '#0f172a',
-  },
-  dividerLine: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginVertical: 12,
-  },
-  twoColumnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  roleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  roleIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleTitle: {
-    fontFamily: fontFamily.bold,
-    fontSize: 13,
-    color: '#0f172a',
-  },
-  roleSub: {
-    fontFamily: fontFamily.regular,
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  emailDisplayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  emailIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#dcfce7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emailDisplayLabel: {
-    fontFamily: fontFamily.bold,
-    fontSize: 10,
-    color: '#64748b',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#334155',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  emailDisplayValue: {
-    fontFamily: fontFamily.bold,
-    fontSize: 13,
-    color: '#0f172a',
-    marginTop: 1,
-  },
-  activePill: {
+  sectionLinkBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
+    gap: 2,
   },
-  activePillText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 10,
+  sectionLinkBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: '#059669',
   },
+
+  // Card Containers
+  cardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  fieldGroup: {
+    marginVertical: 4,
+  },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  fieldLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: '#475569',
+    marginBottom: 6,
+  },
+  asterisk: {
+    color: '#EF4444',
+  },
+  charCount: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: '#0F172A',
+    paddingVertical: 0,
+  },
+  bioInputContainer: {
+    height: 'auto',
+    minHeight: 54,
+    paddingVertical: 8,
+    alignItems: 'flex-start',
+  },
+  bioInput: {
+    minHeight: 38,
+    textAlignVertical: 'top',
+  },
+  twoColRow: {
+    flexDirection: 'row',
+  },
+  fieldDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: spacing.sm,
+  },
+
+  // Role Banner
+  roleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    gap: 10,
+    marginTop: 4,
+  },
+  roleBadgeCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roleTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#0F172A',
+  },
+  roleSub: {
+    fontSize: 10,
+    color: '#64748B',
+    lineHeight: 14,
+    marginTop: 1,
+  },
+
+  // Address Tip
+  addressTipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    gap: 8,
+  },
+  addressTipText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    color: '#065F46',
+    lineHeight: 16,
+  },
+
+  // Active Email Row
+  activeEmailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: 10,
+    marginBottom: spacing.sm,
+  },
+  activeEmailIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeEmailLabel: {
+    fontSize: 10,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    fontWeight: fontWeight.semibold,
+  },
+  activeEmailValue: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#0F172A',
+    marginTop: 1,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    gap: 4,
+  },
+  verifiedBadgeText: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    color: '#059669',
+    letterSpacing: 0.5,
+  },
+
   changeEmailToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingVertical: 11,
-    marginTop: 12,
+    paddingVertical: 10,
+    backgroundColor: '#F1F5F9',
+    borderRadius: radius.md,
+    gap: 6,
   },
   changeEmailToggleText: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 13,
-    color: '#0f172a',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#0F172A',
   },
-  changeEmailSection: {
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  securityNotice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#f0f9ff',
+
+  changeEmailContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#bae6fd',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
+    borderColor: '#E2E8F0',
   },
-  securityNoticeText: {
-    flex: 1,
-    fontFamily: fontFamily.medium,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#0369a1',
-  },
-  actionBtnRow: {
+  securityAlert: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 10,
+    backgroundColor: '#F0F9FF',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  securityAlertText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#0369A1',
+    lineHeight: 15,
+  },
+  emailActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: spacing.md,
   },
   sendCodeBtn: {
-    flex: 1,
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffc400',
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: '#0F172A',
+    paddingVertical: 10,
+    borderRadius: radius.md,
   },
   sendCodeBtnText: {
-    fontFamily: fontFamily.bold,
-    color: '#000000',
-    fontSize: 13,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
   },
-  cancelActionBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  cancelEmailBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E2E8F0',
+    paddingVertical: 10,
+    borderRadius: radius.md,
   },
-  cancelActionBtnText: {
-    fontFamily: fontFamily.semibold,
-    color: '#64748b',
-    fontSize: 13,
+  cancelEmailBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: '#475569',
   },
-  codeVerifyContainer: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  codeHeaderRow: {
+  stepHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   stepBadge: {
-    backgroundColor: '#ffc400',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    backgroundColor: '#059669',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: radius.sm,
   },
   stepBadgeText: {
-    fontFamily: fontFamily.bold,
     fontSize: 9,
-    color: '#000000',
-    letterSpacing: 0.5,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
   },
   sentToText: {
-    fontFamily: fontFamily.regular,
-    fontSize: 11,
-    color: '#64748b',
-    flex: 1,
-    textAlign: 'right',
-    marginLeft: 8,
-  },
-  sentToBold: {
-    fontFamily: fontFamily.bold,
-    color: '#0f172a',
+    fontSize: fontSize.xs,
+    color: '#475569',
   },
   otpInput: {
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#ffc400',
-    borderRadius: 12,
-    height: 52,
-    fontSize: 22,
-    fontFamily: fontFamily.bold,
-    letterSpacing: 8,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#059669',
+    borderRadius: radius.md,
     textAlign: 'center',
-    color: '#0f172a',
-    marginBottom: 6,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 8,
+    color: '#0F172A',
   },
-  verifySubmitBtn: {
+  verifyBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    paddingVertical: 10,
+    borderRadius: radius.md,
+  },
+  verifyBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
+  },
+  resendBtn: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E2E8F0',
+    paddingVertical: 10,
+    borderRadius: radius.md,
+  },
+  resendBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: '#475569',
+  },
+
+  // Security Nav Row
+  securityNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    gap: 10,
+  },
+  securityNavIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  securityNavTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#0F172A',
+  },
+  securityNavSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+
+  // Big Bottom Save CTA
+  bigSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0f172a',
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  verifySubmitBtnText: {
-    fontFamily: fontFamily.bold,
-    color: '#ffffff',
-    fontSize: 13,
-  },
-  resendActionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  resendActionBtnText: {
-    fontFamily: fontFamily.bold,
-    color: '#0f172a',
-    fontSize: 13,
-  },
-  bigPrimaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffc400',
-    paddingVertical: 16,
-    borderRadius: 16,
-    shadowColor: '#ffc400',
+    backgroundColor: '#059669',
+    paddingVertical: 14,
+    borderRadius: radius.xl,
+    marginTop: spacing.sm,
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 3,
-    marginTop: 6,
+    elevation: 4,
   },
-  bigPrimaryBtnText: {
-    fontFamily: fontFamily.bold,
-    color: '#000000',
-    fontSize: 15,
+  bigSaveBtnText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
 });
-

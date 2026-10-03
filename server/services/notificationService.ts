@@ -1,5 +1,6 @@
 import { NotificationModel } from '../models/Notification';
 import { User } from '../models/User';
+import { ProductModel } from '../models/Product';
 import { env } from '../config/env';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -824,5 +825,157 @@ export async function notifyAdminsNewTradeIn(payload: AdminNewTradeInPayload): P
   }
 }
 
+export interface PromotionNotificationPayload {
+  title: string;
+  body: string;
+  product1Id: string;
+  product2Id: string;
+}
 
+/**
+ * Validates real MongoDB products and broadcasts a rich dual-product promotion
+ * notification to all registered customer devices.
+ */
+export async function dispatchPromotionNotification(payload: PromotionNotificationPayload): Promise<{
+  success: boolean;
+  recipientsCount: number;
+  inAppCount: number;
+  products: {
+    product1: { id: string; name: string; price: string; oldPrice: string; image: string };
+    product2: { id: string; name: string; price: string; oldPrice: string; image: string };
+  };
+}> {
+  const title = (payload.title || '').trim();
+  const body = (payload.body || '').trim();
+  const p1Id = (payload.product1Id || '').trim();
+  const p2Id = (payload.product2Id || '').trim();
 
+  if (!title) throw new Error('Promotion title is required');
+  if (!body) throw new Error('Promotion message/body is required');
+  if (!p1Id) throw new Error('Product 1 is required');
+  if (!p2Id) throw new Error('Product 2 is required');
+
+  if (title.length > 120) throw new Error('Title cannot exceed 120 characters');
+  if (body.length > 250) throw new Error('Body cannot exceed 250 characters');
+
+  // 1. Fetch real products from MongoDB
+  const [product1, product2] = await Promise.all([
+    ProductModel.findById(p1Id).lean(),
+    ProductModel.findById(p2Id).lean(),
+  ]);
+
+  if (!product1) {
+    throw new Error(`Product 1 (ID: ${p1Id}) not found in inventory.`);
+  }
+  if (!product2) {
+    throw new Error(`Product 2 (ID: ${p2Id}) not found in inventory.`);
+  }
+
+  // 2. Format trusted data directly from DB
+  const formatPrice = (val?: number) =>
+    typeof val === 'number' && !isNaN(val) ? `₹${Number(val).toLocaleString('en-IN')}` : '';
+
+  const p1Name = product1.name;
+  const p1Price = formatPrice(product1.price);
+  const p1OldPrice = formatPrice(product1.original_price);
+  const p1Image = product1.image_url || (Array.isArray(product1.images) ? product1.images[0] : '') || '';
+
+  const p2Name = product2.name;
+  const p2Price = formatPrice(product2.price);
+  const p2OldPrice = formatPrice(product2.original_price);
+  const p2Image = product2.image_url || (Array.isArray(product2.images) ? product2.images[0] : '') || '';
+
+  // 3. Find eligible users (not opted out of promotional notifications)
+  const allUsers = await User.find({}).select('_id notification_preferences +push_tokens').lean();
+
+  const notificationsToInsert: Array<{
+    user_id: string;
+    type: string;
+    title: string;
+    body: string;
+    reference_id: string;
+    reference_type: string;
+    data: Record<string, unknown>;
+  }> = [];
+
+  const pushMessages: Array<Record<string, unknown>> = [];
+
+  for (const u of allUsers) {
+    const uId = u._id.toString();
+
+    // Skip users who opted out of marketing
+    if (u.notification_preferences?.marketing === false) {
+      continue;
+    }
+
+    notificationsToInsert.push({
+      user_id: uId,
+      type: 'promotion',
+      title,
+      body,
+      reference_id: String(product1._id),
+      reference_type: 'product',
+      data: {
+        product1Id: String(product1._id),
+        product2Id: String(product2._id),
+      },
+    });
+
+    const rawTokens = (u as any).push_tokens || [];
+    const validTokens = rawTokens.filter(isExpoPushToken);
+
+    for (const to of validTokens) {
+      pushMessages.push({
+        to,
+        sound: 'default',
+        title,
+        body,
+        channelId: 'renewx-promotions',
+        priority: 'high',
+        data: {
+          type: 'PROMOTION',
+          title,
+          body,
+          product1Id: String(product1._id),
+          product1Name: p1Name,
+          product1Price: p1Price,
+          product1OldPrice: p1OldPrice,
+          product1Image: p1Image,
+          product2Id: String(product2._id),
+          product2Name: p2Name,
+          product2Price: p2Price,
+          product2OldPrice: p2OldPrice,
+          product2Image: p2Image,
+        },
+      });
+    }
+  }
+
+  // 4. Batch insert in-app notifications
+  if (notificationsToInsert.length) {
+    try {
+      await NotificationModel.insertMany(notificationsToInsert, { ordered: false });
+      console.log(`[Notifications] Broadcasted promotion to ${notificationsToInsert.length} inboxes.`);
+    } catch (insertErr) {
+      console.error('[Notifications] Failed saving promotional in-app notifications:', insertErr);
+    }
+  }
+
+  // 5. Dispatch push messages to devices
+  if (pushMessages.length) {
+    console.log(`[Notifications] Dispatching rich promotion push to ${pushMessages.length} device(s)...`);
+    await sendExpoPushMessages(pushMessages);
+  } else {
+    console.log('[Notifications] No registered push tokens for promotional broadcast.');
+  }
+
+  return {
+    success: true,
+    recipientsCount: pushMessages.length,
+    inAppCount: notificationsToInsert.length,
+    products: {
+      product1: { id: String(product1._id), name: p1Name, price: p1Price, oldPrice: p1OldPrice, image: p1Image },
+      product2: { id: String(product2._id), name: p2Name, price: p2Price, oldPrice: p2OldPrice, image: p2Image },
+    },
+  };
+}

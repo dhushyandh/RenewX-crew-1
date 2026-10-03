@@ -293,8 +293,16 @@ export const api = {
       state?: string;
       pincode?: string;
       bio?: string;
+      saved_addresses?: any[];
     }) =>
       request<any>('/users/me/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    getAddresses: async () => request<any>('/users/me/addresses'),
+    addAddress: async (data: any) =>
+      request<any>('/users/me/addresses', { method: 'POST', body: JSON.stringify(data) }),
+    updateAddress: async (id: string, data: any) =>
+      request<any>(`/users/me/addresses/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteAddress: async (id: string) =>
+      request<any>(`/users/me/addresses/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     requestEmailVerification: async (new_email: string) =>
       request<{ pending_email: string; expires_at: string }>('/users/me/email/request-verification', {
         method: 'POST',
@@ -356,6 +364,16 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ action }),
       }),
+    sendPromotion: async (payload: {
+      title: string;
+      body: string;
+      product1Id: string;
+      product2Id: string;
+    }) =>
+      request<any>('/notifications/admin/promotion', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
   },
 
   upload: {
@@ -412,4 +430,59 @@ export const api = {
         body: JSON.stringify({ url: imageUrl }),
       }),
   },
+
+  analytics: {
+    getRealtime: async (period: 'today' | 'week' | 'month' | 'year' | 'all' = 'month') =>
+      request<{
+        timestamp: string;
+        period: string;
+        kpis: {
+          totalRevenue: number;
+          allTimeRevenue: number;
+          totalOrders: number;
+          allTimeOrders: number;
+          totalCustomers: number;
+          avgOrderValue: number;
+          today: { revenue: number; orders: number };
+          thisWeek: { revenue: number; orders: number };
+          thisMonth: { revenue: number; orders: number };
+        };
+        orderStatuses: Record<string, number>;
+        paymentStatuses: Record<string, number>;
+        categoryBreakdown: {
+          category: string;
+          count: number;
+          stock: number;
+          inventoryValue: number;
+          sales: number;
+          percentage: number;
+        }[];
+        inventoryHealth: {
+          totalProducts: number;
+          inStock: number;
+          lowStock: number;
+          outOfStock: number;
+          totalInventoryValue: number;
+        };
+        tradeInStats: {
+          totalRequests: number;
+          pending: number;
+          inspected: number;
+          totalPayouts: number;
+        };
+        salesTrend: { date: string; label: string; revenue: number; orders: number }[];
+        recentTransactions: {
+          id: string;
+          customerName: string;
+          customerPhone: string;
+          amount: number;
+          status: string;
+          paymentStatus: string;
+          paymentMethod: string;
+          itemsCount: number;
+          createdAt: string;
+        }[];
+      }>(`/analytics?period=${period}`),
+  },
 };
+

@@ -2,34 +2,41 @@ import { useCallback, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Image, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { RootStackParamList } from '@/App';
 import { api } from '@/services/api';
 import { getNotificationPermissionStatus, requestNotificationPermission } from '@/services/pushNotifications';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
+import { useNotifications, NotificationItem } from '@/context/NotificationContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function NotificationsScreen() {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
-  const [items, setItems] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const {
+    notifications: items,
+    unreadCount,
+    loading,
+    refreshNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = useNotifications();
+
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-
-  const load = useCallback(async () => {
-    try {
-      setError('');
-      const result = await api.notifications.getAll();
-      setItems(result.data || []);
-      setUnreadCount(Number(result.unreadCount || 0));
-    } catch (err: any) {
-      setError(err?.message || 'Unable to load notifications');
-    }
-  }, []);
-
   const [permissionGranted, setPermissionGranted] = useState(true);
 
   const checkPermission = useCallback(async () => {
@@ -38,49 +45,17 @@ export default function NotificationsScreen() {
     setPermissionGranted(status.granted);
   }, []);
 
-  useFocusEffect(useCallback(() => {
-    load();
-    checkPermission();
-    const timer = setInterval(load, 30000);
-    return () => clearInterval(timer);
-  }, [load, checkPermission]));
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifications();
+      checkPermission();
+    }, [refreshNotifications, checkPermission])
+  );
 
   const refresh = async () => {
     setRefreshing(true);
-    await Promise.all([load(), checkPermission()]);
+    await Promise.all([refreshNotifications(), checkPermission()]);
     setRefreshing(false);
-  };
-
-  const markRead = async (item: any) => {
-    if (item.read_at) return;
-    try {
-      await api.notifications.markRead(item.id);
-      setItems((current) => current.map((notification) =>
-        notification.id === item.id ? { ...notification, read_at: new Date().toISOString() } : notification
-      ));
-      setUnreadCount((count) => Math.max(0, count - 1));
-    } catch {
-      // Keep the notification unread if the server update failed.
-    }
-  };
-
-  const markAllRead = async () => {
-    if (!unreadCount) return;
-    await api.notifications.markAllRead();
-    setItems((current) => current.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() })));
-    setUnreadCount(0);
-  };
-
-  const deleteItem = async (item: any) => {
-    try {
-      await api.notifications.delete(item.id);
-      setItems((current) => current.filter((n) => n.id !== item.id));
-      if (!item.read_at) {
-        setUnreadCount((c) => Math.max(0, c - 1));
-      }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Could not delete notification');
-    }
   };
 
   const handleClearAll = () => {
@@ -92,9 +67,7 @@ export default function NotificationsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await api.notifications.clearAll();
-            setItems([]);
-            setUnreadCount(0);
+            await clearAll();
           } catch (err: any) {
             Alert.alert('Error', err?.message || 'Could not clear notifications');
           }
@@ -109,7 +82,7 @@ export default function NotificationsScreen() {
     setTesting(true);
     try {
       await api.notifications.triggerTest(action);
-      await load();
+      await refreshNotifications();
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to dispatch test notification');
     } finally {
@@ -211,19 +184,37 @@ export default function NotificationsScreen() {
     return { icon: 'notifications-outline', color: '#4b5563', bg: '#f3f4f6', useCustomIcon: true };
   };
 
-  const handleNotificationPress = async (item: any) => {
-    await markRead(item);
+  const handleNotificationPress = async (item: NotificationItem) => {
+    if (!item.read_at) {
+      await markAsRead(item.id);
+    }
 
     if (item.reference_type === 'admin_order' || item.type === 'admin_order') {
       navigation.navigate('AdminOrders');
     } else if (item.reference_type === 'admin_trade_in' || item.type === 'admin_trade_in') {
       navigation.navigate('AdminTradeIns' as any);
     } else if (item.reference_type === 'product' || item.type === 'product') {
-      navigation.navigate('ProductDetail', { id: item.reference_id });
+      if (item.reference_id) {
+        navigation.navigate('ProductDetail', { id: item.reference_id });
+      }
     } else if (item.reference_type === 'order' || item.type === 'order') {
-      navigation.navigate('MainTabs', { screen: 'Orders' as any });
+      if (item.reference_id) {
+        navigation.navigate('MainTabs', {
+          screen: 'Track',
+          params: { id: item.reference_id, type: 'orders' },
+        });
+      } else {
+        navigation.navigate('MainTabs', { screen: 'Track' });
+      }
     } else if (item.reference_type === 'trade_in' || item.type === 'trade_in') {
-      navigation.navigate('MySellRequests');
+      if (item.reference_id) {
+        navigation.navigate('MainTabs', {
+          screen: 'Track',
+          params: { id: item.reference_id, type: 'sell_requests' },
+        });
+      } else {
+        navigation.navigate('MySellRequests');
+      }
     } else if (item.reference_type === 'security' || item.type === 'security') {
       navigation.navigate('Security');
     }
@@ -241,7 +232,7 @@ export default function NotificationsScreen() {
               <Ionicons name="paper-plane-outline" size={13} color="#047857" />
               <Text style={styles.testBtnText}>{testing ? '...' : 'Test'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={markAllRead} disabled={!unreadCount} style={styles.readAll}>
+            <TouchableOpacity onPress={markAllAsRead} disabled={!unreadCount} style={styles.readAll}>
               <Text style={[styles.readAllText, !unreadCount && styles.disabledText]}>Read all</Text>
             </TouchableOpacity>
             {items.length > 0 && (
@@ -255,7 +246,15 @@ export default function NotificationsScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
         {!permissionGranted && (
           <View style={styles.permissionWarning}>
@@ -280,14 +279,9 @@ export default function NotificationsScreen() {
           </View>
         )}
 
-        {error ? (
+        {loading && items.length === 0 ? (
           <View style={styles.stateCard}>
-            <Ionicons name="cloud-offline-outline" size={32} color="#64748b" />
-            <Text style={styles.stateTitle}>Could not load notifications</Text>
-            <Text style={styles.stateText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={load}>
-              <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
+            <Text style={styles.stateText}>Loading notifications...</Text>
           </View>
         ) : items.length === 0 ? (
           <View style={styles.stateCard}>
@@ -329,7 +323,7 @@ export default function NotificationsScreen() {
                       style={styles.deleteBtn}
                       onPress={(e) => {
                         e.stopPropagation?.();
-                        deleteItem(item);
+                        deleteNotification(item.id);
                       }}
                     >
                       <Ionicons name="close" size={15} color="#94a3b8" />

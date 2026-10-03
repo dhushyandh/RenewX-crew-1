@@ -277,8 +277,8 @@ export default function TrackScreen() {
           return {
             id,
             display_id,
-            product_name: firstItem.name || firstItem.product_name || 'Refurbished Device',
-            specs: firstItem.specs || firstItem.condition || 'Pristine Condition • 1 Year Warranty',
+            product_name: firstItem.name || firstItem.product_name || 'Device',
+            specs: firstItem.specs || firstItem.condition || 'Pristine Condition • Tested & Verified',
             price: Number(o.total_amount || o.total || firstItem.price || 0),
             qty: items.length || 1,
             placed_date: placedDateStr,
@@ -635,7 +635,15 @@ export default function TrackScreen() {
           style={styles.scrollArea}
           contentContainerStyle={styles.detailScrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={renewxColors.yellow} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={renewxColors.yellow}
+              colors={['#FFC400', '#10B981']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
         >
           {/* Device Summary Card */}
           <View style={styles.summaryCard}>
@@ -945,7 +953,15 @@ export default function TrackScreen() {
           style={styles.scrollArea}
           contentContainerStyle={styles.detailScrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={renewxColors.yellow} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={renewxColors.yellow}
+              colors={['#FFC400', '#10B981']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
         >
           {/* Device Summary Card */}
           <View style={styles.summaryCard}>
@@ -1135,7 +1151,15 @@ export default function TrackScreen() {
         style={styles.scrollArea}
         contentContainerStyle={styles.listScrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={renewxColors.yellow} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={renewxColors.yellow}
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
         {/* 2. SEGMENTED CAPSULE SWITCHER (Orders vs Sell Requests) */}
         <View style={styles.segmentedContainer}>

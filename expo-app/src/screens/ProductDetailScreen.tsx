@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { mapProductRow } from '@/lib/productMapper';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
 import { api } from '@/services/api';
+import { ProductDetailSkeleton } from '@/components/ui';
 
 function formatMoney(value: number) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -158,13 +160,49 @@ export default function ProductDetailScreen() {
     toast.success('Added to your cart', `${baseProduct.name} (${selectedStorage})`);
   }, [addToCart, baseProduct, currentPrice, currentOriginalPrice, selectedStorage, selectedColor, toast]);
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    const prodId = baseProduct?.id || params.productId || params.id;
+    if (!prodId) return;
+    setRefreshing(true);
+    try {
+      const [res, simRes] = await Promise.allSettled([
+        api.products.getById(prodId),
+        baseProduct?.category
+          ? api.products.getAll({ category: baseProduct.category, limit: 4 })
+          : Promise.resolve([]),
+      ]);
+
+      if (res.status === 'fulfilled') {
+        const item = (res.value as any)?.data || res.value;
+        if (item) setFetchedProduct(mapProductRow(item));
+      }
+
+      if (simRes.status === 'fulfilled') {
+        const list = Array.isArray(simRes.value) ? simRes.value : Array.isArray((simRes.value as any)?.data) ? (simRes.value as any).data : [];
+        const filtered = list
+          .filter((p: any) => String(p.id || p._id) !== String(prodId))
+          .slice(0, 4)
+          .map((p: any) => ({
+            id: String(p.id || p._id),
+            name: p.name,
+            discount: p.original_price && p.price ? `${Math.round(((p.original_price - p.price) / p.original_price) * 100)}% OFF` : '',
+            image: p.image_url || p.imageUrl || p.image || 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80',
+            price: p.price,
+            raw: p,
+          }));
+        setSimilarProducts(filtered);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [baseProduct?.id, baseProduct?.category, params.productId, params.id]);
+
   if (loadingProduct) {
-    return (
-      <View style={[styles.container, { paddingTop: safeTop, alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color="#F59E0B" />
-        <Text style={{ marginTop: 12, fontSize: 13, color: '#64748B' }}>Loading device details...</Text>
-      </View>
-    );
+    return <ProductDetailSkeleton safeTop={safeTop} />;
   }
 
   if (!baseProduct) {
@@ -210,6 +248,15 @@ export default function ProductDetailScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
         {/* 2. Top Showcase Section: Main Preview + Vertical Thumbnails + Vertical Value Props */}
         <View style={styles.showcaseSection}>
@@ -279,37 +326,37 @@ export default function ProductDetailScreen() {
 
             <View style={styles.valuePropItem}>
               <View style={styles.valuePropIconCircle}>
-                <Ionicons name="sync-outline" size={17} color="#0F172A" />
+                <Ionicons name="checkmark-circle-outline" size={17} color="#0F172A" />
               </View>
-              <Text style={styles.valuePropText}>6 Months</Text>
-              <Text style={styles.valuePropText}>Warranty</Text>
+              <Text style={styles.valuePropText}>100%</Text>
+              <Text style={styles.valuePropText}>Genuine</Text>
             </View>
 
             <View style={styles.valuePropItem}>
               <View style={styles.valuePropIconCircle}>
-                <Ionicons name="leaf-outline" size={17} color="#0F172A" />
+                <Ionicons name="flash-outline" size={17} color="#0F172A" />
               </View>
-              <Text style={styles.valuePropText}>Refurbished</Text>
-              <Text style={styles.valuePropText}>& Sustainable</Text>
+              <Text style={styles.valuePropText}>Fast</Text>
+              <Text style={styles.valuePropText}>Delivery</Text>
             </View>
 
             <View style={styles.valuePropItem}>
               <View style={styles.valuePropIconCircle}>
-                <Ionicons name="cube-outline" size={17} color="#0F172A" />
+                <Ionicons name="lock-closed-outline" size={17} color="#0F172A" />
               </View>
-              <Text style={styles.valuePropText}>7 Days</Text>
-              <Text style={styles.valuePropText}>Replacement</Text>
+              <Text style={styles.valuePropText}>Secure</Text>
+              <Text style={styles.valuePropText}>Checkout</Text>
             </View>
           </View>
         </View>
 
-        {/* 3. Product Title, Refurbished Badge & Reviews */}
+        {/* 3. Product Title, Condition Badge & Reviews */}
         <View style={styles.titleSection}>
           <Text style={styles.productTitle}>{baseProduct.name}</Text>
 
           <View style={styles.badgeReviewRow}>
             <View style={styles.refurbishedPill}>
-              <Text style={styles.refurbishedPillText}>Refurbished • {baseProduct.condition || 'Excellent'}</Text>
+              <Text style={styles.refurbishedPillText}>Pre-Owned • {baseProduct.condition || 'Excellent'}</Text>
             </View>
 
             <View style={styles.ratingRow}>
@@ -413,7 +460,7 @@ export default function ProductDetailScreen() {
           <View style={styles.conditionHeaderRow}>
             <Text style={styles.conditionTitle}>Condition: Excellent</Text>
             <TouchableOpacity
-              onPress={() => Alert.alert('RenewX Condition Grading', 'Excellent: Flawless screen, minimal body signs, 100% battery performance tested, and backed by a 6-month warranty.')}
+              onPress={() => Alert.alert('RenewX Condition Grading', 'Excellent: Flawless screen, minimal body signs, 100% battery performance tested, and rigorous multi-point functional inspection.')}
               style={{ flexDirection: 'row', alignItems: 'center' }}
             >
               <Ionicons name="information-circle-outline" size={14} color="#64748B" style={{ marginRight: 3 }} />
@@ -474,20 +521,20 @@ export default function ProductDetailScreen() {
           </View>
         </View>
 
-        {/* 8. RenewX Certified Banner */}
+        {/* 8. RenewX Verified Banner */}
         <View style={styles.certifiedBanner}>
           <View style={styles.certifiedShieldCircle}>
             <Ionicons name="shield-checkmark" size={18} color="#16A34A" />
           </View>
 
           <View style={styles.certifiedTextCol}>
-            <Text style={styles.certifiedTitle}>RenewX Certified</Text>
-            <Text style={styles.certifiedSubtitle}>Quality checked devices with warranty</Text>
+            <Text style={styles.certifiedTitle}>RenewX Verified</Text>
+            <Text style={styles.certifiedSubtitle}>Multi-point quality checked & diagnostic tested</Text>
           </View>
 
           <View style={styles.certifiedWarrantyPill}>
             <Ionicons name="shield-checkmark" size={12} color="#16A34A" style={{ marginRight: 4 }} />
-            <Text style={styles.certifiedWarrantyText}>6 Months Warranty</Text>
+            <Text style={styles.certifiedWarrantyText}>100% Tested</Text>
           </View>
         </View>
 

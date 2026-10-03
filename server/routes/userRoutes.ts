@@ -6,6 +6,10 @@ import {
   getMyNotificationPreferences,
   updateMyNotificationPreferences,
   updateProfile,
+  getAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
   requestEmailVerification,
   verifyEmailUpdate,
 } from '../controllers/userController';
@@ -16,6 +20,13 @@ const router = Router();
 
 // Current-user profile & preferences
 router.patch('/me/profile', authenticateToken, updateProfile);
+
+// Current-user delivery addresses in DB
+router.get('/me/addresses', authenticateToken, getAddresses);
+router.post('/me/addresses', authenticateToken, addAddress);
+router.put('/me/addresses/:addressId', authenticateToken, updateAddress);
+router.delete('/me/addresses/:addressId', authenticateToken, deleteAddress);
+
 router.post('/me/email/request-verification', authenticateToken, requestEmailVerification);
 router.post('/me/email/verify', authenticateToken, verifyEmailUpdate);
 

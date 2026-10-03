@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -337,6 +338,24 @@ export default function SellScreen() {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
     }
   }, [step]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (selectedCategory) {
+        await fetchBrandsFromDb(selectedCategory);
+      }
+      if (selectedBrand && selectedBrandName) {
+        await fetchModelsFromDb(selectedBrand, selectedBrandName);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedCategory, selectedBrand, selectedBrandName, fetchBrandsFromDb, fetchModelsFromDb]);
 
   // Back Navigation Handler
   const handleBack = () => {
@@ -773,6 +792,15 @@ export default function SellScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#FFC400"
+              colors={['#FFC400', '#10B981']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
         >
           {/* ================= STEP 1: SELECT DEVICE CATEGORY ================= */}
           {step === 1 && (

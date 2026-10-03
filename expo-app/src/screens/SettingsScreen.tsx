@@ -147,7 +147,7 @@ export default function SettingsScreen() {
             {/* Saved Addresses */}
             <TouchableOpacity
               style={styles.menuRow}
-              onPress={() => setActiveModal('address')}
+              onPress={() => navigation.navigate('ManageAddresses')}
               activeOpacity={0.7}
             >
               <View style={styles.menuIconBox}>
@@ -300,48 +300,48 @@ export default function SettingsScreen() {
                 <Text style={styles.menuItemSubtitle}>Set your default location</Text>
               </View>
               <View style={styles.menuRightInfoRow}>
-                <Text style={styles.menuRightInfoText}>{location}</Text>
+                <Text style={styles.menuRightInfoText}>{location || 'Not set'}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
               </View>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* 6. Section: Help & Support */}
+        {/* 6. Section: About & Legal */}
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionHeaderTitle}>Help & Support</Text>
+          <Text style={styles.sectionHeaderTitle}>About & Legal</Text>
 
           <View style={styles.cardContainer}>
-            {/* Help Center */}
+            {/* About RenewX */}
             <TouchableOpacity
               style={styles.menuRow}
-              onPress={() => setActiveModal('help')}
+              onPress={() => navigation.navigate('AboutRenewX', { tab: 'aboutUs' })}
               activeOpacity={0.7}
             >
               <View style={styles.menuIconBox}>
-                <Ionicons name="help-circle-outline" size={20} color="#0F172A" />
+                <Ionicons name="information-circle-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Help Center</Text>
-                <Text style={styles.menuItemSubtitle}>FAQs, guides and support</Text>
+                <Text style={styles.menuItemTitle}>About RenewX</Text>
+                <Text style={styles.menuItemSubtitle}>Our story, mission & quality standards</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            {/* Contact Support */}
+            {/* How It Works */}
             <TouchableOpacity
               style={styles.menuRow}
-              onPress={() => setActiveModal('contact')}
+              onPress={() => navigation.navigate('AboutRenewX', { tab: 'howItWorks' })}
               activeOpacity={0.7}
             >
               <View style={styles.menuIconBox}>
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#0F172A" />
+                <Ionicons name="sync-circle-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Contact Support</Text>
-                <Text style={styles.menuItemSubtitle}>Get help from our team</Text>
+                <Text style={styles.menuItemTitle}>How It Works</Text>
+                <Text style={styles.menuItemSubtitle}>Inspection, valuation & ordering guides</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -351,7 +351,7 @@ export default function SettingsScreen() {
             {/* Terms & Policies */}
             <TouchableOpacity
               style={styles.menuRow}
-              onPress={() => setActiveModal('terms')}
+              onPress={() => navigation.navigate('AboutRenewX', { tab: 'terms' })}
               activeOpacity={0.7}
             >
               <View style={styles.menuIconBox}>
@@ -359,7 +359,43 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={styles.menuItemTitle}>Terms & Policies</Text>
-                <Text style={styles.menuItemSubtitle}>Privacy Policy, Terms of Service</Text>
+                <Text style={styles.menuItemSubtitle}>Terms of Service, As-Is Sales & Rules</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Privacy Policy */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => navigation.navigate('AboutRenewX', { tab: 'privacy' })}
+              activeOpacity={0.7}
+            >
+              <View style={styles.menuIconBox}>
+                <Ionicons name="shield-checkmark-outline" size={20} color="#0F172A" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuItemTitle}>Privacy Policy</Text>
+                <Text style={styles.menuItemSubtitle}>Data protection & privacy practices</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Contact Support */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => navigation.navigate('AboutRenewX', { tab: 'contact' })}
+              activeOpacity={0.7}
+            >
+              <View style={styles.menuIconBox}>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#0F172A" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuItemTitle}>Contact Support</Text>
+                <Text style={styles.menuItemSubtitle}>Call, WhatsApp or Email our team</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -492,10 +528,10 @@ export default function SettingsScreen() {
                   style={styles.modalPrimaryBtn}
                   onPress={() => {
                     setActiveModal(null);
-                    navigation.navigate('EditProfile');
+                    navigation.navigate('ManageAddresses');
                   }}
                 >
-                  <Text style={styles.modalPrimaryBtnText}>Edit in Profile</Text>
+                  <Text style={styles.modalPrimaryBtnText}>Manage Addresses</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -519,7 +555,7 @@ export default function SettingsScreen() {
               <>
                 <Text style={styles.modalTitle}>RenewX Help Center</Text>
                 <Text style={styles.modalBodyText}>
-                  All certified devices pass 42 rigorous quality tests and include up to 12 months warranty. For returns, requests must be submitted within 7 days.
+                  All pre-owned devices pass rigorous functional testing before dispatch. Products are sold as-is with no warranty or return provided in our service.
                 </Text>
                 <TouchableOpacity
                   style={styles.modalPrimaryBtn}

@@ -557,7 +557,7 @@ export default function OnboardingProfileScreen() {
                 <Text style={styles.welcomeTitleLine1}>Welcome to</Text>
                 <Text style={styles.welcomeTitleLine2}>RenewX</Text>
                 <Text style={styles.welcomeSubtitle}>
-                  Buy certified refurbished devices,{'\n'}sell your old ones, and upgrade{'\n'}to what you love.
+                  Buy certified pre-owned devices,{'\n'}sell your old ones, and upgrade{'\n'}to what you love.
                 </Text>
               </View>
 
@@ -1209,7 +1209,7 @@ export default function OnboardingProfileScreen() {
               <Text style={styles.successTitle}>Account Created{'\n'}Successfully!</Text>
               <Text style={styles.successSubtitle}>
                 Welcome to <Text style={{ fontWeight: '800', color: '#0F172A' }}>RenewX</Text>, {fullName || 'there'}!{'\n'}
-                Start exploring premium refurbished{'\n'}devices at the best prices.
+                Start exploring premium pre-owned{'\n'}devices at the best prices.
               </Text>
             </View>
 

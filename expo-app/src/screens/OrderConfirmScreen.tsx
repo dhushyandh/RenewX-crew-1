@@ -68,8 +68,8 @@ export default function OrderConfirmScreen() {
   const rawItems = params.items || order.items || order.order_items || [];
   const displayItems = rawItems.map((it: any) => ({
     id: String(it.id || it.product_id || it._id || Math.random()),
-    name: it.name || it.product_name || 'Refurbished Device',
-    conditionTag: it.conditionTag || (it.condition ? `Refurbished • ${it.condition}` : 'Refurbished • Excellent'),
+    name: it.name || it.product_name || 'Device',
+    conditionTag: it.conditionTag || (it.condition ? `Pre-Owned • ${it.condition}` : 'Pre-Owned • Excellent'),
     specs: it.specs || (it.brand ? `${it.brand} ${it.model || ''}`.trim() : 'Certified'),
     price: Number(it.price || 0),
     originalPrice: Number(it.originalPrice || it.original_price || it.price || 0),
@@ -120,7 +120,7 @@ export default function OrderConfirmScreen() {
   const handleShareOrder = async () => {
     try {
       await Share.share({
-        message: `I just placed an order on RenewX! Order ID: ${cleanOrderId} for ₹${Number(totalAmount).toLocaleString('en-IN')}. Check it out on RenewX Refurbished Tech.`,
+        message: `I just placed an order on RenewX! Order ID: ${cleanOrderId} for ₹${Number(totalAmount).toLocaleString('en-IN')}. Check it out on RenewX.`,
       });
     } catch {}
   };
@@ -385,7 +385,7 @@ export default function OrderConfirmScreen() {
           <View style={styles.greenPlanetTextCol}>
             <Text style={styles.greenPlanetTitle}>You saved ₹62,702</Text>
             <Text style={styles.greenPlanetDesc}>
-              Thank you for choosing refurbished. Together for a greener planet. ♻️
+              Thank you for choosing pre-owned devices. Together for a greener planet. ♻️
             </Text>
           </View>
 

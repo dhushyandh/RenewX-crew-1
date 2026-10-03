@@ -592,8 +592,9 @@ export default function SearchScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#FACC15"
-              colors={['#FACC15']}
+              tintColor="#FFC400"
+              colors={['#FFC400', '#10B981']}
+              progressBackgroundColor="#FFFFFF"
             />
           }
           ListEmptyComponent={

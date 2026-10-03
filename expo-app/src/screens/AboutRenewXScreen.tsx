@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,11 +21,18 @@ const LOGO_IMG = require('@/assets/logo.png');
 
 type TabKey = 'howItWorks' | 'aboutUs' | 'contact' | 'privacy' | 'terms';
 
-export default function AboutRenewXScreen() {
+export default function AboutRenewXScreen({ route }: any) {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<TabKey>('howItWorks');
+  const initialTab = (route?.params?.tab || route?.params?.initialTab || 'howItWorks') as TabKey;
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+  useEffect(() => {
+    if (route?.params?.tab) {
+      setActiveTab(route?.params?.tab as TabKey);
+    }
+  }, [route?.params?.tab]);
 
   const contactPhone = '+91 90801 68778';
   const cleanPhone = '9080168778';
@@ -428,7 +435,7 @@ export default function AboutRenewXScreen() {
 
               <Text style={styles.policySubHeader}>1. Pre-Owned Product Condition & Verification</Text>
               <Text style={styles.policyBody}>
-                All products listed on RenewX are pre-owned electronics verified for functionality prior to dispatch. Products are sold as-is without any post-purchase manufacturer or third-party warranty unless explicitly covered by the original manufacturer. Buyers are encouraged to inspect and verify their device upon doorstep delivery.
+                All products listed on RenewX are pre-owned electronics verified for functionality prior to dispatch. We do not sell refurbished products, and no warranty or return is provided in our service. All products are sold strictly as-is with all sales final upon delivery.
               </Text>
 
               <Text style={styles.policySubHeader}>2. Device Trade-In & Selling Policy</Text>
@@ -441,9 +448,9 @@ export default function AboutRenewXScreen() {
                 Sellers define their expected selling quote. Final payout is executed immediately via UPI or bank transfer upon successful on-site physical verification by an authorized RenewX technician. If physical condition does not match submitted photos, a revised mutual offer may be presented.
               </Text>
 
-              <Text style={styles.policySubHeader}>4. Cancellations & Returns</Text>
+              <Text style={styles.policySubHeader}>4. Cancellations & Final Sale Policy</Text>
               <Text style={styles.policyBody}>
-                Customers may cancel orders before courier dispatch directly from the order tracking screen. Certified products qualify for a 7-day hassle-free replacement in the event of an unresolvable hardware defect verified by our diagnostics team.
+                Customers may cancel orders before courier dispatch directly from the order tracking screen. Once dispatched and delivered, all sales are final. RenewX does not provide returns, warranties, or replacements.
               </Text>
 
               <Text style={styles.policySubHeader}>5. Governing Law</Text>

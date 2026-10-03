@@ -245,7 +245,15 @@ export default function OrderDetailScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={renewxColors.green} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor={renewxColors.green}
+            colors={['#10B981', '#FFC400']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
         contentContainerStyle={styles.content}
       >
 

@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   type BrandItem,
   type DeviceModelItem,
+  initialBrands,
 } from '@/data/brandsData';
 import { api } from '@/services/api';
 import { confirmAction } from '@/lib/confirmAction';
@@ -894,7 +895,16 @@ function ModelFormModal({
   onDelete?: (modelId: string, modelName?: string) => void;
 }) {
   const MODEL_CATEGORY_OPTIONS = ['smartphones', 'laptops', 'tablets', 'audio', 'wearables', 'cameras'];
-  const [brandId, setBrandId] = useState(model?.brandId || preselectedBrandId || brands[0]?.id);
+
+  const availableBrands = useMemo(() => {
+    return brands && brands.length > 0 ? brands : initialBrands;
+  }, [brands]);
+
+  const [brandId, setBrandId] = useState(
+    model?.brandId || preselectedBrandId || availableBrands[0]?.id || 'apple'
+  );
+  const [brandPickerOpen, setBrandPickerOpen] = useState(false);
+  const [brandSearch, setBrandSearch] = useState('');
   const [name, setName] = useState(model?.name || '');
   const [category, setCategory] = useState(model?.category || 'smartphones');
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
@@ -906,12 +916,58 @@ function ModelFormModal({
     model?.storageOptions.join(', ') || '64GB, 128GB, 256GB, 512GB'
   );
 
+  useEffect(() => {
+    if (model) {
+      setBrandId(model.brandId);
+      setName(model.name);
+      setCategory(model.category || 'smartphones');
+      setReleaseYear((model.releaseYear || 2024).toString());
+      setBasePrice((model.basePrice || 50000).toString());
+      setIsFeatured(model.isFeatured ?? true);
+      setImageUrl(model.imageUrl || model.image_url || '');
+      setStorageInput(model.storageOptions?.join(', ') || '64GB, 128GB, 256GB, 512GB');
+    } else {
+      setBrandId(preselectedBrandId || availableBrands[0]?.id || 'apple');
+      setName('');
+      setCategory('smartphones');
+      setReleaseYear(new Date().getFullYear().toString());
+      setBasePrice('50000');
+      setIsFeatured(true);
+      setImageUrl('');
+      setStorageInput('64GB, 128GB, 256GB, 512GB');
+    }
+  }, [model, preselectedBrandId, availableBrands]);
+
+  const selectedBrand = useMemo(() => {
+    return (
+      availableBrands.find((b) => b.id === brandId) ||
+      availableBrands.find((b) => b.name.toLowerCase() === brandId?.toLowerCase()) ||
+      availableBrands[0]
+    );
+  }, [availableBrands, brandId]);
+
+  const filteredBrandsForPicker = useMemo(() => {
+    if (!brandSearch.trim()) return availableBrands;
+    const q = brandSearch.toLowerCase().trim();
+    return availableBrands.filter(
+      (b) =>
+        b.name.toLowerCase().includes(q) ||
+        (b.category || '').toLowerCase().includes(q)
+    );
+  }, [availableBrands, brandSearch]);
+
   const handleSave = () => {
+    if (!brandId) {
+      Alert.alert('Required', 'Please choose a brand for this model');
+      return;
+    }
     if (!name.trim()) {
       Alert.alert('Required', 'Please enter model name');
       return;
     }
-    const currentBrand = brands.find((b) => b.id === brandId);
+    const currentBrand =
+      availableBrands.find((b) => b.id === brandId) ||
+      availableBrands.find((b) => b.name.toLowerCase() === brandId.toLowerCase());
     const storageOptions = storageInput
       .split(',')
       .map((s) => s.trim())
@@ -919,7 +975,7 @@ function ModelFormModal({
 
     onSave({
       id: model?.id || name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      brandId,
+      brandId: currentBrand?.id || brandId,
       brandName: currentBrand?.name || 'Brand',
       name: name.trim(),
       category: category.trim().toLowerCase(),
@@ -947,6 +1003,285 @@ function ModelFormModal({
               </TouchableOpacity>
             </View>
 
+            {/* 1. Brand Selection Field */}
+            <Text style={formStyles.label}>
+              Brand <Text style={{ color: '#ef4444' }}>*</Text>
+            </Text>
+            <TouchableOpacity
+              onPress={() => setBrandPickerOpen(true)}
+              activeOpacity={0.8}
+              style={[
+                formStyles.input,
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 9,
+                  backgroundColor: '#ffffff',
+                  borderColor: '#cbd5e1',
+                },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                {selectedBrand?.logo || selectedBrand?.logo_url ? (
+                  <Image
+                    source={{ uri: selectedBrand.logo || selectedBrand.logo_url }}
+                    style={{ width: 24, height: 24, borderRadius: 5 }}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 5,
+                      backgroundColor: '#f1f5f9',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="pricetag" size={13} color="#64748b" />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#0f172a', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                    {selectedBrand?.name || 'Select Brand'}
+                  </Text>
+                  {Boolean(selectedBrand?.category) && (
+                    <Text style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>
+                      {selectedBrand.category}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: '#f8fafc',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                }}
+              >
+                <Text style={{ fontSize: 11, color: '#475569', fontWeight: '600' }}>Choose</Text>
+                <Ionicons name="chevron-down" size={14} color="#64748b" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Brand Picker Modal */}
+            <Modal
+              visible={brandPickerOpen}
+              transparent
+              animationType="fade"
+              onRequestClose={() => {
+                setBrandPickerOpen(false);
+                setBrandSearch('');
+              }}
+            >
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: 'rgba(15, 23, 42, 0.45)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: 20,
+                }}
+                activeOpacity={1}
+                onPress={() => {
+                  setBrandPickerOpen(false);
+                  setBrandSearch('');
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: 18,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
+                    width: '100%',
+                    maxWidth: 380,
+                    maxHeight: '80%',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 20,
+                    elevation: 10,
+                  }}
+                  onStartShouldSetResponder={() => true}
+                >
+                  <View
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#f1f5f9',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: '#f8fafc',
+                    }}
+                  >
+                    <View>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: '#0f172a' }}>
+                        Select Brand
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
+                        Attach this model to the right brand
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setBrandPickerOpen(false);
+                        setBrandSearch('');
+                      }}
+                      style={{ padding: 4 }}
+                    >
+                      <Ionicons name="close" size={20} color="#64748b" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Search inside Brand Picker */}
+                  <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#f1f5f9',
+                        borderRadius: 10,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Ionicons name="search" size={15} color="#94a3b8" />
+                      <TextInput
+                        placeholder="Search brand by name..."
+                        placeholderTextColor="#94a3b8"
+                        value={brandSearch}
+                        onChangeText={setBrandSearch}
+                        style={{
+                          flex: 1,
+                          marginLeft: 6,
+                          fontSize: 12,
+                          color: '#0f172a',
+                          paddingVertical: 2,
+                        }}
+                      />
+                      {brandSearch.length > 0 && (
+                        <TouchableOpacity onPress={() => setBrandSearch('')}>
+                          <Ionicons name="close-circle" size={15} color="#94a3b8" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Brands List */}
+                  <ScrollView style={{ maxHeight: 320, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    {filteredBrandsForPicker.length === 0 ? (
+                      <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                        <Ionicons name="search-outline" size={28} color="#cbd5e1" />
+                        <Text style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                          No matching brands found
+                        </Text>
+                      </View>
+                    ) : (
+                      filteredBrandsForPicker.map((b) => {
+                        const isSelected = b.id === brandId || b.name.toLowerCase() === brandId?.toLowerCase();
+                        return (
+                          <TouchableOpacity
+                            key={b.id}
+                            onPress={() => {
+                              setBrandId(b.id);
+                              // Auto sync category if category matches
+                              if (b.category && MODEL_CATEGORY_OPTIONS.includes(b.category.toLowerCase())) {
+                                setCategory(b.category.toLowerCase());
+                              }
+                              setBrandPickerOpen(false);
+                              setBrandSearch('');
+                            }}
+                            activeOpacity={0.7}
+                            style={{
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              borderRadius: 10,
+                              marginVertical: 2,
+                              backgroundColor: isSelected ? '#eff6ff' : '#ffffff',
+                              borderWidth: 1,
+                              borderColor: isSelected ? '#bfdbfe' : '#f1f5f9',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                              {b.logo || b.logo_url ? (
+                                <Image
+                                  source={{ uri: b.logo || b.logo_url }}
+                                  style={{ width: 26, height: 26, borderRadius: 5 }}
+                                  resizeMode="contain"
+                                />
+                              ) : (
+                                <View
+                                  style={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: 5,
+                                    backgroundColor: '#f1f5f9',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <Ionicons name="pricetag" size={13} color="#64748b" />
+                                </View>
+                              )}
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? '800' : '600',
+                                    color: isSelected ? '#1d4ed8' : '#0f172a',
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  {b.name}
+                                </Text>
+                                {Boolean(b.category) && (
+                                  <Text style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>
+                                    {b.category}
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+
+                            {isSelected && (
+                              <View
+                                style={{
+                                  width: 22,
+                                  height: 22,
+                                  borderRadius: 11,
+                                  backgroundColor: '#2563eb',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Ionicons name="checkmark" size={14} color="#ffffff" />
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </View>
+              </TouchableOpacity>
+            </Modal>
+
+            {/* 2. Model Name */}
             <Text style={formStyles.label}>Model Name</Text>
             <TextInput
               placeholder="e.g. iPhone 16 Pro Max"

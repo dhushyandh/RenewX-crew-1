@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Product } from '@/types';
+import { api } from '@/services/api';
 
 export const INITIAL_WISHLIST_ITEMS: Product[] = [];
 
@@ -14,6 +15,7 @@ interface WishlistContextType {
   removeFromWishlist: (productId: string | number) => void;
   toggleWishlist: (product: Product) => boolean; // returns new isWishlisted state
   clearWishlist: () => void;
+  refreshWishlist: () => Promise<void>;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
@@ -97,6 +99,52 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     persistWishlist([]);
   }, [persistWishlist]);
 
+  const refreshWishlist = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem(WISHLIST_STORAGE_KEY);
+      let currentItems: Product[] = wishlist;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          currentItems = parsed.filter(
+            (p: any) => p && p.id && !String(p.id).startsWith('wish_')
+          );
+        }
+      }
+      if (!currentItems.length) {
+        setWishlist([]);
+        return;
+      }
+      // Re-fetch latest price and stock for wishlist items from live api
+      const updated = await Promise.all(
+        currentItems.map(async (item) => {
+          try {
+            const pid = String(item.id || (item as any)._id || '');
+            if (!pid) return item;
+            const res: any = await api.products.getById(pid);
+            const live = res?.data || res;
+            if (live && (live.id || live._id)) {
+              return {
+                ...item,
+                price: Number(live.price ?? item.price),
+                originalPrice: Number(live.original_price ?? live.originalPrice ?? item.originalPrice),
+                stock: live.stock !== undefined ? Number(live.stock) : item.stock,
+                name: live.name || item.name,
+              };
+            }
+          } catch {
+            // Keep existing if network/error
+          }
+          return item;
+        })
+      );
+      setWishlist(updated);
+      await AsyncStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  }, [wishlist]);
+
   return (
     <WishlistContext.Provider
       value={{
@@ -107,6 +155,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         removeFromWishlist,
         toggleWishlist,
         clearWishlist,
+        refreshWishlist,
       }}
     >
       {children}

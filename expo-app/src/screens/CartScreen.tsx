@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -96,9 +97,8 @@ export default function CartScreen() {
     return contextItems.map((item) => ({
       id: String(item.id),
       name: item.name,
-      conditionTag: item.condition ? `Refurbished • ${item.condition}` : 'Refurbished • Excellent',
+      conditionTag: item.condition ? `Pre-Owned • ${item.condition}` : 'Pre-Owned • Excellent',
       specs: item.brand ? `${item.brand} | ${item.model || 'Verified'}` : 'Verified Device',
-      warranty: `${item.warrantyMonths || 6} Months Warranty`,
       price: item.price,
       originalPrice: item.originalPrice || Math.round(item.price * 1.38),
       discount: `${Math.round((((item.originalPrice || item.price * 1.38) - item.price) / (item.originalPrice || item.price * 1.38)) * 100)}% OFF`,
@@ -171,6 +171,38 @@ export default function CartScreen() {
     navigation.navigate('Checkout');
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([
+        refreshInventory(),
+        api.products.getAll({ limit: 4 }).then((res: any) => {
+          const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+          if (list.length > 0) {
+            setRecommendedProducts(
+              list.slice(0, 4).map((p: any) => ({
+                id: String(p.id || p._id),
+                name: p.name,
+                specs: p.specs?.[0] || `${p.condition || 'Good'} • Certified`,
+                price: p.price,
+                originalPrice: p.original_price || p.originalPrice || Math.round(p.price * 1.35),
+                discount: `${Math.round((((p.original_price || p.price * 1.35) - p.price) / (p.original_price || p.price * 1.35)) * 100)}% OFF`,
+                image: p.image_url || p.imageUrl || p.image || 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80',
+                raw: p,
+              }))
+            );
+          }
+        }),
+      ]);
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshInventory]);
+
   return (
     <View style={styles.container}>
       {/* 1. Top Header (Matching Reference Image 2: Cart) */}
@@ -186,6 +218,15 @@ export default function CartScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
 
         {/* Empty state fallback */}
@@ -196,7 +237,7 @@ export default function CartScreen() {
             </View>
             <Text style={styles.emptyTitle}>Your cart is empty</Text>
             <Text style={styles.emptySubtitle}>
-              Explore our certified refurbished laptops, phones, and audio devices with warranty.
+              Explore our quality-tested laptops, phones, and audio devices at unbeatable prices.
             </Text>
             <TouchableOpacity
               style={[styles.browseBtn, { marginTop: 16, paddingHorizontal: 24 }]}
@@ -244,19 +285,13 @@ export default function CartScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Refurbished Badge */}
+                  {/* Condition Badge */}
                   <View style={styles.refurbishedBadge}>
                     <Text style={styles.refurbishedBadgeText}>{item.conditionTag}</Text>
                   </View>
 
                   {/* Specs */}
                   <Text style={styles.specsText}>{item.specs}</Text>
-
-                  {/* Warranty */}
-                  <View style={styles.warrantyRow}>
-                    <Ionicons name="shield-checkmark-outline" size={13} color="#0F172A" style={{ marginRight: 4 }} />
-                    <Text style={styles.warrantyText}>{item.warranty}</Text>
-                  </View>
 
                   {/* Save for later */}
                   <TouchableOpacity
@@ -482,7 +517,7 @@ export default function CartScreen() {
             </View>
 
             <Text style={styles.modalDescription}>
-              Enter a valid coupon or promo code to get instant discounts on refurbished electronics.
+              Enter a valid coupon or promo code to get instant discounts on electronics.
             </Text>
 
             <TextInput

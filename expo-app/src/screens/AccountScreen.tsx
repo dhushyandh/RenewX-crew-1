@@ -9,9 +9,11 @@ import {
   Linking,
   Platform,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
 import { useWishlist } from '@/context/WishlistContext';
@@ -31,7 +33,7 @@ const SUPPORT_PHONE = '+919080168778';
 
 export default function AccountScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, signOut, refreshUser } = useAuth();
   const { totalWishlistItems } = useWishlist();
   const toast = useToast();
 
@@ -42,40 +44,64 @@ export default function AccountScreen() {
     cancelled: 0,
   });
   const [sellCount, setSellCount] = useState(0);
+  const [addressCount, setAddressCount] = useState<number>(() => (user?.address ? 1 : 0));
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      await Promise.allSettled([
+        refreshUser ? refreshUser() : Promise.resolve(),
+        api.orders.getAll().then((orderRes: any) => {
+          if (Array.isArray(orderRes)) {
+            let inTransit = 0;
+            let delivered = 0;
+            let cancelled = 0;
+            orderRes.forEach((o: any) => {
+              const s = String(o.status || '').toLowerCase();
+              if (s === 'delivered') delivered++;
+              else if (s === 'cancelled') cancelled++;
+              else inTransit++;
+            });
+            setOrderStats({
+              total: orderRes.length,
+              inTransit,
+              delivered,
+              cancelled,
+            });
+          }
+        }),
+        api.tradeIn.getMyRequests().then((sellRes: any) => {
+          if (Array.isArray(sellRes)) {
+            setSellCount(sellRes.length);
+          }
+        }),
+        AsyncStorage.getItem('@renewx_saved_addresses').then((stored) => {
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setAddressCount(parsed.length);
+                return;
+              }
+            } catch {}
+          }
+          setAddressCount(user?.address ? 1 : 0);
+        }),
+      ]);
+    } catch {
+      // ignore
+    }
+  }, [refreshUser]);
 
   useEffect(() => {
-    let active = true;
-    Promise.allSettled([
-      api.orders.getAll(),
-      api.tradeIn.getMyRequests(),
-    ]).then(([orderRes, sellRes]) => {
-      if (!active) return;
-      if (orderRes.status === 'fulfilled' && Array.isArray(orderRes.value)) {
-        let inTransit = 0;
-        let delivered = 0;
-        let cancelled = 0;
-        orderRes.value.forEach((o: any) => {
-          const s = String(o.status || '').toLowerCase();
-          if (s === 'delivered') delivered++;
-          else if (s === 'cancelled') cancelled++;
-          else inTransit++;
-        });
-        setOrderStats({
-          total: orderRes.value.length,
-          inTransit,
-          delivered,
-          cancelled,
-        });
-      }
-      if (sellRes.status === 'fulfilled' && Array.isArray(sellRes.value)) {
-        setSellCount(sellRes.value.length);
-      }
-    });
+    loadData();
+  }, [loadData]);
 
-    return () => {
-      active = false;
-    };
-  }, []);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   const handleSignOut = async () => {
     try {
@@ -111,6 +137,15 @@ export default function AccountScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
         {/* 2. USER PROFILE HERO CARD */}
         <View style={styles.profileCard}>
@@ -165,32 +200,34 @@ export default function AccountScreen() {
         </View>
 
         {/* 3. ADMIN PORTAL BANNER (Replaces RenewX Plus) */}
-        <TouchableOpacity
-          style={styles.adminBannerCard}
-          onPress={() => navigation.navigate('Admin', { screen: 'dashboard' })}
-          activeOpacity={0.88}
-        >
-          <View style={styles.adminShieldCircle}>
-            <Ionicons name="shield-checkmark" size={20} color="#059669" />
-          </View>
-
-          <View style={styles.adminInfoCol}>
-            <View style={styles.adminTitleBadgeRow}>
-              <Text style={styles.adminTitle}>Admin Control Center</Text>
-              <View style={styles.adminStatusTag}>
-                <Text style={styles.adminStatusTagText}>Portal</Text>
-              </View>
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.adminBannerCard}
+            onPress={() => navigation.navigate('Admin', { screen: 'dashboard' })}
+            activeOpacity={0.88}
+          >
+            <View style={styles.adminShieldCircle}>
+              <Ionicons name="shield-checkmark" size={20} color="#059669" />
             </View>
-            <Text style={styles.adminSubtitle}>
-              Manage inventory, products, orders & user permissions
-            </Text>
-          </View>
 
-          <View style={styles.adminManageBtn}>
-            <Text style={styles.adminManageText}>Open</Text>
-            <Ionicons name="arrow-forward" size={13} color="#0F172A" />
-          </View>
-        </TouchableOpacity>
+            <View style={styles.adminInfoCol}>
+              <View style={styles.adminTitleBadgeRow}>
+                <Text style={styles.adminTitle}>Admin Control Center</Text>
+                <View style={styles.adminStatusTag}>
+                  <Text style={styles.adminStatusTagText}>Portal</Text>
+                </View>
+              </View>
+              <Text style={styles.adminSubtitle}>
+                Manage inventory, products, orders & user permissions
+              </Text>
+            </View>
+
+            <View style={styles.adminManageBtn}>
+              <Text style={styles.adminManageText}>Open</Text>
+              <Ionicons name="arrow-forward" size={13} color="#0F172A" />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* 4. MY ORDERS STATS ROW */}
         <View style={styles.ordersSection}>
@@ -304,14 +341,14 @@ export default function AccountScreen() {
           {/* Tile 2: Addresses */}
           <TouchableOpacity
             style={styles.quickTile}
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={() => navigation.navigate('ManageAddresses')}
             activeOpacity={0.8}
           >
             <View style={[styles.tileIconCircle, { backgroundColor: '#EFF6FF' }]}>
               <Ionicons name="location" size={18} color="#2563EB" />
             </View>
             <Text style={styles.tileTitle}>Addresses</Text>
-            <Text style={styles.tileSub}>{user?.address ? '1 saved' : '0 saved'}</Text>
+            <Text style={styles.tileSub}>{addressCount} saved</Text>
           </TouchableOpacity>
 
           {/* Tile 3: Trade-in / Sell */}
@@ -362,7 +399,7 @@ export default function AccountScreen() {
           {/* Item 2: Manage Addresses */}
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => toast.info('Delivery addresses configured for Bangalore')}
+            onPress={() => navigation.navigate('ManageAddresses')}
             activeOpacity={0.75}
           >
             <View style={[styles.menuIconCircle, { backgroundColor: '#ECFDF5' }]}>
@@ -407,7 +444,7 @@ export default function AccountScreen() {
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          {/* Item 5: My Refurbish / Sell Requests */}
+          {/* Item 5: My Sell Requests */}
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => (navigation as any).navigate('MySellRequests')}

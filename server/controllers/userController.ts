@@ -236,7 +236,7 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
       return;
     }
 
-    const { full_name, avatar_url, phone, address, city, state, pincode, bio, profile_completed } = req.body || {};
+    const { full_name, avatar_url, phone, address, city, state, pincode, bio, profile_completed, saved_addresses } = req.body || {};
     const updates: Record<string, any> = {};
 
     if (full_name !== undefined) {
@@ -277,6 +277,10 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
       updates.bio = typeof bio === 'string' ? bio.trim() : '';
     }
 
+    if (Array.isArray(saved_addresses)) {
+      updates.saved_addresses = saved_addresses;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updates },
@@ -303,6 +307,7 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
         state: updatedUser.state,
         pincode: updatedUser.pincode,
         bio: updatedUser.bio,
+        saved_addresses: updatedUser.saved_addresses || [],
         profile_completed: updatedUser.profile_completed ?? Boolean(updatedUser.full_name && updatedUser.phone),
       },
     });
@@ -438,4 +443,231 @@ export async function verifyEmailUpdate(req: AuthenticatedRequest, res: Response
     next(err);
   }
 }
+
+export async function getAddresses(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    let addresses = user.saved_addresses || [];
+    // If empty and user has address in profile, seed one default
+    if (addresses.length === 0 && user.address) {
+      const defaultAddr = {
+        id: 'addr_profile',
+        type: 'Home' as const,
+        name: user.full_name || 'My Delivery Address',
+        phone: user.phone || '',
+        address: user.address,
+        pincode: user.pincode || '',
+        city: user.city || 'Bangalore',
+        state: user.state || 'Karnataka',
+        landmark: '',
+        cityStatePincode: `${user.city || 'Bangalore'}, ${user.state || 'Karnataka'}${user.pincode ? ' - ' + user.pincode : ''}`,
+        isDefault: true,
+      };
+      user.saved_addresses = [defaultAddr];
+      await user.save();
+      addresses = user.saved_addresses;
+    }
+
+    res.json({
+      success: true,
+      data: addresses,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function addAddress(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const { name, phone, address, pincode, city, state, landmark, type, isDefault } = req.body || {};
+
+    if (!name || !phone || !address || !pincode) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Name, phone, address, and pincode are required', code: 'VALIDATION_ERROR' },
+      });
+      return;
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    const existingAddresses = user.saved_addresses || [];
+    const willBeDefault = isDefault || existingAddresses.length === 0;
+
+    const newId = `addr_${Date.now()}`;
+    const resolvedCity = city?.trim() || 'Bangalore';
+    const resolvedState = state?.trim() || 'Karnataka';
+    const formattedCityStatePincode = `${resolvedCity}, ${resolvedState} - ${pincode.trim()}`;
+
+    const newAddr = {
+      id: newId,
+      type: type || 'Home',
+      name: name.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      pincode: pincode.trim(),
+      city: resolvedCity,
+      state: resolvedState,
+      landmark: landmark?.trim() || '',
+      cityStatePincode: formattedCityStatePincode,
+      isDefault: willBeDefault,
+    };
+
+    let updatedList = [...existingAddresses];
+    if (willBeDefault) {
+      updatedList = updatedList.map((a) => ({ ...a, isDefault: false }));
+      user.address = newAddr.address;
+      user.city = newAddr.city;
+      user.state = newAddr.state;
+      user.pincode = newAddr.pincode;
+    }
+    updatedList.unshift(newAddr);
+
+    user.saved_addresses = updatedList;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Address added successfully',
+      data: newAddr,
+      addresses: user.saved_addresses,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateAddress(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const { addressId } = req.params;
+    const { name, phone, address, pincode, city, state, landmark, type, isDefault } = req.body || {};
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    const existingAddresses = user.saved_addresses || [];
+    const index = existingAddresses.findIndex((a) => a.id === addressId);
+    if (index === -1) {
+      res.status(404).json({ success: false, error: { message: 'Address not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    const resolvedCity = city !== undefined ? (typeof city === 'string' ? city.trim() : '') : existingAddresses[index].city;
+    const resolvedState = state !== undefined ? (typeof state === 'string' ? state.trim() : '') : existingAddresses[index].state;
+    const resolvedPincode = pincode !== undefined ? (typeof pincode === 'string' ? pincode.trim() : '') : existingAddresses[index].pincode;
+    const resolvedAddress = address !== undefined ? (typeof address === 'string' ? address.trim() : '') : existingAddresses[index].address;
+
+    const formattedCityStatePincode = `${resolvedCity || 'Bangalore'}, ${resolvedState || 'Karnataka'} - ${resolvedPincode || ''}`;
+
+    const makeDefault = isDefault !== undefined ? isDefault : existingAddresses[index].isDefault;
+
+    const updatedAddr = {
+      ...existingAddresses[index],
+      name: name !== undefined ? name.trim() : existingAddresses[index].name,
+      phone: phone !== undefined ? phone.trim() : existingAddresses[index].phone,
+      address: resolvedAddress,
+      pincode: resolvedPincode,
+      city: resolvedCity,
+      state: resolvedState,
+      landmark: landmark !== undefined ? landmark.trim() : existingAddresses[index].landmark,
+      type: type !== undefined ? type : existingAddresses[index].type,
+      cityStatePincode: formattedCityStatePincode,
+      isDefault: makeDefault,
+    };
+
+    let updatedList = existingAddresses.map((a) => {
+      if (a.id === addressId) return updatedAddr;
+      if (makeDefault) return { ...a, isDefault: false };
+      return a;
+    });
+
+    if (makeDefault) {
+      user.address = updatedAddr.address;
+      user.city = updatedAddr.city;
+      user.state = updatedAddr.state;
+      user.pincode = updatedAddr.pincode;
+    }
+
+    user.saved_addresses = updatedList;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Address updated successfully',
+      data: updatedAddr,
+      addresses: user.saved_addresses,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteAddress(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } });
+      return;
+    }
+
+    const { addressId } = req.params;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({ success: false, error: { message: 'User not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    let existingAddresses = user.saved_addresses || [];
+    const target = existingAddresses.find((a) => a.id === addressId);
+    let updatedList = existingAddresses.filter((a) => a.id !== addressId);
+
+    if (target?.isDefault && updatedList.length > 0) {
+      updatedList[0].isDefault = true;
+      user.address = updatedList[0].address;
+      user.city = updatedList[0].city;
+      user.state = updatedList[0].state;
+      user.pincode = updatedList[0].pincode;
+    } else if (updatedList.length === 0) {
+      user.address = '';
+    }
+
+    user.saved_addresses = updatedList;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Address deleted successfully',
+      addresses: user.saved_addresses,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 

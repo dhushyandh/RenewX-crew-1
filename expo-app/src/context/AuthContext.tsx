@@ -25,6 +25,7 @@ export interface AppUser {
   state?: string;
   pincode?: string;
   bio?: string;
+  saved_addresses?: any[];
   profile_completed?: boolean;
 }
 

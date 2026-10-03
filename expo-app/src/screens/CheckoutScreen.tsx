@@ -113,7 +113,7 @@ export default function CheckoutScreen() {
     return contextItems.map((item) => ({
       id: String(item.id),
       name: item.name,
-      conditionTag: item.condition ? `Refurbished • ${item.condition}` : 'Refurbished • Excellent',
+      conditionTag: item.condition ? `Pre-Owned • ${item.condition}` : 'Pre-Owned • Excellent',
       specs: item.brand ? `${item.brand} | ${item.model || 'Verified'}` : 'Verified Device',
       price: item.price,
       originalPrice: item.originalPrice || Math.round(item.price * 1.38),
@@ -255,7 +255,7 @@ export default function CheckoutScreen() {
             order_id: checkoutRes.razorpay_order_id,
             amount: checkoutRes.amount,
             currency: checkoutRes.currency || 'INR',
-            name: 'RenewX Refurbished Tech',
+            name: 'RenewX Tech',
             description: `Order ${orderNum}`,
             prefill: {
               name: currentAddress.name,

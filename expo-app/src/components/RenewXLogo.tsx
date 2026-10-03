@@ -47,7 +47,7 @@ export default function RenewXLogo({
             { fontSize: taglineFontSize },
           ]}
         >
-          Buy Refurbished | Sell | Upgrade
+          Buy Pre-Owned | Sell | Upgrade
         </Text>
       )}
     </View>

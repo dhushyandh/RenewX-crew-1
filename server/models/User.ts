@@ -1,6 +1,20 @@
 import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export interface ISavedAddress {
+  id: string;
+  type: 'Home' | 'Work' | 'Other';
+  name: string;
+  phone: string;
+  address: string;
+  pincode: string;
+  city?: string;
+  state?: string;
+  landmark?: string;
+  cityStatePincode?: string;
+  isDefault?: boolean;
+}
+
 export interface IUser {
   id: string;
   email: string;
@@ -16,6 +30,7 @@ export interface IUser {
   pincode?: string;
   bio?: string;
   profile_completed?: boolean;
+  saved_addresses?: ISavedAddress[];
   notification_preferences?: {
     order_updates: boolean;
     sell_request_updates: boolean;
@@ -47,6 +62,7 @@ export interface UserProfile {
   pincode?: string;
   bio?: string;
   profile_completed?: boolean;
+  saved_addresses?: ISavedAddress[];
   created_at?: string;
 }
 
@@ -116,6 +132,24 @@ const UserSchema = new Schema<IUser>(
     profile_completed: {
       type: Boolean,
       default: false,
+    },
+    saved_addresses: {
+      type: [
+        {
+          id: { type: String, required: true },
+          type: { type: String, enum: ['Home', 'Work', 'Other'], default: 'Home' },
+          name: { type: String, default: '' },
+          phone: { type: String, default: '' },
+          address: { type: String, default: '' },
+          pincode: { type: String, default: '' },
+          city: { type: String, default: 'Bangalore' },
+          state: { type: String, default: 'Karnataka' },
+          landmark: { type: String, default: '' },
+          cityStatePincode: { type: String, default: '' },
+          isDefault: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
     },
     notification_preferences: {
       order_updates: { type: Boolean, default: true },

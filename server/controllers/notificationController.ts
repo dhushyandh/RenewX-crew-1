@@ -310,3 +310,48 @@ export async function triggerTestNotification(
     next(err);
   }
 }
+
+/**
+ * Admin endpoint: validates products from MongoDB and dispatches
+ * rich dual-product promotion notifications.
+ */
+export async function sendPromotionNotification(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({
+        success: false,
+        error: { message: 'Access denied. Admin privileges required.', code: 'FORBIDDEN' },
+      });
+      return;
+    }
+
+    const { title, body, product1Id, product2Id } = req.body || {};
+
+    const { dispatchPromotionNotification } = await import('../services/notificationService');
+    const result = await dispatchPromotionNotification({
+      title,
+      body,
+      product1Id,
+      product2Id,
+    });
+
+    res.json({
+      success: true,
+      message: `Promotion broadcast dispatched to ${result.recipientsCount} device(s) and ${result.inAppCount} user inbox(es)`,
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(400).json({
+      success: false,
+      error: {
+        message: err?.message || 'Failed to dispatch promotion notification',
+        code: 'BAD_REQUEST',
+      },
+    });
+  }
+}
+

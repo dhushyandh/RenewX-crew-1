@@ -1,81 +1,238 @@
 export interface GeocodeAddress {
   city: string;
+  district: string;
   pincode: string;
   address: string;
-  district?: string;
-  state?: string;
-}
-
-/**
- * Safely resolves coordinates (latitude, longitude) to a postal address.
- * Uses client-side reverse geocoding to avoid Expo SDK 49's removed geocoding proxy warning:
- * "The Geocoding API has been removed in SDK 49, use Place Autocomplete service instead".
- */
-export async function reverseGeocodeCoords(coords: {
+  state: string;
+  country: string;
   latitude: number;
   longitude: number;
-}): Promise<GeocodeAddress | null> {
+}
+
+function cleanPincode(value: unknown): string {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return '';
+  }
+
+  const digits = String(value).replace(/\D/g, '');
+
+  return digits.length === 6 ? digits : '';
+}
+
+function findDistrict(data: any): string {
+  const administrative =
+    Array.isArray(data?.localityInfo?.administrative)
+      ? data.localityInfo.administrative
+      : [];
+
+  /*
+   * BigDataCloud can return different administrative
+   * structures depending on the location.
+   *
+   * Prefer an administrative level that represents
+   * the district, then fall back to city/locality.
+   */
+
+  const districtCandidate = administrative.find(
+    (item: any) => {
+      const name = item?.name;
+
+      if (!name || typeof name !== 'string') {
+        return false;
+      }
+
+      const level = Number(item?.adminLevel);
+
+      return level === 6 || level === 7;
+    }
+  );
+
+  if (districtCandidate?.name) {
+    return districtCandidate.name.trim();
+  }
+
+  return (
+    data?.city?.trim?.() ||
+    data?.locality?.trim?.() ||
+    data?.principalSubdivision?.trim?.() ||
+    ''
+  );
+}
+
+export async function reverseGeocodeCoords(
+  coords: {
+    latitude: number;
+    longitude: number;
+  }
+): Promise<GeocodeAddress | null> {
   const { latitude, longitude } = coords;
 
-  // 1. Try BigDataCloud free client reverse geocode (fast, high accuracy, no key required)
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ) {
+    return null;
+  }
+
+  // --------------------------------------------------
+  // 1. BigDataCloud
+  // --------------------------------------------------
+
   try {
-    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      const city = data.city || data.locality || '';
-      const pincode = data.postcode ? data.postcode.replace(/\D/g, '').slice(0, 6) : '';
+    const url =
+      `https://api.bigdatacloud.net/data/reverse-geocode-client` +
+      `?latitude=${encodeURIComponent(latitude)}` +
+      `&longitude=${encodeURIComponent(longitude)}` +
+      `&localityLanguage=en`;
 
-      const adminLevels = Array.isArray(data.localityInfo?.administrative)
-        ? data.localityInfo.administrative
-        : [];
-      const district = adminLevels.find((a: any) => a.order >= 5 && a.order <= 8)?.name || city;
-      const street = [district, city].filter(Boolean).join(', ');
+    const response = await fetch(url);
 
-      if (city || pincode || street) {
+    if (response.ok) {
+      const data = await response.json();
+
+      const city =
+        typeof data?.city === 'string'
+          ? data.city.trim()
+          : typeof data?.locality === 'string'
+            ? data.locality.trim()
+            : '';
+
+      const district = findDistrict(data);
+
+      const pincode = cleanPincode(
+        data?.postcode
+      );
+
+      const state =
+        typeof data?.principalSubdivision === 'string'
+          ? data.principalSubdivision.trim()
+          : '';
+
+      const country =
+        typeof data?.countryName === 'string'
+          ? data.countryName.trim()
+          : '';
+
+      const addressParts = [
+        data?.locality,
+        data?.city,
+        district,
+        state,
+      ].filter(
+        (value): value is string =>
+          typeof value === 'string' && value.trim().length > 0
+      );
+
+      const address = [
+        ...new Set(addressParts),
+      ].join(', ');
+
+      if (district && pincode) {
         return {
           city,
-          pincode,
-          address: street || city,
           district,
-          state: data.principalSubdivision || '',
+          pincode,
+          address,
+          state,
+          country,
+          latitude,
+          longitude,
         };
       }
     }
-  } catch (apiErr) {
-    console.warn('[LocationService] BigDataCloud reverse geocode error:', apiErr);
+  } catch (error) {
+    console.warn(
+      '[LocationService] BigDataCloud error:',
+      error
+    );
   }
 
-  // 2. Fallback to OpenStreetMap Nominatim
+  // --------------------------------------------------
+  // 2. OpenStreetMap fallback
+  // --------------------------------------------------
+
   try {
-    const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
-    const res = await fetch(osmUrl, {
+    const osmUrl =
+      `https://nominatim.openstreetmap.org/reverse` +
+      `?format=json` +
+      `&lat=${encodeURIComponent(latitude)}` +
+      `&lon=${encodeURIComponent(longitude)}` +
+      `&addressdetails=1`;
+
+    const response = await fetch(osmUrl, {
       headers: {
         Accept: 'application/json',
         'User-Agent': 'RenewX-App/1.0',
       },
     });
-    if (res.ok) {
-      const data = await res.json();
-      const addr = data.address || {};
-      const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || '';
-      const pincode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : '';
-      const street =
-        [addr.road, addr.suburb || addr.neighbourhood, city].filter(Boolean).join(', ') ||
-        data.display_name ||
+
+    if (response.ok) {
+      const data = await response.json();
+      const address = data?.address ?? {};
+
+      const city =
+        address.city ||
+        address.town ||
+        address.village ||
+        address.municipality ||
         '';
 
-      return {
-        city,
-        pincode,
-        address: street,
-        district: addr.state_district || addr.county || city,
-        state: addr.state || '',
-      };
+      const district =
+        address.state_district ||
+        address.county ||
+        city ||
+        '';
+
+      const pincode = cleanPincode(
+        address.postcode
+      );
+
+      const state =
+        address.state || '';
+
+      const country =
+        address.country || '';
+
+      const readableAddress =
+        [
+          address.road,
+          address.suburb,
+          address.neighbourhood,
+          city,
+          district,
+          state,
+        ]
+          .filter(Boolean)
+          .filter(
+            (value, index, array) =>
+              array.indexOf(value) === index
+          )
+          .join(', ');
+
+      if (district && pincode) {
+        return {
+          city,
+          district,
+          pincode,
+          address:
+            readableAddress ||
+            data?.display_name ||
+            '',
+          state,
+          country,
+          latitude,
+          longitude,
+        };
+      }
     }
-  } catch (osmErr) {
-    console.warn('[LocationService] Nominatim reverse geocode error:', osmErr);
+  } catch (error) {
+    console.warn(
+      '[LocationService] OSM fallback error:',
+      error
+    );
   }
 
+  // IMPORTANT:
+  // Never return fake location data.
   return null;
 }

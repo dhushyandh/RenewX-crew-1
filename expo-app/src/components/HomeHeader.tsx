@@ -16,6 +16,8 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import RenewXLogo from '@/components/RenewXLogo';
 import { useLocation } from '@/context/LocationContext';
 import { useToast } from '@/context/ToastContext';
+import { useNotifications } from '@/context/NotificationContext';
+import { useAuth } from '@/context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 
 export type HomeHeaderMode =
@@ -115,8 +117,11 @@ export default function HomeHeader({
 }: HomeHeaderProps) {
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
-  const { location, isDetecting, detectLocation, setLocationManually } = useLocation();
+  const { location, isDetecting, locationError, detectLocation, setLocationManually } = useLocation();
   const toast = useToast();
+  const { unreadCount } = useNotifications();
+  const { isAdmin: authIsAdmin } = useAuth();
+  const effectiveIsAdmin = isAdmin !== undefined ? isAdmin : Boolean(authIsAdmin);
 
   const handleAdminPress = () => {
     if (onAdmin) {
@@ -187,15 +192,17 @@ export default function HomeHeader({
           <RenewXLogo size="md" showTagline={true} />
 
           <View style={styles.headerRightIcons}>
-            <TouchableOpacity
-              onPress={handleAdminPress}
-              style={styles.greenShieldBtn}
-              accessibilityLabel="Admin Control Center"
-              activeOpacity={0.75}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="shield-checkmark" size={17} color="#059669" />
-            </TouchableOpacity>
+            {effectiveIsAdmin && (
+              <TouchableOpacity
+                onPress={handleAdminPress}
+                style={styles.greenShieldBtn}
+                accessibilityLabel="Admin Control Center"
+                activeOpacity={0.75}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="shield-checkmark" size={17} color="#059669" />
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={onNotifications}
@@ -204,7 +211,13 @@ export default function HomeHeader({
               activeOpacity={0.8}
             >
               <Ionicons name="notifications-outline" size={19} color="#0F172A" />
-              <View style={styles.notificationDot} />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -697,6 +710,13 @@ export default function HomeHeader({
               {onNotifications && (
                 <TouchableOpacity onPress={onNotifications} style={styles.iconCircleBtn} activeOpacity={0.8}>
                   <Ionicons name="notifications-outline" size={19} color="#0F172A" />
+                  {unreadCount > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationBadgeText}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               )}
             </View>
@@ -709,36 +729,63 @@ export default function HomeHeader({
       {/* ============================================================== */}
       {isDiscoveryMode && (
         <View style={styles.locationBarRow}>
-          {/* Left: 📍 Vellore - 560001 ⌵ */}
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={() => setModalVisible(true)}
-            style={styles.locationSelector}
-          >
-            <Ionicons name="location-sharp" size={15} color="#0F172A" />
-            <Text style={styles.locationLabel} numberOfLines={1}>
-              {displayLocation}
-            </Text>
-            <Ionicons name="chevron-down" size={13} color="#0F172A" />
-          </TouchableOpacity>
+          {isDetecting ? (
+            <View style={styles.detectingRow}>
+              <ActivityIndicator size="small" color="#059669" style={{ marginRight: 6 }} />
+              <Text style={styles.detectingText}>Detecting your location...</Text>
+            </View>
+          ) : !displayLocation || locationError ? (
+            <>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => setModalVisible(true)}
+                style={styles.locationSelector}
+              >
+                <Ionicons name="location-outline" size={15} color="#EF4444" />
+                <Text style={[styles.locationLabel, { color: '#64748B' }]} numberOfLines={1}>
+                  Location unavailable
+                </Text>
+              </TouchableOpacity>
 
-          {/* Right: 🎯 Use my location */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleUseMyLocation}
-            style={styles.useMyLocationBtn}
-            accessibilityLabel="Use my current location"
-            disabled={isDetecting}
-          >
-            {isDetecting ? (
-              <ActivityIndicator size="small" color="#0F172A" />
-            ) : (
-              <>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleUseMyLocation}
+                style={styles.tryAgainBtn}
+                accessibilityLabel="Try Again"
+                disabled={isDetecting}
+              >
+                <Ionicons name="refresh" size={12} color="#059669" style={{ marginRight: 4 }} />
+                <Text style={styles.tryAgainText}>Try Again</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {/* Left: 📍 Vellore - 632001 ⌵ */}
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => setModalVisible(true)}
+                style={styles.locationSelector}
+              >
+                <Ionicons name="location-sharp" size={15} color="#059669" />
+                <Text style={styles.locationLabel} numberOfLines={1}>
+                  {displayLocation}
+                </Text>
+                <Ionicons name="chevron-down" size={13} color="#0F172A" />
+              </TouchableOpacity>
+
+              {/* Right: 🎯 Use my location */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleUseMyLocation}
+                style={styles.useMyLocationBtn}
+                accessibilityLabel="Use my current location"
+                disabled={isDetecting}
+              >
                 <Ionicons name="locate" size={13} color="#0F172A" style={{ marginRight: 4 }} />
                 <Text style={styles.useMyLocationText}>Use my location</Text>
-              </>
-            )}
-          </TouchableOpacity>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       )}
 
@@ -1027,6 +1074,28 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#EF4444',
   },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    zIndex: 10,
+  },
+  notificationBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    fontFamily: renewxFontFamily.bold,
+  },
   cartYellowBadge: {
     position: 'absolute',
     top: -4,
@@ -1156,6 +1225,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  detectingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  detectingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  tryAgainBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+  },
+  tryAgainText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
   },
 
   /* Full-width Search Bar */

@@ -476,7 +476,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
               <Text style={{ fontSize: 26, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 }}>Welcome to</Text>
               <Text style={{ fontSize: 30, fontWeight: '900', color: '#0F172A', letterSpacing: -0.6 }}>RenewX</Text>
               <Text style={{ fontSize: 13.5, color: '#64748B', textAlign: 'center', lineHeight: 20, marginTop: 6, fontWeight: '500' }}>
-                Buy certified refurbished devices,{'\n'}sell your old ones, and upgrade{'\n'}to what you love.
+                Buy certified pre-owned devices,{'\n'}sell your old ones, and upgrade{'\n'}to what you love.
               </Text>
             </View>
 
@@ -1159,7 +1159,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
                   </Text>
                   <Text style={styles.legalSectionTitle}>2. Pre-Owned Electronics</Text>
                   <Text style={styles.legalParagraph}>
-                    Every device sold through RenewX is verified through our rigorous 32-point inspection process. Products are pre-owned and sold as-is without any additional post-purchase warranty unless provided directly by the original manufacturer.
+                    Every device sold through RenewX is verified through our rigorous inspection process. Products are pre-owned and sold strictly as-is. We do not sell refurbished products, and no warranty or return is provided in our service.
                   </Text>
                   <Text style={styles.legalSectionTitle}>3. Buyback & Trade-In</Text>
                   <Text style={styles.legalParagraph}>

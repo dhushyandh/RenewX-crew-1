@@ -103,10 +103,6 @@ export default function AddProductModal({
     return 28;
   }, [sellingPrice, mrp]);
 
-  // 4. Warranty & Return
-  const [warrantyPeriod, setWarrantyPeriod] = useState('6 Months');
-  const [returnEligible, setReturnEligible] = useState(true);
-
   // Active step in stepper
   const [activeStep, setActiveStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -174,7 +170,6 @@ export default function AddProductModal({
         `Battery Health: ${batteryHealth}`,
         `Accessories: ${boxAccessories}`,
         imei ? `IMEI: ${imei}` : '',
-        `Warranty: ${warrantyPeriod}`,
       ].filter(Boolean),
     };
 
@@ -212,7 +207,7 @@ export default function AddProductModal({
               <Text style={newProdStyles.brandTitle}>Renew</Text>
               <Text style={newProdStyles.brandTitleYellow}>X</Text>
             </View>
-            <Text style={newProdStyles.brandSubtitle}>Buy Refurbished | Sell | Upgrade</Text>
+            <Text style={newProdStyles.brandSubtitle}>Buy Pre-Owned | Sell | Upgrade</Text>
           </View>
 
           <View style={newProdStyles.topBarRight}>
@@ -683,54 +678,7 @@ export default function AddProductModal({
               </View>
             </View>
 
-            {/* 5. Warranty & Return */}
-            <View style={newProdStyles.sectionBox}>
-              <Text style={newProdStyles.sectionHeaderTitle}>5. Warranty & Return</Text>
 
-              <View style={newProdStyles.gridRow}>
-                {/* Warranty Period */}
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>
-                    Warranty Period <Text style={newProdStyles.asterisk}>*</Text>
-                  </Text>
-                  <TouchableOpacity
-                    style={newProdStyles.selectBox}
-                    onPress={() =>
-                      openPicker(
-                        'Warranty Period',
-                        [
-                          { label: '6 Months', value: '6 Months' },
-                          { label: '12 Months', value: '12 Months' },
-                          { label: '3 Months', value: '3 Months' },
-                          { label: 'No Warranty', value: 'No Warranty' },
-                        ],
-                        setWarrantyPeriod
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <Text style={newProdStyles.selectBoxText}>{warrantyPeriod}</Text>
-                    <Ionicons name="chevron-down" size={16} color="#64748B" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Return Eligible */}
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>Return Eligible</Text>
-                  <View style={newProdStyles.returnEligibleRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={newProdStyles.returnSubtext}>Allow returns within 7 days</Text>
-                    </View>
-                    <Switch
-                      value={returnEligible}
-                      onValueChange={setReturnEligible}
-                      trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-                      thumbColor={returnEligible ? '#FFFFFF' : '#94A3B8'}
-                    />
-                  </View>
-                </View>
-              </View>
-            </View>
 
             {/* Bottom Actions Bar (Matching Mockup: Save as Draft & Publish Product) */}
             <View style={newProdStyles.bottomActionsRow}>
@@ -799,7 +747,7 @@ export default function AddProductModal({
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 6 }}>
                   <View style={newProdStyles.previewConditionPill}>
-                    <Text style={newProdStyles.previewConditionText}>Refurbished • {condition}</Text>
+                    <Text style={newProdStyles.previewConditionText}>Pre-Owned • {condition}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Ionicons name="star" size={12} color="#F59E0B" />

@@ -65,7 +65,8 @@
           "organization": "computer-science-engineering",
           "project": "react-native"
         }
-      ]
+      ],
+      "./plugins/withRenewXRichNotifications.js"
     ],
     "owner": "dhushyandhs-workspace",
     "scheme": ["renewx", "com.renewx.mobile"]

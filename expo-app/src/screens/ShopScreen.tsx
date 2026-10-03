@@ -23,6 +23,7 @@ import { mapProductRow } from '@/lib/productMapper';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
+import { ProductRowSkeleton, ProductGridSkeleton, SkeletonPill } from '@/components/ui';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -485,8 +486,9 @@ export default function ShopScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#FACC15"
-            colors={['#FACC15']}
+            tintColor="#FFC400"
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
           />
         }
       >
@@ -554,7 +556,7 @@ export default function ShopScreen() {
 
           <View style={styles.bannerLeftContent}>
             <View style={styles.certifiedBadge}>
-              <Text style={styles.certifiedBadgeText}>CERTIFIED REFURBISHED</Text>
+              <Text style={styles.certifiedBadgeText}>CERTIFIED PRE-OWNED</Text>
             </View>
 
             <Text style={styles.bannerHeadline}>
@@ -570,7 +572,7 @@ export default function ShopScreen() {
               onPress={() => setSelectedCategory('All')}
               activeOpacity={0.88}
               accessibilityRole="button"
-              accessibilityLabel="Shop refurbished devices"
+              accessibilityLabel="Shop pre-owned devices"
             >
               <Text style={styles.bannerCtaText}>Shop Now →</Text>
             </TouchableOpacity>
@@ -587,9 +589,20 @@ export default function ShopScreen() {
 
         {/* LOADING SKELETON STATE */}
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FACC15" />
-            <Text style={styles.loadingText}>Fetching certified RenewX inventory…</Text>
+          <View style={styles.loadingSkeletonContainer}>
+            {/* Featured Section Skeleton */}
+            <View style={styles.sectionHeaderRow}>
+              <SkeletonPill width={140} height={20} radius={6} />
+              <SkeletonPill width={60} height={14} radius={4} />
+            </View>
+            <ProductRowSkeleton count={3} />
+
+            {/* Catalog Grid Skeleton */}
+            <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+              <SkeletonPill width={170} height={20} radius={6} />
+              <SkeletonPill width={50} height={14} radius={4} />
+            </View>
+            <ProductGridSkeleton count={4} />
           </View>
         ) : error && products.length === 0 ? (
           /* ERROR STATE */
@@ -1227,6 +1240,10 @@ const styles = StyleSheet.create({
   },
 
   // Status & Feedback States
+  loadingSkeletonContainer: {
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
   loadingContainer: {
     paddingVertical: 50,
     alignItems: 'center',

@@ -239,6 +239,8 @@ export default function UsersManagementView() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={renewxColors.green}
+            colors={['#FFC400', '#10B981']}
+            progressBackgroundColor="#FFFFFF"
           />
         }
       >
