@@ -19,6 +19,7 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { api } from '@/services/api';
+import HomeHeader from '@/components/HomeHeader';
 import RazorpayModal from '@/components/RazorpayModal';
 import {
   openRazorpay,
@@ -386,40 +387,13 @@ export default function CheckoutScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      {/* 1. Header (Matching Image 2) */}
-      <View style={styles.topHeader}>
-        <TouchableOpacity
-          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Cart'))}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-
-        <View style={styles.brandTitleRow}>
-          <Text style={styles.brandName}>Renew</Text>
-          <Text style={styles.brandNameYellow}>X</Text>
-          <Text style={styles.brandTagline}>Buy Refurbished | Sell | Upgrade</Text>
-        </View>
-
-        <View style={styles.headerRightRow}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('Notifications')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="notifications-outline" size={20} color="#0F172A" />
-            <View style={styles.notificationDot} />
-          </TouchableOpacity>
-
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
-              {user?.full_name ? user.full_name.slice(0, 2).toUpperCase() : 'RX'}
-            </Text>
-          </View>
-        </View>
-      </View>
+    <View style={styles.container}>
+      {/* 1. Header (Matching Reference Image 3: Checkout) */}
+      <HomeHeader
+        mode="checkout"
+        title="Checkout"
+        onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Cart'))}
+      />
 
       {displayItems.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 }}>
@@ -814,9 +788,6 @@ export default function CheckoutScreen() {
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Price Details</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Cart')} activeOpacity={0.7}>
-                <Text style={styles.actionBlueLink}>✏️ Apply Coupon</Text>
-              </TouchableOpacity>
             </View>
 
             <View style={styles.priceRow}>

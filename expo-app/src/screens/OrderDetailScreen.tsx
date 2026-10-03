@@ -11,7 +11,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Linking,
 } from 'react-native';
+import HomeHeader from '@/components/HomeHeader';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, getApiBaseUrl } from '@/services/api';
@@ -232,19 +234,20 @@ export default function OrderDetailScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Top Bar (Matching Reference Image 6: Track Order) */}
+      <HomeHeader
+        mode="track-order"
+        title="Track Order"
+        onBack={() => navigation.goBack()}
+        onSupport={() => Linking.openURL('tel:+919080168778').catch(() => {})}
+        onMenu={shareOrder}
+      />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={renewxColors.green} />}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}><Ionicons name="arrow-back" size={22} color={renewxColors.black} /></TouchableOpacity>
-          <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>RENEWX ORDER</Text>
-            <Text style={styles.title}>#{order?.order_number || orderId.slice(-8)}</Text>
-          </View>
-          <TouchableOpacity onPress={shareOrder} style={styles.iconButton}><Ionicons name="share-outline" size={20} color={renewxColors.black} /></TouchableOpacity>
-        </View>
 
         <View style={[styles.liveCard, live && styles.liveCardActive]}>
           <View style={[styles.liveDot, live && styles.liveDotActive]} />

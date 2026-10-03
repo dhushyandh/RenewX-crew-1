@@ -16,6 +16,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import HomeHeader from '@/components/HomeHeader';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { confirmAction } from '@/lib/confirmAction';
 import { api } from '@/services/api';
 
@@ -24,6 +25,7 @@ function formatMoney(value: number) {
 }
 
 export default function CartScreen() {
+  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const { user, isAdmin } = useAuth();
   const {
@@ -171,17 +173,13 @@ export default function CartScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 1. Top Brand Header */}
+      {/* 1. Top Header (Matching Reference Image 2: Cart) */}
       <HomeHeader
-        onSearch={() => navigation.navigate('Search')}
-        cartCount={displayItems.length}
+        mode="cart"
+        title="My Cart"
+        cartCount={totalItemCount}
+        onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs', { screen: 'Home' }))}
         onCart={() => {}}
-        isAdmin={isAdmin}
-        onAdmin={() => navigation.navigate('AdminDashboard')}
-        onAccount={() => navigation.navigate('MainTabs', { screen: 'Account' })}
-        onSell={() => navigation.navigate('MainTabs', { screen: 'Sell' })}
-        onNotifications={() => navigation.navigate('Notifications')}
-        userAddress="Bangalore - 560004"
       />
 
       <ScrollView
@@ -189,24 +187,6 @@ export default function CartScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. My Cart Title + Clear Cart Row */}
-        <View style={styles.titleRow}>
-          <Text style={styles.pageTitle}>
-            My Cart <Text style={styles.itemCountText}>({totalItemCount} items)</Text>
-          </Text>
-
-          {displayItems.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearCartBtn}
-              onPress={handleClearCart}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="trash-outline" size={15} color="#475569" style={{ marginRight: 4 }} />
-              <Text style={styles.clearCartText}>Clear Cart</Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
         {/* Empty state fallback */}
         {displayItems.length === 0 && (
@@ -326,26 +306,6 @@ export default function CartScreen() {
             </View>
           );
         })}
-
-        {/* 4. Apply Coupon Card (Mint Green Card) */}
-        <TouchableOpacity
-          style={styles.couponCard}
-          onPress={() => setCouponModalVisible(true)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.couponIconCircle}>
-            <Ionicons name="pricetag-outline" size={18} color="#15803D" />
-          </View>
-          <View style={styles.couponTextCol}>
-            <Text style={styles.couponTitle}>Apply Coupon</Text>
-            <Text style={styles.couponSubtitle}>
-              {appliedCoupon ? `Code '${appliedCoupon}' applied (-₹${couponDiscount})` : 'Get the best offers and discounts'}
-            </Text>
-          </View>
-          <View style={styles.applyBtnPill}>
-            <Text style={styles.applyBtnText}>Apply ›</Text>
-          </View>
-        </TouchableOpacity>
 
         {/* 5. Price Details Card */}
         {activeItems.length > 0 && (
@@ -479,34 +439,36 @@ export default function CartScreen() {
         )}
 
         {/* Space for bottom checkout bar */}
-        <View style={{ height: 110 }} />
+        {displayItems.length > 0 && <View style={{ height: 110 }} />}
       </ScrollView>
 
-      {/* 7. Bottom Sticky Checkout Action Bar (Exact to Image 1) */}
-      <View style={styles.bottomCheckoutBar}>
-        <View style={styles.bottomSecureCol}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={styles.secureShieldCircle}>
-              <Ionicons name="shield-checkmark" size={16} color="#15803D" />
-            </View>
-            <View>
-              <Text style={styles.secureTitle}>100% Secure Checkout</Text>
-              <Text style={styles.secureSubtext}>Safe payments with Razorpay</Text>
+      {/* 7. Bottom Sticky Checkout Action Bar (Only when cart has items) */}
+      {displayItems.length > 0 && (
+        <View style={styles.bottomCheckoutBar}>
+          <View style={styles.bottomSecureCol}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={styles.secureShieldCircle}>
+                <Ionicons name="shield-checkmark" size={16} color="#15803D" />
+              </View>
+              <View>
+                <Text style={styles.secureTitle}>100% Secure Checkout</Text>
+                <Text style={styles.secureSubtext}>Safe payments with Razorpay</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <TouchableOpacity
-          style={styles.proceedCheckoutBtn}
-          onPress={handleProceedCheckout}
-          activeOpacity={0.88}
-        >
-          <Text style={styles.proceedBtnTitle}>Proceed to Checkout →</Text>
-          <Text style={styles.proceedBtnSubtext}>
-            {formatMoney(finalPayable)} • {totalItemCount} items
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.proceedCheckoutBtn}
+            onPress={handleProceedCheckout}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.proceedBtnTitle}>Proceed to Checkout →</Text>
+            <Text style={styles.proceedBtnSubtext}>
+              {formatMoney(finalPayable)} • {totalItemCount} items
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Coupon Modal */}
       <Modal visible={couponModalVisible} transparent animationType="fade">
@@ -558,6 +520,60 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  cartHeaderBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  cartBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 2,
+        elevation: 1,
+      },
+    }),
+  },
+  cartHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cartHeaderRight: {
+    minWidth: 38,
+    alignItems: 'flex-end',
+  },
+  clearCartPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  clearCartPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#EF4444',
   },
   scrollView: {
     flex: 1,
@@ -807,51 +823,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F172A',
     paddingHorizontal: 8,
-  },
-
-  // Apply Coupon Card
-  couponCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#DCFCE7',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
-  },
-  couponIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  couponTextCol: {
-    flex: 1,
-  },
-  couponTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  couponSubtitle: {
-    fontSize: 11.5,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  applyBtnPill: {
-    backgroundColor: '#14532D',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-  },
-  applyBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
 
   // Price Details

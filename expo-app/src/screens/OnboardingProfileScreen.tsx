@@ -545,15 +545,8 @@ export default function OnboardingProfileScreen() {
         {/* ========================================================================= */}
         {stage === 'welcome' && (
           <View style={styles.welcomeScreen}>
-            <View style={styles.welcomeTopBar}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 14, width: '100%' }}>
               <RenewXLogo size="md" showTagline={true} />
-              <TouchableOpacity
-                onPress={handleSkipToHome}
-                style={styles.skipBtn}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.skipBtnText}>Skip</Text>
-              </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -574,57 +567,89 @@ export default function OnboardingProfileScreen() {
               </View>
 
               <View style={styles.welcomeActionsWrap}>
-                {/* 1. Continue with Google */}
+                {/* 1. Login */}
                 <TouchableOpacity
-                  style={styles.googleBtn}
-                  onPress={handleGoogleAuth}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#FACC15',
+                    borderRadius: 14,
+                    paddingVertical: 15,
+                    marginBottom: 12,
+                    shadowColor: '#FACC15',
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.28,
+                    shadowRadius: 6,
+                    elevation: 3,
+                  }}
+                  onPress={() => setLoginModalVisible(true)}
                   activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Login to your account"
                 >
-                  <View style={styles.socialIconWrap}>
-                    <Ionicons name="logo-google" size={19} color="#EA4335" />
-                  </View>
-                  <Text style={styles.googleBtnText}>Continue with Google</Text>
+                  <Ionicons name="log-in-outline" size={20} color="#0F172A" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.2 }}>Login</Text>
                 </TouchableOpacity>
 
-                {/* 2. Continue with Apple */}
+                {/* 2. Get started */}
                 <TouchableOpacity
-                  style={styles.appleBtn}
-                  onPress={() => transitionTo('email_entry', 'forward')}
-                  activeOpacity={0.88}
-                >
-                  <Ionicons name="logo-apple" size={20} color="#000000" style={{ marginRight: 8 }} />
-                  <Text style={styles.appleBtnText}>Continue with Apple</Text>
-                </TouchableOpacity>
-
-                {/* Divider */}
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                {/* 3. Sign up with Email -> leads to verification flow */}
-                <TouchableOpacity
-                  style={styles.emailSignUpBtn}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#0F172A',
+                    borderRadius: 14,
+                    paddingVertical: 15,
+                    marginBottom: 16,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 5,
+                    elevation: 2,
+                  }}
                   onPress={() => {
                     setAuthError(null);
                     transitionTo('email_entry', 'forward');
                   }}
                   activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Get started and create account"
                 >
-                  <Text style={styles.emailSignUpBtnText}>Sign up with Email</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 }}>Get started</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FACC15" style={{ marginLeft: 8 }} />
                 </TouchableOpacity>
 
-                {/* Footer Login Prompt */}
-                <View style={styles.loginFooterRow}>
-                  <Text style={styles.loginFooterText}>Already have an account? </Text>
-                  <TouchableOpacity
-                    onPress={() => setLoginModalVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.loginFooterLink}>Login</Text>
-                  </TouchableOpacity>
+                {/* Divider */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+                  <Text style={{ marginHorizontal: 12, fontSize: 12, color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>or</Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
                 </View>
+
+                {/* 3. Continue with Google */}
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: '#E2E8F0',
+                    paddingVertical: 14,
+                    marginBottom: 10,
+                  }}
+                  onPress={handleGoogleAuth}
+                  activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue with Google"
+                >
+                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                    <Ionicons name="logo-google" size={17} color="#EA4335" />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Continue with Google</Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>

@@ -21,6 +21,7 @@ import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { colors, spacing, radius, fontFamily } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import HomeHeader from '@/components/HomeHeader';
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -216,38 +217,31 @@ export default function EditProfileScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { paddingTop: safeTop }]}
+      style={styles.container}
     >
-      {/* Sleek Header Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Ionicons name="arrow-back" size={20} color="#0f172a" />
-        </TouchableOpacity>
-        <View style={styles.navTextContainer}>
-          <Text style={styles.navTitle}>Edit Profile</Text>
-          <Text style={styles.navSub}>Personal details & verified email</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.navSaveBtn, savingProfile && styles.btnDisabled]}
-          onPress={handleSaveProfile}
-          disabled={savingProfile}
-          activeOpacity={0.8}
-        >
-          {savingProfile ? (
-            <ActivityIndicator size="small" color="#000000" />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={14} color="#000000" />
-              <Text style={styles.navSaveText}>Save</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Top Bar */}
+      <HomeHeader
+        mode="standard"
+        title="Edit Profile"
+        onBack={() => navigation.goBack()}
+        rightComponent={
+          <TouchableOpacity
+            style={[styles.navSaveBtn, savingProfile && styles.btnDisabled]}
+            onPress={handleSaveProfile}
+            disabled={savingProfile}
+            activeOpacity={0.8}
+          >
+            {savingProfile ? (
+              <ActivityIndicator size="small" color="#000000" />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={14} color="#000000" />
+                <Text style={styles.navSaveText}>Save</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

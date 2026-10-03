@@ -21,6 +21,7 @@ import { useToast } from '@/context/ToastContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import RenewXLogo from '@/components/RenewXLogo';
 import ShimmerText from '@/components/ShimmerText';
+import HomeHeader from '@/components/HomeHeader';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -210,41 +211,16 @@ export default function WishlistScreen() {
   };
 
   return (
-    <View style={[styles.screenContainer, { paddingTop: safeTop }]}>
-      {/* 1. Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={handleBack}
-          style={styles.backButton}
-          activeOpacity={0.8}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-
-        <RenewXLogo size="md" alignCenter />
-
-        <View style={styles.topBarRightGroup}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Cart')}
-            style={styles.cartBtn}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="cart-outline" size={23} color="#0F172A" />
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartCount > 0 ? cartCount : 3}</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Account' })}
-            style={styles.profileBtn}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="person-outline" size={20} color="#0F172A" />
-          </TouchableOpacity>
-        </View>
-      </View>
+    <View style={styles.screenContainer}>
+      {/* 1. Top Bar (Matching Reference Image 7: Wishlist) */}
+      <HomeHeader
+        mode="wishlist"
+        title="Wishlist"
+        wishlistCount={totalWishlistItems}
+        onBack={handleBack}
+        onWishlist={() => {}}
+        onFilterPress={() => {}}
+      />
 
       <FlatList
         data={wishlist}
@@ -367,51 +343,6 @@ export default function WishlistScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {/* 5. Bottom Navigation Bar matching Mockup */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="home-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Shop' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="grid-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Categories</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Track' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="cube-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Orders</Text>
-        </TouchableOpacity>
-
-        {/* Active Wishlist Pill */}
-        <View style={styles.bottomActiveTabPill}>
-          <Ionicons name="heart" size={19} color="#0F172A" />
-          <Text style={styles.bottomActiveTabLabel}>Wishlist</Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Account' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="person-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Profile</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -565,7 +496,7 @@ const styles = StyleSheet.create({
 
   /* List & Cards */
   listContent: {
-    paddingBottom: 110,
+    paddingBottom: 24,
     paddingHorizontal: 16,
   },
   card: {
@@ -809,53 +740,6 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
-  },
-
-  /* Bottom Navigation Bar */
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: Platform.OS === 'ios' ? 78 : 64,
-    paddingBottom: Platform.OS === 'ios' ? 18 : 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  bottomTabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  bottomTabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 2,
-  },
-  bottomActiveTabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF08A',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  bottomActiveTabLabel: {
-    fontSize: 12,
-    fontWeight: '800',
     color: '#0F172A',
   },
 });

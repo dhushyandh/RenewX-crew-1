@@ -465,16 +465,9 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
       {/* ========================================================================= */}
       {step === 'splash' && (
         <View style={[styles.splashContainer, { paddingTop: safeTop }]}>
-          {/* Top Bar matching Mockup (Logo left, Skip right) */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10, width: '100%' }}>
+          {/* Top Bar */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 14, width: '100%' }}>
             <RenewXLogo size="md" showTagline={true} />
-            <TouchableOpacity
-              onPress={() => (navigation as any).navigate('MainTabs', { screen: 'Home' })}
-              style={{ paddingVertical: 6, paddingHorizontal: 10 }}
-              activeOpacity={0.7}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }}>Skip</Text>
-            </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 24, paddingBottom: 32, width: '100%' }}>
@@ -483,9 +476,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
               <Text style={{ fontSize: 26, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 }}>Welcome to</Text>
               <Text style={{ fontSize: 30, fontWeight: '900', color: '#0F172A', letterSpacing: -0.6 }}>RenewX</Text>
               <Text style={{ fontSize: 13.5, color: '#64748B', textAlign: 'center', lineHeight: 20, marginTop: 6, fontWeight: '500' }}>
-                Buy certified refurbished devices,
-sell your old ones, and upgrade
-to what you love.
+                Buy certified refurbished devices,{'\n'}sell your old ones, and upgrade{'\n'}to what you love.
               </Text>
             </View>
 
@@ -495,9 +486,9 @@ to what you love.
               <Image source={HERO_IMG} style={{ width: '100%', height: '100%', borderRadius: 18 }} resizeMode="contain" />
             </View>
 
-            {/* Action Buttons matching Mockup */}
-            <View style={{ width: '100%', maxWidth: 380, marginTop: 8 }}>
-              {/* 1. Continue with Google */}
+            {/* Mandatory Auth Actions: Login, Get started, Continue with Google */}
+            <View style={{ width: '100%', maxWidth: 380, marginTop: 12 }}>
+              {/* 1. Login */}
               <TouchableOpacity
                 style={{
                   flexDirection: 'row',
@@ -505,25 +496,68 @@ to what you love.
                   justifyContent: 'center',
                   backgroundColor: '#FACC15',
                   borderRadius: 14,
-                  paddingVertical: 14,
+                  paddingVertical: 15,
                   marginBottom: 12,
                   shadowColor: '#FACC15',
                   shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.25,
+                  shadowOpacity: 0.28,
                   shadowRadius: 6,
-                  elevation: 2,
+                  elevation: 3,
                 }}
-                onPress={handleGoogleSignIn}
-                disabled={googleLoading}
+                onPress={() => {
+                  setIsSignUp(false);
+                  setSignInWithOtpMode(false);
+                  setError(null);
+                  setErrorCode(null);
+                  setStep('email');
+                }}
                 activeOpacity={0.88}
+                accessibilityRole="button"
+                accessibilityLabel="Login to your account"
               >
-                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                  <Ionicons name="logo-google" size={17} color="#EA4335" />
-                </View>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A' }}>Continue with Google</Text>
+                <Ionicons name="log-in-outline" size={20} color="#0F172A" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.2 }}>Login</Text>
               </TouchableOpacity>
 
-              {/* 2. Continue with Apple */}
+              {/* 2. Get started */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#0F172A',
+                  borderRadius: 14,
+                  paddingVertical: 15,
+                  marginBottom: 16,
+                  shadowColor: '#000000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 5,
+                  elevation: 2,
+                }}
+                onPress={() => {
+                  setIsSignUp(true);
+                  setSignInWithOtpMode(false);
+                  setError(null);
+                  setErrorCode(null);
+                  setStep('email');
+                }}
+                activeOpacity={0.88}
+                accessibilityRole="button"
+                accessibilityLabel="Get started and create account"
+              >
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 }}>Get started</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FACC15" style={{ marginLeft: 8 }} />
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+                <Text style={{ marginHorizontal: 12, fontSize: 12, color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>or</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+              </View>
+
+              {/* 3. Continue with Google */}
               <TouchableOpacity
                 style={{
                   flexDirection: 'row',
@@ -531,57 +565,28 @@ to what you love.
                   justifyContent: 'center',
                   backgroundColor: '#FFFFFF',
                   borderRadius: 14,
-                  borderWidth: 1,
+                  borderWidth: 1.5,
                   borderColor: '#E2E8F0',
                   paddingVertical: 14,
-                  marginBottom: 14,
+                  marginBottom: 10,
                 }}
-                onPress={() => (navigation as any).navigate('OnboardingProfile', { initialStage: 'account' })}
+                onPress={handleGoogleSignIn}
+                disabled={googleLoading}
                 activeOpacity={0.88}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Google"
               >
-                <Ionicons name="logo-apple" size={20} color="#000000" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Continue with Apple</Text>
+                {googleLoading ? (
+                  <ActivityIndicator size="small" color="#0F172A" />
+                ) : (
+                  <>
+                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                      <Ionicons name="logo-google" size={17} color="#EA4335" />
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Continue with Google</Text>
+                  </>
+                )}
               </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2, marginBottom: 12 }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
-                <Text style={{ marginHorizontal: 12, fontSize: 12, color: '#94A3B8', fontWeight: '500' }}>or</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
-              </View>
-
-              {/* 3. Sign up with Email */}
-              <TouchableOpacity
-                style={{
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#F1F5F9',
-                  borderRadius: 14,
-                  paddingVertical: 14,
-                  marginBottom: 16,
-                }}
-                onPress={() => (navigation as any).navigate('OnboardingProfile', { initialStage: 'email_entry' })}
-                activeOpacity={0.88}
-              >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Sign up with Email</Text>
-              </TouchableOpacity>
-
-              {/* Footer Login Prompt */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 13.5, color: '#64748B', fontWeight: '500' }}>Already have an account? </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setIsSignUp(false);
-                    setSignInWithOtpMode(false);
-                    setError(null);
-                    setErrorCode(null);
-                    setStep('email');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 13.5, color: '#EAB308', fontWeight: '800' }}>Login</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </ScrollView>
         </View>

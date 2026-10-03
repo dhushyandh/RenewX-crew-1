@@ -92,6 +92,7 @@ import AboutRenewXScreen from '@/screens/AboutRenewXScreen';
 import SecurityScreen from '@/screens/SecurityScreen';
 import EditProfileScreen from '@/screens/EditProfileScreen';
 import OnboardingProfileScreen from '@/screens/OnboardingProfileScreen';
+import CategoriesScreen from '@/screens/CategoriesScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
@@ -108,6 +109,7 @@ export type RootStackParamList = {
   ForgotPassword: { email?: string } | undefined;
   ResetPassword: { token?: string; email?: string } | undefined;
   MainTabs: { screen?: keyof TabParamList; params?: any } | undefined;
+  Categories: { category?: string } | undefined;
   Shop: { category?: string; brand?: string; _t?: number } | undefined;
   ProductDetail: { product?: Product; id?: string };
   Search: undefined;
@@ -205,6 +207,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
           Account: 'account',
         },
       } as any,
+      Categories: 'categories',
       ProductDetail: 'product/:id',
       Search: 'search',
       Wishlist: 'wishlist',
@@ -260,10 +263,10 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
   const TAB_CONFIG: Record<string, { active: any; inactive: any; label: string }> = {
     Home: { active: 'home', inactive: 'home-outline', label: 'Home' },
-    Shop: { active: 'grid', inactive: 'grid-outline', label: 'Categories' },
-    Track: { active: 'cube', inactive: 'cube-outline', label: 'Orders' },
-    Account: { active: 'person', inactive: 'person-outline', label: 'Profile' },
-    Sell: { active: 'add', inactive: 'add', label: 'Sell' },
+    Shop: { active: 'bag-handle', inactive: 'bag-handle-outline', label: 'Shop' },
+    Track: { active: 'cube', inactive: 'cube-outline', label: 'Track' },
+    Account: { active: 'person', inactive: 'person-outline', label: 'Account' },
+    Sell: { active: 'pricetag', inactive: 'pricetag-outline', label: 'Sell' },
   };
 
   const mainRoutes = state.routes.filter((r) => r.name !== 'Sell');
@@ -346,7 +349,7 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
                 }
               };
 
-              const activeBg = route.name === 'Track' ? '#FEF08A' : route.name === 'Shop' ? '#DCFCE7' : '#FDE047';
+              const activeBg = '#FEF08A';
 
               return (
                 <TouchableOpacity
@@ -416,16 +419,19 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
               key={sellRoute.key}
               onPress={onSellPress}
               activeOpacity={0.85}
-              style={[
-                styles.floatingSellSeparateBtn,
-                isSellFocused && styles.floatingSellSeparateBtnActive,
-              ]}
+              style={styles.floatingSellSeparateBtn}
               accessibilityRole="button"
               accessibilityState={isSellFocused ? { selected: true } : {}}
               accessibilityLabel="Sell device for cash"
             >
+              <View style={styles.sellSparkleTopRight}>
+                <Text style={styles.sparkleChar}>✨</Text>
+              </View>
+              <View style={styles.sellSparkleBottomLeft}>
+                <Text style={styles.sparkleChar}>✨</Text>
+              </View>
               <View style={[styles.floatingSellCircle, isSellFocused && styles.floatingSellCircleActive]}>
-                <Ionicons name="pricetag" size={19} color="#000000" />
+                <Ionicons name="pricetag" size={20} color="#000000" />
               </View>
               <Text style={[styles.floatingSellLabel, isSellFocused && styles.floatingSellLabelActive]}>
                 Sell
@@ -614,20 +620,20 @@ function MainAppNavigation() {
         }
       }
     } else {
-      // When user logs in, automatically redirect away from Auth/ForgotPassword to MainTabs (do NOT boot away from ResetPassword)
+      // When user logs in, automatically redirect away from Auth/ForgotPassword to MainTabs (or OnboardingProfile if needed)
       const currentRoute = navigationRef.getCurrentRoute()?.name;
       if (currentRoute === 'Auth' || currentRoute === 'ForgotPassword') {
         try {
           navigationRef.reset({
             index: 0,
-            routes: [{ name: 'MainTabs' }],
+            routes: [{ name: needsProfileSetup ? 'OnboardingProfile' : 'MainTabs' }],
           });
         } catch {
           // Safe ignore
         }
       }
     }
-  }, [user, navigationRef]);
+  }, [user, needsProfileSetup, navigationRef]);
 
   if (loading) {
     return (
@@ -637,10 +643,6 @@ function MainAppNavigation() {
     );
   }
 
-  // If a new user creates an account or has not completed their initial profile setup
-  if (user && needsProfileSetup) {
-    return <OnboardingProfileScreen />;
-  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -679,43 +681,51 @@ function MainAppNavigation() {
       >
         <Stack.Navigator
           screenOptions={{ headerShown: false }}
-          initialRouteName={!user ? 'Auth' : 'MainTabs'}
+          initialRouteName={!user ? 'Auth' : needsProfileSetup ? 'OnboardingProfile' : 'MainTabs'}
         >
-          {/* Public Auth, Forgot Password, and Reset Password Routes */}
-          <Stack.Screen name="Auth" component={AuthScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          {!user ? (
+            /* Mandatory Authentication: Unauthenticated users can only access Auth and recovery flows */
+            <Stack.Group>
+              <Stack.Screen name="Auth" component={AuthScreen} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+              <Stack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
+            </Stack.Group>
+          ) : (
+            /* Main App Routes for Authenticated Users */
+            <Stack.Group>
+              <Stack.Screen name="MainTabs" component={TabNavigator} />
+              <Stack.Screen name="Categories" component={CategoriesScreen} />
+              <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+              <Stack.Screen name="Search" component={SearchScreen} />
+              <Stack.Screen name="Wishlist" component={WishlistScreen} />
+              <Stack.Screen name="Cart" component={CartScreen} />
+              <Stack.Screen name="Checkout" component={ProtectedCheckoutScreen} />
+              <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+              <Stack.Screen name="OrderConfirm" component={ProtectedOrderConfirmScreen} />
+              <Stack.Screen name="Payment" component={ProtectedPaymentScreen} />
+              <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
+              <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
+              <Stack.Screen name="AboutRenewX" component={AboutRenewXScreen} />
+              <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
+              <Stack.Screen name="EditProfile" component={ProtectedEditProfileScreen} />
+              <Stack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
+              <Stack.Screen name="Security" component={SecurityScreen} />
 
-          {/* Main App Routes */}
-          <Stack.Screen name="MainTabs" component={TabNavigator} />
-          <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
-          <Stack.Screen name="Search" component={SearchScreen} />
-          <Stack.Screen name="Wishlist" component={WishlistScreen} />
-          <Stack.Screen name="Cart" component={CartScreen} />
-          <Stack.Screen name="Checkout" component={ProtectedCheckoutScreen} />
-          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-          <Stack.Screen name="OrderConfirm" component={ProtectedOrderConfirmScreen} />
-          <Stack.Screen name="Payment" component={ProtectedPaymentScreen} />
-          <Stack.Screen name="MySellRequests" component={ProtectedMySellRequestsScreen} />
-          <Stack.Screen name="Settings" component={ProtectedSettingsScreen} />
-          <Stack.Screen name="AboutRenewX" component={AboutRenewXScreen} />
-          <Stack.Screen name="Notifications" component={ProtectedNotificationsScreen} />
-          <Stack.Screen name="EditProfile" component={ProtectedEditProfileScreen} />
-          <Stack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
-          <Stack.Screen name="Security" component={SecurityScreen} />
-
-          {/* Dedicated Protected Admin Direct Routes */}
-          <Stack.Screen name="AdminDashboard" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminProducts" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminAddProduct" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminEditProduct" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminBrands" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminAddBrand" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminAddModel" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminOrders" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminUsers" component={ProtectedAdminPanel} />
-          <Stack.Screen name="AdminTradeIns" component={ProtectedAdminPanel} />
-          <Stack.Screen name="Admin" component={ProtectedAdminPanel} />
+              {/* Dedicated Protected Admin Direct Routes */}
+              <Stack.Screen name="AdminDashboard" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminProducts" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminAddProduct" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminEditProduct" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminBrands" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminAddBrand" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminAddModel" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminOrders" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminUsers" component={ProtectedAdminPanel} />
+              <Stack.Screen name="AdminTradeIns" component={ProtectedAdminPanel} />
+              <Stack.Screen name="Admin" component={ProtectedAdminPanel} />
+            </Stack.Group>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
       <ConnectionStatusBanner />
@@ -889,52 +899,55 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   floatingSellSeparateBtn: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 3,
-    boxShadow: '0px 8px 24px rgba(15, 23, 42, 0.08)',
-    elevation: 10,
-  },
-  floatingSellSeparateBtnActive: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
-    boxShadow: '0px 8px 24px rgba(250, 204, 21, 0.28)',
+    position: 'relative',
+    marginLeft: 6,
+    paddingTop: 2,
   },
   floatingSellCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFC400',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FACC15',
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 6px 18px rgba(250, 204, 21, 0.45)' },
+      default: {
+        shadowColor: '#FACC15',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.45,
+        shadowRadius: 8,
+        elevation: 8,
+      },
+    }),
   },
   floatingSellCircleActive: {
     backgroundColor: '#EAB308',
   },
-  floatingSellDollarText: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#0C7A43',
-    includeFontPadding: false,
-  },
-  floatingSellDollarTextActive: {
-    color: '#FFD700',
-  },
   floatingSellLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 10.5,
+    fontWeight: '800',
     fontFamily: renewxFontFamily.bold,
     color: '#0F172A',
     marginTop: 2,
   },
   floatingSellLabelActive: {
     color: '#000000',
-    fontWeight: '800',
+    fontWeight: '900',
+  },
+  sellSparkleTopRight: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+  },
+  sellSparkleBottomLeft: {
+    position: 'absolute',
+    bottom: 12,
+    left: -4,
+  },
+  sparkleChar: {
+    fontSize: 10,
   },
 });

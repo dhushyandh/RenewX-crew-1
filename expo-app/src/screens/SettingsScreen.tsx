@@ -21,6 +21,7 @@ import { useToast } from '@/context/ToastContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useLocation } from '@/context/LocationContext';
 import RenewXLogo from '@/components/RenewXLogo';
+import HomeHeader from '@/components/HomeHeader';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -35,8 +36,8 @@ export default function SettingsScreen() {
   const userName =
     (user as any)?.name ||
     user?.full_name ||
-    (user?.email ? user.email.split('@')[0] : 'Guest User');
-  const userEmail = user?.email || 'Not logged in';
+    (user?.email ? user.email.split('@')[0] : 'RenewX Member');
+  const userEmail = user?.email || '';
 
   // Preferences toggles
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -76,46 +77,14 @@ export default function SettingsScreen() {
   }, [signOut, toast]);
 
   return (
-    <View style={[styles.screenContainer, { paddingTop: safeTop }]}>
+    <View style={styles.screenContainer}>
       {/* 1. Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={handleBack}
-          style={styles.backButton}
-          activeOpacity={0.8}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-
-        <RenewXLogo size="md" alignCenter />
-
-        <View style={styles.topBarRightGroup}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Notifications')}
-            style={styles.iconCircleBtn}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="notifications-outline" size={20} color="#0F172A" />
-            <View style={styles.notificationDot} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Cart')}
-            style={styles.iconCircleBtn}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="cart-outline" size={20} color="#0F172A" />
-            {totalItems > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{totalItems}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      <HomeHeader
+        mode="standard"
+        title="Settings"
+        onBack={handleBack}
+        onNotifications={() => navigation.navigate('Notifications')}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

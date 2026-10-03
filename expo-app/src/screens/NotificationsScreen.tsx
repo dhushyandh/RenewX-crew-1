@@ -7,6 +7,7 @@ import type { RootStackParamList } from '@/App';
 import { api } from '@/services/api';
 import { getNotificationPermissionStatus, requestNotificationPermission } from '@/services/pushNotifications';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import HomeHeader from '@/components/HomeHeader';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -229,35 +230,28 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-          <Ionicons name="arrow-back" size={21} color="#0f172a" />
-        </TouchableOpacity>
-        <Image
-          source={require('@/assets/notification-icon.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Notifications</Text>
-          <Text style={styles.subtitle}>{unreadCount ? unreadCount + ' unread update' + (unreadCount === 1 ? '' : 's') : 'You are all caught up'}</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleTestPress} disabled={testing} style={styles.testBtn}>
-            <Ionicons name="paper-plane-outline" size={13} color="#047857" />
-            <Text style={styles.testBtnText}>{testing ? '...' : 'Test'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={markAllRead} disabled={!unreadCount} style={styles.readAll}>
-            <Text style={[styles.readAllText, !unreadCount && styles.disabledText]}>Read all</Text>
-          </TouchableOpacity>
-          {items.length > 0 && (
-            <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn} accessibilityLabel="Clear all">
-              <Ionicons name="trash-outline" size={16} color="#dc2626" />
+    <View style={styles.container}>
+      <HomeHeader
+        mode="standard"
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        rightComponent={
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={handleTestPress} disabled={testing} style={styles.testBtn}>
+              <Ionicons name="paper-plane-outline" size={13} color="#047857" />
+              <Text style={styles.testBtnText}>{testing ? '...' : 'Test'}</Text>
             </TouchableOpacity>
-          )}
-        </View>
-      </View>
+            <TouchableOpacity onPress={markAllRead} disabled={!unreadCount} style={styles.readAll}>
+              <Text style={[styles.readAllText, !unreadCount && styles.disabledText]}>Read all</Text>
+            </TouchableOpacity>
+            {items.length > 0 && (
+              <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn} accessibilityLabel="Clear all">
+                <Ionicons name="trash-outline" size={16} color="#dc2626" />
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={styles.content}

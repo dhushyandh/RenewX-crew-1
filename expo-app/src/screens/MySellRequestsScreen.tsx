@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useToast } from '@/context/ToastContext';
+import HomeHeader from '@/components/HomeHeader';
 
 const STATUS_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; color: string }> = {
   pending: { label: 'Pending Review', icon: 'time-outline', bg: '#fff7ed', color: '#c2410c' },
@@ -229,27 +230,13 @@ export default function MySellRequestsScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-          <Ionicons name="arrow-back" size={21} color="#0f172a" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>My Sell Requests</Text>
-          <Text style={styles.subtitle}>Track approval, pickup & payout status</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Track', params: { type: 'sell_requests' } })}
-          style={styles.liveTrackerBadge}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="radio-outline" size={14} color="#059669" />
-          <Text style={styles.liveTrackerBadgeText}>Tracker</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={load} style={styles.refresh}>
-          <Ionicons name="refresh-outline" size={20} color="#0f172a" />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <HomeHeader
+        mode="orders"
+        title="My Sell Requests"
+        onBack={() => navigation.goBack()}
+        onFilterPress={load}
+      />
 
       {/* Search Input for Request ID or Device */}
       {items.length > 0 && (

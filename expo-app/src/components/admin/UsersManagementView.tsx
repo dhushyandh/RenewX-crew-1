@@ -35,108 +35,12 @@ export interface AdminUserItem {
   isBackendUser?: boolean;
 }
 
-// 8 Default Users accurately matching the mockup image
-const MOCKUP_USERS: AdminUserItem[] = [
-  {
-    id: 'usr_priya_s',
-    name: 'Priya S',
-    email: 'priya.s@gmail.com',
-    phone: '+91 98765 43210',
-    joinedDate: '12 Sep 2026',
-    joinedTime: '10:30 AM',
-    role: 'customer',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
-  },
-  {
-    id: 'usr_arjun_k',
-    name: 'Arjun K',
-    email: 'arjun.k@gmail.com',
-    phone: '+91 91234 56789',
-    joinedDate: '11 Sep 2026',
-    joinedTime: '04:20 PM',
-    role: 'customer',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
-  },
-  {
-    id: 'usr_divya_r',
-    name: 'Divya R',
-    email: 'divya.r@gmail.com',
-    phone: '+91 87654 32109',
-    joinedDate: '10 Sep 2026',
-    joinedTime: '09:15 AM',
-    role: 'customer',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-  },
-  {
-    id: 'usr_suresh_k',
-    name: 'Suresh K',
-    email: 'suresh.k@gmail.com',
-    phone: '+91 99887 66554',
-    joinedDate: '8 Sep 2026',
-    joinedTime: '06:40 PM',
-    role: 'customer',
-    status: 'inactive',
-    initials: 'SK',
-    initialsBg: '#C084FC',
-    initialsColor: '#FFFFFF',
-  },
-  {
-    id: 'usr_nandhini_m',
-    name: 'Nandhini M',
-    email: 'nandhini.m@gmail.com',
-    phone: '+91 98712 34567',
-    joinedDate: '5 Sep 2026',
-    joinedTime: '11:12 AM',
-    role: 'customer',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&q=80',
-  },
-  {
-    id: 'usr_vignesh_t',
-    name: 'Vignesh T',
-    email: 'vignesh.t@gmail.com',
-    phone: '+91 91235 67890',
-    joinedDate: '2 Sep 2026',
-    joinedTime: '02:30 PM',
-    role: 'customer',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
-  },
-  {
-    id: 'usr_rohith_s',
-    name: 'Rohith S',
-    email: 'rohith.s@gmail.com',
-    phone: '+91 87611 22334',
-    joinedDate: '28 Aug 2026',
-    joinedTime: '10:05 AM',
-    role: 'customer',
-    status: 'blocked',
-    initials: 'RS',
-    initialsBg: '#BAE6FD',
-    initialsColor: '#0284C7',
-  },
-  {
-    id: 'usr_meena_v',
-    name: 'Meena V',
-    email: 'meena.v@gmail.com',
-    phone: '+91 98766 55443',
-    joinedDate: '21 Aug 2026',
-    joinedTime: '04:18 PM',
-    role: 'customer',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80',
-  },
-];
-
 type StatusFilter = 'all' | 'active' | 'blocked';
 type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc';
 
 export default function UsersManagementView() {
   const toast = useToast();
-  const [users, setUsers] = useState<AdminUserItem[]>(MOCKUP_USERS);
+  const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -152,7 +56,7 @@ export default function UsersManagementView() {
   const [selectedStatus, setSelectedStatus] = useState<'active' | 'inactive' | 'blocked'>('active');
   const [saving, setSaving] = useState(false);
 
-  // Fetch users from backend and merge with mockup users
+  // Fetch users from backend
   const fetchLiveUsers = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
@@ -172,7 +76,7 @@ export default function UsersManagementView() {
             id: String(u.id || u._id || `backend_${idx}`),
             name,
             email,
-            phone: u.phone || '+91 98000 00000',
+            phone: u.phone || '',
             joinedDate,
             joinedTime,
             role: (u.role === 'admin' ? 'admin' : 'customer') as 'admin' | 'customer',
@@ -185,15 +89,12 @@ export default function UsersManagementView() {
           };
         });
 
-        // Merge: Real users first, then remaining mockup users that don't collide
-        const backendEmails = new Set(mappedBackendUsers.map((u) => u.email.toLowerCase()));
-        const uniqueMock = MOCKUP_USERS.filter((m) => !backendEmails.has(m.email.toLowerCase()));
-        setUsers([...mappedBackendUsers, ...uniqueMock]);
+        setUsers(mappedBackendUsers);
       } else {
-        setUsers(MOCKUP_USERS);
+        setUsers([]);
       }
     } catch {
-      setUsers(MOCKUP_USERS);
+      setUsers([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -209,11 +110,15 @@ export default function UsersManagementView() {
     fetchLiveUsers(true);
   }, [fetchLiveUsers]);
 
-  // Metric counts
-  const totalCount = Math.max(1248, users.length);
-  const activeCount = Math.max(1082, users.filter((u) => u.status === 'active').length);
-  const blockedCount = Math.max(58, users.filter((u) => u.status === 'blocked').length);
-  const newMonthCount = 108;
+  // Metric counts from real users
+  const totalCount = users.length;
+  const activeCount = users.filter((u) => u.status === 'active').length;
+  const blockedCount = users.filter((u) => u.status === 'blocked').length;
+  const newMonthCount = users.filter((u) => {
+    const d = new Date(u.joinedDate);
+    const now = new Date();
+    return !isNaN(d.getTime()) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
 
   // Filtered and sorted users
   const filteredUsers = useMemo(() => {
@@ -268,9 +173,7 @@ export default function UsersManagementView() {
     if (!selectedUser) return;
     setSaving(true);
     try {
-      if (selectedUser.isBackendUser) {
-        await api.users.updateRole(selectedUser.id, selectedRole, selectedStatus);
-      }
+      await api.users.updateRole(selectedUser.id, selectedRole, selectedStatus);
       setUsers((prev) =>
         prev.map((u) =>
           u.id === selectedUser.id
@@ -302,9 +205,7 @@ export default function UsersManagementView() {
       async () => {
         setSaving(true);
         try {
-          if (target.isBackendUser) {
-            await api.users.delete(target.id);
-          }
+          await api.users.delete(target.id);
           setUsers((prev) => prev.filter((u) => u.id !== target.id));
           toast.info(`User ${target.name} has been permanently removed`, 'User Deleted');
           setActionModalVisible(false);

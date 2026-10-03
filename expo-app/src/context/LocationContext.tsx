@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
 const LOCATION_STORAGE_KEY = '@renewx_user_location_v2';
-const DEFAULT_LOCATION = 'Bangalore - 560004';
+const DEFAULT_LOCATION = 'Vellore - 632012';
 
 interface LocationContextType {
   location: string;
@@ -21,8 +21,8 @@ const LocationContext = createContext<LocationContextType | undefined>(undefined
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState<string>(DEFAULT_LOCATION);
-  const [area, setArea] = useState<string>('Bangalore');
-  const [pincode, setPincode] = useState<string>('560004');
+  const [area, setArea] = useState<string>('Vellore');
+  const [pincode, setPincode] = useState<string>('560001');
   const [isDetecting, setIsDetecting] = useState<boolean>(false);
   const [showLocationModal, setShowLocationModal] = useState<boolean>(false);
 

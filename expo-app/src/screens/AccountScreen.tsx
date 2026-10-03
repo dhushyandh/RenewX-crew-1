@@ -87,8 +87,8 @@ export default function AccountScreen() {
     }
   };
 
-  const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Guest User');
-  const displayEmail = user?.email || 'Not signed in';
+  const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'RenewX Member');
+  const displayEmail = user?.email || '';
   const displayPhone = user?.phone || 'No phone added';
   const initials =
     user?.full_name
@@ -101,19 +101,11 @@ export default function AccountScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 1. TOP HEADER */}
+      {/* 1. TOP HEADER (Matching Reference Image 8: Account / Profile) */}
       <HomeHeader
-        onSearch={() => navigation.navigate('Search')}
-        cartCount={0}
-        onCart={() => navigation.navigate('Cart')}
-        isAdmin={isAdmin}
-        onAdmin={() => navigation.navigate('Admin', { screen: 'dashboard' })}
-        onLogout={signOut}
-        onAccount={() => {}}
-        onSell={() => (navigation as any).navigate('Sell')}
-        onWishlist={() => navigation.navigate('Wishlist')}
-        onNotifications={() => navigation.navigate('Notifications')}
-        userAddress={user?.address || undefined}
+        mode="account"
+        title="My Account"
+        onSettings={() => navigation.navigate('Settings')}
       />
 
       <ScrollView
@@ -172,28 +164,33 @@ export default function AccountScreen() {
           </View>
         </View>
 
-        {/* 3. RENEWX PLUS BANNER */}
-        <View style={styles.plusBannerCard}>
-          <View style={styles.plusCrownCircle}>
-            <Ionicons name="ribbon" size={20} color="#B45309" />
+        {/* 3. ADMIN PORTAL BANNER (Replaces RenewX Plus) */}
+        <TouchableOpacity
+          style={styles.adminBannerCard}
+          onPress={() => navigation.navigate('Admin', { screen: 'dashboard' })}
+          activeOpacity={0.88}
+        >
+          <View style={styles.adminShieldCircle}>
+            <Ionicons name="shield-checkmark" size={20} color="#059669" />
           </View>
 
-          <View style={styles.plusInfoCol}>
-            <Text style={styles.plusTitle}>RenewX Plus</Text>
-            <Text style={styles.plusSubtitle}>
-              More savings. Faster support. Exclusive offers.
+          <View style={styles.adminInfoCol}>
+            <View style={styles.adminTitleBadgeRow}>
+              <Text style={styles.adminTitle}>Admin Control Center</Text>
+              <View style={styles.adminStatusTag}>
+                <Text style={styles.adminStatusTagText}>Portal</Text>
+              </View>
+            </View>
+            <Text style={styles.adminSubtitle}>
+              Manage inventory, products, orders & user permissions
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.plusExploreBtn}
-            onPress={() => toast.info('RenewX Plus membership is active for your account!')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.plusExploreText}>Explore</Text>
-            <Ionicons name="chevron-forward" size={13} color="#000000" />
-          </TouchableOpacity>
-        </View>
+          <View style={styles.adminManageBtn}>
+            <Text style={styles.adminManageText}>Open</Text>
+            <Ionicons name="arrow-forward" size={13} color="#0F172A" />
+          </View>
+        </TouchableOpacity>
 
         {/* 4. MY ORDERS STATS ROW */}
         <View style={styles.ordersSection}>
@@ -620,54 +617,81 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
 
-  /* 3. PLUS BANNER */
-  plusBannerCard: {
+  /* 3. ADMIN BANNER */
+  adminBannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFFBEB',
+    gap: 12,
+    backgroundColor: '#0F172A',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#FEF08A',
-    padding: 12,
+    borderColor: '#1E293B',
+    padding: 14,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)' },
+      default: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 3,
+      },
+    }),
   },
-  plusCrownCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FEF3C7',
+  adminShieldCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  plusInfoCol: {
+  adminInfoCol: {
     flex: 1,
   },
-  plusTitle: {
-    fontFamily: renewxFontFamily.extraBold,
-    fontSize: 13.5,
-    fontWeight: '900',
-    color: '#0F172A',
-  },
-  plusSubtitle: {
-    marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 10,
-    color: '#64748B',
-  },
-  plusExploreBtn: {
+  adminTitleBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#FDE047',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    gap: 6,
   },
-  plusExploreText: {
+  adminTitle: {
     fontFamily: renewxFontFamily.bold,
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  adminStatusTag: {
+    backgroundColor: '#FACC15',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  adminStatusTagText: {
+    fontSize: 9,
+    fontWeight: '900',
     color: '#000000',
+    letterSpacing: 0.5,
+  },
+  adminSubtitle: {
+    marginTop: 2,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 10.5,
+    color: '#94A3B8',
+  },
+  adminManageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FACC15',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  adminManageText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
   },
 
   /* 4. ORDERS SECTION */

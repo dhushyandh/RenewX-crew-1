@@ -24,6 +24,7 @@ import { reverseGeocodeCoords } from '@/services/locationService';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import HomeHeader from '@/components/HomeHeader';
 import { renewxColors, renewxFontFamily, renewxRadius, renewxSpacing } from '@/design-system';
 
 // 1. Supported Device Categories
@@ -695,31 +696,40 @@ export default function SellScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      {/* 1. TOP HEADER */}
-      <View style={styles.topHeader}>
-        <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleCol}>
-          <Text style={styles.headerMainTitle}>Sell Your Device</Text>
-          <Text style={styles.headerSubTitle}>Step {step} of 8</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      {/* 1. TOP HEADER (Matching the RenewX clean top layout with Step pill & My Requests action) */}
+      <HomeHeader
+        mode="sell"
+        title="Sell Your Device"
+        currentStep={step}
+        totalSteps={8}
+        onBack={handleBack}
+        onSellRequests={() => navigation.navigate('MySellRequests')}
+      />
 
-      {/* 2. PROGRESS STEPPER NODES */}
+      {/* 2. PROGRESS STEPPER BANNER */}
       <View style={styles.stepperContainer}>
-        {/* Full connecting track behind nodes */}
-        <View style={styles.stepperLineBackdrop} />
-        {/* Yellow completed line */}
-        <View
-          style={[
-            styles.stepperLineActive,
-            { width: `${((step - 1) / 7) * 100}%` },
-          ]}
-        />
+        {/* Step subtitle & progress percentage */}
+        <View style={styles.stepInfoRow}>
+          <Text style={styles.stepTitleActive}>
+            {step === 1 && '1. Select Device Category'}
+            {step === 2 && '2. Choose Device Brand'}
+            {step === 3 && '3. Select Model'}
+            {step === 4 && '4. Storage & Color'}
+            {step === 5 && '5. Device Condition'}
+            {step === 6 && '6. Upload Photos'}
+            {step === 7 && '7. Instant Valuation'}
+            {step === 8 && '8. Doorstep Pickup & Payout'}
+          </Text>
+          <Text style={styles.stepPctText}>{Math.round((step / 8) * 100)}%</Text>
+        </View>
 
+        {/* Progress track */}
+        <View style={styles.stepProgressBarWrapper}>
+          <View style={[styles.stepProgressBarFill, { width: `${(step / 8) * 100}%` }]} />
+        </View>
+
+        {/* Stepper interactive nodes */}
         <View style={styles.stepperNodesRow}>
           {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => {
             const isActive = s === step;
@@ -736,15 +746,18 @@ export default function SellScreen() {
                 ]}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.stepperNodeText,
-                    isActive && styles.stepperNodeTextActive,
-                    isDone && styles.stepperNodeTextDone,
-                  ]}
-                >
-                  {s}
-                </Text>
+                {isDone ? (
+                  <Ionicons name="checkmark" size={11} color="#0F172A" />
+                ) : (
+                  <Text
+                    style={[
+                      styles.stepperNodeText,
+                      isActive && styles.stepperNodeTextActive,
+                    ]}
+                  >
+                    {s}
+                  </Text>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -1727,27 +1740,42 @@ const styles = StyleSheet.create({
 
   /* STEPPER NODES */
   stepperContainer: {
-    position: 'relative',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  stepperLineBackdrop: {
-    position: 'absolute',
-    top: 23,
-    left: 30,
-    right: 30,
-    height: 2.5,
-    backgroundColor: '#E2E8F0',
+  stepInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
-  stepperLineActive: {
-    position: 'absolute',
-    top: 23,
-    left: 30,
-    height: 2.5,
-    backgroundColor: '#FBBF24',
+  stepTitleActive: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: renewxFontFamily.bold,
+    color: '#0F172A',
+  },
+  stepPctText: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: renewxFontFamily.bold,
+    color: '#D97706',
+  },
+  stepProgressBarWrapper: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  stepProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#FACC15',
+    borderRadius: 2,
   },
   stepperNodesRow: {
     flexDirection: 'row',
@@ -1755,29 +1783,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepperNode: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FFFFFF',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 2,
   },
   stepperNodeActive: {
-    backgroundColor: '#FBBF24',
-    borderColor: '#F59E0B',
-    transform: [{ scale: 1.15 }],
+    backgroundColor: '#FACC15',
+    borderColor: '#EAB308',
+    transform: [{ scale: 1.1 }],
   },
   stepperNodeDone: {
     backgroundColor: '#FEF08A',
-    borderColor: '#FDE047',
+    borderColor: '#FACC15',
   },
   stepperNodeText: {
     fontFamily: renewxFontFamily.bold,
     fontSize: 10,
-    color: '#94A3B8',
+    fontWeight: '700',
+    color: '#64748B',
   },
   stepperNodeTextActive: {
     color: '#0F172A',

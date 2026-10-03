@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { downloadOrderInvoicePdf } from '@/services/invoiceService';
+import HomeHeader from '@/components/HomeHeader';
 
 function formatMoney(value: number) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -132,30 +133,12 @@ export default function OrderConfirmScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      {/* 1. Top Brand Header */}
-      <View style={styles.topHeader}>
-        <View style={styles.brandTitleRow}>
-          <Text style={styles.brandName}>Renew</Text>
-          <Text style={styles.brandNameYellow}>X</Text>
-          <Text style={styles.brandTagline}>Buy Refurbished | Sell | Upgrade</Text>
-        </View>
-
-        <View style={styles.headerRightRow}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('Notifications')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="notifications-outline" size={20} color="#0F172A" />
-            <View style={styles.notificationDot} />
-          </TouchableOpacity>
-
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>ND</Text>
-          </View>
-        </View>
-      </View>
+    <View style={styles.container}>
+      {/* 1. Top Header (Matching Reference Image 4: Order Confirmation) */}
+      <HomeHeader
+        mode="order-confirm"
+        onClose={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+      />
 
       <ScrollView
         style={styles.scrollView}

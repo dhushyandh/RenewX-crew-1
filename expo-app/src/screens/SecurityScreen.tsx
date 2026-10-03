@@ -18,6 +18,7 @@ import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import HomeHeader from '@/components/HomeHeader';
 
 type SecurityTab = 'email_link' | 'direct_change';
 
@@ -244,23 +245,13 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
   const directStrength = getPasswordStrength(directNewPassword);
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      {/* Top Navigation Bar */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="arrow-back" size={20} color={colors.text} />
-        </TouchableOpacity>
-
-        <View style={styles.headerCenter}>
-          <View style={styles.headerTitleRow}>
-            <Ionicons name="shield-checkmark" size={18} color="#000000" />
-            <Text style={styles.headerTitle}>Account Security</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>Password & Verification Protection</Text>
-        </View>
-
-        <View style={{ width: 36 }} />
-      </View>
+    <View style={styles.container}>
+      {/* Top Bar */}
+      <HomeHeader
+        mode="standard"
+        title="Security"
+        onBack={handleBack}
+      />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

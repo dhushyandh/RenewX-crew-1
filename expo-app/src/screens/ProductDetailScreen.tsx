@@ -19,6 +19,7 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { shareProduct } from '@/services/shareService';
 import { mapProductRow } from '@/lib/productMapper';
 import RenewXLogo from '@/components/RenewXLogo';
+import HomeHeader from '@/components/HomeHeader';
 import { api } from '@/services/api';
 
 function formatMoney(value: number) {
@@ -137,6 +138,12 @@ export default function ProductDetailScreen() {
     );
   };
 
+  const handleShare = () => {
+    if (baseProduct) {
+      shareProduct(baseProduct as any);
+    }
+  };
+
   const handleAddToCart = useCallback(() => {
     if (!baseProduct) return;
     addToCart({
@@ -188,50 +195,16 @@ export default function ProductDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      {/* 1. Header (Matching Mockup: Back, RenewX Logo, Cart with badge, Heart) */}
-      <View style={styles.topHeader}>
-        <TouchableOpacity
-          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs', { screen: 'Home' }))}
-          style={styles.iconBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-
-        <RenewXLogo size="md" alignCenter />
-
-
-
-
-
-        <View style={styles.headerRightIcons}>
-          <TouchableOpacity
-            style={styles.cartIconContainer}
-            onPress={() => navigation.navigate('Cart')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="cart-outline" size={24} color="#0F172A" />
-            {totalItems > 0 && (
-              <View style={styles.cartBadgeCircle}>
-                <Text style={styles.cartBadgeText}>{totalItems}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={handleToggleWishlist}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={isWishlisted ? 'heart' : 'heart-outline'}
-              size={22}
-              color={isWishlisted ? '#EF4444' : '#0F172A'}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+    <View style={styles.container}>
+      {/* 1. Header (Matching Reference Image 1: Product Details, Share, Heart) */}
+      <HomeHeader
+        mode="product-detail"
+        title="Product Details"
+        onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs', { screen: 'Home' }))}
+        onShare={handleShare}
+        isWishlisted={isWishlisted}
+        onToggleWishlist={handleToggleWishlist}
+      />
 
       <ScrollView
         style={styles.scrollView}

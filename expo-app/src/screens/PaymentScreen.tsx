@@ -25,6 +25,7 @@ import RazorpayModal from '@/components/RazorpayModal';
 import CheckoutStepper from '@/components/CheckoutStepper';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import HomeHeader from '@/components/HomeHeader';
 import { clientObservability } from '@/services/observability';
 
 type RouteParams = {
@@ -291,23 +292,13 @@ export default function PaymentScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: safeTop }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Cart'))}
-          style={styles.backButton}
-          disabled={processing}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </TouchableOpacity>
-
-        <View>
-          <Text style={styles.title}>Payment</Text>
-          <Text style={styles.subtitle}>Choose your payment method</Text>
-        </View>
-      </View>
+    <View style={styles.container}>
+      {/* Top Bar (Matching Reference Image 3: Checkout/Payment with Secure pill) */}
+      <HomeHeader
+        mode="checkout"
+        title="Payment"
+        onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Cart'))}
+      />
 
       {/* Stepper: Step 2 Active */}
       <CheckoutStepper currentStep={2} />

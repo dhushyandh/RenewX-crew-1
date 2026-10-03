@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import HomeHeader from '@/components/HomeHeader';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useToast } from '@/context/ToastContext';
 
@@ -72,20 +73,11 @@ export default function AboutRenewXScreen() {
   return (
     <View style={styles.container}>
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: safeTop }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={20} color="#111" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle}>About RenewX Crew</Text>
-          <Text style={styles.headerSubtitle}>Certified Tech Marketplace & Policies</Text>
-        </View>
-        <View style={styles.headerPlaceholder} />
-      </View>
+      <HomeHeader
+        mode="standard"
+        title="About RenewX"
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
