@@ -47,7 +47,7 @@ class RenewXMessagingService : FirebaseMessagingService() {
 
         // ISOLATION: Normal customer notifications (orders, trade-ins, deliveries, security)
         // must continue working through the standard expo-notifications system.
-        if (!type.equals("PROMOTION", ignoreCase = true)) {
+        if (type.uppercase() != "PROMOTION") {
             Log.d(TAG, "Non-promotion notification ($type) received; delegating to default handler.")
             super.onMessageReceived(message)
             return

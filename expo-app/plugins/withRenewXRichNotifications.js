@@ -136,11 +136,16 @@ function withRenewXRichNotifications(config) {
   config = withAppBuildGradle(config, (cfg) => {
     let buildGradle = cfg.modResults.contents;
 
+    const depsToAdd = [];
     if (!buildGradle.includes('kotlinx-coroutines-android')) {
-      const depBlock = `
-    // RenewX Native Rich Notifications dependencies
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-`;
+      depsToAdd.push('    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")');
+    }
+    if (!buildGradle.includes('firebase-messaging')) {
+      depsToAdd.push('    implementation("com.google.firebase:firebase-messaging:25.0.1")');
+    }
+
+    if (depsToAdd.length > 0) {
+      const depBlock = `\n    // RenewX Native Rich Notifications dependencies\n${depsToAdd.join('\n')}\n`;
       buildGradle = buildGradle.replace(
         /dependencies\s*\{/,
         `dependencies {${depBlock}`
