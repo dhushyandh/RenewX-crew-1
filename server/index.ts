@@ -131,6 +131,7 @@ import { getUploadedFile } from './controllers/uploadController';
 // Persistent file delivery: serves from local disk first, or streams from MongoDB GridFS if on ephemeral host
 app.get('/uploads/:filename', getUploadedFile);
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'public', 'uploads')));
+app.use('/.well-known', express.static(path.resolve(process.cwd(), 'public', '.well-known')));
 
 app.use((req: Request, res: Response) => {
   res.status(404).json({

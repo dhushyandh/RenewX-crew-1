@@ -12,7 +12,7 @@ import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigat
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Linking } from 'react-native';
 
 // Global font injection for Web without overriding vector icon fonts
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -25,6 +25,12 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   }
   styleEl.innerHTML = `
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overscroll-behavior: none;
+    }
     html, body, #root, input, textarea, select, button {
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
@@ -177,6 +183,7 @@ export type RootStackParamList = {
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [
     'renewx://',
+    'com.renewx.mobile://',
     'https://renewx.expo.app',
     'http://renewx.expo.app',
     'https://renewx-crew-server.onrender.com',
@@ -189,6 +196,45 @@ export const linking: LinkingOptions<RootStackParamList> = {
       ? [window.location.origin]
       : []),
   ],
+  async getInitialURL() {
+    // 1. Check if the app was launched by tapping a push notification
+    try {
+      const response = await Notifications.getLastNotificationResponseAsync();
+      const data = response?.notification?.request?.content?.data as Record<string, any> | undefined;
+      const rawUrl = data?.url || data?.link || (data?.productId ? `https://renewx.expo.app/product/${data.productId}` : undefined);
+      if (typeof rawUrl === 'string' && rawUrl.trim()) {
+        return rawUrl.trim();
+      }
+    } catch {}
+
+    // 2. Check if the app was launched by an Android App Link or custom scheme URL
+    const url = await Linking.getInitialURL();
+    return url;
+  },
+  subscribe(listener: (url: string) => void) {
+    // 1. Listen for incoming App Link / deep link events while the app is running in background/foreground
+    const onReceiveURL = ({ url }: { url: string }) => {
+      if (url) listener(url);
+    };
+    const linkingSubscription = Linking.addEventListener('url', onReceiveURL);
+
+    // 2. Listen for user tapping a push notification while the app is in background or foreground
+    const notifSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data as Record<string, any> | undefined;
+      const url =
+        data?.url ||
+        data?.link ||
+        (data?.productId ? `https://renewx.expo.app/product/${data.productId}` : undefined);
+      if (typeof url === 'string' && url.trim()) {
+        listener(url.trim());
+      }
+    });
+
+    return () => {
+      linkingSubscription.remove();
+      notifSubscription.remove();
+    };
+  },
   getStateFromPath: (path, options) => {
     // Normalization: support user's /forget-password route as alias to /forgot-password
     let normalized = path.replace(/^\/forget-password/, '/forgot-password');

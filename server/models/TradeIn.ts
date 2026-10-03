@@ -125,17 +125,17 @@ export function calculateInstantQuote(req: TradeInValuationRequest): {
 const TradeInRequestSchema = new Schema<ITradeInRequest>(
   {
     user_id: { type: String, default: null, index: true },
-    category: { type: String, required: true },
-    brand: { type: String, required: true },
-    model: { type: String, required: true },
-    storage: { type: String, required: true },
-    valuation_amount: { type: Number, required: true },
+    category: { type: String, default: 'Smartphones' },
+    brand: { type: String, default: 'General' },
+    model: { type: String, default: 'Device' },
+    storage: { type: String, default: 'Standard' },
+    valuation_amount: { type: Number, default: 0 },
     expected_price: { type: Number, default: 0 },
-    customer_name: { type: String, required: true },
-    customer_phone: { type: String, required: true },
+    customer_name: { type: String, default: 'Customer' },
+    customer_phone: { type: String, default: '' },
     customer_email: { type: String, default: '' },
-    pincode: { type: String, required: true },
-    address: { type: String, required: true },
+    pincode: { type: String, default: '600001' },
+    address: { type: String, default: '' },
     photos: { type: [String], default: [] },
     status: { type: String, default: 'pending', index: true },
     condition: { type: Schema.Types.Mixed, default: {} },
@@ -157,6 +157,7 @@ const TradeInRequestSchema = new Schema<ITradeInRequest>(
 
 TradeInRequestSchema.index({ user_id: 1, created_at: -1 });
 TradeInRequestSchema.index({ status: 1, created_at: -1 });
+TradeInRequestSchema.index({ created_at: -1 });
 
 export const TradeInModel =
   (mongoose.models.TradeInRequest as mongoose.Model<ITradeInRequest>) || mongoose.model<ITradeInRequest>('TradeInRequest', TradeInRequestSchema);

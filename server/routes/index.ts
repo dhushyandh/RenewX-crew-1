@@ -15,14 +15,22 @@ import { checkDatabaseHealth } from '../config/db';
 
 const apiRouter = Router();
 
-// Health Check Endpoint
+// Health Check Endpoint (Readiness & Liveness probe for AWS ALB, Render, K8s)
 apiRouter.get('/health', async (req, res) => {
   const dbHealth = await checkDatabaseHealth();
+  const mem = process.memoryUsage();
   res.status(dbHealth.ok ? 200 : 503).json({
     status: dbHealth.ok ? 'healthy' : 'degraded',
     timestamp: new Date().toISOString(),
     service: 'RenewX REST API (MongoDB)',
     version: '2.0.0',
+    uptimeSeconds: Math.floor(process.uptime()),
+    environment: process.env.NODE_ENV || 'development',
+    system: {
+      memoryUsedMB: Math.round(mem.rss / 1024 / 1024),
+      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+    },
     database: {
       type: 'MongoDB',
       connected: dbHealth.ok,

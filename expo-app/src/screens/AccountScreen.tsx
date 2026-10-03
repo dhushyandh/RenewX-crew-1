@@ -41,15 +41,6 @@ export default function AccountScreen() {
   const toast = useToast();
   const scrollRef = useRef<ScrollView>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
-      }
-    }, [])
-  );
-
   const [orderStats, setOrderStats] = useState({
     total: 0,
     inTransit: 0,
@@ -104,7 +95,17 @@ export default function AccountScreen() {
     } catch {
       // ignore
     }
-  }, [refreshUser]);
+  }, [refreshUser, user?.address]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    }, [loadData])
+  );
 
   useEffect(() => {
     loadData();
@@ -129,6 +130,12 @@ export default function AccountScreen() {
   const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'RenewX Member');
   const displayEmail = user?.email || '';
   const displayPhone = user?.phone || 'No phone added';
+  const displayBio = user?.bio || '';
+  const displayAddress =
+    user?.address ||
+    (user?.city ? `${user.city}${user?.state ? `, ${user.state}` : ''}${user?.pincode ? ` - ${user.pincode}` : ''}` : '') ||
+    (user?.saved_addresses?.[0] ? `${user.saved_addresses[0].address_line1 || user.saved_addresses[0].address}, ${user.saved_addresses[0].city}` : '') ||
+    '';
   const initials =
     user?.full_name
       ?.trim()
@@ -209,6 +216,35 @@ export default function AccountScreen() {
             >
               <Ionicons name="pencil" size={13} color="#0F172A" />
               <Text style={styles.editProfileBtnText}>Edit Profile</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* User Bio (Pulled directly from DB) */}
+          {Boolean(displayBio) && (
+            <View style={styles.profileBioContainer}>
+              <Ionicons name="chatbox-ellipses-outline" size={12} color="#059669" />
+              <Text style={styles.profileBioText} numberOfLines={2}>
+                "{displayBio}"
+              </Text>
+            </View>
+          )}
+
+          {/* User Delivery Address (Pulled directly from DB) */}
+          <View style={styles.profileAddressContainer}>
+            <View style={styles.profileAddressLeft}>
+              <Ionicons name="location-outline" size={14} color="#059669" />
+              <Text style={styles.profileAddressText} numberOfLines={1}>
+                {displayAddress || 'No primary delivery address saved in database'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditProfile')}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.profileAddressActionText}>
+                {displayAddress ? 'Edit' : '+ Add'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -405,7 +441,10 @@ export default function AccountScreen() {
             </View>
             <View style={styles.menuItemTextCol}>
               <Text style={styles.menuItemTitle}>Personal Information</Text>
-              <Text style={styles.menuItemSub}>Name, email, phone number</Text>
+              <Text style={styles.menuItemSub}>
+                {user?.full_name ? `${user.full_name} • ` : ''}
+                {user?.phone || 'Add phone'} • {displayAddress ? 'Address set' : 'Add address'}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
@@ -680,6 +719,55 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  profileBioContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 10,
+    paddingTop: 9,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(16, 185, 129, 0.18)',
+    paddingHorizontal: 2,
+  },
+  profileBioText: {
+    flex: 1,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11.5,
+    color: '#065F46',
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+  profileAddressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginTop: 10,
+  },
+  profileAddressLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginRight: 8,
+  },
+  profileAddressText: {
+    flex: 1,
+    fontFamily: renewxFontFamily.medium,
+    fontSize: 11,
+    color: '#334155',
+  },
+  profileAddressActionText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
   },
 
   /* 3. ADMIN BANNER */

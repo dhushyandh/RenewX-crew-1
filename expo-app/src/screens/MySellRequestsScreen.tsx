@@ -157,7 +157,7 @@ export default function MySellRequestsScreen() {
         <View style={styles.divider} />
         
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Valuation Quote</Text>
+          <Text style={styles.label}>Seller Quoted Price</Text>
           <Text style={styles.amount}>₹{amount.toLocaleString('en-IN')}</Text>
         </View>
 

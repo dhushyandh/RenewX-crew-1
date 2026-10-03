@@ -15,12 +15,37 @@ export async function getNotifications(
       return;
     }
 
-    const list = await NotificationModel.find({ user_id: req.user.id })
-      .sort({ created_at: -1 })
-      .limit(100);
+    const { page: rawPage, limit: rawLimit } = req.query;
+    const page = Number(rawPage) > 0 ? Number(rawPage) : 1;
+    const limit = Number(rawLimit) > 0 ? Math.min(Number(rawLimit), 100) : 50;
 
-    const unreadCount = list.filter((item) => !item.read_at).length;
-    res.json({ success: true, count: list.length, unreadCount, data: list });
+    const filter = { user_id: req.user.id };
+
+    const [list, total, unreadCount] = await Promise.all([
+      NotificationModel.find(filter)
+        .sort({ created_at: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      NotificationModel.countDocuments(filter),
+      NotificationModel.countDocuments({ user_id: req.user.id, read_at: null }),
+    ]);
+
+    const normalized = list.map(({ _id, ...item }: any) => ({
+      ...item,
+      id: _id ? _id.toString() : item.id,
+    }));
+
+    res.json({
+      success: true,
+      count: normalized.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      unreadCount,
+      data: normalized,
+    });
   } catch (err) {
     next(err);
   }

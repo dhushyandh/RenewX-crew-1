@@ -8,7 +8,7 @@ import { sendEmailVerificationCode } from '../services/emailService';
 
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { role, search } = req.query;
+    const { role, search, page: rawPage, limit: rawLimit } = req.query;
 
     const filter: Record<string, any> = {};
 
@@ -17,12 +17,36 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
     }
 
     if (search && typeof search === 'string' && search.trim()) {
-      filter.email = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ email: searchRegex }, { full_name: searchRegex }, { phone: searchRegex }];
     }
 
-    const users = await User.find(filter).sort({ created_at: -1 });
+    const page = Number(rawPage) > 0 ? Number(rawPage) : 1;
+    const limit = Number(rawLimit) > 0 ? Math.min(Number(rawLimit), 100) : 30;
 
-    res.json({ success: true, count: users.length, data: users });
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .sort({ created_at: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    const normalized = users.map(({ _id, ...user }: any) => ({
+      ...user,
+      id: _id ? _id.toString() : user.id,
+    }));
+
+    res.json({
+      success: true,
+      count: normalized.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data: normalized,
+    });
   } catch (err) {
     next(err);
   }

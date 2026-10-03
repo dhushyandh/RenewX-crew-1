@@ -147,7 +147,7 @@ export async function getOrders(req: AuthenticatedRequest, res: Response, next: 
       return;
     }
 
-    const { status, limit, user_id } = req.query;
+    const { status, limit, page: rawPage, user_id } = req.query;
     const filter: mongoose.FilterQuery<IOrder> = {};
 
     if (status && typeof status === 'string') filter.status = status;
@@ -158,15 +158,35 @@ export async function getOrders(req: AuthenticatedRequest, res: Response, next: 
       filter.user_id = user_id;
     }
 
+    const parsedPage = Number(rawPage);
+    const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const parsedLimit = Number(limit);
-    const safeLimit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 20;
-    const orders = await OrderModel.find(filter).sort({ created_at: -1 }).limit(safeLimit).lean().exec();
+    const safeLimit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 20;
+
+    const [orders, total] = await Promise.all([
+      OrderModel.find(filter)
+        .sort({ created_at: -1 })
+        .skip((page - 1) * safeLimit)
+        .limit(safeLimit)
+        .lean()
+        .exec(),
+      OrderModel.countDocuments(filter),
+    ]);
+
     const normalizedOrders = orders.map(({ _id, ...order }: any) => ({
       ...order,
       id: _id ? _id.toString() : order.id,
     }));
 
-    res.json({ success: true, count: normalizedOrders.length, data: normalizedOrders });
+    res.json({
+      success: true,
+      count: normalizedOrders.length,
+      total,
+      page,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+      data: normalizedOrders,
+    });
   } catch (err) {
     next(err);
   }

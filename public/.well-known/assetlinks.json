@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.renewx.mobile",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:7D:0C:5C:30:60:11:F9:6B:4A:83:94:13:83:8F:D5:A4:F0:48:52:12:3E:A8:52:FA:E0:E2:B6:56:1B",
+        "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C"
+      ]
+    }
+  }
+]

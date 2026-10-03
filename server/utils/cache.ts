@@ -8,8 +8,10 @@ interface CacheEntry<T = any> {
 class MemoryCache {
   private store = new Map<string, CacheEntry>();
   private sweepTimer: NodeJS.Timeout | null = null;
+  private maxEntries: number = 2000;
 
-  constructor() {
+  constructor(maxEntries: number = 2000) {
+    this.maxEntries = maxEntries;
     // Periodically clean up expired keys every 60 seconds
     this.sweepTimer = setInterval(() => {
       const now = Date.now();
@@ -32,10 +34,24 @@ class MemoryCache {
       this.store.delete(key);
       return null;
     }
+    // Refresh position for LRU
+    this.store.delete(key);
+    this.store.set(key, entry);
     return entry.data as T;
   }
 
   set<T = any>(key: string, data: T, ttlSeconds: number = 60): void {
+    // If key already exists, delete it so re-insert moves it to the most-recently-used end
+    if (this.store.has(key)) {
+      this.store.delete(key);
+    } else if (this.store.size >= this.maxEntries) {
+      // Evict oldest entry (LRU)
+      const oldestKey = this.store.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.store.delete(oldestKey);
+      }
+    }
+
     this.store.set(key, {
       data,
       expiresAt: Date.now() + ttlSeconds * 1000,

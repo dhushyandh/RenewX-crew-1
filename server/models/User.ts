@@ -223,4 +223,8 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string):
   return bcrypt.compare(candidatePassword, this.password);
 };
 
+UserSchema.index({ role: 1, created_at: -1 });
+UserSchema.index({ created_at: -1 });
+UserSchema.index({ push_tokens: 1 }, { sparse: true });
+
 export const User = (mongoose.models.User as mongoose.Model<IUser>) || mongoose.model<IUser>('User', UserSchema);

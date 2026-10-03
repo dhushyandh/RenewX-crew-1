@@ -9,6 +9,9 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     role: 'admin' | 'customer';
     full_name?: string;
+    phone?: string;
+    address?: string;
+    pincode?: string;
   };
 }
 

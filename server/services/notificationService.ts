@@ -561,6 +561,7 @@ export async function broadcastNewProductArrival(product: {
             screen: 'ProductDetail',
             productId: productIdStr,
             id: productIdStr,
+            url: `https://renewx.expo.app/product/${productIdStr}`,
           },
           channelId: 'default',
         });

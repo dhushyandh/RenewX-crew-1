@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +28,7 @@ export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
   const toast = useToast();
 
   // Profile fields state
@@ -42,6 +42,32 @@ export default function EditProfileScreen() {
   const [pincode, setPincode] = useState(user?.pincode || '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Sync latest user details pulled fresh from DB
+  const initialSyncDone = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const freshUser = await refreshUser?.();
+        if (freshUser && isMounted && !initialSyncDone.current) {
+          initialSyncDone.current = true;
+          if (freshUser.full_name !== undefined) setFullName(freshUser.full_name || '');
+          if (freshUser.avatar_url !== undefined) setAvatarUrl(freshUser.avatar_url || '');
+          if (freshUser.phone !== undefined) setPhone(freshUser.phone || '');
+          if (freshUser.bio !== undefined) setBio(freshUser.bio || '');
+          if (freshUser.address !== undefined) setAddress(freshUser.address || '');
+          if (freshUser.city !== undefined) setCity(freshUser.city || 'Bangalore');
+          if (freshUser.state !== undefined) setStateName(freshUser.state || 'Karnataka');
+          if (freshUser.pincode !== undefined) setPincode(freshUser.pincode || '');
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshUser]);
 
   // Email verification state
   const [showEmailChange, setShowEmailChange] = useState(false);
@@ -176,6 +202,7 @@ export default function EditProfileScreen() {
             JSON.stringify(res.data.saved_addresses)
           ).catch(() => {});
         }
+        await refreshUser?.();
       }
 
       toast.show({

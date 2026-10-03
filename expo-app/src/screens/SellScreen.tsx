@@ -185,19 +185,16 @@ export default function SellScreen() {
   // Step 5: Photos (Starts empty — at least 1 photo required)
   const [photos, setPhotos] = useState<Array<{ id: string; label: string; uri: string }>>([]);
 
-  // Step 6: Price & Valuation (Calculated dynamically)
+  // Step 6: Seller Quoted Price (Seller quotes their own asking price without automated estimates)
   const [expectedPrice, setExpectedPrice] = useState<string>('');
   const numericPrice = Number(expectedPrice) || 0;
-  const baseValue = Math.round(numericPrice * 0.95);
-  const conditionAdjustment = 0;
-  const marketBonus = numericPrice > 0 ? Math.round(numericPrice * 0.05) : 0;
-  const estimatedTotal = numericPrice > 0 ? numericPrice : 0;
 
   // Step 7: Pickup & Contact (Defaults from logged in user profile, completely empty otherwise)
   const [fullName, setFullName] = useState<string>(() => user?.full_name || (user as any)?.name || '');
   const [mobileNumber, setMobileNumber] = useState<string>(() => user?.phone || (user as any)?.phone || '');
   const [email, setEmail] = useState<string>(() => user?.email || '');
   const [pickupAddress, setPickupAddress] = useState<string>(() => user?.address || (user as any)?.address || '');
+  const [pincode, setPincode] = useState<string>(() => (user as any)?.pincode || '');
   const [pickupDate, setPickupDate] = useState<string>('');
   const [showDatePickerModal, setShowDatePickerModal] = useState<boolean>(false);
   const [additionalNotes, setAdditionalNotes] = useState<string>('');
@@ -239,6 +236,8 @@ export default function SellScreen() {
     if (phone && !mobileNumber) setMobileNumber(phone);
     const addr = user?.address || (user as any)?.address;
     if (addr && !pickupAddress) setPickupAddress(addr);
+    const pin = (user as any)?.pincode;
+    if (pin && !pincode) setPincode(pin);
   }, [user]);
 
   // Clear transition timer on unmount
@@ -326,33 +325,6 @@ export default function SellScreen() {
     }
   }, [selectedBrand, selectedBrandName, fetchModelsFromDb]);
 
-  // Dynamic Live Valuation Fetching from API
-  useEffect(() => {
-    if (!selectedModel || !selectedStorage) return;
-
-    let active = true;
-    api.tradeIn.getQuote({
-      category: selectedCategory,
-      brand: selectedBrandName,
-      model: selectedModel,
-      storage: selectedStorage,
-      condition: selectedCondition,
-      functionalChecks: { switchesOn: isWorkingProperly ?? true },
-      accessories: { hasBox: hasAccessories ?? false },
-    })
-      .then((res: any) => {
-        if (!active) return;
-        const val = Number(res?.valuation || res?.data?.valuation || 0);
-        if (val > 0) {
-          setExpectedPrice(String(val));
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      active = false;
-    };
-  }, [selectedModel, selectedStorage, selectedCondition, isWorkingProperly, hasAccessories, selectedCategory, selectedBrandName]);
 
   // Scroll to top on step change
   useEffect(() => {
@@ -500,7 +472,7 @@ export default function SellScreen() {
     if (step === 6) {
       const price = Number(expectedPrice);
       if (!price || price <= 0) {
-        toast.warning('Please enter a valid expected selling price.');
+        toast.warning('Please enter your quoted selling price for the device.');
         return;
       }
     }
@@ -587,6 +559,7 @@ export default function SellScreen() {
       if (geo && geo.address) {
         const fullAddr = `${geo.address}${geo.city ? ', ' + geo.city : ''}${geo.pincode ? ' - ' + geo.pincode : ''}`;
         setPickupAddress(fullAddr);
+        if (geo.pincode) setPincode(geo.pincode);
         toast.success('Pickup address detected!');
       } else {
         toast.info('Using GPS coordinates.');
@@ -600,45 +573,86 @@ export default function SellScreen() {
 
   // Submit Sell Request
   const handleSubmitRequest = async () => {
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in or create an account to submit your sell request so we can inspect and verify your device.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => navigation.navigate('Auth' as any) },
+        ]
+      );
+      return;
+    }
+    if (!fullName.trim()) {
+      toast.warning('Please enter your full name.');
+      return;
+    }
+    if (!mobileNumber.trim()) {
+      toast.warning('Please enter your mobile number.');
+      return;
+    }
+    if (!pickupAddress.trim()) {
+      toast.warning('Please enter your pickup address.');
+      return;
+    }
+    if (numericPrice <= 0) {
+      toast.warning('Please enter your asking quote price in Step 6.');
+      return;
+    }
     if (!agreedTerms) {
       toast.warning('Please agree to the Terms & Conditions.');
       return;
     }
+
     try {
       setSubmitting(true);
+      const resolvedPincode =
+        pincode.trim() ||
+        pickupAddress.match(/\b\d{6}\b/)?.[0] ||
+        (user as any)?.pincode ||
+        '600001';
+
       const payload = {
-        category: selectedCategory,
-        brand: selectedBrandName,
-        model: selectedModel,
-        storage: selectedStorage,
-        color: selectedColor,
-        condition: selectedCondition,
+        category: selectedCategory || 'Smartphone',
+        brand: selectedBrandName || 'General',
+        model: selectedModel || 'Device',
+        storage: selectedStorage || 'Standard',
+        color: selectedColor || 'Standard',
+        condition: selectedCondition || 'Good',
         isWorkingProperly: isWorkingProperly ?? true,
-        age: selectedAge,
+        age: selectedAge || '6 - 12 months',
         hasAccessories: hasAccessories ?? false,
-        expectedPrice: Number(expectedPrice) || 0,
+        expectedPrice: numericPrice,
+        expectedSellingPrice: numericPrice,
+        valuationAmount: numericPrice,
+        quotedPrice: numericPrice,
+        isSellerQuoted: true,
         customerName: fullName.trim(),
         customerPhone: mobileNumber.trim(),
         customerEmail: email.trim(),
+        address: pickupAddress.trim(),
         pickupAddress: pickupAddress.trim(),
+        pincode: resolvedPincode,
         pickupDate: pickupDate || 'Soon',
         additionalNotes: additionalNotes.trim(),
         photos: photos.map((p) => p.uri),
       };
 
-      let res: any = null;
-      try {
-        res = await api.tradeIn.createPickup(payload);
-      } catch {
-        res = null;
-      }
+      const res: any = await api.tradeIn.createPickup(payload);
       const generatedId =
-        res?.data?.id || res?.id || `RNX-${Math.floor(100000 + Math.random() * 900000)}`;
+        res?.id ||
+        res?._id ||
+        res?.data?.id ||
+        res?.data?._id ||
+        `RNX-${Date.now().toString().slice(-6)}`;
 
       setSubmittedId(generatedId);
-      toast.success('Sell request submitted successfully!');
+      toast.success('Sell request submitted successfully and queued for admin inspection!');
     } catch (err: any) {
-      toast.error(err?.message || 'Could not submit sell request.');
+      const msg = err?.message || 'Could not submit sell request. Please try again.';
+      toast.error(msg);
+      Alert.alert('Submission Failed', msg);
     } finally {
       setSubmitting(false);
     }
@@ -695,7 +709,7 @@ export default function SellScreen() {
               <Text style={styles.summaryItemValue}>{selectedModel || 'Certified Device'}</Text>
             </View>
             <View style={styles.summaryItemRow}>
-              <Text style={styles.summaryItemLabel}>Quote Expected</Text>
+              <Text style={styles.summaryItemLabel}>Seller Quoted Price</Text>
               <Text style={styles.summaryItemValueHighlight}>₹{numericPrice.toLocaleString('en-IN')}</Text>
             </View>
             <View style={styles.summaryItemRow}>
@@ -757,11 +771,11 @@ export default function SellScreen() {
             {step === 1 && '1. Select Device Category'}
             {step === 2 && '2. Choose Device Brand'}
             {step === 3 && '3. Select Model'}
-            {step === 4 && '4. Storage & Color'}
-            {step === 5 && '5. Device Condition'}
-            {step === 6 && '6. Upload Photos'}
-            {step === 7 && '7. Instant Valuation'}
-            {step === 8 && '8. Doorstep Pickup & Payout'}
+            {step === 4 && '4. Specifications & Condition'}
+            {step === 5 && '5. Upload Device Photos'}
+            {step === 6 && '6. Quote Your Price'}
+            {step === 7 && '7. Pickup & Contact Details'}
+            {step === 8 && '8. Review & Submit'}
           </Text>
           <Text style={styles.stepPctText}>{Math.round((step / 8) * 100)}%</Text>
         </View>
@@ -1265,14 +1279,16 @@ export default function SellScreen() {
             </View>
           )}
 
-          {/* ================= STEP 6: PRICE & VALUATION ================= */}
+          {/* ================= STEP 6: QUOTE YOUR PRICE (SELLER QUOTES OWN VALUE) ================= */}
           {step === 6 && (
             <View>
-              <Text style={styles.stepTitle}>6. Price & Valuation</Text>
-              <Text style={styles.stepSubtitle}>Get an estimated price for your device.</Text>
+              <Text style={styles.stepTitle}>6. Quote Your Price</Text>
+              <Text style={styles.stepSubtitle}>
+                Enter your desired asking price. You decide how much you want for your device.
+              </Text>
 
-              {/* Estimated Value Card */}
-              <View style={styles.valuationHighlightCard}>
+              {/* Selected Device Summary Card */}
+              <View style={styles.deviceSummaryQuoteCard}>
                 <View style={styles.valuationPhoneBox}>
                   <Image
                     source={typeof activeDeviceImage === 'number' ? activeDeviceImage : activeDeviceImage}
@@ -1281,69 +1297,109 @@ export default function SellScreen() {
                   />
                 </View>
                 <View style={styles.valuationTextCol}>
-                  <Text style={styles.valCardLabel}>Estimated Value</Text>
-                  <Text style={styles.valCardPriceRange}>
-                    {numericPrice > 0
-                      ? `₹${Math.round(numericPrice * 0.95).toLocaleString('en-IN')} - ₹${Math.round(numericPrice * 1.05).toLocaleString('en-IN')}`
-                      : 'Calculate quote'}
+                  <Text style={styles.quoteDeviceTitle} numberOfLines={1}>
+                    {selectedBrandName} {selectedModel}
                   </Text>
-                  <Text style={styles.valCardExplanation}>Based on your device details and market demand</Text>
+                  <Text style={styles.quoteDeviceSpecs}>
+                    {selectedStorage || 'Standard'} · {selectedColor || 'Standard'} · {selectedCondition || 'Good'} Condition
+                  </Text>
+                  <View style={styles.sellerFreedomTag}>
+                    <Ionicons name="sparkles" size={11} color="#059669" />
+                    <Text style={styles.sellerFreedomTagText}>Seller Quotes Value</Text>
+                  </View>
                 </View>
               </View>
 
-              {/* Expected Selling Price Input */}
+              {/* Expected / Quoted Price Input */}
               <View style={styles.expectedPriceSection}>
-                <Text style={styles.expectedPriceLabel}>Your Expected Selling Price</Text>
+                <Text style={styles.expectedPriceLabel}>
+                  Your Quoted Price <Text style={{ color: '#EF4444' }}>*</Text>
+                </Text>
                 <View style={styles.currencyInputBox}>
                   <Text style={styles.currencyPrefix}>₹</Text>
                   <TextInput
                     style={styles.currencyInput}
                     value={expectedPrice}
-                    onChangeText={setExpectedPrice}
-                    keyboardType="numeric"
-                    placeholder="Enter expected amount (e.g. 45000)"
+                    onChangeText={(val) => setExpectedPrice(val.replace(/\D/g, ''))}
+                    keyboardType="number-pad"
+                    placeholder="Enter your asking price (e.g. 35000)"
                     placeholderTextColor="#94A3B8"
                   />
+                  {Boolean(expectedPrice) && (
+                    <TouchableOpacity
+                      onPress={() => setExpectedPrice('')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                    </TouchableOpacity>
+                  )}
                 </View>
+                {numericPrice > 0 && (
+                  <Text style={styles.quoteFormattedHint}>
+                    Your asking price: <Text style={{ fontWeight: '800', color: '#0F172A' }}>₹{numericPrice.toLocaleString('en-IN')}</Text>
+                  </Text>
+                )}
               </View>
 
-              {/* Price May Vary Info Alert */}
-              <View style={styles.priceVaryNoticeCard}>
-                <View style={styles.shieldNoticeIcon}>
-                  <Ionicons name="shield-checkmark" size={18} color="#D97706" />
+              {/* Quick Preset Buttons */}
+              <View style={styles.quickQuoteRow}>
+                {[15000, 25000, 35000, 50000, 75000].map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[
+                      styles.quickQuoteChip,
+                      numericPrice === preset && styles.quickQuoteChipSelected,
+                    ]}
+                    onPress={() => setExpectedPrice(String(preset))}
+                    activeOpacity={0.75}
+                  >
+                    <Text
+                      style={[
+                        styles.quickQuoteChipText,
+                        numericPrice === preset && styles.quickQuoteChipTextSelected,
+                      ]}
+                    >
+                      ₹{(preset / 1000).toFixed(0)}k
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Seller Freedom & Direct Inspection Notice (No Algorithm Estimate) */}
+              <View style={styles.sellerEmpowerCard}>
+                <View style={styles.sellerEmpowerHeader}>
+                  <View style={styles.sellerEmpowerIconCircle}>
+                    <Ionicons name="shield-checkmark" size={18} color="#059669" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sellerEmpowerTitle}>Seller-Driven Valuation</Text>
+                    <Text style={styles.sellerEmpowerSub}>
+                      No automatic algorithm estimates or automated deductions.
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.priceVaryTitle}>Final price may vary</Text>
-                  <Text style={styles.priceVarySub}>
-                    The final price will be confirmed after physical inspection of your device.
+
+                <View style={styles.sellerEmpowerDivider} />
+
+                <View style={styles.sellerBenefitItem}>
+                  <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginTop: 1 }} />
+                  <Text style={styles.sellerBenefitText}>
+                    <Text style={{ fontWeight: '700', color: '#0F172A' }}>You Set the Price:</Text> You have full freedom to quote your device's worth.
                   </Text>
                 </View>
-              </View>
 
-              {/* Price Breakdown */}
-              <View style={styles.breakdownCard}>
-                <Text style={styles.breakdownHeading}>Price Breakdown (Estimated)</Text>
-
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Base Value</Text>
-                  <Text style={styles.breakdownValue}>₹{baseValue.toLocaleString('en-IN')}</Text>
+                <View style={styles.sellerBenefitItem}>
+                  <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginTop: 1 }} />
+                  <Text style={styles.sellerBenefitText}>
+                    <Text style={{ fontWeight: '700', color: '#0F172A' }}>Doorstep Verification:</Text> Our certified expert verifies the physical device at your doorstep.
+                  </Text>
                 </View>
 
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Condition Adjustment</Text>
-                  <Text style={styles.breakdownValue}>+ ₹0</Text>
-                </View>
-
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Market Demand Bonus</Text>
-                  <Text style={styles.breakdownValueHighlight}>+ ₹{marketBonus.toLocaleString('en-IN')}</Text>
-                </View>
-
-                <View style={styles.breakdownDivider} />
-
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownTotalLabel}>Estimated Value</Text>
-                  <Text style={styles.breakdownTotalValue}>₹{estimatedTotal.toLocaleString('en-IN')}</Text>
+                <View style={styles.sellerBenefitItem}>
+                  <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginTop: 1 }} />
+                  <Text style={styles.sellerBenefitText}>
+                    <Text style={{ fontWeight: '700', color: '#0F172A' }}>Instant Payout:</Text> Bank transfer or UPI paid directly to you on the spot.
+                  </Text>
                 </View>
               </View>
             </View>
@@ -1432,6 +1488,23 @@ export default function SellScreen() {
                     )}
                     <Text style={styles.useCurrentLocText}>Use Current Location</Text>
                   </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Pickup Pincode */}
+              <View style={styles.inputSection}>
+                <Text style={styles.inputFieldLabel}>Pickup Pincode</Text>
+                <View style={styles.iconInputBox}>
+                  <Ionicons name="navigate-outline" size={17} color="#64748B" style={{ marginRight: 6 }} />
+                  <TextInput
+                    style={styles.textInputPure}
+                    value={pincode}
+                    onChangeText={setPincode}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    placeholder="6-digit Pincode (e.g. 600001)"
+                    placeholderTextColor="#94A3B8"
+                  />
                 </View>
               </View>
 
@@ -1549,15 +1622,20 @@ export default function SellScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Expected Price */}
+                {/* Seller Quoted Price */}
                 <View style={styles.reviewRow}>
                   <View style={styles.reviewRowLeft}>
-                    <Ionicons name="cash-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
-                    <Text style={styles.reviewRowLabel}>Expected Price</Text>
+                    <Ionicons name="pricetag-outline" size={16} color="#059669" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewRowLabel}>Seller Quoted Price</Text>
                   </View>
-                  <Text style={styles.reviewRowValue}>
-                    ₹{numericPrice.toLocaleString('en-IN')}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.reviewRowValue, { color: '#059669', fontWeight: '800' }]}>
+                      ₹{numericPrice.toLocaleString('en-IN')}
+                    </Text>
+                    <View style={styles.quotedStatusTag}>
+                      <Text style={styles.quotedStatusTagText}>Quoted</Text>
+                    </View>
+                  </View>
                   <TouchableOpacity onPress={() => setStep(6)} style={styles.reviewEditBtn}>
                     <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
@@ -1571,7 +1649,10 @@ export default function SellScreen() {
                     <Text style={styles.reviewRowLabel}>Pickup Details</Text>
                   </View>
                   <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={styles.reviewRowValueMultiline}>{pickupAddress || 'Address not specified'}</Text>
+                    <Text style={styles.reviewRowValueMultiline}>
+                      {pickupAddress || 'Address not specified'}
+                      {pincode ? ` (${pincode})` : ''}
+                    </Text>
                     <Text style={[styles.reviewRowSubMultiline, { marginTop: 3, fontWeight: '700', color: '#0F172A' }]}>
                       Pickup Date: {pickupDate || 'Not selected'}
                     </Text>
@@ -2326,8 +2407,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* STEP 6: PRICE & VALUATION */
-  valuationHighlightCard: {
+  /* STEP 6: QUOTE YOUR PRICE (SELLER QUOTED PRICE) */
+  deviceSummaryQuoteCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
@@ -2354,25 +2435,37 @@ const styles = StyleSheet.create({
   valuationTextCol: {
     flex: 1,
   },
-  valCardLabel: {
-    fontFamily: renewxFontFamily.medium,
-    fontSize: 11.5,
-    color: '#64748B',
-  },
-  valCardPriceRange: {
-    fontFamily: renewxFontFamily.extraBold,
-    fontSize: 21,
-    fontWeight: '900',
+  quoteDeviceTitle: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 14.5,
+    fontWeight: '800',
     color: '#0F172A',
-    marginVertical: 2,
   },
-  valCardExplanation: {
+  quoteDeviceSpecs: {
+    marginTop: 2,
     fontFamily: renewxFontFamily.regular,
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#64748B',
+  },
+  sellerFreedomTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  sellerFreedomTagText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 10,
+    color: '#059669',
+    fontWeight: '700',
   },
   expectedPriceSection: {
-    marginBottom: 14,
+    marginBottom: 10,
   },
   expectedPriceLabel: {
     fontFamily: renewxFontFamily.bold,
@@ -2384,111 +2477,123 @@ const styles = StyleSheet.create({
   currencyInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
+    height: 52,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
   },
   currencyPrefix: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 16,
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 20,
     color: '#0F172A',
     marginRight: 8,
+    fontWeight: '900',
   },
   currencyInput: {
     flex: 1,
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 16,
+    fontFamily: renewxFontFamily.extraBold,
+    fontSize: 18,
+    fontWeight: '800',
     color: '#0F172A',
     padding: 0,
     ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
-  priceVaryNoticeCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FFFDF5',
-    borderWidth: 1,
-    borderColor: '#FEF08A',
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    marginBottom: 16,
-  },
-  shieldNoticeIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FEF08A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  priceVaryTitle: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#B45309',
-  },
-  priceVarySub: {
-    marginTop: 2,
+  quoteFormattedHint: {
+    marginTop: 6,
     fontFamily: renewxFontFamily.regular,
-    fontSize: 11,
-    color: '#78350F',
-    lineHeight: 15,
+    fontSize: 11.5,
+    color: '#64748B',
   },
-  breakdownCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+  quickQuoteRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  quickQuoteChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quickQuoteChipSelected: {
+    backgroundColor: '#FEF08A',
+    borderColor: '#FACC15',
+  },
+  quickQuoteChipText: {
+    fontFamily: renewxFontFamily.bold,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  quickQuoteChipTextSelected: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  sellerEmpowerCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     padding: 14,
   },
-  breakdownHeading: {
+  sellerEmpowerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sellerEmpowerIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellerEmpowerTitle: {
     fontFamily: renewxFontFamily.bold,
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
     color: '#0F172A',
-    marginBottom: 10,
   },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  breakdownLabel: {
+  sellerEmpowerSub: {
     fontFamily: renewxFontFamily.regular,
-    fontSize: 12,
+    fontSize: 10.5,
     color: '#64748B',
+    marginTop: 1,
   },
-  breakdownValue: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 12.5,
-    color: '#0F172A',
-  },
-  breakdownValueHighlight: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 12.5,
-    color: '#16A34A',
-  },
-  breakdownDivider: {
+  sellerEmpowerDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 8,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 10,
   },
-  breakdownTotalLabel: {
-    fontFamily: renewxFontFamily.extraBold,
-    fontSize: 13.5,
-    fontWeight: '900',
-    color: '#0F172A',
+  sellerBenefitItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+    marginVertical: 3,
   },
-  breakdownTotalValue: {
-    fontFamily: renewxFontFamily.extraBold,
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#0F172A',
+  sellerBenefitText: {
+    flex: 1,
+    fontFamily: renewxFontFamily.regular,
+    fontSize: 11,
+    color: '#334155',
+    lineHeight: 16,
+  },
+  quotedStatusTag: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  quotedStatusTagText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#16A34A',
   },
 
   /* STEP 7: PICKUP & CONTACT */

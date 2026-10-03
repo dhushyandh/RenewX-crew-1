@@ -195,8 +195,21 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addToCart, totalItems } = useCart();
   const { isInWishlist, toggleWishlist, totalWishlistItems } = useWishlist();
-  const { isAdmin, signOut } = useAuth();
+  const { isAdmin, signOut, user, refreshUser } = useAuth();
   const toast = useToast();
+
+  const userAddressDisplay = useMemo(() => {
+    if (user?.city && user.city.trim()) return user.city.trim();
+    if (user?.address && user.address.trim()) {
+      return user.address.split(',')[0].trim();
+    }
+    if (user?.saved_addresses && user.saved_addresses.length > 0) {
+      const defaultAddr = user.saved_addresses.find((a: any) => a.is_default) || user.saved_addresses[0];
+      if (defaultAddr?.city) return defaultAddr.city;
+      if (defaultAddr?.address_line1) return defaultAddr.address_line1;
+    }
+    return 'Chennai';
+  }, [user]);
 
   const [selectedQuickCategory, setSelectedQuickCategory] = useState('Smartphones');
   const [productList, setProductList] = useState<Product[]>([]);
@@ -311,11 +324,12 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      refreshUser?.();
       scrollRef.current?.scrollTo({ y: 0, animated: false });
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
       }
-    }, []),
+    }, [refreshUser]),
   );
 
   const saveProductsCache = useCallback(async (rows: any[]) => {
@@ -385,8 +399,11 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchLiveProducts();
-  }, [fetchLiveProducts]);
+    await Promise.allSettled([
+      fetchLiveProducts(),
+      refreshUser ? refreshUser() : Promise.resolve(),
+    ]);
+  }, [fetchLiveProducts, refreshUser]);
 
   const handleCategoryPress = useCallback((categoryName: string) => {
     setSelectedQuickCategory(categoryName);
@@ -435,7 +452,8 @@ export default function HomeScreen() {
         onSell={() => (navigation as any).navigate('Sell')}
         onWishlist={() => navigation.navigate('Wishlist')}
         onNotifications={() => navigation.navigate('Notifications')}
-        userAddress="Chennai"
+        userAddress={userAddressDisplay}
+        userName={user?.full_name || undefined}
       />
 
       <ScrollView
@@ -539,7 +557,6 @@ export default function HomeScreen() {
                   />
                   <Animated.Image
                     source={{ uri: 'https://pngimg.com/uploads/iphone_14/iphone_14_PNG48.png' }}
-                    defaultSource={require('@/assets/banners/banner_shop.png')}
                     style={[
                       styles.heroCollageImg,
                       { transform: [{ translateY: heroFloatAnim }, { rotate: heroFloatRotate }] },
@@ -607,7 +624,6 @@ export default function HomeScreen() {
                   />
                   <Animated.Image
                     source={{ uri: 'https://pngimg.com/uploads/iphone_14/iphone_14_PNG21.png' }}
-                    defaultSource={require('@/assets/banners/banner_sell.png')}
                     style={[
                       styles.heroCollageImg,
                       { transform: [{ scale: 0.95 }, { translateY: heroFloatAnim }, { rotate: heroFloatRotate }] },
@@ -687,7 +703,6 @@ export default function HomeScreen() {
                   />
                   <Animated.Image
                     source={{ uri: 'https://pngimg.com/uploads/whatsapp/whatsapp_PNG20.png' }}
-                    defaultSource={require('@/assets/banners/banner_whatsapp.png')}
                     style={[
                       styles.heroWhatsAppImg,
                       { transform: [{ translateY: heroFloatAnim }, { rotate: heroFloatRotate }] },

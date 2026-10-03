@@ -41,6 +41,17 @@ Sitemap: https://renewx.expo.app/sitemap.xml
 fs.writeFileSync(path.join(distDir, 'robots.txt'), robotsTxt, 'utf8');
 console.log('✅ robots.txt generated');
 
+// 2b. Ensure Android App Links .well-known/assetlinks.json is in dist/
+const wellKnownDist = path.join(distDir, '.well-known');
+if (!fs.existsSync(wellKnownDist)) {
+  fs.mkdirSync(wellKnownDist, { recursive: true });
+}
+const assetLinksSrc = path.join(expoDir, 'public', '.well-known', 'assetlinks.json');
+if (fs.existsSync(assetLinksSrc)) {
+  fs.copyFileSync(assetLinksSrc, path.join(wellKnownDist, 'assetlinks.json'));
+  console.log('✅ Android App Links .well-known/assetlinks.json copied to dist/');
+}
+
 // 3. Generate sitemap.xml
 const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

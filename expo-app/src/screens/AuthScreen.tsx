@@ -13,6 +13,7 @@ import {
   Animated,
   Modal,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,6 +22,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RenewXLogo from '@/components/RenewXLogo';
 import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 
@@ -47,6 +49,8 @@ interface AuthScreenProps {
 }
 
 export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<any>();
   const toast = useToast();
@@ -607,108 +611,119 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
     }
   };
 
+  /* ========================================================================= */
+  /* 1. PRODUCTION-READY SPLASH / WELCOME SCREEN MATCHING MOCKUP               */
+  /* Fixed, non-scrollable, sticking 100% strictly to viewport dimensions       */
+  /* ========================================================================= */
+  if (step === 'splash') {
+    const topInset = Math.max(insets.top, safeTop, 6);
+    const bottomInset = Math.max(insets.bottom, 10);
+    // Combined action column height: 3 buttons (48*3=144) + margins (8*3=24) + divider (16) + padding (8) = 192px
+    const actionBlockHeight = 196;
+    const heroMaxHeight = Math.max(140, windowHeight - topInset - bottomInset - actionBlockHeight);
+
+    return (
+      <View
+        style={[
+          styles.splashScreenContainer,
+          {
+            height: windowHeight,
+            maxHeight: windowHeight,
+            paddingTop: topInset,
+            paddingBottom: bottomInset,
+          },
+        ]}
+      >
+        {/* Top Branded Hero Poster: Waves, Logo, Tagline, Devices, and 3 Badges */}
+        <View style={[styles.splashHeroFrame, { maxHeight: heroMaxHeight }]}>
+          <Image
+            source={SPLASH_HERO_TOP}
+            style={styles.splashHeroImage}
+            resizeMode="contain"
+          />
+        </View>
+
+        {/* Action Buttons Matching Mockup Exactly */}
+        <View style={styles.splashActionCol}>
+          {/* 1. Yellow Sign In Pill Button */}
+          <TouchableOpacity
+            style={styles.signInPillBtn}
+            onPress={() => {
+              setIsSignUp(false);
+              setSignInWithOtpMode(false);
+              setError(null);
+              setErrorCode(null);
+              setStep('email');
+            }}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Sign In"
+          >
+            <View style={styles.btnIconLeftBox}>
+              <Ionicons name="person-outline" size={20} color="#0F172A" />
+            </View>
+            <Text style={styles.signInPillText}>Sign In</Text>
+            <Ionicons name="arrow-forward" size={19} color="#0F172A" />
+          </TouchableOpacity>
+
+          {/* 2. White Create Account Pill Button */}
+          <TouchableOpacity
+            style={styles.createAccountPillBtn}
+            onPress={() => {
+              setIsSignUp(true);
+              setSignInWithOtpMode(false);
+              setError(null);
+              setErrorCode(null);
+              setStep('email');
+            }}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Create Account"
+          >
+            <View style={styles.btnIconLeftBox}>
+              <Ionicons name="person-add-outline" size={20} color="#0F172A" />
+            </View>
+            <Text style={styles.createAccountPillText}>Create Account</Text>
+            <Ionicons name="arrow-forward" size={19} color="#0F172A" />
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* 3. Continue with Google Pill Button */}
+          <TouchableOpacity
+            style={styles.googlePillWhiteBtn}
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+          >
+            {googleLoading ? (
+              <ActivityIndicator size="small" color="#0F172A" />
+            ) : (
+              <>
+                <View style={styles.googleIconBox}>
+                  <Ionicons name="logo-google" size={18} color="#EA4335" />
+                </View>
+                <Text style={styles.googleBtnLabel}>Continue with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.rootContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* ========================================================================= */}
-      {/* ========================================================================= */}
-      {/* 1. PRODUCTION-READY SPLASH / WELCOME SCREEN MATCHING MOCKUP               */}
-      {/* ========================================================================= */}
-      {step === 'splash' && (
-        <View style={styles.splashScreenContainer}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.splashScrollContent,
-              { paddingTop: Math.max(safeTop, 8) },
-            ]}
-          >
-            {/* Top Branded Hero Poster: Waves, Logo, Tagline, Devices, and 3 Badges */}
-            <View style={styles.splashHeroFrame}>
-              <Image
-                source={SPLASH_HERO_TOP}
-                style={styles.splashHeroImage}
-                resizeMode="contain"
-              />
-            </View>
-
-            {/* Action Buttons Matching Mockup Exactly */}
-            <View style={styles.splashActionCol}>
-              {/* 1. Yellow Sign In Pill Button */}
-              <TouchableOpacity
-                style={styles.signInPillBtn}
-                onPress={() => {
-                  setIsSignUp(false);
-                  setSignInWithOtpMode(false);
-                  setError(null);
-                  setErrorCode(null);
-                  setStep('email');
-                }}
-                activeOpacity={0.88}
-                accessibilityRole="button"
-                accessibilityLabel="Sign In"
-              >
-                <View style={styles.btnIconLeftBox}>
-                  <Ionicons name="person-outline" size={20} color="#0F172A" />
-                </View>
-                <Text style={styles.signInPillText}>Sign In</Text>
-                <Ionicons name="arrow-forward" size={19} color="#0F172A" />
-              </TouchableOpacity>
-
-              {/* 2. White Create Account Pill Button */}
-              <TouchableOpacity
-                style={styles.createAccountPillBtn}
-                onPress={() => {
-                  setIsSignUp(true);
-                  setSignInWithOtpMode(false);
-                  setError(null);
-                  setErrorCode(null);
-                  setStep('email');
-                }}
-                activeOpacity={0.88}
-                accessibilityRole="button"
-                accessibilityLabel="Create Account"
-              >
-                <View style={styles.btnIconLeftBox}>
-                  <Ionicons name="person-add-outline" size={20} color="#0F172A" />
-                </View>
-                <Text style={styles.createAccountPillText}>Create Account</Text>
-                <Ionicons name="arrow-forward" size={19} color="#0F172A" />
-              </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* 3. Continue with Google Pill Button */}
-              <TouchableOpacity
-                style={styles.googlePillWhiteBtn}
-                onPress={handleGoogleSignIn}
-                disabled={googleLoading}
-                activeOpacity={0.88}
-                accessibilityRole="button"
-                accessibilityLabel="Continue with Google"
-              >
-                {googleLoading ? (
-                  <ActivityIndicator size="small" color="#0F172A" />
-                ) : (
-                  <>
-                    <View style={styles.googleIconBox}>
-                      <Ionicons name="logo-google" size={18} color="#EA4335" />
-                    </View>
-                    <Text style={styles.googleBtnLabel}>Continue with Google</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      )}
 
       {/* ========================================================================= */}
       {/* ========================================================================= */}
@@ -1697,6 +1712,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
+    height: '100%',
     backgroundColor: '#ffffff',
   },
 
@@ -2332,29 +2348,32 @@ const styles = StyleSheet.create({
   },
   splashScreenContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  splashScrollContent: {
-    alignItems: 'center',
-    paddingBottom: 36,
+    height: '100%',
     width: '100%',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   splashHeroFrame: {
+    flex: 1,
     width: '100%',
-    maxWidth: 440,
-    aspectRatio: 576 / 690,
+    maxWidth: 420,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
   },
   splashHeroImage: {
     width: '100%',
     height: '100%',
+    aspectRatio: 576 / 690,
   },
   splashActionCol: {
     width: '100%',
-    maxWidth: 380,
+    maxWidth: 390,
     paddingHorizontal: 20,
-    marginTop: 8,
+    paddingBottom: 4,
+    flexShrink: 0,
   },
   signInPillBtn: {
     flexDirection: 'row',
@@ -2362,9 +2381,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FACC15',
     borderRadius: 28,
-    height: 54,
+    height: 48,
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 8,
     ...Platform.select({
       ios: {
         shadowColor: '#FACC15',
@@ -2381,7 +2400,7 @@ const styles = StyleSheet.create({
     }),
   },
   signInPillText: {
-    fontSize: 16.5,
+    fontSize: 15.5,
     fontWeight: '800',
     color: '#0F172A',
     flex: 1,
@@ -2396,12 +2415,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
     borderRadius: 28,
-    height: 54,
+    height: 48,
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   createAccountPillText: {
-    fontSize: 16.5,
+    fontSize: 15.5,
     fontWeight: '800',
     color: '#0F172A',
     flex: 1,
@@ -2416,7 +2435,7 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
     paddingHorizontal: 8,
   },
   dividerLine: {
@@ -2426,7 +2445,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 12,
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
     color: '#94A3B8',
     letterSpacing: 1.5,
@@ -2439,7 +2458,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
     borderRadius: 28,
-    height: 54,
+    height: 48,
     paddingHorizontal: 20,
     ...Platform.select({
       ios: {

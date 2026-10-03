@@ -1053,6 +1053,7 @@ const styles = StyleSheet.create({
     borderRadius: 62.5,
     backgroundColor: '#FDE047',
     zIndex: 1,
+    elevation: 1,
   },
   sparkleOne: {
     position: 'absolute',
@@ -1129,6 +1130,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     zIndex: 10,
+    elevation: 10,
   },
 
   // 5. Section Headers

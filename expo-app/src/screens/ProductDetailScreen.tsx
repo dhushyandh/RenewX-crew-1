@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -336,6 +337,22 @@ export default function ProductDetailScreen() {
     }
   };
 
+  const handleOpenInApp = () => {
+    const prodId = baseProduct?.id || params.productId || params.id;
+    if (!prodId) return;
+    const deepLink = `renewx://product/${prodId}`;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.href = deepLink;
+      setTimeout(() => {
+        toast.info('If the RenewX app does not open, make sure it is installed on your device.');
+      }, 1800);
+    } else {
+      Linking.openURL(deepLink).catch(() => {
+        toast.info('Could not open RenewX app.');
+      });
+    }
+  };
+
   const handleAddToCart = useCallback(() => {
     if (!baseProduct) return;
     if (isOutOfStock) {
@@ -386,12 +403,20 @@ export default function ProductDetailScreen() {
           <Text style={styles.notFoundSubtitle}>
             This product is no longer available or was removed by the administrator.
           </Text>
-          <TouchableOpacity
-            style={styles.exploreBtn}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Shop' })}
-          >
-            <Text style={styles.exploreBtnText}>Browse Available Devices</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+            <TouchableOpacity
+              style={styles.exploreBtn}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Shop' })}
+            >
+              <Text style={styles.exploreBtnText}>Browse Devices</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.exploreBtn, { backgroundColor: '#F1F5F9' }]}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+            >
+              <Text style={[styles.exploreBtnText, { color: '#0F172A' }]}>Return to Home</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -424,6 +449,31 @@ export default function ProductDetailScreen() {
           />
         }
       >
+        {/* Web App Banner: Get the RenewX App - Open in App */}
+        {Platform.OS === 'web' && (
+          <View style={styles.webAppBanner}>
+            <View style={styles.webAppBannerLeft}>
+              <View style={styles.webAppIconBadge}>
+                <Ionicons name="phone-portrait" size={17} color="#0F172A" />
+              </View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.webAppBannerTitle}>Get the RenewX App</Text>
+                <Text style={styles.webAppBannerSub}>
+                  Enjoy certified warranty, real-time push tracking & doorstep inspection
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.webOpenAppBtn}
+              onPress={handleOpenInApp}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="open-outline" size={14} color="#0F172A" style={{ marginRight: 5 }} />
+              <Text style={styles.webOpenAppBtnText}>Open in App</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* 2. Full-Width Device Showcase */}
         <View style={styles.heroShowcase}>
           <View style={styles.imageStage}>
@@ -1560,5 +1610,68 @@ const styles = StyleSheet.create({
   },
   addToCartBtnTextDisabled: {
     color: '#94A3B8',
+  },
+  webAppBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 6,
+    backgroundColor: '#FEF9C3',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#FDE047',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  webAppBannerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  webAppIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FACC15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webAppBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  webAppBannerSub: {
+    fontSize: 11,
+    color: '#854D0E',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  webOpenAppBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FACC15',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  webOpenAppBtnText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
   },
 });

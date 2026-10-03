@@ -6,13 +6,8 @@ import type { Product } from '@/types';
  * Resolves the canonical URL for a product across web and mobile.
  */
 export function getProductShareUrl(productId: string): string {
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-    return `${window.location.origin}/product/${productId}`;
-  }
-
-  // Fallback to configured public web app URL or Expo URL
-  const publicWebUrl = process.env.EXPO_PUBLIC_WEB_URL?.trim() || 'https://renewx.expo.app';
-  return `${publicWebUrl.replace(/\/+$/, '')}/product/${productId}`;
+  const cleanId = String(productId || '').trim();
+  return `https://renewx.expo.app/product/${cleanId}`;
 }
 
 export interface ProductShareContent {

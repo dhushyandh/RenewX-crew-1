@@ -80,56 +80,81 @@ export function notifyConnectionState(isOffline: boolean) {
 
 interface RequestOptions extends RequestInit {
   timeoutMs?: number;
+  retries?: number;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+  const method = (options.method || 'GET').toUpperCase();
+  const maxRetries = options.retries ?? (method === 'GET' ? 2 : 0);
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
 
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
 
-  const timeoutMs = options.timeoutMs ?? 35000;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  let res: Response;
-  try {
-    res = await fetch(`${getApiBaseUrl()}${endpoint}`, {
-      ...options,
-      headers,
-      signal: options.signal || controller.signal,
-    });
-    // Successful response received from backend
-    notifyConnectionState(false);
-  } catch (fetchError: any) {
-    notifyConnectionState(true);
-    const error = new Error(
-      fetchError?.name === 'AbortError'
-        ? 'Request timed out. Please check your connection.'
-        : 'Unable to connect to RenewX. Please check your connection.',
-    ) as Error & { code?: string; status?: number; network?: boolean };
-    error.code = fetchError?.name === 'AbortError' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR';
-    error.network = true;
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
+    const timeoutMs = options.timeoutMs ?? 35000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let res: Response;
+    try {
+      res = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+        ...options,
+        headers,
+        signal: options.signal || controller.signal,
+      });
+      // Successful response received from backend
+      notifyConnectionState(false);
+    } catch (fetchError: any) {
+      notifyConnectionState(true);
+      if (attempt <= maxRetries) {
+        await sleep(Math.min(500 * Math.pow(2, attempt - 1), 2000));
+        continue;
+      }
+      const error = new Error(
+        fetchError?.name === 'AbortError'
+          ? 'Request timed out. Please check your connection.'
+          : 'Unable to connect to RenewX. Please check your connection.',
+      ) as Error & { code?: string; status?: number; network?: boolean };
+      error.code = fetchError?.name === 'AbortError' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR';
+      error.network = true;
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    // Transient server errors (502, 503, 504) retry for idempotent GET requests
+    if (res.status >= 502 && res.status <= 504 && attempt <= maxRetries) {
+      await sleep(Math.min(500 * Math.pow(2, attempt - 1), 2000));
+      continue;
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    const json = contentType.includes('application/json') ? await res.json() : null;
+
+    if (!res.ok || json?.success === false) {
+      // If token expired / invalid on authenticated requests, prune stale session
+      if (res.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/verify-otp')) {
+        await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+      const errorMsg = json?.error?.message || `HTTP Error ${res.status}`;
+      const error = new Error(errorMsg) as Error & { code?: string; status?: number };
+      error.code = json?.error?.code;
+      error.status = res.status;
+      throw error;
+    }
+
+    return json.data !== undefined ? json.data : json;
   }
-
-  const contentType = res.headers.get('content-type') || '';
-  const json = contentType.includes('application/json') ? await res.json() : null;
-  if (!res.ok || json?.success === false) {
-    const errorMsg = json?.error?.message || `HTTP Error ${res.status}`;
-    const error = new Error(errorMsg) as Error & { code?: string; status?: number };
-    error.code = json?.error?.code;
-    error.status = res.status;
-    throw error;
-  }
-
-  return json.data !== undefined ? json.data : json;
 }
 
 export const api = {
