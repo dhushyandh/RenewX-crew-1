@@ -5,6 +5,7 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -19,6 +20,7 @@
     },
     "preview-local": {
       "distribution": "internal",
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -32,6 +34,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "android": {
         "buildType": "app-bundle"
       },
@@ -53,7 +56,8 @@
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "137465495964-73h47m03fkc6ka0r04f8ab748dtos6nf.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "137465495964-8jmmaraa7amhuvap8me97smbu3tbsrp5.apps.googleusercontent.com",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-      }
+      },
+      "channel": "ios-preview"
     }
   }
 }

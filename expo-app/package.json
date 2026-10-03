@@ -9,7 +9,10 @@
     "web": "expo start --web",
     "build:android:preview": "eas build --platform android --profile preview",
     "build:android:preview-local": "eas build --platform android --profile preview-local",
-    "build:android:production": "eas build --platform android --profile production"
+    "build:android:production": "eas build --platform android --profile production",
+    "export:web": "node --max-old-space-size=4096 ./node_modules/expo/bin/cli export --platform web",
+    "update:preview": "eas update --branch preview --environment preview",
+    "update:production": "eas update --branch production --environment production"
   },
   "dependencies": {
     "@expo-google-fonts/outfit": "^0.4.3",
