@@ -21,6 +21,7 @@ import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
+import { detectCurrentLocationAddress } from '@/services/locationService';
 
 export interface AddressItem {
   id: string;
@@ -60,6 +61,7 @@ export default function ManageAddressesScreen() {
   const [type, setType] = useState<'Home' | 'Work' | 'Other'>('Home');
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
 
   // Load addresses on mount
   useEffect(() => {
@@ -146,6 +148,48 @@ export default function ManageAddressesScreen() {
     setType('Home');
     setIsDefault(addresses.length === 0);
     setModalVisible(true);
+  };
+
+  const handleDetectAndApplyLocation = async (openModalIfClosed = true) => {
+    setDetectingLocation(true);
+    try {
+      const geo = await detectCurrentLocationAddress();
+      if (!geo) {
+        toast.error('Could not detect location. Please check GPS permissions or enter manually.');
+        setDetectingLocation(false);
+        if (openModalIfClosed && !modalVisible) {
+          handleOpenAdd();
+        }
+        return;
+      }
+
+      // Pre-populate fields from detected reverse-geocoded coordinates
+      if (geo.pincode) setPincode(geo.pincode);
+      if (geo.city) setCity(geo.city);
+      if (geo.state) setState(geo.state);
+      if (geo.address) setAddress(geo.address);
+      if (geo.district) setLandmark(geo.district);
+
+      if (!name) setName(user?.full_name || '');
+      if (!phone) setPhone(user?.phone || '');
+
+      if (openModalIfClosed && !modalVisible) {
+        setEditingAddress(null);
+        setType('Home');
+        setIsDefault(addresses.length === 0);
+        setModalVisible(true);
+      }
+
+      toast.success('Location detected! Please review and save.');
+    } catch (err) {
+      console.warn('Location detection failed:', err);
+      toast.error('Failed to detect location. Please enter manually.');
+      if (openModalIfClosed && !modalVisible) {
+        handleOpenAdd();
+      }
+    } finally {
+      setDetectingLocation(false);
+    }
   };
 
   const handleOpenEdit = (item: AddressItem) => {
@@ -434,21 +478,55 @@ export default function ManageAddressesScreen() {
           </View>
         </View>
 
-        {/* Action Button: Add New Address */}
-        <TouchableOpacity
-          style={styles.addAddressBtn}
-          onPress={handleOpenAdd}
-          activeOpacity={0.85}
-        >
-          <View style={styles.addAddressIconCircle}>
-            <Ionicons name="add" size={22} color="#FFFFFF" />
-          </View>
-          <View style={styles.addAddressBtnTextCol}>
-            <Text style={styles.addAddressBtnTitle}>Add New Address</Text>
-            <Text style={styles.addAddressBtnSub}>Deliver to home, office or other location</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#059669" />
-        </TouchableOpacity>
+        {/* Action Buttons: Detect Location & Manual Add */}
+        <View style={styles.actionSectionContainer}>
+          {/* 1. Detect Current Location */}
+          <TouchableOpacity
+            style={styles.detectLocationMainBtn}
+            onPress={() => handleDetectAndApplyLocation(true)}
+            disabled={detectingLocation}
+            activeOpacity={0.85}
+          >
+            <View style={styles.detectLocationIconCircle}>
+              {detectingLocation ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              )}
+            </View>
+            <View style={styles.detectLocationTextCol}>
+              <View style={styles.detectLocationTitleRow}>
+                <Text style={styles.detectLocationBtnTitle}>
+                  {detectingLocation ? 'Detecting Location...' : 'Use My Current Location'}
+                </Text>
+                <View style={styles.gpsPill}>
+                  <Ionicons name="flash" size={10} color="#065F46" />
+                  <Text style={styles.gpsPillText}>Auto GPS</Text>
+                </View>
+              </View>
+              <Text style={styles.detectLocationBtnSub}>
+                Auto-fill pincode, city, state & address from GPS
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#059669" />
+          </TouchableOpacity>
+
+          {/* 2. Add New Address Manually */}
+          <TouchableOpacity
+            style={styles.addAddressBtn}
+            onPress={handleOpenAdd}
+            activeOpacity={0.85}
+          >
+            <View style={styles.addAddressIconCircle}>
+              <Ionicons name="add" size={22} color="#059669" />
+            </View>
+            <View style={styles.addAddressBtnTextCol}>
+              <Text style={styles.addAddressBtnTitle}>Add Address Manually</Text>
+              <Text style={styles.addAddressBtnSub}>Deliver to home, office or custom location</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+        </View>
 
         {/* Section Title */}
         <View style={styles.sectionHeaderRow}>
@@ -472,14 +550,32 @@ export default function ManageAddressesScreen() {
             <Text style={styles.emptySub}>
               Add your delivery address to enjoy fast, seamless checkout on RenewX.
             </Text>
-            <TouchableOpacity
-              style={styles.emptyActionBtn}
-              onPress={handleOpenAdd}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-              <Text style={styles.emptyActionBtnText}>Add Delivery Address</Text>
-            </TouchableOpacity>
+            <View style={styles.emptyActionsRow}>
+              <TouchableOpacity
+                style={styles.emptyDetectBtn}
+                onPress={() => handleDetectAndApplyLocation(true)}
+                disabled={detectingLocation}
+                activeOpacity={0.85}
+              >
+                {detectingLocation ? (
+                  <ActivityIndicator size="small" color="#059669" />
+                ) : (
+                  <Ionicons name="navigate" size={16} color="#059669" />
+                )}
+                <Text style={styles.emptyDetectBtnText}>
+                  {detectingLocation ? 'Detecting...' : 'Use My Location'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.emptyActionBtn}
+                onPress={handleOpenAdd}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add-circle" size={16} color="#FFFFFF" />
+                <Text style={styles.emptyActionBtnText}>Add Manually</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           addresses.map((item) => (
@@ -605,6 +701,34 @@ export default function ManageAddressesScreen() {
               contentContainerStyle={styles.modalScrollBody}
               showsVerticalScrollIndicator={false}
             >
+              {/* GPS Auto-detect Button */}
+              <TouchableOpacity
+                style={styles.modalDetectBtn}
+                onPress={() => handleDetectAndApplyLocation(false)}
+                disabled={detectingLocation}
+                activeOpacity={0.8}
+              >
+                <View style={styles.modalDetectIconCircle}>
+                  {detectingLocation ? (
+                    <ActivityIndicator size="small" color="#059669" />
+                  ) : (
+                    <Ionicons name="navigate" size={18} color="#059669" />
+                  )}
+                </View>
+                <View style={styles.modalDetectTextCol}>
+                  <Text style={styles.modalDetectTitle}>
+                    {detectingLocation ? 'Detecting GPS location...' : 'Use My Current Location'}
+                  </Text>
+                  <Text style={styles.modalDetectSub}>
+                    Auto-fills pincode, city, state & street from GPS
+                  </Text>
+                </View>
+                <View style={styles.modalDetectBadge}>
+                  <Ionicons name="locate" size={12} color="#059669" />
+                  <Text style={styles.modalDetectBadgeText}>Auto-fill</Text>
+                </View>
+              </TouchableOpacity>
+
               {/* Address Type Selector */}
               <Text style={styles.inputLabel}>Address Type</Text>
               <View style={styles.typeSelectorRow}>
@@ -863,6 +987,68 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
+  // Action Buttons Section
+  actionSectionContainer: {
+    marginBottom: spacing.lg,
+    gap: 10,
+  },
+  detectLocationMainBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  detectLocationIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#059669',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  detectLocationTextCol: {
+    flex: 1,
+  },
+  detectLocationTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detectLocationBtnTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: '#065F46',
+  },
+  gpsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    gap: 3,
+  },
+  gpsPillText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#065F46',
+    letterSpacing: 0.3,
+  },
+  detectLocationBtnSub: {
+    fontSize: fontSize.xs,
+    color: '#047857',
+    marginTop: 2,
+  },
+
   // Add Address Action Card Button
   addAddressBtn: {
     flexDirection: 'row',
@@ -870,21 +1056,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#10B981',
+    borderColor: '#CBD5E1',
     borderRadius: radius.xl,
     padding: spacing.md,
-    marginBottom: spacing.lg,
-    shadowColor: '#10B981',
+    shadowColor: '#64748B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   addAddressIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#059669',
+    backgroundColor: '#ECFDF5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -963,6 +1148,29 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     maxWidth: 280,
   },
+  emptyActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  emptyDetectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: radius.full,
+    gap: 8,
+  },
+  emptyDetectBtnText: {
+    color: '#059669',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+  },
   emptyActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -976,6 +1184,58 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+  },
+
+  // Modal Detect Location Button
+  modalDetectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    borderRadius: radius.lg,
+    padding: 12,
+    marginBottom: spacing.md,
+  },
+  modalDetectIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  modalDetectTextCol: {
+    flex: 1,
+  },
+  modalDetectTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#065F46',
+  },
+  modalDetectSub: {
+    fontSize: 11,
+    color: '#047857',
+    marginTop: 1,
+  },
+  modalDetectBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    gap: 4,
+  },
+  modalDetectBadgeText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: '#059669',
   },
 
   // Address Cards

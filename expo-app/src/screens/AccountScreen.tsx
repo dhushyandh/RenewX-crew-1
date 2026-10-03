@@ -18,8 +18,10 @@ import type { RootStackParamList } from '@/App';
 import { useAuth } from '@/context/AuthContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/context/ToastContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { api } from '@/services/api';
 import HomeHeader from '@/components/HomeHeader';
+import BrandSocialFooter from '@/components/BrandSocialFooter';
 import { Ionicons } from '@expo/vector-icons';
 import {
   renewxColors,
@@ -35,6 +37,7 @@ export default function AccountScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, isAdmin, signOut, refreshUser } = useAuth();
   const { totalWishlistItems } = useWishlist();
+  const { t } = useLanguage();
   const toast = useToast();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -343,7 +346,7 @@ export default function AccountScreen() {
             <View style={[styles.tileIconCircle, { backgroundColor: '#FEE2E2' }]}>
               <Ionicons name="heart" size={18} color="#EF4444" />
             </View>
-            <Text style={styles.tileTitle}>Favorites</Text>
+            <Text style={styles.tileTitle}>{t('account_wishlist', 'Favorites')}</Text>
             <Text style={styles.tileSub}>
               {totalWishlistItems} {totalWishlistItems === 1 ? 'item' : 'items'}
             </Text>
@@ -358,7 +361,7 @@ export default function AccountScreen() {
             <View style={[styles.tileIconCircle, { backgroundColor: '#EFF6FF' }]}>
               <Ionicons name="location" size={18} color="#2563EB" />
             </View>
-            <Text style={styles.tileTitle}>Addresses</Text>
+            <Text style={styles.tileTitle}>{t('account_addresses', 'Addresses')}</Text>
             <Text style={styles.tileSub}>{addressCount} saved</Text>
           </TouchableOpacity>
 
@@ -371,7 +374,7 @@ export default function AccountScreen() {
             <View style={[styles.tileIconCircle, { backgroundColor: '#FEF3C7' }]}>
               <Ionicons name="pricetag" size={18} color="#D97706" />
             </View>
-            <Text style={styles.tileTitle}>Trade-in / Sell</Text>
+            <Text style={styles.tileTitle}>{t('tab_sell', 'Trade-in / Sell')}</Text>
             <Text style={styles.tileSub}>Instant quote</Text>
           </TouchableOpacity>
 
@@ -384,7 +387,7 @@ export default function AccountScreen() {
             <View style={[styles.tileIconCircle, { backgroundColor: '#DCFCE7' }]}>
               <Ionicons name="notifications" size={18} color="#059669" />
             </View>
-            <Text style={styles.tileTitle}>Notifications</Text>
+            <Text style={styles.tileTitle}>{t('settings_notifications', 'Notifications')}</Text>
             <Text style={styles.tileSub}>Latest alerts</Text>
           </TouchableOpacity>
         </View>
@@ -417,26 +420,31 @@ export default function AccountScreen() {
               <Ionicons name="location-outline" size={18} color="#059669" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={styles.menuItemTitle}>Manage Addresses</Text>
-              <Text style={styles.menuItemSub}>Home, work or other addresses</Text>
+              <Text style={styles.menuItemTitle}>{t('settings_manage_addresses', 'Manage Addresses')}</Text>
+              <Text style={styles.menuItemSub}>{t('settings_addresses_sub', 'Home, work or other addresses')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
 
-          {/* Item 3: Payment Methods */}
+          {/* Item 3: Join Our Community (WhatsApp) */}
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => toast.info('Cards, UPI and COD enabled')}
+            onPress={() => Linking.openURL('https://chat.whatsapp.com/FyyALPUCzl2KvmRHnz2aaA?mode=gi_t').catch(() => {})}
             activeOpacity={0.75}
           >
-            <View style={[styles.menuIconCircle, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="card-outline" size={18} color="#1D4ED8" />
+            <View style={[styles.menuIconCircle, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="logo-whatsapp" size={19} color="#16A34A" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={styles.menuItemTitle}>Payment Methods</Text>
-              <Text style={styles.menuItemSub}>Cards, UPI and more</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.menuItemTitle}>Join Our Community</Text>
+                <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 6 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#15803D' }}>WhatsApp</Text>
+                </View>
+              </View>
+              <Text style={styles.menuItemSub}>Exclusive deals, device updates & offers</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+            <Ionicons name="chevron-forward" size={16} color="#16A34A" />
           </TouchableOpacity>
 
           {/* Item 4: Live Tracking Hub */}
@@ -449,7 +457,7 @@ export default function AccountScreen() {
               <Ionicons name="navigate-outline" size={18} color="#059669" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={styles.menuItemTitle}>Track Orders & Sell Requests</Text>
+              <Text style={styles.menuItemTitle}>{t('order_tracking', 'Track Orders & Sell Requests')}</Text>
               <Text style={styles.menuItemSub}>Track live by Order ID or Sell Request ID</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
@@ -465,7 +473,7 @@ export default function AccountScreen() {
               <Ionicons name="pricetag-outline" size={18} color="#D97706" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={styles.menuItemTitle}>My Sell Requests</Text>
+              <Text style={styles.menuItemTitle}>{t('account_my_sell', 'My Sell Requests')}</Text>
               <Text style={styles.menuItemSub}>
                 {sellCount > 0 ? `${sellCount} active requests • Check live status` : 'Track quotes, approvals & payouts'}
               </Text>
@@ -483,8 +491,8 @@ export default function AccountScreen() {
               <Ionicons name="notifications-outline" size={18} color="#EF4444" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={styles.menuItemTitle}>Notifications</Text>
-              <Text style={styles.menuItemSub}>Order updates, offers and alerts</Text>
+              <Text style={styles.menuItemTitle}>{t('settings_notifications', 'Notifications')}</Text>
+              <Text style={styles.menuItemSub}>{t('settings_notifications_sub', 'Order updates, offers and alerts')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
@@ -499,7 +507,7 @@ export default function AccountScreen() {
               <Ionicons name="headset-outline" size={18} color="#059669" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={styles.menuItemTitle}>Help & Support</Text>
+              <Text style={styles.menuItemTitle}>{t('settings_support_section', 'Help & Support')}</Text>
               <Text style={styles.menuItemSub}>FAQs, contact us</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
@@ -515,7 +523,7 @@ export default function AccountScreen() {
               <Ionicons name="settings-outline" size={18} color="#475569" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={styles.menuItemTitle}>Settings</Text>
+              <Text style={styles.menuItemTitle}>{t('settings_title', 'Settings')}</Text>
               <Text style={styles.menuItemSub}>App preferences, language, privacy</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
@@ -531,12 +539,21 @@ export default function AccountScreen() {
               <Ionicons name="log-out-outline" size={18} color="#475569" />
             </View>
             <View style={styles.menuItemTextCol}>
-              <Text style={[styles.menuItemTitle, { color: '#B91C1C' }]}>Log Out</Text>
+              <Text style={[styles.menuItemTitle, { color: '#B91C1C' }]}>{t('settings_logout', 'Log Out')}</Text>
               <Text style={styles.menuItemSub}>Sign out from your account</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
           </TouchableOpacity>
         </View>
+
+        {/* Brand Footer: Terms, Privacy, Log Out, Social Media, Powered by Dhushyandh with Shimmer & v 1.0.0 */}
+        <BrandSocialFooter
+          showLegalLinks={true}
+          showLogOut={false}
+          onLogout={handleSignOut}
+          version="v 1.0.0"
+          style={{ marginTop: 12, marginBottom: 24 }}
+        />
       </ScrollView>
     </View>
   );

@@ -25,6 +25,7 @@ import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import RenewXLogo from '@/components/RenewXLogo';
+import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 
 const HERO_IMG = require('@/assets/onboarding_hero.jpg');
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -1195,15 +1196,10 @@ export default function OnboardingProfileScreen() {
                 <View style={styles.celebrationHalo} />
               </Animated.View>
 
-              {/* Bouncy Spring Green Checkmark Circle */}
-              <Animated.View
-                style={[
-                  styles.successCheckBadge,
-                  { transform: [{ scale: checkScale }] },
-                ]}
-              >
-                <Ionicons name="checkmark" size={42} color="#FFFFFF" />
-              </Animated.View>
+              {/* Celebratory Animated Checkmark with Glow & Confetti */}
+              <View style={{ marginVertical: 12, alignItems: 'center', justifyContent: 'center' }}>
+                <AnimatedOrderSuccessTick size={92} showParticles={true} autoPlay={true} />
+              </View>
 
               {/* Success Typography */}
               <Text style={styles.successTitle}>Account Created{'\n'}Successfully!</Text>

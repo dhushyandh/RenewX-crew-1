@@ -54,10 +54,7 @@ expo-app/
     ├── context/
     │   └── CartContext.tsx  # Cart state management
     ├── components/
-    │   ├── HomeHeader.tsx
-    │   ├── HeroBanner.tsx
-    │   ├── CategoryPills.tsx
-    │   └── ProductCard.tsx
+    │   └── HomeHeader.tsx
     └── screens/
         ├── HomeScreen.tsx
         ├── CategoriesScreen.tsx

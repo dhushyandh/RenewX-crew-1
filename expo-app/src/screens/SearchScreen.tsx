@@ -28,6 +28,7 @@ import { mapProductRow } from '@/lib/productMapper';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { renewxFontFamily } from '@/design-system';
 import HomeHeader from '@/components/HomeHeader';
+import { getCategoryThirdPartyImage } from '@/data/categories';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type AnyProduct = Product & Record<string, any>;
@@ -145,12 +146,7 @@ function getProductImageSource(product: AnyProduct): any {
 
   // Fallbacks by category
   const cat = (product.category ?? product.category_name ?? '').toLowerCase();
-  if (cat.includes('phone')) return require('@/assets/categories/smartphone.png');
-  if (cat.includes('laptop') || cat.includes('mac')) return require('@/assets/categories/laptop.png');
-  if (cat.includes('tab') || cat.includes('pad')) return require('@/assets/categories/tablets.png');
-  if (cat.includes('watch')) return require('@/assets/categories/smartwatch.png');
-  if (cat.includes('ear') || cat.includes('audio')) return require('@/assets/categories/earbuds.png');
-  return require('@/assets/categories/accessories.png');
+  return { uri: getCategoryThirdPartyImage(cat) };
 }
 
 export default function SearchScreen() {

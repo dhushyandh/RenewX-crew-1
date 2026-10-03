@@ -22,6 +22,7 @@ import { api } from '@/services/api';
 import HomeHeader from '@/components/HomeHeader';
 import RazorpayModal from '@/components/RazorpayModal';
 import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
+import { getCategoryDeviceImage } from '@/lib/imageUtils';
 import {
   openRazorpay,
   isNativeRazorpayAvailable,
@@ -130,7 +131,12 @@ export default function CheckoutScreen() {
       price: item.price,
       originalPrice: item.originalPrice || Math.round(item.price * 1.38),
       quantity: item.quantity,
-      image: item.image || item.images?.[0] || 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80',
+      image:
+        typeof (item.image || item.images?.[0]) === 'string' &&
+        !(item.image || item.images?.[0]).includes('unsplash.com') &&
+        (item.image || item.images?.[0]).trim()
+          ? (item.image || item.images?.[0]).trim()
+          : getCategoryDeviceImage(item.category, item.name),
       raw: item,
     }));
   }, [contextItems]);
@@ -561,7 +567,11 @@ export default function CheckoutScreen() {
                   <View style={styles.radioInner} />
                 </View>
 
-                <Image source={{ uri: item.image }} style={styles.orderItemImage} resizeMode="contain" />
+                <Image
+                  source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+                  style={styles.orderItemImage}
+                  resizeMode="contain"
+                />
 
                 <View style={styles.orderItemInfo}>
                   <Text style={styles.orderItemName}>{item.name}</Text>

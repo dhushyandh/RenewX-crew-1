@@ -58,6 +58,7 @@ import { renewxColors, renewxFontFamily, renewxRadius } from '@/design-system';
 import { CartProvider, useCart } from '@/context/CartContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ToastProvider } from '@/context/ToastContext';
+import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import { WishlistProvider } from '@/context/WishlistContext';
 import { LocationProvider } from '@/context/LocationContext';
 import { NotificationProvider } from '@/context/NotificationContext';
@@ -260,6 +261,7 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const insets = useSafeAreaInsets();
   const bottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 12) : 12;
   const { totalItems } = useCart();
+  const { t } = useLanguage();
 
   const currentRoute = state.routes[state.index];
   const currentDescriptor = descriptors[currentRoute.key];
@@ -268,11 +270,11 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
   }
 
   const TAB_CONFIG: Record<string, { active: any; inactive: any; label: string }> = {
-    Home: { active: 'home', inactive: 'home-outline', label: 'Home' },
-    Shop: { active: 'bag-handle', inactive: 'bag-handle-outline', label: 'Shop' },
-    Track: { active: 'cube', inactive: 'cube-outline', label: 'Track' },
-    Account: { active: 'person', inactive: 'person-outline', label: 'Account' },
-    Sell: { active: 'pricetag', inactive: 'pricetag-outline', label: 'Sell' },
+    Home: { active: 'home', inactive: 'home-outline', label: t('tab_home', 'Home') },
+    Shop: { active: 'bag-handle', inactive: 'bag-handle-outline', label: t('tab_shop', 'Categories') },
+    Track: { active: 'cube', inactive: 'cube-outline', label: t('tab_orders', 'Orders') },
+    Account: { active: 'person', inactive: 'person-outline', label: t('tab_account', 'Profile') },
+    Sell: { active: 'pricetag', inactive: 'pricetag-outline', label: t('tab_sell', 'Sell') },
   };
 
   const mainRoutes = state.routes.filter((r) => r.name !== 'Sell');
@@ -300,7 +302,7 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
             <View style={styles.floatingCartCheckCircle}>
               <Ionicons name="checkmark-sharp" size={13} color="#FFFFFF" />
             </View>
-            <Text style={styles.floatingCartText}>You've unlocked FREE delivery</Text>
+            <Text style={styles.floatingCartText}>{t('free_delivery_banner', "You've unlocked FREE delivery")}</Text>
           </View>
           <View style={styles.floatingCartRightBtn}>
             <Ionicons name="cart" size={14} color="#FFFFFF" />
@@ -440,7 +442,7 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
                 <Ionicons name="pricetag" size={20} color="#000000" />
               </View>
               <Text style={[styles.floatingSellLabel, isSellFocused && styles.floatingSellLabelActive]}>
-                Sell
+                {t('tab_sell', 'Sell')}
               </Text>
             </TouchableOpacity>
           );
@@ -774,27 +776,29 @@ function App() {
     <ErrorBoundary>
       <SafeAreaProvider>
         <ToastProvider>
-          <AuthProvider>
-            <CartProvider>
-              <WishlistProvider>
-                <LocationProvider>
-                  <NotificationProvider>
-              {fontsLoaded ? (
-                <MainAppNavigation />
-              ) : (
-                <View style={{ flex: 1, backgroundColor: renewxColors.surface }} />
-              )}
-              {!splashFinished && (
-                <AnimatedSplashScreen
-                  isReady={fontsLoaded}
-                  onFinish={() => setSplashFinished(true)}
-                />
-              )}
-                  </NotificationProvider>
-                </LocationProvider>
-              </WishlistProvider>
-            </CartProvider>
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <CartProvider>
+                <WishlistProvider>
+                  <LocationProvider>
+                    <NotificationProvider>
+                {fontsLoaded ? (
+                  <MainAppNavigation />
+                ) : (
+                  <View style={{ flex: 1, backgroundColor: renewxColors.surface }} />
+                )}
+                {!splashFinished && (
+                  <AnimatedSplashScreen
+                    isReady={fontsLoaded}
+                    onFinish={() => setSplashFinished(true)}
+                  />
+                )}
+                    </NotificationProvider>
+                  </LocationProvider>
+                </WishlistProvider>
+              </CartProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </ToastProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

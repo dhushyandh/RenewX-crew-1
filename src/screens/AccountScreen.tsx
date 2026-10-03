@@ -115,7 +115,7 @@ export default function AccountScreen({
             <div className="flex items-center gap-3">
               <MessageCircle className="w-5 h-5 text-emerald-600" />
               <div>
-                <p className="text-xs font-bold text-gray-900">WhatsApp VIP Concierge</p>
+                <p className="text-xs font-bold text-gray-900">WhatsApp Concierge</p>
                 <p className="text-[10px] text-gray-400">Instant technical support</p>
               </div>
             </div>

@@ -17,6 +17,7 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 import HomeHeader from '@/components/HomeHeader';
 import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
+import { getCategoryDeviceImage } from '@/lib/imageUtils';
 
 function formatMoney(value: number) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -56,8 +57,30 @@ export default function OrderConfirmScreen() {
 
   const params = route.params || {};
   const order = params.order || {};
-  const orderId = params.orderId || order.id || order._id || 'RX-PENDING';
-  const cleanOrderId = String(orderId).startsWith('#') ? String(orderId) : `#${orderId}`;
+  const rawId = String(params.orderId || order.order_number || order.orderNumber || order.id || order._id || 'RX-PENDING');
+  const cleanOrderId = rawId.startsWith('#') ? rawId : `#${rawId}`;
+  const rawIdNoHash = cleanOrderId.replace(/^#/, '');
+  const displayOrderId =
+    rawIdNoHash.length > 13
+      ? `#${rawIdNoHash.slice(0, 7)}...${rawIdNoHash.slice(-4)}`
+      : cleanOrderId;
+
+  const orderDateRaw = order.created_at || order.createdAt || order.date;
+  const placedOnDate = orderDateRaw
+    ? new Date(orderDateRaw).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : new Date().toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
   const customerInfo = params.customerInfo || order.customer_info || {
     name: order.customer_name || 'Customer',
@@ -85,7 +108,12 @@ export default function OrderConfirmScreen() {
     price: Number(it.price || 0),
     originalPrice: Number(it.originalPrice || it.original_price || it.price || 0),
     quantity: Number(it.quantity || 1),
-    image: it.image || it.image_url || it.imageUrl || 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80',
+    image:
+      typeof (it.image || it.image_url || it.imageUrl) === 'string' &&
+      !(it.image || it.image_url || it.imageUrl).includes('unsplash.com') &&
+      (it.image || it.image_url || it.imageUrl).trim()
+        ? (it.image || it.image_url || it.imageUrl).trim()
+        : getCategoryDeviceImage(it.category, it.name),
   }));
 
   const totalAmount =
@@ -170,37 +198,58 @@ export default function OrderConfirmScreen() {
           </Text>
         </View>
 
-        {/* 3. Order ID & Details Card (2-Column Grid) */}
+        {/* 3. Order ID & Details Card (2-Row Layout - Prevents Any Text Collision) */}
         <View style={styles.orderSummaryCard}>
-          <View style={styles.summaryCol}>
-            <Text style={styles.summaryLabel}>Order ID</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-              <Text style={styles.orderIdText}>{cleanOrderId}</Text>
-              <TouchableOpacity
-                onPress={handleCopyOrderId}
-                style={styles.copyBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name={copied ? 'checkmark-circle' : 'copy-outline'}
-                  size={15}
-                  color={copied ? '#16A34A' : '#64748B'}
-                />
-              </TouchableOpacity>
+          {/* Top Row: Order ID & Total Amount */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryColLeft}>
+              <Text style={styles.summaryLabel}>Order ID</Text>
+              <View style={styles.orderIdRow}>
+                <Text
+                  style={styles.orderIdText}
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                >
+                  {displayOrderId}
+                </Text>
+                <TouchableOpacity
+                  onPress={handleCopyOrderId}
+                  style={styles.copyBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={copied ? 'checkmark-circle' : 'copy-outline'}
+                    size={15}
+                    color={copied ? '#16A34A' : '#64748B'}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <Text style={[styles.summaryLabel, { marginTop: 12 }]}>Placed on</Text>
-            <Text style={styles.summaryValue}>12 Sep 2026, 10:30 AM</Text>
+            <View style={styles.summaryColRight}>
+              <Text style={styles.summaryLabelRight}>Total Amount</Text>
+              <Text style={styles.totalAmountValue}>{formatMoney(totalAmount)}</Text>
+            </View>
           </View>
 
-          <View style={styles.summaryCol}>
-            <Text style={styles.summaryLabel}>Total Amount</Text>
-            <Text style={styles.totalAmountValue}>{formatMoney(totalAmount)}</Text>
+          {/* Subtle Divider */}
+          <View style={styles.summaryDivider} />
 
-            <Text style={[styles.summaryLabel, { marginTop: 12 }]}>Payment Method</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-              <Text style={styles.summaryValue}>{displayPaymentMethod}</Text>
-              <Ionicons name="flash" size={13} color="#F59E0B" style={{ marginLeft: 4 }} />
+          {/* Bottom Row: Placed on & Payment Method */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryColLeft}>
+              <Text style={styles.summaryLabel}>Placed on</Text>
+              <Text style={styles.summaryValue} numberOfLines={1}>{placedOnDate}</Text>
+            </View>
+
+            <View style={styles.summaryColRight}>
+              <Text style={styles.summaryLabelRight}>Payment Method</Text>
+              <View style={styles.paymentMethodRow}>
+                <Text style={styles.summaryValueRight} numberOfLines={1}>
+                  {displayPaymentMethod}
+                </Text>
+                <Ionicons name="flash" size={13} color="#F59E0B" style={{ marginLeft: 4 }} />
+              </View>
             </View>
           </View>
         </View>
@@ -352,7 +401,11 @@ export default function OrderConfirmScreen() {
 
           {displayItems.map((item: any) => (
             <View key={item.id} style={styles.itemRow}>
-              <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="contain" />
+              <Image
+                source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+                style={styles.itemImage}
+                resizeMode="contain"
+              />
 
               <View style={styles.itemInfoCol}>
                 <Text style={styles.itemName}>{item.name}</Text>
@@ -577,7 +630,6 @@ const styles = StyleSheet.create({
 
   // Summary Card
   orderSummaryCard: {
-    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
@@ -585,22 +637,51 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     marginBottom: 14,
   },
-  summaryCol: {
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  summaryColLeft: {
     flex: 1,
+    marginRight: 12,
+    minWidth: 0,
+  },
+  summaryColRight: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 12,
   },
   summaryLabel: {
     fontSize: 11.5,
     color: '#64748B',
     fontWeight: '500',
   },
+  summaryLabelRight: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  orderIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    maxWidth: '100%',
+  },
   orderIdText: {
-    fontSize: 16,
+    fontSize: 15.5,
     fontWeight: '800',
     color: '#0F172A',
+    flexShrink: 1,
   },
   copyBtn: {
     marginLeft: 6,
-    padding: 2,
+    padding: 3,
   },
   summaryValue: {
     fontSize: 13,
@@ -608,10 +689,23 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     marginTop: 2,
   },
-  totalAmountValue: {
-    fontSize: 17,
-    fontWeight: '800',
+  summaryValueRight: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#0F172A',
+    textAlign: 'right',
+  },
+  totalAmountValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginTop: 2,
+    textAlign: 'right',
+  },
+  paymentMethodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
     marginTop: 2,
   },
 

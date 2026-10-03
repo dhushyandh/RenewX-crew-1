@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Platform,
   Dimensions,
   RefreshControl,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +19,8 @@ import { useCart } from '@/context/CartContext';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
 import { api } from '@/services/api';
+import { CATEGORY_THIRD_PARTY_IMAGES } from '@/data/categories';
+import { ShimmerText } from '@/components/ui';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -27,7 +31,7 @@ const CATEGORY_ITEMS = [
     query: 'Smartphones',
     title: 'Smartphones',
     subtext: 'iPhone, Samsung,\nOnePlus, Xiaomi, etc.',
-    image: require('@/assets/categories/smartphone.png'),
+    image: CATEGORY_THIRD_PARTY_IMAGES.Smartphones,
     isSelected: true, // First category has subtle yellow highlight per reference
   },
   {
@@ -35,7 +39,7 @@ const CATEGORY_ITEMS = [
     query: 'Laptops',
     title: 'Laptops',
     subtext: 'MacBook, Dell, HP,\nLenovo, ASUS, etc.',
-    image: require('@/assets/categories/laptop.png'),
+    image: CATEGORY_THIRD_PARTY_IMAGES.Laptops,
     isSelected: false,
   },
   {
@@ -43,7 +47,7 @@ const CATEGORY_ITEMS = [
     query: 'Tablets',
     title: 'Tablets',
     subtext: 'iPad, Samsung Tab,\nLenovo, etc.',
-    image: require('@/assets/categories/tablets.png'),
+    image: CATEGORY_THIRD_PARTY_IMAGES.Tablets,
     isSelected: false,
   },
   {
@@ -51,7 +55,7 @@ const CATEGORY_ITEMS = [
     query: 'Watches',
     title: 'Smartwatches',
     subtext: 'Apple Watch,\nSamsung Galaxy, etc.',
-    image: require('@/assets/categories/smartwatch.png'),
+    image: CATEGORY_THIRD_PARTY_IMAGES.Smartwatches,
     isSelected: false,
   },
   {
@@ -59,7 +63,7 @@ const CATEGORY_ITEMS = [
     query: 'Audio',
     title: 'Earbuds',
     subtext: 'AirPods, boAt, JBL,\nNoise, etc.',
-    image: require('@/assets/categories/earbuds.png'),
+    image: CATEGORY_THIRD_PARTY_IMAGES.Earbuds,
     isSelected: false,
   },
   {
@@ -67,12 +71,12 @@ const CATEGORY_ITEMS = [
     query: 'Accessories',
     title: 'Accessories',
     subtext: 'Chargers, Cables,\nCases, Covers, etc.',
-    image: require('@/assets/categories/accessories.png'),
+    image: CATEGORY_THIRD_PARTY_IMAGES.Accessories,
     isSelected: false,
   },
 ];
 
-const BANNER_IMAGE = require('@/assets/categories/banner_devices.png');
+const BANNER_IMAGE = { uri: 'https://pngimg.com/uploads/iphone_14/iphone_14_PNG48.png' };
 
 export default function CategoriesScreen() {
   const safeTop = useSafeHeaderTop();
@@ -104,6 +108,73 @@ export default function CategoriesScreen() {
       params: { category: 'All', _t: Date.now() },
     });
   };
+
+  // Ultra-smooth synchronized banner animations (Hardware-accelerated, zero lag)
+  const bannerPulseAnim = useRef(new Animated.Value(0)).current;
+  const sparkleRotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // 1. Synchronized floating and aura breathing (Silky sine curve)
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bannerPulseAnim, {
+          toValue: 1,
+          duration: 2400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bannerPulseAnim, {
+          toValue: 0,
+          duration: 2400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // 2. Slow gentle sparkle rotation (Linear, continuous)
+    const rotateLoop = Animated.loop(
+      Animated.timing(sparkleRotateAnim, {
+        toValue: 1,
+        duration: 8000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+
+    pulseLoop.start();
+    rotateLoop.start();
+
+    return () => {
+      pulseLoop.stop();
+      rotateLoop.stop();
+    };
+  }, [bannerPulseAnim, sparkleRotateAnim]);
+
+  const bannerFloatY = bannerPulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -7],
+  });
+  const auraScale = bannerPulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.96, 1.08],
+  });
+  const auraOpacity = bannerPulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.45, 0.72],
+  });
+  const sparkleScale = bannerPulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.85, 1.25],
+  });
+  const sparkleRotateDeg = sparkleRotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+  const sparkleRotateOppositeDeg = sparkleRotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['360deg', '0deg'],
+  });
 
   return (
     <View style={styles.screenContainer}>
@@ -160,7 +231,7 @@ export default function CategoriesScreen() {
                 {/* Real Device Image */}
                 <View style={styles.categoryImageContainer}>
                   <Image
-                    source={cat.image}
+                    source={{ uri: cat.image }}
                     style={styles.categoryImage}
                     resizeMode="contain"
                   />
@@ -182,24 +253,51 @@ export default function CategoriesScreen() {
           })}
         </View>
 
-        {/* 5. PROMOTIONAL BANNER (IDENTICAL LANGUAGE TO SHOP SCREEN) */}
+        {/* 5. PROMOTIONAL BANNER WITH RICH ANIMATIONS & SHIMMER */}
         <View style={styles.bannerContainer}>
-          {/* Subtle sparkles background overlay */}
-          <View style={styles.sparkleOne}>
-            <Text style={{ fontSize: 13, color: '#F59E0B' }}>✦</Text>
-          </View>
-          <View style={styles.sparkleTwo}>
-            <Text style={{ fontSize: 11, color: '#F59E0B' }}>✦</Text>
-          </View>
+
+          {/* Twinkling & Rotating Animated Sparkles */}
+          <Animated.View
+            style={[
+              styles.sparkleOne,
+              {
+                transform: [{ rotate: sparkleRotateDeg }, { scale: sparkleScale }],
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 16, color: '#F59E0B' }}>✦</Text>
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.sparkleTwo,
+              {
+                transform: [{ rotate: sparkleRotateOppositeDeg }, { scale: sparkleScale }],
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 14, color: '#F59E0B' }}>✦</Text>
+          </Animated.View>
 
           <View style={styles.bannerLeftContent}>
+            {/* Shimmering Badge */}
             <View style={styles.certifiedBadge}>
-              <Text style={styles.certifiedBadgeText}>CERTIFIED PRE-OWNED</Text>
+              <ShimmerText
+                variant="gold-badge"
+                style={styles.certifiedBadgeText}
+                duration={4200}
+              >
+                CERTIFIED PRE-OWNED
+              </ShimmerText>
             </View>
 
-            <Text style={styles.bannerHeadline}>
-              Premium Devices{'\n'}at Better Prices
-            </Text>
+            {/* Shimmering Headline */}
+            <ShimmerText
+              variant="gold"
+              style={styles.bannerHeadline}
+              duration={4800}
+            >
+              {'Premium Devices\nat Better Prices'}
+            </ShimmerText>
 
             <Text style={styles.bannerSubtext}>
               Same performance. Greater value.
@@ -216,10 +314,28 @@ export default function CategoriesScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Right Graphic: Yellow Circle Aura BEHIND, Device Image UP AHEAD */}
           <View style={styles.bannerRightGraphic}>
-            <Image
+            {/* The rounded yellow circle aura strictly BEHIND the device */}
+            <Animated.View
+              style={[
+                styles.bannerAuraGlow,
+                {
+                  transform: [{ scale: auraScale }],
+                  opacity: auraOpacity,
+                },
+              ]}
+            />
+
+            {/* The device image strictly UP AHEAD of the rounded yellow circle */}
+            <Animated.Image
               source={BANNER_IMAGE}
-              style={styles.bannerImage}
+              style={[
+                styles.bannerImage,
+                {
+                  transform: [{ translateY: bannerFloatY }],
+                },
+              ]}
               resizeMode="contain"
             />
           </View>
@@ -497,15 +613,25 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  bannerAuraGlow: {
+    position: 'absolute',
+    width: 125,
+    height: 125,
+    borderRadius: 62.5,
+    backgroundColor: '#FDE047',
+    zIndex: 1,
+  },
   sparkleOne: {
     position: 'absolute',
     top: 50,
     right: 175,
+    zIndex: 3,
   },
   sparkleTwo: {
     position: 'absolute',
     top: 18,
     right: 20,
+    zIndex: 3,
   },
   bannerLeftContent: {
     flex: 1.15,
@@ -560,13 +686,16 @@ const styles = StyleSheet.create({
   },
   bannerRightGraphic: {
     flex: 0.85,
-    height: 125,
+    height: 135,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    zIndex: 5,
   },
   bannerImage: {
     width: '100%',
     height: '100%',
+    zIndex: 10,
   },
 
   // 6. Floating Bottom Navigation

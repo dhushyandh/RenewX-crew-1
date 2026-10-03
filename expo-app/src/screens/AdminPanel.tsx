@@ -533,7 +533,7 @@ function TradeInsView() {
         original_price: Number(item.original_price || item.mrp || approvedAmount),
         price: approvedAmount,
         condition: String(item.condition?.screen || item.condition?.body || 'Good'),
-        image_url: imageUrl || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&q=80',
+        image_url: imageUrl || item.images?.[0] || item.device_images?.[0] || '',
         stock: 1,
         description: String(item.description || item.condition_description || 'Certified device inspected and approved through RenewX Trade-In inspection.'),
         specs: [

@@ -18,6 +18,7 @@ import { useLocation } from '@/context/LocationContext';
 import { useToast } from '@/context/ToastContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
 
 export type HomeHeaderMode =
@@ -119,6 +120,7 @@ export default function HomeHeader({
   const navigation = useNavigation<any>();
   const { location, isDetecting, locationError, detectLocation, setLocationManually } = useLocation();
   const toast = useToast();
+  const { t } = useLanguage();
   const { unreadCount } = useNotifications();
   const { isAdmin: authIsAdmin } = useAuth();
   const effectiveIsAdmin = isAdmin !== undefined ? isAdmin : Boolean(authIsAdmin);
@@ -334,7 +336,7 @@ export default function HomeHeader({
             <Ionicons name="search-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
             <TextInput
               style={styles.searchTextInput}
-              placeholder={searchPlaceholder || 'Search phones, laptops, tablets...'}
+              placeholder={searchPlaceholder || t('search_placeholder', 'Search phones, laptops, tablets...')}
               placeholderTextColor="#94A3B8"
               value={searchText}
               onChangeText={onChangeSearchText}
@@ -854,7 +856,7 @@ export default function HomeHeader({
             {searchPlaceholder ||
               (mode === 'category' || mode === 'shop'
                 ? `Search in ${title}...`
-                : 'Search phones, laptops, tablets...')}
+                : t('search_placeholder', 'Search phones, laptops, tablets...'))}
           </Text>
 
           <View style={styles.searchBarTrailingIcons}>
@@ -913,7 +915,7 @@ export default function HomeHeader({
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>Delivery Location</Text>
+                <Text style={styles.modalTitle}>{t('settings_location', 'Delivery Location')}</Text>
                 <Text style={styles.modalSubtitle}>
                   Choose your city or enter pincode for delivery estimates
                 </Text>

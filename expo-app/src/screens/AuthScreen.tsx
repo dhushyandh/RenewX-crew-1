@@ -12,20 +12,31 @@ import {
   Image,
   Animated,
   Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import RenewXLogo from '@/components/RenewXLogo';
+import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 
 const LOGO_IMG = require('@/assets/logo.png');
 const HERO_IMG = require('@/assets/onboarding_hero.jpg');
 const SPLASH_HERO_TOP = require('../../assets/splash_hero_top.png');
 
-type AuthStep = 'splash' | 'email' | 'otp' | 'password' | 'signing_in';
+type AuthStep =
+  | 'splash'
+  | 'email'
+  | 'otp'
+  | 'password'
+  | 'signing_in'
+  | 'collect_profile'
+  | 'profile_photo'
+  | 'account_created';
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -34,74 +45,6 @@ function isValidEmail(value: string) {
 interface AuthScreenProps {
   onForgotPassword?: () => void;
 }
-
-const GADGET_ACCESSORIES = require('@/assets/categories/accessories.png');
-const GADGET_GAMING = require('@/assets/categories/gaming.png');
-const GADGET_LAPTOP = require('@/assets/categories/laptop.png');
-const GADGET_MAC = require('@/assets/categories/mac.png');
-const GADGET_SMARTPHONE = require('@/assets/categories/smartphone.png');
-const GADGET_SMARTWATCH = require('@/assets/categories/smartwatch.png');
-const GADGET_TABLETS = require('@/assets/categories/tablets.png');
-
-// Symmetrical gadget layout around center branding using authentic RenewX category assets
-const CURATED_GADGETS = [
-  {
-    id: 'phone',
-    icon: 'phone-portrait-outline' as const,
-    source: GADGET_SMARTPHONE,
-    top: '3%',
-    left: '8%',
-    rotate: '-10deg',
-  },
-  {
-    id: 'laptop',
-    icon: 'laptop-outline' as const,
-    source: GADGET_LAPTOP,
-    top: '0%',
-    left: '39%',
-    rotate: '4deg',
-  },
-  {
-    id: 'mac',
-    icon: 'desktop-outline' as const,
-    source: GADGET_MAC,
-    top: '3%',
-    right: '8%',
-    rotate: '10deg',
-  },
-  {
-    id: 'watch',
-    icon: 'watch-outline' as const,
-    source: GADGET_SMARTWATCH,
-    top: '35%',
-    left: '3%',
-    rotate: '12deg',
-  },
-  {
-    id: 'tablets',
-    icon: 'tablet-portrait-outline' as const,
-    source: GADGET_TABLETS,
-    top: '35%',
-    right: '3%',
-    rotate: '-12deg',
-  },
-  {
-    id: 'gaming',
-    icon: 'game-controller-outline' as const,
-    source: GADGET_GAMING,
-    bottom: '10%',
-    left: '10%',
-    rotate: '-8deg',
-  },
-  {
-    id: 'accessories',
-    icon: 'headset-outline' as const,
-    source: GADGET_ACCESSORIES,
-    bottom: '10%',
-    right: '10%',
-    rotate: '10deg',
-  },
-];
 
 export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
   const safeTop = useSafeHeaderTop();
@@ -142,6 +85,18 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
   const [isOtpFocused, setIsOtpFocused] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
+
+  // Post-verification account collection states
+  const [lockedEmail, setLockedEmail] = useState('');
+  const [verifiedSession, setVerifiedSession] = useState<{ token: string; user: any } | null>(null);
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [profileErrors, setProfileErrors] = useState<{ fullName?: string; phone?: string }>({});
 
   const emailInputRef = useRef<TextInput | null>(null);
   const passwordInputRef = useRef<TextInput | null>(null);
@@ -216,7 +171,6 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password;
     const cleanConfirm = confirmPassword;
-    const cleanName = fullName.trim();
 
     if (!cleanEmail) {
       setError('Please enter your email address.');
@@ -254,7 +208,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
     setErrorCode(null);
 
     try {
-      await api.auth.sendAuthOtp(cleanEmail, 'sign_up', cleanPass, cleanName);
+      await api.auth.sendAuthOtp(cleanEmail, 'sign_up', cleanPass);
       setResendTimer(30);
       setCanResend(false);
       setOtpCode('');
@@ -367,18 +321,23 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
 
     setLoading(true);
     setError(null);
-    setStep('signing_in');
 
     try {
       const cleanEmail = email.trim().toLowerCase();
       const res = await api.auth.verifyAuthOtp(cleanEmail, code);
 
       if (res?.token && res?.user) {
-        toast.success(
-          isSignUp ? 'Account created and verified! Welcome to RenewX.' : 'Logged in successfully!',
-          'Welcome to RenewX'
-        );
-        await loginWithToken(res.token, res.user);
+        if (isSignUp) {
+          setVerifiedSession({ token: res.token, user: res.user });
+          setLockedEmail(res.user.email || cleanEmail);
+          setLoading(false);
+          setStep('collect_profile');
+          toast.success('Email verified successfully! Please enter your details.', 'Verified');
+        } else {
+          setStep('signing_in');
+          toast.success('Logged in successfully!', 'Welcome to RenewX');
+          await loginWithToken(res.token, res.user);
+        }
       } else {
         throw new Error('Verification succeeded but session token was missing.');
       }
@@ -406,8 +365,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
       await api.auth.sendAuthOtp(
         cleanEmail,
         intent,
-        isSignUp ? password : undefined,
-        isSignUp ? fullName : undefined
+        isSignUp ? password : undefined
       );
       setResendTimer(30);
       setCanResend(false);
@@ -422,6 +380,181 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Step 1: Validate and move to Profile Photo
+  const handleProfileDetailsSubmit = () => {
+    const cleanName = fullName.trim();
+    const cleanPhone = phone.replace(/\D/g, '');
+    const errs: { fullName?: string; phone?: string } = {};
+
+    if (!cleanName) {
+      errs.fullName = 'Full Name is required';
+    }
+    if (!cleanPhone || cleanPhone.length < 10) {
+      errs.phone = 'Valid 10-digit mobile number is required';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setProfileErrors(errs);
+      return;
+    }
+
+    setProfileErrors({});
+    setStep('profile_photo');
+  };
+
+  // Step 2: Pick photo from Gallery
+  const handlePickFromGallery = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Needed', 'Please allow gallery access to select a profile photo.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+
+      setUploadingPhoto(true);
+
+      if (asset.base64) {
+        const mime = asset.mimeType || 'image/jpeg';
+        const dataUri = asset.base64.startsWith('data:')
+          ? asset.base64
+          : `data:${mime};base64,${asset.base64}`;
+        try {
+          const res = await api.upload.base64(dataUri, 'avatar.jpg');
+          if (res?.url) {
+            setAvatarUrl(res.url);
+            toast.success('Profile photo uploaded!');
+            return;
+          }
+        } catch {
+          // fallback to local uri
+        }
+      }
+
+      if (asset.uri) {
+        setAvatarUrl(asset.uri);
+        toast.success('Profile photo selected');
+      }
+    } catch {
+      toast.warning('Could not select photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Step 2: Take photo from Camera
+  const handlePickFromCamera = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Needed', 'Please allow camera access to take a profile photo.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+
+      setUploadingPhoto(true);
+
+      if (asset.base64) {
+        const mime = asset.mimeType || 'image/jpeg';
+        const dataUri = asset.base64.startsWith('data:')
+          ? asset.base64
+          : `data:${mime};base64,${asset.base64}`;
+        try {
+          const res = await api.upload.base64(dataUri, 'avatar.jpg');
+          if (res?.url) {
+            setAvatarUrl(res.url);
+            toast.success('Profile photo uploaded!');
+            return;
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      if (asset.uri) {
+        setAvatarUrl(asset.uri);
+        toast.success('Profile photo captured');
+      }
+    } catch {
+      toast.warning('Could not capture photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Step 2 -> Step 3: Complete Registration & Save Profile
+  const handleCompleteRegistration = async () => {
+    if (!verifiedSession) return;
+    setLoading(true);
+
+    const fullAddressParts = [address.trim(), city.trim(), stateName.trim(), pincode.trim()].filter(Boolean);
+    const formattedAddress = fullAddressParts.join(', ');
+
+    const updates: any = {
+      full_name: fullName.trim(),
+      phone: phone.replace(/\D/g, ''),
+      address: formattedAddress || address.trim(),
+      city: city.trim(),
+      state: stateName.trim(),
+      pincode: pincode.trim(),
+      avatar_url: avatarUrl.trim() || '',
+      profile_completed: true,
+    };
+
+    try {
+      if (verifiedSession.token) {
+        await api.users.updateProfile(updates).catch((err) => {
+          console.warn('[AuthScreen] updateProfile non-blocking error:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('[AuthScreen] profile sync error:', err);
+    } finally {
+      setLoading(false);
+      setStep('account_created');
+    }
+  };
+
+  // Step 3: Finish and enter app
+  const handleFinishOnboarding = async () => {
+    if (!verifiedSession?.token) return;
+    const finalUser = {
+      ...verifiedSession.user,
+      full_name: fullName.trim(),
+      phone: phone.replace(/\D/g, ''),
+      address: [address.trim(), city.trim(), stateName.trim(), pincode.trim()].filter(Boolean).join(', ') || address.trim(),
+      city: city.trim(),
+      state: stateName.trim(),
+      pincode: pincode.trim(),
+      avatar_url: avatarUrl.trim() || '',
+      profile_completed: true,
+    };
+    await loginWithToken(verifiedSession.token, finalUser);
   };
 
   // 6. Trigger verification email when unverified login detected
@@ -632,25 +765,6 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
           {/* ================= CREATE ACCOUNT FORM ================= */}
           {isSignUp ? (
             <>
-              {/* Full Name Input (Optional) */}
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Full Name (Optional)</Text>
-                <TextInput
-                  style={styles.pillInput}
-                  placeholder="e.g. Alex Johnson"
-                  placeholderTextColor="#94a3b8"
-                  value={fullName}
-                  onChangeText={(v) => {
-                    setFullName(v);
-                    setError(null);
-                  }}
-                  autoCapitalize="words"
-                  editable={!loading}
-                  returnKeyType="next"
-                  onSubmitEditing={() => emailInputRef.current?.focus()}
-                />
-              </View>
-
               {/* Email Address */}
               <View style={styles.inputWrapper}>
                 <Text style={styles.inputLabel}>Email Address</Text>
@@ -1105,7 +1219,396 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
       )}
 
       {/* ========================================================================= */}
-      {/* 5. LEGAL POLICY MODAL (TERMS & PRIVACY)                                   */}
+      {/* 5. POST-VERIFICATION STEP 1: COLLECT PROFILE & OPTIONAL ADDRESS           */}
+      {/* ========================================================================= */}
+      {step === 'collect_profile' && (
+        <ScrollView
+          contentContainerStyle={[styles.modalSheetContent, { paddingTop: Math.max(safeTop, 16) }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header Bar */}
+          <View style={styles.modalTopBar}>
+            <View style={{ width: 38 }} />
+            <Text style={styles.modalHostText}>renewx.in</Text>
+            <View style={{ width: 38 }} />
+          </View>
+
+          {/* Progress / Step Badge */}
+          <View style={styles.stepBadgePill}>
+            <Text style={styles.stepBadgeText}>STEP 1 OF 2 : PERSONAL DETAILS</Text>
+          </View>
+
+          <Text style={styles.sheetTitle}>Complete your profile</Text>
+          <Text style={styles.sheetSubtitle}>
+            Please provide your name and mobile number to complete your account setup.
+          </Text>
+
+          {/* Full Name (Required) */}
+          <View style={styles.inputWrapper}>
+            <View style={styles.labelRowWithStatus}>
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <Text style={styles.requiredAsterisk}>*Required</Text>
+            </View>
+            <View style={[styles.fieldContainer, profileErrors.fullName ? styles.inputRowError : null]}>
+              <Ionicons name="person-outline" size={19} color="#64748b" style={styles.fieldIconLeft} />
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. Alex Johnson"
+                placeholderTextColor="#94a3b8"
+                value={fullName}
+                onChangeText={(v) => {
+                  setFullName(v);
+                  if (profileErrors.fullName) {
+                    setProfileErrors((prev) => ({ ...prev, fullName: undefined }));
+                  }
+                }}
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+            </View>
+            {profileErrors.fullName && (
+              <Text style={styles.fieldErrorText}>{profileErrors.fullName}</Text>
+            )}
+          </View>
+
+          {/* Mobile Number (Required) */}
+          <View style={styles.inputWrapper}>
+            <View style={styles.labelRowWithStatus}>
+              <Text style={styles.inputLabel}>Mobile Number</Text>
+              <Text style={styles.requiredAsterisk}>*Required</Text>
+            </View>
+            <View style={[styles.fieldContainer, profileErrors.phone ? styles.inputRowError : null]}>
+              <View style={styles.phoneCountryBadge}>
+                <Text style={styles.phoneCountryText}>🇮🇳 +91</Text>
+              </View>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="10-digit mobile number"
+                placeholderTextColor="#94a3b8"
+                value={phone}
+                onChangeText={(v) => {
+                  const cleaned = v.replace(/[^0-9]/g, '').slice(0, 10);
+                  setPhone(cleaned);
+                  if (profileErrors.phone) {
+                    setProfileErrors((prev) => ({ ...prev, phone: undefined }));
+                  }
+                }}
+                keyboardType="phone-pad"
+                maxLength={10}
+                returnKeyType="next"
+              />
+            </View>
+            {profileErrors.phone && (
+              <Text style={styles.fieldErrorText}>{profileErrors.phone}</Text>
+            )}
+          </View>
+
+          {/* Email Address (LOCKED & VERIFIED) */}
+          <View style={styles.inputWrapper}>
+            <View style={styles.labelRowWithStatus}>
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <View style={styles.verifiedGreenBadge}>
+                <Ionicons name="shield-checkmark" size={13} color="#16a34a" />
+                <Text style={styles.verifiedGreenBadgeText}>Verified via OTP</Text>
+              </View>
+            </View>
+            <View style={[styles.fieldContainer, styles.lockedFieldContainer]}>
+              <Ionicons name="lock-closed" size={17} color="#64748b" style={styles.fieldIconLeft} />
+              <TextInput
+                style={[styles.fieldInput, styles.lockedFieldInput]}
+                value={lockedEmail || email}
+                editable={false}
+              />
+              <View style={styles.lockedPillIcon}>
+                <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+              </View>
+            </View>
+            <Text style={styles.fieldHelperText}>
+              This email is authenticated and securely locked to your account.
+            </Text>
+          </View>
+
+          {/* Optional Delivery Address Section */}
+          <View style={styles.addressSectionDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.addressSectionHeading}>DELIVERY ADDRESS (OPTIONAL)</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Text style={styles.addressSectionSubtitle}>
+            Save your shipping address now for quick one-tap checkout, or skip it for later.
+          </Text>
+
+          {/* Street / Flat Address */}
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>House / Flat / Street Address</Text>
+            <View style={styles.fieldContainer}>
+              <Ionicons name="home-outline" size={18} color="#64748b" style={styles.fieldIconLeft} />
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. 42 Palm Grove Ave, Apt 3B"
+                placeholderTextColor="#94a3b8"
+                value={address}
+                onChangeText={setAddress}
+                autoCapitalize="sentences"
+                returnKeyType="next"
+              />
+            </View>
+          </View>
+
+          {/* City & State (Two column row) */}
+          <View style={styles.twoColRow}>
+            <View style={[styles.inputWrapper, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.inputLabel}>City</Text>
+              <View style={styles.fieldContainer}>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="e.g. Chennai"
+                  placeholderTextColor="#94a3b8"
+                  value={city}
+                  onChangeText={setCity}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            <View style={[styles.inputWrapper, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.inputLabel}>State</Text>
+              <View style={styles.fieldContainer}>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="e.g. Tamil Nadu"
+                  placeholderTextColor="#94a3b8"
+                  value={stateName}
+                  onChangeText={setStateName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Pincode */}
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>Pincode</Text>
+            <View style={styles.fieldContainer}>
+              <Ionicons name="location-outline" size={18} color="#64748b" style={styles.fieldIconLeft} />
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="6-digit Pincode"
+                placeholderTextColor="#94a3b8"
+                value={pincode}
+                onChangeText={(v) => setPincode(v.replace(/[^0-9]/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                returnKeyType="done"
+              />
+            </View>
+          </View>
+
+          {/* Action Button */}
+          <TouchableOpacity
+            style={[styles.continueBtn, { marginTop: 20 }]}
+            onPress={handleProfileDetailsSubmit}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.continueBtnText}>Next: Profile Photo →</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. POST-VERIFICATION STEP 2: PROFILE PHOTO UPLOAD (OPTIONAL)              */}
+      {/* ========================================================================= */}
+      {step === 'profile_photo' && (
+        <ScrollView
+          contentContainerStyle={[styles.modalSheetContent, { paddingTop: Math.max(safeTop, 16) }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header Bar */}
+          <View style={styles.modalTopBar}>
+            <TouchableOpacity
+              style={styles.closeRoundBtn}
+              onPress={() => setStep('collect_profile')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={20} color="#0f172a" />
+            </TouchableOpacity>
+            <Text style={styles.modalHostText}>renewx.in</Text>
+            <View style={{ width: 38 }} />
+          </View>
+
+          {/* Progress / Step Badge */}
+          <View style={styles.stepBadgePill}>
+            <Text style={styles.stepBadgeText}>STEP 2 OF 2 : PROFILE PHOTO</Text>
+          </View>
+
+          <Text style={styles.sheetTitle}>Add a profile photo</Text>
+          <Text style={styles.sheetSubtitle}>
+            Personalize your RenewX account. You can also skip this and add it anytime from your profile.
+          </Text>
+
+          {/* 120x120 Circular Avatar Stage */}
+          <View style={styles.avatarPickerStage}>
+            <View style={styles.avatarOuterRing}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Ionicons name="person" size={54} color="#94a3b8" />
+                </View>
+              )}
+
+              {uploadingPhoto && (
+                <View style={styles.avatarLoadingOverlay}>
+                  <ActivityIndicator size="small" color="#0f172a" />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.avatarCameraBadge}
+                onPress={handlePickFromGallery}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="camera" size={16} color="#0f172a" />
+              </TouchableOpacity>
+            </View>
+
+            {avatarUrl ? (
+              <TouchableOpacity
+                style={styles.removePhotoBtn}
+                onPress={() => setAvatarUrl('')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                <Text style={styles.removePhotoText}>Remove photo</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Option Buttons: Gallery & Camera */}
+          <View style={styles.photoActionsRow}>
+            <TouchableOpacity
+              style={styles.photoChoiceBtn}
+              onPress={handlePickFromGallery}
+              disabled={uploadingPhoto || loading}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="images-outline" size={20} color="#0f172a" />
+              <Text style={styles.photoChoiceBtnText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoChoiceBtn}
+              onPress={handlePickFromCamera}
+              disabled={uploadingPhoto || loading}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="camera-outline" size={20} color="#0f172a" />
+              <Text style={styles.photoChoiceBtnText}>Take a Photo</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Primary Action Button */}
+          <TouchableOpacity
+            style={[styles.continueBtn, { marginTop: 24 }, loading && styles.btnDisabled]}
+            onPress={handleCompleteRegistration}
+            disabled={loading}
+            activeOpacity={0.88}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#0f172a" />
+            ) : (
+              <Text style={styles.continueBtnText}>Complete Registration →</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Skip for now Button */}
+          <TouchableOpacity
+            style={styles.skipStepBtn}
+            onPress={handleCompleteRegistration}
+            disabled={loading}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.skipStepBtnText}>Skip for now</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 7. POST-VERIFICATION STEP 3: ACCOUNT CREATED ANIMATION                    */}
+      {/* ========================================================================= */}
+      {step === 'account_created' && (
+        <ScrollView
+          contentContainerStyle={[styles.modalSheetContent, styles.successContentCenter, { paddingTop: Math.max(safeTop, 24) }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Celebratory Tick Animation */}
+          <View style={styles.successAnimationWrap}>
+            <AnimatedOrderSuccessTick
+              size={96}
+              showParticles={true}
+              autoPlay={true}
+            />
+          </View>
+
+          <Text style={styles.successHeading}>Account Created Successfully!</Text>
+          <Text style={styles.successSubtext}>
+            Welcome to <Text style={{ fontWeight: '800', color: '#0F172A' }}>RenewX</Text>, {fullName || 'Valued Member'}!{'\n'}
+            Your verified account is ready.
+          </Text>
+
+          {/* Account Summary Card */}
+          <View style={styles.verifiedSummaryCard}>
+            <View style={styles.verifiedCardHeader}>
+              <Ionicons name="shield-checkmark" size={18} color="#16a34a" />
+              <Text style={styles.verifiedCardHeaderText}>Verified Account Details</Text>
+            </View>
+
+            <View style={styles.verifiedDetailRow}>
+              <Text style={styles.verifiedDetailLabel}>Full Name</Text>
+              <Text style={styles.verifiedDetailValue}>{fullName || 'RenewX User'}</Text>
+            </View>
+
+            <View style={styles.verifiedDetailRow}>
+              <Text style={styles.verifiedDetailLabel}>Mobile Number</Text>
+              <Text style={styles.verifiedDetailValue}>+91 {phone}</Text>
+            </View>
+
+            <View style={styles.verifiedDetailRow}>
+              <Text style={styles.verifiedDetailLabel}>Email (Verified)</Text>
+              <View style={styles.verifiedEmailInline}>
+                <Ionicons name="checkmark-circle" size={14} color="#16a34a" style={{ marginRight: 4 }} />
+                <Text style={styles.verifiedDetailValue}>{lockedEmail || email}</Text>
+              </View>
+            </View>
+
+            {address ? (
+              <View style={[styles.verifiedDetailRow, { borderBottomWidth: 0 }]}>
+                <Text style={styles.verifiedDetailLabel}>Address</Text>
+                <Text style={[styles.verifiedDetailValue, { maxWidth: '60%', textAlign: 'right' }]} numberOfLines={2}>
+                  {[address, city, stateName, pincode].filter(Boolean).join(', ')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Get Started Button */}
+          <TouchableOpacity
+            style={[styles.continueBtn, { width: '100%', maxWidth: 380, marginTop: 24 }]}
+            onPress={handleFinishOnboarding}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.continueBtnText}>Explore RenewX →</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 8. LEGAL POLICY MODAL (TERMS & PRIVACY)                                   */}
       {/* ========================================================================= */}
       <Modal
         visible={legalModal !== null}
@@ -1963,5 +2466,304 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.1,
+  },
+  stepBadgePill: {
+    alignSelf: 'center',
+    backgroundColor: '#FEF08A',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    marginBottom: 10,
+  },
+  stepBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#854D0E',
+    letterSpacing: 0.6,
+  },
+  requiredAsterisk: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  fieldContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 24,
+    height: 52,
+    paddingHorizontal: 16,
+  },
+  fieldIconLeft: {
+    marginRight: 10,
+  },
+  fieldInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '500',
+    height: '100%',
+  },
+  fieldErrorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  phoneCountryBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginRight: 10,
+  },
+  phoneCountryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  verifiedGreenBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    gap: 4,
+  },
+  verifiedGreenBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#16A34A',
+  },
+  lockedFieldContainer: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#CBD5E1',
+  },
+  lockedFieldInput: {
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  lockedPillIcon: {
+    marginLeft: 8,
+  },
+  fieldHelperText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 5,
+    marginLeft: 4,
+  },
+  addressSectionDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 22,
+    marginBottom: 8,
+  },
+  addressSectionHeading: {
+    marginHorizontal: 10,
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.8,
+  },
+  addressSectionSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  twoColRow: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 400,
+  },
+  avatarPickerStage: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  avatarOuterRing: {
+    width: 124,
+    height: 124,
+    borderRadius: 62,
+    borderWidth: 3,
+    borderColor: '#FACC15',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+      },
+    }),
+  },
+  avatarImg: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+  },
+  avatarFallback: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    borderRadius: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarCameraBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#FACC15',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  removePhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  removePhotoText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  photoActionsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 400,
+    gap: 12,
+    marginTop: 6,
+  },
+  photoChoiceBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 20,
+    height: 48,
+    gap: 8,
+  },
+  photoChoiceBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  skipStepBtn: {
+    marginTop: 14,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  skipStepBtnText: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  successContentCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  successAnimationWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 18,
+    height: 130,
+  },
+  successHeading: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#0F172A',
+    textAlign: 'center',
+    letterSpacing: -0.4,
+    marginBottom: 8,
+  },
+  successSubtext: {
+    fontSize: 14.5,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  verifiedSummaryCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 12,
+  },
+  verifiedCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    marginBottom: 10,
+  },
+  verifiedCardHeaderText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  verifiedDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  verifiedDetailLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  verifiedDetailValue: {
+    fontSize: 13.5,
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  verifiedEmailInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

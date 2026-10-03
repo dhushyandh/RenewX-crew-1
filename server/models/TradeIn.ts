@@ -160,3 +160,5 @@ TradeInRequestSchema.index({ status: 1, created_at: -1 });
 
 export const TradeInModel =
   (mongoose.models.TradeInRequest as mongoose.Model<ITradeInRequest>) || mongoose.model<ITradeInRequest>('TradeInRequest', TradeInRequestSchema);
+
+export const TradeInPickupModel = TradeInModel;

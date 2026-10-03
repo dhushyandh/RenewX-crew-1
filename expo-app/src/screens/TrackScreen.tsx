@@ -289,7 +289,7 @@ export default function TrackScreen() {
             image:
               firstItem.image_url || firstItem.image
                 ? { uri: firstItem.image_url || firstItem.image }
-                : require('@/assets/categories/smartphone.png'),
+                : { uri: 'https://pngimg.com/uploads/iphone_14/small/iphone_14_PNG21.png' },
             tracking_id: o.tracking_number || (o.status === 'shipped' || o.status === 'out_for_delivery' ? `RX-${id.slice(-6).toUpperCase()}` : undefined),
             delivery_partner: o.delivery_partner || (o.courier ? {
               name: o.courier,

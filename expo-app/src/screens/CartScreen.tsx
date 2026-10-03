@@ -21,6 +21,7 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useToast } from '@/context/ToastContext';
 import { confirmAction } from '@/lib/confirmAction';
 import { api } from '@/services/api';
+import { getCategoryDeviceImage } from '@/lib/imageUtils';
 
 function formatMoney(value: number) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -84,7 +85,12 @@ export default function CartScreen() {
               price: p.price,
               originalPrice: p.original_price || p.originalPrice || Math.round(p.price * 1.35),
               discount: `${Math.round((((p.original_price || p.price * 1.35) - p.price) / (p.original_price || p.price * 1.35)) * 100)}% OFF`,
-              image: p.image_url || p.imageUrl || p.image || 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80',
+              image:
+                typeof (p.image_url || p.imageUrl || p.image) === 'string' &&
+                !(p.image_url || p.imageUrl || p.image).includes('unsplash.com') &&
+                (p.image_url || p.imageUrl || p.image).trim()
+                  ? (p.image_url || p.imageUrl || p.image).trim()
+                  : getCategoryDeviceImage(p.category, p.name),
               raw: p,
             }))
           );
@@ -115,7 +121,12 @@ export default function CartScreen() {
       originalPrice: item.originalPrice || Math.round(item.price * 1.38),
       discount: `${Math.round((((item.originalPrice || item.price * 1.38) - item.price) / (item.originalPrice || item.price * 1.38)) * 100)}% OFF`,
       quantity: item.quantity,
-      image: item.image || item.images?.[0] || 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80',
+      image:
+        typeof (item.image || item.images?.[0]) === 'string' &&
+        !(item.image || item.images?.[0]).includes('unsplash.com') &&
+        (item.image || item.images?.[0]).trim()
+          ? (item.image || item.images?.[0]).trim()
+          : getCategoryDeviceImage(item.category, item.name),
       stock: item.stock || 10,
       raw: item,
     }));
@@ -201,7 +212,12 @@ export default function CartScreen() {
                 price: p.price,
                 originalPrice: p.original_price || p.originalPrice || Math.round(p.price * 1.35),
                 discount: `${Math.round((((p.original_price || p.price * 1.35) - p.price) / (p.original_price || p.price * 1.35)) * 100)}% OFF`,
-                image: p.image_url || p.imageUrl || p.image || 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80',
+                image:
+                  typeof (p.image_url || p.imageUrl || p.image) === 'string' &&
+                  !(p.image_url || p.imageUrl || p.image).includes('unsplash.com') &&
+                  (p.image_url || p.imageUrl || p.image).trim()
+                    ? (p.image_url || p.imageUrl || p.image).trim()
+                    : getCategoryDeviceImage(p.category, p.name),
                 raw: p,
               }))
             );
@@ -280,7 +296,11 @@ export default function CartScreen() {
 
                 {/* Product Thumbnail */}
                 <View style={styles.imageContainer}>
-                  <Image source={{ uri: item.image }} style={styles.productImage} resizeMode="contain" />
+                  <Image
+                    source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+                    style={styles.productImage}
+                    resizeMode="contain"
+                  />
                 </View>
 
                 {/* Middle Info Column */}
@@ -436,7 +456,11 @@ export default function CartScreen() {
                     <Ionicons name="heart-outline" size={16} color="#475569" />
                   </TouchableOpacity>
 
-                  <Image source={{ uri: prod.image }} style={styles.recProductImage} resizeMode="contain" />
+                  <Image
+                    source={typeof prod.image === 'string' ? { uri: prod.image } : prod.image}
+                    style={styles.recProductImage}
+                    resizeMode="contain"
+                  />
 
                   <Text style={styles.recProdName} numberOfLines={1}>
                     {prod.name}

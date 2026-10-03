@@ -1,3 +1,6 @@
+import { Platform } from 'react-native';
+import * as Location from 'expo-location';
+
 export interface GeocodeAddress {
   city: string;
   district: string;
@@ -235,4 +238,47 @@ export async function reverseGeocodeCoords(
   // IMPORTANT:
   // Never return fake location data.
   return null;
+}
+
+/**
+ * Detects current GPS coordinates on Web or Native,
+ * and reverse geocodes them into a structured street/city/state/pincode address.
+ */
+export async function detectCurrentLocationAddress(): Promise<GeocodeAddress | null> {
+  try {
+    let latitude: number;
+    let longitude: number;
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && navigator?.geolocation) {
+      const coords = await new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          reject,
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+        );
+      });
+      latitude = coords.latitude;
+      longitude = coords.longitude;
+    } else {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return null;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      latitude = position.coords.latitude;
+      longitude = position.coords.longitude;
+    }
+
+    return await reverseGeocodeCoords({ latitude, longitude });
+  } catch (error) {
+    console.warn('[LocationService] detectCurrentLocationAddress error:', error);
+    return null;
+  }
 }

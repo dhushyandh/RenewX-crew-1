@@ -27,15 +27,16 @@ import { useAuth } from '@/context/AuthContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
 import { renewxColors, renewxFontFamily, renewxRadius, renewxSpacing } from '@/design-system';
+import { CATEGORY_THIRD_PARTY_IMAGES } from '@/data/categories';
 
 // 1. Supported Device Categories
 const SELL_CATEGORIES = [
-  { id: 'smartphone', name: 'Smartphone', categoryParam: 'Smartphones', image: require('@/assets/categories/smartphone.png') },
-  { id: 'laptop', name: 'Laptop', categoryParam: 'Laptops', image: require('@/assets/categories/laptop.png') },
-  { id: 'tablet', name: 'Tablet', categoryParam: 'Tablets', image: require('@/assets/categories/tablets.png') },
-  { id: 'smartwatch', name: 'Smartwatch', categoryParam: 'Wearables', image: require('@/assets/categories/smartwatch.png') },
-  { id: 'earbuds', name: 'Earbuds', categoryParam: 'Audio', image: require('@/assets/categories/accessories.png') },
-  { id: 'accessories', name: 'Accessories', categoryParam: 'Accessories', image: require('@/assets/categories/gaming.png') },
+  { id: 'smartphone', name: 'Smartphone', categoryParam: 'Smartphones', image: CATEGORY_THIRD_PARTY_IMAGES.Smartphones },
+  { id: 'laptop', name: 'Laptop', categoryParam: 'Laptops', image: CATEGORY_THIRD_PARTY_IMAGES.Laptops },
+  { id: 'tablet', name: 'Tablet', categoryParam: 'Tablets', image: CATEGORY_THIRD_PARTY_IMAGES.Tablets },
+  { id: 'smartwatch', name: 'Smartwatch', categoryParam: 'Wearables', image: CATEGORY_THIRD_PARTY_IMAGES.Smartwatches },
+  { id: 'earbuds', name: 'Earbuds', categoryParam: 'Audio', image: CATEGORY_THIRD_PARTY_IMAGES.Earbuds },
+  { id: 'accessories', name: 'Accessories', categoryParam: 'Accessories', image: CATEGORY_THIRD_PARTY_IMAGES.Accessories },
 ];
 
 // Fallback Brand Logo CDNs for Database Brands
@@ -213,9 +214,13 @@ export default function SellScreen() {
   const selectedCatObj = useMemo(() => SELL_CATEGORIES.find((c) => c.id === selectedCategory), [selectedCategory]);
   const selectedModelObj = useMemo(() => models.find((m) => m.name === selectedModel), [models, selectedModel]);
   const activeDeviceImage = useMemo(() => {
-    if (selectedModelObj?.image) return selectedModelObj.image;
-    if (selectedCatObj?.image) return selectedCatObj.image;
-    return require('@/assets/categories/smartphone.png');
+    if (selectedModelObj?.image) {
+      return typeof selectedModelObj.image === 'string' ? { uri: selectedModelObj.image } : (selectedModelObj.image as any);
+    }
+    if (selectedCatObj?.image) {
+      return { uri: selectedCatObj.image };
+    }
+    return { uri: CATEGORY_THIRD_PARTY_IMAGES.Smartphones };
   }, [selectedModelObj, selectedCatObj]);
 
   const activeStorageOptions = useMemo(() => {
@@ -297,7 +302,7 @@ export default function SellScreen() {
       const mapped = list.map((m: any) => ({
         id: String(m.id || m._id || m.name),
         name: String(m.name || m.model_name || '').trim(),
-        image: m.image_url || m.imageUrl ? { uri: m.image_url || m.imageUrl } : require('@/assets/categories/smartphone.png'),
+        image: m.image_url || m.imageUrl ? { uri: m.image_url || m.imageUrl } : { uri: CATEGORY_THIRD_PARTY_IMAGES.Smartphones },
         base_price: Number(m.base_price || m.price || 0),
         storage_options: Array.isArray(m.storage_options) ? m.storage_options : [],
       }));
@@ -451,7 +456,7 @@ export default function SellScreen() {
     const newModel = {
       id: `custom_${Date.now()}`,
       name,
-      image: require('@/assets/categories/smartphone.png'),
+      image: { uri: CATEGORY_THIRD_PARTY_IMAGES.Smartphones },
     };
     setModels((prev) => [newModel, ...prev]);
     setSelectedModel(name);
@@ -842,7 +847,11 @@ export default function SellScreen() {
                         </View>
                       )}
                       <View style={styles.catImgBox}>
-                        <Image source={cat.image} style={styles.catImg} resizeMode="contain" />
+                        <Image
+                          source={{ uri: cat.image }}
+                          style={styles.catImg}
+                          resizeMode="contain"
+                        />
                       </View>
                       <Text style={[styles.catName, isSelected && styles.catNameSelected]}>
                         {cat.name}

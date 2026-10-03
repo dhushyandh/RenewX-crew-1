@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
+import { getCategoryDeviceImage } from '@/lib/imageUtils';
+import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { initialBrands, type BrandItem } from '@/data/brandsData';
 
 export interface ProductRow {
   id: string;
@@ -49,6 +52,7 @@ export default function AddProductModal({
   onSaved,
 }: ProductModalProps) {
   const toast = useToast();
+  const safeTop = useSafeHeaderTop();
   const { width: windowWidth } = useWindowDimensions();
   const isSplitView = windowWidth >= 960;
 
@@ -60,16 +64,53 @@ export default function AddProductModal({
   const [model, setModel] = useState(product?.model || (product ? '' : 'iPhone 14 Pro'));
   const [category, setCategory] = useState(product?.category || (product ? '' : 'Smartphones'));
 
+  // Available brands list: initial static brands + any created via Admin API
+  const [availableBrands, setAvailableBrands] = useState<BrandItem[]>(initialBrands);
+
+  useEffect(() => {
+    let active = true;
+    api.brands
+      .getAll()
+      .then((res: any) => {
+        if (!active) return;
+        const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+        if (list.length > 0) {
+          const merged = [...initialBrands];
+          list.forEach((b: any) => {
+            const name = b.name || b.brandName;
+            if (name && !merged.some((m) => m.name.toLowerCase() === name.toLowerCase())) {
+              merged.push({
+                id: b.id || b._id || name.toLowerCase(),
+                name,
+                logo: b.logo || b.logo_url || b.imageUrl || b.image_url || '',
+                category: b.category || 'SMARTPHONES',
+                description: b.description || '',
+              });
+            }
+          });
+          setAvailableBrands(merged);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Compute selected brand logo
+  const selectedBrandLogo = useMemo(() => {
+    if (!brand) return undefined;
+    const found = availableBrands.find(
+      (b) => b.name.toLowerCase() === brand.toLowerCase() || b.id.toLowerCase() === brand.toLowerCase()
+    );
+    return found?.logo || found?.logo_url;
+  }, [brand, availableBrands]);
+
   // Images state
   const [images, setImages] = useState<string[]>(
     product?.image_url
       ? [product.image_url, ...(product.images || []).filter((img) => img !== product.image_url)]
-      : [
-          'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=80',
-          'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&q=80',
-          'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=600&q=80',
-          'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=600&q=80',
-        ]
+      : []
   );
   const [addImageModal, setAddImageModal] = useState(false);
   const [customImageUrl, setCustomImageUrl] = useState('');
@@ -108,10 +149,11 @@ export default function AddProductModal({
   const [saving, setSaving] = useState(false);
 
   // Dropdown Picker Modal
+  const [pickerSearch, setPickerSearch] = useState('');
   const [pickerModal, setPickerModal] = useState<{
     visible: boolean;
     title: string;
-    options: { label: string; value: string; color?: string; icon?: string }[];
+    options: { label: string; value: string; color?: string; icon?: string; logo?: string }[];
     onSelect: (val: string) => void;
   }>({
     visible: false,
@@ -122,11 +164,18 @@ export default function AddProductModal({
 
   const openPicker = (
     title: string,
-    options: { label: string; value: string; color?: string; icon?: string }[],
+    options: { label: string; value: string; color?: string; icon?: string; logo?: string }[],
     onSelect: (val: string) => void
   ) => {
+    setPickerSearch('');
     setPickerModal({ visible: true, title, options, onSelect });
   };
+
+  const filteredPickerOptions = useMemo(() => {
+    if (!pickerSearch.trim()) return pickerModal.options;
+    const q = pickerSearch.trim().toLowerCase();
+    return pickerModal.options.filter((opt) => opt.label.toLowerCase().includes(q));
+  }, [pickerModal.options, pickerSearch]);
 
   const handleRemoveImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -161,7 +210,7 @@ export default function AddProductModal({
       original_price: parseInt(mrp, 10) || Math.round(priceNum * 1.38),
       stock: Math.max(0, stock),
       condition: condition.trim() || 'Excellent',
-      image_url: images[0] || 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=80',
+      image_url: images[0] || '',
       images: images.length > 0 ? images : undefined,
       description: description.trim(),
       specs: [
@@ -192,34 +241,52 @@ export default function AddProductModal({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <View style={newProdStyles.screenContainer}>
-        {/* Top Header matching Mockup */}
-        <View style={newProdStyles.topBar}>
+        {/* Top Header */}
+        <View style={[newProdStyles.topBar, { paddingTop: safeTop }]}>
           <TouchableOpacity
             onPress={onClose}
             style={newProdStyles.backBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.8}
           >
-            <Ionicons name="chevron-back" size={24} color="#0F172A" />
+            <Ionicons name="arrow-back" size={20} color="#0F172A" />
           </TouchableOpacity>
 
-          <View style={newProdStyles.brandHeaderCol}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={newProdStyles.brandTitle}>Renew</Text>
-              <Text style={newProdStyles.brandTitleYellow}>X</Text>
+          <View style={newProdStyles.topBarCenter}>
+            <Text style={newProdStyles.topBarTitle} numberOfLines={1}>
+              {product ? 'Edit Product' : 'Add New Product'}
+            </Text>
+            <View style={newProdStyles.topBarBadgeRow}>
+              <View style={newProdStyles.adminDot} />
+              <Text style={newProdStyles.topBarSubtitle}>RenewX Admin Inventory</Text>
             </View>
-            <Text style={newProdStyles.brandSubtitle}>Buy Pre-Owned | Sell | Upgrade</Text>
           </View>
 
           <View style={newProdStyles.topBarRight}>
-            <TouchableOpacity style={newProdStyles.bellIconBtn} activeOpacity={0.8}>
-              <Ionicons name="notifications-outline" size={20} color="#0F172A" />
-              <View style={newProdStyles.notificationDot} />
+            <TouchableOpacity
+              style={[newProdStyles.topBarSaveBtn, saving && newProdStyles.topBarSaveBtnDisabled]}
+              onPress={() => handleSaveProduct(false)}
+              disabled={saving}
+              activeOpacity={0.8}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#0F172A" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={15} color="#0F172A" style={{ marginRight: 4 }} />
+                  <Text style={newProdStyles.topBarSaveText}>{product ? 'Update' : 'Publish'}</Text>
+                </>
+              )}
             </TouchableOpacity>
 
-            <View style={newProdStyles.adminAvatarCircle}>
-              <Text style={newProdStyles.adminAvatarText}>AD</Text>
-            </View>
-            <Text style={newProdStyles.adminRoleLabel}>Admin</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={newProdStyles.topBarCloseBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={18} color="#64748B" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -360,24 +427,34 @@ export default function AddProductModal({
                     onPress={() =>
                       openPicker(
                         'Select Brand',
-                        [
-                          { label: 'Apple', value: 'Apple', icon: 'logo-apple' },
-                          { label: 'Samsung', value: 'Samsung' },
-                          { label: 'Google', value: 'Google' },
-                          { label: 'OnePlus', value: 'OnePlus' },
-                          { label: 'Xiaomi', value: 'Xiaomi' },
-                          { label: 'Dell', value: 'Dell' },
-                          { label: 'HP', value: 'HP' },
-                          { label: 'Lenovo', value: 'Lenovo' },
-                        ],
+                        availableBrands.map((b) => ({
+                          label: b.name,
+                          value: b.name,
+                          logo: b.logo || b.logo_url || b.imageUrl || b.image_url,
+                          icon: b.name.toLowerCase() === 'apple' ? 'logo-apple' : undefined,
+                        })),
                         setBrand
                       )
                     }
                     activeOpacity={0.8}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="logo-apple" size={16} color="#0F172A" style={{ marginRight: 6 }} />
-                      <Text style={newProdStyles.selectBoxText}>{brand || 'Select Brand'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      {selectedBrandLogo ? (
+                        <View style={newProdStyles.selectedBrandLogoBox}>
+                          <Image
+                            source={{ uri: selectedBrandLogo }}
+                            style={newProdStyles.selectedBrandLogoImg}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      ) : brand && brand.toLowerCase() === 'apple' ? (
+                        <Ionicons name="logo-apple" size={16} color="#0F172A" style={{ marginRight: 8 }} />
+                      ) : (
+                        <Ionicons name="pricetag-outline" size={16} color="#64748B" style={{ marginRight: 8 }} />
+                      )}
+                      <Text style={newProdStyles.selectBoxText} numberOfLines={1}>
+                        {brand || 'Select Brand'}
+                      </Text>
                     </View>
                     <Ionicons name="chevron-down" size={16} color="#64748B" />
                   </TouchableOpacity>
@@ -729,16 +806,16 @@ export default function AddProductModal({
                 {/* Image showcase */}
                 <View style={newProdStyles.previewImageContainer}>
                   <Image
-                    source={{
-                      uri:
-                        images[0] ||
-                        'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=80',
-                    }}
+                    source={
+                      images[0] && typeof images[0] === 'string'
+                        ? { uri: images[0] }
+                        : getCategoryDeviceImage(category, productName)
+                    }
                     style={newProdStyles.previewMainImg}
                     resizeMode="contain"
                   />
                   <View style={newProdStyles.previewCounterPill}>
-                    <Text style={newProdStyles.previewCounterText}>1 / {images.length || 6}</Text>
+                    <Text style={newProdStyles.previewCounterText}>1 / {images.length || 1}</Text>
                   </View>
                 </View>
 
@@ -827,37 +904,95 @@ export default function AddProductModal({
         </View>
 
         {/* Dropdown Options Modal */}
-        <Modal visible={pickerModal.visible} transparent animationType="fade">
+        <Modal
+          visible={pickerModal.visible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPickerModal((p) => ({ ...p, visible: false }))}
+        >
           <View style={newProdStyles.pickerOverlay}>
             <View style={newProdStyles.pickerCard}>
               <View style={newProdStyles.pickerHeader}>
                 <Text style={newProdStyles.pickerTitle}>{pickerModal.title}</Text>
                 <TouchableOpacity
                   onPress={() => setPickerModal((p) => ({ ...p, visible: false }))}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons name="close" size={20} color="#0F172A" />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 320 }}>
-                {pickerModal.options.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={newProdStyles.pickerOptionRow}
-                    onPress={() => {
-                      pickerModal.onSelect(opt.value);
-                      setPickerModal((p) => ({ ...p, visible: false }));
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    {opt.color ? (
-                      <View style={[newProdStyles.colorDotSmall, { backgroundColor: opt.color }]} />
-                    ) : opt.icon ? (
-                      <Ionicons name={opt.icon as any} size={18} color="#0F172A" style={{ marginRight: 8 }} />
-                    ) : null}
-                    <Text style={newProdStyles.pickerOptionLabel}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
+              {pickerModal.options.length > 5 && (
+                <View style={newProdStyles.pickerSearchBox}>
+                  <Ionicons name="search-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                  <TextInput
+                    style={newProdStyles.pickerSearchInput}
+                    placeholder="Search brand or option..."
+                    placeholderTextColor="#94A3B8"
+                    value={pickerSearch}
+                    onChangeText={setPickerSearch}
+                    autoCapitalize="none"
+                  />
+                  {pickerSearch ? (
+                    <TouchableOpacity onPress={() => setPickerSearch('')}>
+                      <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              )}
+
+              <ScrollView style={{ maxHeight: 340 }} keyboardShouldPersistTaps="handled">
+                {filteredPickerOptions.length === 0 ? (
+                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: '#64748B' }}>No matching options</Text>
+                  </View>
+                ) : (
+                  filteredPickerOptions.map((opt) => {
+                    const isSelected =
+                      (pickerModal.title.includes('Brand') && brand === opt.value) ||
+                      (pickerModal.title.includes('Category') && category === opt.value) ||
+                      (pickerModal.title.includes('Storage') && storage === opt.value) ||
+                      (pickerModal.title.includes('Condition') && condition === opt.value);
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[newProdStyles.pickerOptionRow, isSelected && newProdStyles.pickerOptionRowSelected]}
+                        onPress={() => {
+                          pickerModal.onSelect(opt.value);
+                          setPickerModal((p) => ({ ...p, visible: false }));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        {opt.logo ? (
+                          <View style={newProdStyles.pickerBrandLogoBox}>
+                            <Image
+                              source={{ uri: opt.logo }}
+                              style={newProdStyles.pickerBrandLogoImg}
+                              resizeMode="contain"
+                            />
+                          </View>
+                        ) : opt.icon ? (
+                          <Ionicons name={opt.icon as any} size={20} color="#0F172A" style={{ marginRight: 10 }} />
+                        ) : opt.color ? (
+                          <View style={[newProdStyles.colorDotSmall, { backgroundColor: opt.color }]} />
+                        ) : (
+                          <Ionicons name="pricetag-outline" size={18} color="#94A3B8" style={{ marginRight: 10 }} />
+                        )}
+                        <Text
+                          style={[
+                            newProdStyles.pickerOptionLabel,
+                            isSelected && newProdStyles.pickerOptionLabelSelected,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                        {isSelected && (
+                          <Ionicons name="checkmark-circle" size={18} color="#16A34A" style={{ marginLeft: 'auto' }} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
               </ScrollView>
             </View>
           </View>
@@ -879,22 +1014,16 @@ export default function AddProductModal({
                 style={newProdStyles.textInputBox}
                 value={customImageUrl}
                 onChangeText={setCustomImageUrl}
-                placeholder="https://images.unsplash.com/..."
+                placeholder="https://... (direct image link or data URL)"
                 placeholderTextColor="#94A3B8"
               />
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                 <TouchableOpacity
                   style={[newProdStyles.saveDraftBtn, { flex: 1 }]}
-                  onPress={() => {
-                    setImages((prev) => [
-                      ...prev,
-                      'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&q=80',
-                    ]);
-                    setAddImageModal(false);
-                  }}
+                  onPress={() => setAddImageModal(false)}
                 >
-                  <Text style={newProdStyles.saveDraftText}>Use Sample Angle</Text>
+                  <Text style={newProdStyles.saveDraftText}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -922,75 +1051,82 @@ const newProdStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E2E8F0',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    zIndex: 10,
   },
   backBtn: {
     width: 36,
     height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandHeaderCol: {
+  topBarCenter: {
+    flex: 1,
     alignItems: 'center',
+    paddingHorizontal: 8,
   },
-  brandTitle: {
-    fontSize: 18,
+  topBarTitle: {
+    fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
   },
-  brandTitleYellow: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#F59E0B',
+  topBarBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
   },
-  brandSubtitle: {
-    fontSize: 9.5,
+  adminDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16A34A',
+  },
+  topBarSubtitle: {
+    fontSize: 11,
     color: '#64748B',
-    marginTop: -2,
+    fontWeight: '600',
   },
   topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  bellIconBtn: {
+  topBarSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FACC15',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  topBarSaveBtnDisabled: {
+    backgroundColor: '#E2E8F0',
+  },
+  topBarSaveText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  topBarCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 5,
-    right: 6,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
-  },
-  adminAvatarCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FEF08A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adminAvatarText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#854D0E',
-  },
-  adminRoleLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
   },
 
   // Split Area
@@ -1501,16 +1637,74 @@ const newProdStyles = StyleSheet.create({
     fontWeight: '800',
     color: '#0F172A',
   },
+  pickerSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0F172A',
+    padding: 0,
+  },
   pickerOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  pickerOptionRowSelected: {
+    backgroundColor: '#F0FDF4',
   },
   pickerOptionLabel: {
     fontSize: 13.5,
     fontWeight: '600',
     color: '#0F172A',
+  },
+  pickerOptionLabelSelected: {
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  pickerBrandLogoBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    padding: 2,
+  },
+  pickerBrandLogoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  selectedBrandLogoBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    padding: 2,
+  },
+  selectedBrandLogoImg: {
+    width: '100%',
+    height: '100%',
   },
 });

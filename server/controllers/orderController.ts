@@ -662,7 +662,7 @@ export async function createCheckoutOrder(
           try {
             await notifyUserEvent({
               action: 'order_placed',
-              userId: req.user.id,
+              userId: req.user?.id || (codOrder as any).user_id || '',
               orderId: codOrder.id,
               subtotal: codOrder.subtotal,
               paymentMethod: 'Cash on Delivery',

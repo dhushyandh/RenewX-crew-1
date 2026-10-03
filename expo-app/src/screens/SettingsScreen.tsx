@@ -20,6 +20,7 @@ import { useCart } from '@/context/CartContext';
 import { useToast } from '@/context/ToastContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useLocation } from '@/context/LocationContext';
+import { useLanguage } from '@/context/LanguageContext';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
 
@@ -31,6 +32,7 @@ export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const { totalItems } = useCart();
   const toast = useToast();
+  const { language: selectedLanguage, setLanguage, t, supportedLanguages } = useLanguage();
 
   // User display name & email
   const userName =
@@ -42,7 +44,6 @@ export default function SettingsScreen() {
   // Preferences toggles
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
   const { location, setLocationManually, detectLocation, isDetecting } = useLocation();
 
   // Modals state
@@ -81,7 +82,7 @@ export default function SettingsScreen() {
       {/* 1. Top Bar */}
       <HomeHeader
         mode="standard"
-        title="Settings"
+        title={t('settings_title', 'Settings')}
         onBack={handleBack}
         onNotifications={() => navigation.navigate('Notifications')}
       />
@@ -92,7 +93,7 @@ export default function SettingsScreen() {
       >
         {/* Title & Subtitle */}
         <View style={styles.titleSection}>
-          <Text style={styles.pageTitle}>Settings</Text>
+          <Text style={styles.pageTitle}>{t('settings_title', 'Settings')}</Text>
           <Text style={styles.pageSubtitle}>Manage your account and app preferences</Text>
         </View>
 
@@ -123,7 +124,7 @@ export default function SettingsScreen() {
 
         {/* 4. Section: Account */}
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionHeaderTitle}>Account</Text>
+          <Text style={styles.sectionHeaderTitle}>{t('settings_account_section', 'Account & Security')}</Text>
 
           <View style={styles.cardContainer}>
             {/* Personal Information */}
@@ -154,8 +155,8 @@ export default function SettingsScreen() {
                 <Ionicons name="location-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Saved Addresses</Text>
-                <Text style={styles.menuItemSubtitle}>Manage your delivery addresses</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_manage_addresses', 'Saved Addresses')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('settings_addresses_sub', 'Manage your delivery addresses')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -172,8 +173,8 @@ export default function SettingsScreen() {
                 <Ionicons name="card-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Payment Methods</Text>
-                <Text style={styles.menuItemSubtitle}>Manage cards and UPI</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_payment_methods', 'Payment Methods')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('settings_payment_sub', 'Manage cards and UPI')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -190,8 +191,8 @@ export default function SettingsScreen() {
                 <Ionicons name="cube-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>My Orders</Text>
-                <Text style={styles.menuItemSubtitle}>View and track your orders</Text>
+                <Text style={styles.menuItemTitle}>{t('account_my_orders', 'My Orders')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('account_my_orders_sub', 'View and track your orders')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -208,7 +209,7 @@ export default function SettingsScreen() {
                 <Ionicons name="heart-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>My Wishlist</Text>
+                <Text style={styles.menuItemTitle}>{t('account_wishlist', 'My Wishlist')}</Text>
                 <Text style={styles.menuItemSubtitle}>View your saved devices</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -218,7 +219,7 @@ export default function SettingsScreen() {
 
         {/* 5. Section: Preferences */}
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionHeaderTitle}>Preferences</Text>
+          <Text style={styles.sectionHeaderTitle}>{t('settings_preferences', 'Preferences')}</Text>
 
           <View style={styles.cardContainer}>
             {/* Notifications */}
@@ -227,8 +228,8 @@ export default function SettingsScreen() {
                 <Ionicons name="notifications-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Notifications</Text>
-                <Text style={styles.menuItemSubtitle}>Order updates, offers and more</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_notifications', 'Notifications')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('settings_notifications_sub', 'Order updates, offers and more')}</Text>
               </View>
               <Switch
                 value={notificationsEnabled}
@@ -249,8 +250,8 @@ export default function SettingsScreen() {
                 <Ionicons name="moon-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Dark Mode</Text>
-                <Text style={styles.menuItemSubtitle}>Switch between light and dark theme</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_dark_mode', 'Dark Mode')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('settings_dark_mode_sub', 'Switch between light and dark theme')}</Text>
               </View>
               <Switch
                 value={darkModeEnabled}
@@ -275,8 +276,8 @@ export default function SettingsScreen() {
                 <Ionicons name="globe-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Language</Text>
-                <Text style={styles.menuItemSubtitle}>Choose your preferred language</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_language', 'Language')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('settings_choose_language', 'Choose your preferred language')}</Text>
               </View>
               <View style={styles.menuRightInfoRow}>
                 <Text style={styles.menuRightInfoText}>{selectedLanguage}</Text>
@@ -296,7 +297,7 @@ export default function SettingsScreen() {
                 <Ionicons name="location-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Location</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_location', 'Location')}</Text>
                 <Text style={styles.menuItemSubtitle}>Set your default location</Text>
               </View>
               <View style={styles.menuRightInfoRow}>
@@ -309,7 +310,7 @@ export default function SettingsScreen() {
 
         {/* 6. Section: About & Legal */}
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionHeaderTitle}>About & Legal</Text>
+          <Text style={styles.sectionHeaderTitle}>{t('settings_support_section', 'About & Legal')}</Text>
 
           <View style={styles.cardContainer}>
             {/* About RenewX */}
@@ -322,7 +323,7 @@ export default function SettingsScreen() {
                 <Ionicons name="information-circle-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>About RenewX</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_about_renewx', 'About RenewX')}</Text>
                 <Text style={styles.menuItemSubtitle}>Our story, mission & quality standards</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -358,7 +359,7 @@ export default function SettingsScreen() {
                 <Ionicons name="document-text-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Terms & Policies</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_terms', 'Terms & Policies')}</Text>
                 <Text style={styles.menuItemSubtitle}>Terms of Service, As-Is Sales & Rules</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -376,7 +377,7 @@ export default function SettingsScreen() {
                 <Ionicons name="shield-checkmark-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Privacy Policy</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_privacy_policy', 'Privacy Policy')}</Text>
                 <Text style={styles.menuItemSubtitle}>Data protection & privacy practices</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -394,8 +395,8 @@ export default function SettingsScreen() {
                 <Ionicons name="chatbubble-ellipses-outline" size={20} color="#0F172A" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuItemTitle}>Contact Support</Text>
-                <Text style={styles.menuItemSubtitle}>Call, WhatsApp or Email our team</Text>
+                <Text style={styles.menuItemTitle}>{t('settings_contact_us', 'Contact Support')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('settings_contact_sub', 'Call, WhatsApp or Email our team')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -410,7 +411,7 @@ export default function SettingsScreen() {
         >
           <View style={styles.logoutLeftRow}>
             <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-            <Text style={styles.logoutText}>Log Out</Text>
+            <Text style={styles.logoutText}>{t('settings_logout', 'Log Out')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#EF4444" />
         </TouchableOpacity>
@@ -431,23 +432,41 @@ export default function SettingsScreen() {
           <View style={styles.modalCard}>
             {activeModal === 'language' && (
               <>
-                <Text style={styles.modalTitle}>Choose Language</Text>
-                {['English', 'Hindi (हिंदी)', 'Kannada (ಕನ್ನಡ)', 'Tamil (தமிழ்)'].map((lang) => (
-                  <TouchableOpacity
-                    key={lang}
-                    style={styles.modalOption}
-                    onPress={() => {
-                      setSelectedLanguage(lang.split(' ')[0]);
-                      setActiveModal(null);
-                      toast.show(`Language changed to ${lang.split(' ')[0]}`);
-                    }}
-                  >
-                    <Text style={styles.modalOptionText}>{lang}</Text>
-                    {selectedLanguage === lang.split(' ')[0] && (
-                      <Ionicons name="checkmark" size={18} color="#F59E0B" />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                <Text style={styles.modalTitle}>{t('settings_choose_language', 'Choose Language')}</Text>
+                {supportedLanguages.map((lang) => {
+                  const isSelected = selectedLanguage === lang.name;
+                  return (
+                    <TouchableOpacity
+                      key={lang.code}
+                      style={[
+                        styles.modalOption,
+                        isSelected && { backgroundColor: '#FEF9C3', borderRadius: 12 },
+                      ]}
+                      onPress={async () => {
+                        await setLanguage(lang.name);
+                        setActiveModal(null);
+                        toast.success(
+                          `${t('settings_lang_changed', 'Language changed to')} ${lang.label}`,
+                          'Language Updated'
+                        );
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.modalOptionText,
+                            isSelected && { fontWeight: '800', color: '#854D0E' },
+                          ]}
+                        >
+                          {lang.label}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={20} color="#EAB308" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </>
             )}
 

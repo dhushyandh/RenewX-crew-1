@@ -56,26 +56,26 @@ export async function getAdminRealtimeAnalytics(
 
     const totalRevenue = filteredOrders
       .filter(isRevenueOrder)
-      .reduce((sum, o) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
+      .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
 
     const allTimeRevenue = allOrders
       .filter(isRevenueOrder)
-      .reduce((sum, o) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
+      .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
 
     const todayOrders = allOrders.filter(
       (o: any) => new Date(o.created_at || 0) >= startOfToday && isRevenueOrder(o)
     );
-    const todayRevenue = todayOrders.reduce((sum, o) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
+    const todayRevenue = todayOrders.reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
 
     const weekOrders = allOrders.filter(
       (o: any) => new Date(o.created_at || 0) >= startOfWeek && isRevenueOrder(o)
     );
-    const weekRevenue = weekOrders.reduce((sum, o) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
+    const weekRevenue = weekOrders.reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
 
     const monthOrders = allOrders.filter(
       (o: any) => new Date(o.created_at || 0) >= startOfMonth && isRevenueOrder(o)
     );
-    const monthRevenue = monthOrders.reduce((sum, o) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
+    const monthRevenue = monthOrders.reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
 
     const totalOrdersCount = filteredOrders.length;
     const avgOrderValue = totalOrdersCount > 0 ? Math.round(totalRevenue / totalOrdersCount) : 0;
@@ -158,7 +158,7 @@ export async function getAdminRealtimeAnalytics(
     const outOfStockCount = allProducts.filter((p: any) => (p.stock || 0) <= 0).length;
     const lowStockCount = allProducts.filter((p: any) => (p.stock || 0) > 0 && (p.stock || 0) <= 3).length;
     const inStockCount = allProducts.filter((p: any) => (p.stock || 0) > 3).length;
-    const totalInventoryValue = allProducts.reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.stock) || 0), 0);
+    const totalInventoryValue = allProducts.reduce((sum: number, p: any) => sum + (Number(p.price) || 0) * (Number(p.stock) || 0), 0);
 
     // Trade-In Buyback Stats
     const tradeIns = (allTradeIns as any[]) || [];
@@ -166,7 +166,7 @@ export async function getAdminRealtimeAnalytics(
     const tradeInInspected = tradeIns.filter((t) => t.status === 'inspected' || t.status === 'completed').length;
     const tradeInTotalPayouts = tradeIns
       .filter((t) => t.status === 'completed')
-      .reduce((sum, t) => sum + (Number(t.approved_amount || t.offered_amount) || 0), 0);
+      .reduce((sum: number, t: any) => sum + (Number(t.approved_amount || t.offered_amount) || 0), 0);
 
     // 7-day sales trend
     const last7Days: { date: string; label: string; revenue: number; orders: number }[] = [];
@@ -183,7 +183,7 @@ export async function getAdminRealtimeAnalytics(
 
       const dayRev = dayOrders
         .filter(isRevenueOrder)
-        .reduce((sum, o) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
+        .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
 
       last7Days.push({
         date: dayStart.toISOString().split('T')[0],
