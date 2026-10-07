@@ -122,7 +122,7 @@ export default function HomeHeader({
   const toast = useToast();
   const { t } = useLanguage();
   const { unreadCount } = useNotifications();
-  const { isAdmin: authIsAdmin } = useAuth();
+  const { isAdmin: authIsAdmin, user } = useAuth();
   const effectiveIsAdmin = isAdmin !== undefined ? isAdmin : Boolean(authIsAdmin);
 
   const handleAdminPress = () => {
@@ -917,7 +917,7 @@ export default function HomeHeader({
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>{t('settings_location', 'Delivery Location')}</Text>
                 <Text style={styles.modalSubtitle}>
-                  Choose your city or enter pincode for delivery estimates
+                  Enter pincode or use GPS for accurate delivery & pickup estimates
                 </Text>
               </View>
               <TouchableOpacity
@@ -973,32 +973,45 @@ export default function HomeHeader({
               </TouchableOpacity>
             </View>
 
-            {/* Popular City Hubs */}
-            <Text style={styles.popularHubsTitle}>POPULAR SERVICE HUBS</Text>
-            <View style={styles.hubsRow}>
-              {[
-                { name: 'Vellore', pin: '632014' },
-                { name: 'Chennai', pin: '600001' },
-                { name: 'Bengaluru', pin: '560001' },
-                { name: 'Hyderabad', pin: '500001' },
-                { name: 'Mumbai', pin: '400001' },
-                { name: 'Delhi', pin: '110001' },
-              ].map((hub) => (
+            {/* Saved Profile Address Quick-Select (if available) */}
+            {Boolean(user?.address) && (
+              <View style={styles.savedAddressQuickSection}>
+                <Text style={styles.savedAddressQuickTitle}>SAVED PROFILE ADDRESS</Text>
                 <TouchableOpacity
-                  key={hub.name}
-                  style={styles.hubChip}
+                  style={styles.savedAddressCard}
                   onPress={() => {
-                    const loc = `${hub.name} - ${hub.pin}`;
-                    setLocationManually(loc);
-                    toast.manual(`${hub.name} • ${hub.pin}`, 'Location saved');
+                    const formatted = user?.pincode ? `${user.address} - ${user.pincode}` : user.address;
+                    setLocationManually(formatted);
+                    toast.manual(user.address, 'Location updated');
                     setModalVisible(false);
                   }}
-                  activeOpacity={0.75}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="location-outline" size={12} color="#475569" />
-                  <Text style={styles.hubChipText}>{hub.name}</Text>
+                  <View style={styles.savedAddressIconBox}>
+                    <Ionicons name="home-outline" size={16} color="#0F172A" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.savedAddressText} numberOfLines={1}>
+                      {user.address}
+                    </Text>
+                    {user?.pincode ? (
+                      <Text style={styles.savedAddressPin}>Pincode: {user.pincode}</Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
                 </TouchableOpacity>
-              ))}
+              </View>
+            )}
+
+            {/* Nationwide All-India Delivery Guarantee */}
+            <View style={styles.allIndiaDeliveryBadge}>
+              <Ionicons name="shield-checkmark" size={16} color="#16A34A" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.allIndiaDeliveryTitle}>All-India Express Delivery</Text>
+                <Text style={styles.allIndiaDeliverySubtitle}>
+                  Doorstep shipping & free trade-in inspection across all pincodes
+                </Text>
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -1473,32 +1486,65 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  popularHubsTitle: {
+  savedAddressQuickSection: {
+    marginBottom: 12,
+  },
+  savedAddressQuickTitle: {
     fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
     letterSpacing: 0.5,
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  hubsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  hubChip: {
+  savedAddressCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 10,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
+    borderRadius: 12,
+    padding: 12,
   },
-  hubChipText: {
-    fontSize: 12,
-    fontWeight: '600',
+  savedAddressIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  savedAddressText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#0F172A',
+  },
+  savedAddressPin: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  allIndiaDeliveryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+  },
+  allIndiaDeliveryTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  allIndiaDeliverySubtitle: {
+    fontSize: 11,
+    color: '#166534',
+    marginTop: 1,
   },
 });

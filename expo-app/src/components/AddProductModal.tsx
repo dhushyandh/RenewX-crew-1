@@ -15,10 +15,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { getCategoryDeviceImage } from '@/lib/imageUtils';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { confirmAction } from '@/lib/confirmAction';
 import { initialBrands, type BrandItem } from '@/data/brandsData';
 
 export interface ProductRow {
@@ -55,6 +57,31 @@ export default function AddProductModal({
   const safeTop = useSafeHeaderTop();
   const { width: windowWidth } = useWindowDimensions();
   const isSplitView = windowWidth >= 960;
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteProduct = () => {
+    if (!product) return;
+    const prodId = product.id || (product as any)._id;
+    if (!prodId) return;
+
+    confirmAction(
+      'Delete Product',
+      `Are you sure you want to permanently delete "${product.name || 'this product'}"? This action cannot be undone.`,
+      async () => {
+        try {
+          setDeleting(true);
+          await api.products.delete(prodId);
+          toast.success(`"${product.name || 'Product'}" was deleted successfully.`, 'Product Removed');
+          onSaved();
+          onClose();
+        } catch (err: any) {
+          toast.error(err?.message || 'Failed to delete product', 'Error');
+        } finally {
+          setDeleting(false);
+        }
+      }
+    );
+  };
 
   // 1. Form States initialized with mockup defaults if new product
   const [productName, setProductName] = useState(
@@ -114,6 +141,228 @@ export default function AddProductModal({
   );
   const [addImageModal, setAddImageModal] = useState(false);
   const [customImageUrl, setCustomImageUrl] = useState('');
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState('');
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
+
+  // Helper to upload a single picked asset to server or fallback
+  const uploadAsset = async (asset: ImagePicker.ImagePickerAsset): Promise<string> => {
+    const fileName = asset.fileName || `product-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+    const mimeType = asset.mimeType || 'image/jpeg';
+
+    // 1. Try base64 upload to server if base64 is available
+    if (asset.base64) {
+      try {
+        const res = await api.upload.base64(asset.base64, fileName, mimeType);
+        if (res?.url) return res.url;
+      } catch (e) {
+        console.warn('[AddProductModal] base64 upload to server failed:', e);
+      }
+    }
+
+    // 2. Try multipart image upload if uri is available
+    if (asset.uri) {
+      try {
+        const res = await api.upload.image({
+          uri: asset.uri,
+          name: fileName,
+          type: mimeType,
+        });
+        if (res?.url) return res.url;
+      } catch (e) {
+        console.warn('[AddProductModal] multipart upload failed:', e);
+      }
+    }
+
+    // 3. Robust fallback: if base64 exists, format as direct data URI
+    if (asset.base64) {
+      return asset.base64.startsWith('data:')
+        ? asset.base64
+        : `data:${mimeType};base64,${asset.base64}`;
+    }
+
+    // 4. Fallback to asset.uri
+    return asset.uri;
+  };
+
+  const handlePickFromGallery = async () => {
+    if (images.length >= 8) {
+      toast.info('Maximum 8 images allowed per product');
+      return;
+    }
+
+    try {
+      if (Platform.OS !== 'web') {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Required', 'Please allow photo gallery access in settings to upload images.');
+          return;
+        }
+      }
+
+      const remainingSlots = Math.max(1, 8 - images.length);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: remainingSlots,
+        quality: 0.85,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      setUploadingImages(true);
+      const newUrls: string[] = [];
+
+      for (let i = 0; i < result.assets.length; i++) {
+        setUploadProgressText(`Uploading ${i + 1} of ${result.assets.length}...`);
+        try {
+          const uploadedUrl = await uploadAsset(result.assets[i]);
+          if (uploadedUrl) newUrls.push(uploadedUrl);
+        } catch (uploadErr) {
+          console.warn('Failed to upload asset:', uploadErr);
+        }
+      }
+
+      if (newUrls.length > 0) {
+        setImages((prev) => [...prev, ...newUrls].slice(0, 8));
+        toast.success(`${newUrls.length} image(s) added successfully`);
+      }
+    } catch (err: any) {
+      Alert.alert('Upload Error', err?.message || 'Could not pick images from gallery.');
+    } finally {
+      setUploadingImages(false);
+      setUploadProgressText('');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    if (images.length >= 8) {
+      toast.info('Maximum 8 images allowed per product');
+      return;
+    }
+
+    try {
+      if (Platform.OS !== 'web') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Required', 'Please allow camera access in device settings to take product photos.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      setUploadingImages(true);
+      setUploadProgressText('Processing photo...');
+
+      const uploadedUrl = await uploadAsset(result.assets[0]);
+      if (uploadedUrl) {
+        setImages((prev) => [...prev, uploadedUrl].slice(0, 8));
+        toast.success('Photo captured and attached');
+      }
+    } catch (err: any) {
+      Alert.alert('Camera Error', err?.message || 'Could not launch camera.');
+    } finally {
+      setUploadingImages(false);
+      setUploadProgressText('');
+    }
+  };
+
+  const handleOpenImagePicker = () => {
+    if (images.length >= 8) {
+      toast.info('Maximum 8 images allowed');
+      return;
+    }
+    if (Platform.OS === 'web') {
+      handlePickFromGallery();
+    } else {
+      Alert.alert(
+        'Upload Product Image',
+        'Choose how you want to add this photo:',
+        [
+          { text: '📁 Photo Gallery', onPress: handlePickFromGallery },
+          { text: '📷 Take Photo', onPress: handleTakePhoto },
+          { text: '🔗 Image URL', onPress: () => setAddImageModal(true) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  };
+
+  const handleSetCover = (index: number) => {
+    if (index <= 0 || index >= images.length) return;
+    setImages((prev) => {
+      const selected = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      return [selected, ...rest];
+    });
+    toast.success('Set as primary cover photo');
+  };
+
+  const handleReplaceImage = async (index: number) => {
+    try {
+      if (Platform.OS !== 'web') {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Required', 'Please allow photo gallery access in settings.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: false,
+        quality: 0.85,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      setUploadingImages(true);
+      setUploadProgressText('Replacing image...');
+      const uploadedUrl = await uploadAsset(result.assets[0]);
+
+      if (uploadedUrl) {
+        setImages((prev) => {
+          const next = [...prev];
+          next[index] = uploadedUrl;
+          return next;
+        });
+        toast.success('Image replaced successfully');
+      }
+    } catch (err: any) {
+      Alert.alert('Replace Error', err?.message || 'Could not replace image.');
+    } finally {
+      setUploadingImages(false);
+      setUploadProgressText('');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    toast.info('Image removed');
+  };
+
+  const handleAddImage = () => {
+    const trimmed = customImageUrl.trim();
+    if (trimmed) {
+      if (images.length >= 8) {
+        toast.info('Maximum 8 images allowed');
+        return;
+      }
+      setImages((prev) => [...prev, trimmed].slice(0, 8));
+      setCustomImageUrl('');
+      setAddImageModal(false);
+      toast.success('Image link attached');
+    }
+  };
 
   // 2. Specifications
   const [storage, setStorage] = useState('128 GB');
@@ -177,17 +426,6 @@ export default function AddProductModal({
     return pickerModal.options.filter((opt) => opt.label.toLowerCase().includes(q));
   }, [pickerModal.options, pickerSearch]);
 
-  const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAddImage = () => {
-    if (customImageUrl.trim()) {
-      setImages((prev) => [...prev, customImageUrl.trim()]);
-      setCustomImageUrl('');
-      setAddImageModal(false);
-    }
-  };
 
   const handleSaveProduct = async (asDraft = false) => {
     if (!productName.trim()) {
@@ -263,10 +501,29 @@ export default function AddProductModal({
           </View>
 
           <View style={newProdStyles.topBarRight}>
+            {product && (
+              <TouchableOpacity
+                style={[newProdStyles.topBarDeleteBtn, deleting && { opacity: 0.6 }]}
+                onPress={handleDeleteProduct}
+                disabled={deleting || saving}
+                activeOpacity={0.8}
+                accessibilityLabel="Delete Product"
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#DC2626" />
+                ) : (
+                  <>
+                    <Ionicons name="trash-outline" size={15} color="#DC2626" style={{ marginRight: 4 }} />
+                    <Text style={newProdStyles.topBarDeleteText}>Delete</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={[newProdStyles.topBarSaveBtn, saving && newProdStyles.topBarSaveBtnDisabled]}
+              style={[newProdStyles.topBarSaveBtn, (saving || deleting) && newProdStyles.topBarSaveBtnDisabled]}
               onPress={() => handleSaveProduct(false)}
-              disabled={saving}
+              disabled={saving || deleting}
               activeOpacity={0.8}
             >
               {saving ? (
@@ -364,38 +621,166 @@ export default function AddProductModal({
               })}
             </View>
 
-            {/* 1. Product Images */}
+            {/* 1. Product Image */}
             <View style={newProdStyles.sectionBox}>
-              <Text style={newProdStyles.sectionHeaderTitle}>1. Product Images</Text>
-              <Text style={newProdStyles.sectionSubtitle}>
-                Upload clear images from different angles (max 8 images)
-              </Text>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={newProdStyles.imagesStrip}>
-                {images.map((imgUri, index) => (
-                  <View key={index} style={newProdStyles.imagePreviewCard}>
-                    <Image source={{ uri: imgUri }} style={newProdStyles.previewImg} resizeMode="contain" />
-                    <TouchableOpacity
-                      style={newProdStyles.deleteImgBtn}
-                      onPress={() => handleRemoveImage(index)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="close" size={13} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-
-                {/* Add More Images Button */}
-                <TouchableOpacity
-                  style={newProdStyles.addMoreImagesCard}
-                  onPress={() => setAddImageModal(true)}
-                  activeOpacity={0.8}
+              <View style={newProdStyles.sectionHeaderRow}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={newProdStyles.sectionHeaderTitle}>Product Image</Text>
+                  <Text style={newProdStyles.sectionSubtitle}>
+                    Upload clear device photos from different angles (max 8 images)
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    newProdStyles.photoCountBadge,
+                    images.length > 0 && newProdStyles.photoCountBadgeActive,
+                  ]}
                 >
-                  <Ionicons name="add" size={24} color="#0F172A" />
-                  <Text style={newProdStyles.addMoreImagesText}>Add More</Text>
-                  <Text style={newProdStyles.addMoreImagesText}>Images</Text>
-                </TouchableOpacity>
+                  <View
+                    style={[
+                      newProdStyles.photoCountDot,
+                      images.length > 0 && newProdStyles.photoCountDotActive,
+                    ]}
+                  />
+                  <Text style={newProdStyles.photoCountText}>
+                    {images.length} / 8 Photos
+                  </Text>
+                </View>
+              </View>
+
+              {/* Uploading Status Banner */}
+              {uploadingImages && (
+                <View style={newProdStyles.uploadingBar}>
+                  <ActivityIndicator size="small" color="#0F172A" />
+                  <Text style={newProdStyles.uploadingBarText}>
+                    {uploadProgressText || 'Uploading images...'}
+                  </Text>
+                </View>
+              )}
+
+              {/* Product Images Strip with exact design from reference */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={newProdStyles.productCardsScrollContent}
+              >
+                {/* 1. Uploaded Images */}
+                {images.map((imgUri, index) => {
+                  const isCover = index === 0;
+                  return (
+                    <View key={index} style={newProdStyles.productPhotoCard}>
+                      <TouchableOpacity
+                        onPress={() => setPreviewModalUrl(imgUri)}
+                        activeOpacity={0.9}
+                        style={newProdStyles.productPhotoImgWrap}
+                      >
+                        <Image source={{ uri: imgUri }} style={newProdStyles.productPhotoImg} resizeMode="contain" />
+
+                        {isCover ? (
+                          <View style={newProdStyles.cardCoverBadge}>
+                            <Ionicons name="star" size={9} color="#0F172A" />
+                            <Text style={newProdStyles.cardCoverBadgeText}>Cover</Text>
+                          </View>
+                        ) : (
+                          <View style={newProdStyles.cardIndexBadge}>
+                            <Text style={newProdStyles.cardIndexBadgeText}>#{index + 1}</Text>
+                          </View>
+                        )}
+
+                        <TouchableOpacity
+                          style={newProdStyles.cardDeleteBtn}
+                          onPress={() => handleRemoveImage(index)}
+                          activeOpacity={0.8}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Ionicons name="close" size={13} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+
+                      <View style={newProdStyles.cardBottomActions}>
+                        {!isCover ? (
+                          <TouchableOpacity
+                            style={newProdStyles.cardMakeCoverBtn}
+                            onPress={() => handleSetCover(index)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="star-outline" size={11} color="#0F172A" />
+                            <Text style={newProdStyles.cardMakeCoverText}>Make Cover</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={newProdStyles.cardReplaceBtn}
+                            onPress={() => handleReplaceImage(0)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="swap-horizontal-outline" size={11} color="#64748B" />
+                            <Text style={newProdStyles.cardReplaceText}>Replace</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {/* 2. Exact Dashed Upload Card matching user's design */}
+                {images.length < 8 && (
+                  <TouchableOpacity
+                    style={newProdStyles.userRefUploadCard}
+                    onPress={handleOpenImagePicker}
+                    activeOpacity={0.8}
+                    disabled={uploadingImages}
+                  >
+                    <View style={newProdStyles.userRefYellowCircle}>
+                      <Ionicons name="camera" size={24} color="#0F172A" />
+                    </View>
+                    <Text style={newProdStyles.userRefCardTitle}>Product Image</Text>
+                    <Text style={newProdStyles.userRefCardSub}>
+                      {images.length === 0 ? 'Add Photo' : `Slot ${images.length + 1} of 8`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
+
+              {/* Action Toolbar & Guidance */}
+              <View style={newProdStyles.imageSectionBottomRow}>
+                <View style={newProdStyles.imageSectionPillsRow}>
+                  <TouchableOpacity
+                    style={newProdStyles.quickSourcePill}
+                    onPress={handlePickFromGallery}
+                    activeOpacity={0.8}
+                    disabled={uploadingImages || images.length >= 8}
+                  >
+                    <Ionicons name="images-outline" size={13} color="#0F172A" />
+                    <Text style={newProdStyles.quickSourcePillText}>Browse Files</Text>
+                  </TouchableOpacity>
+
+                  {Platform.OS !== 'web' && (
+                    <TouchableOpacity
+                      style={newProdStyles.quickSourcePill}
+                      onPress={handleTakePhoto}
+                      activeOpacity={0.8}
+                      disabled={uploadingImages || images.length >= 8}
+                    >
+                      <Ionicons name="camera-outline" size={13} color="#0F172A" />
+                      <Text style={newProdStyles.quickSourcePillText}>Camera</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={newProdStyles.quickSourcePill}
+                    onPress={() => setAddImageModal(true)}
+                    activeOpacity={0.8}
+                    disabled={uploadingImages || images.length >= 8}
+                  >
+                    <Ionicons name="link-outline" size={13} color="#0F172A" />
+                    <Text style={newProdStyles.quickSourcePillText}>Paste URL</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={newProdStyles.imageSectionHint}>
+                  First image is storefront cover • Square 1:1 recommended
+                </Text>
+              </View>
             </View>
 
             {/* 2. Basic Information */}
@@ -759,10 +1144,28 @@ export default function AddProductModal({
 
             {/* Bottom Actions Bar (Matching Mockup: Save as Draft & Publish Product) */}
             <View style={newProdStyles.bottomActionsRow}>
+              {product && (
+                <TouchableOpacity
+                  style={[newProdStyles.bottomDeleteBtn, deleting && { opacity: 0.6 }]}
+                  onPress={handleDeleteProduct}
+                  disabled={deleting || saving}
+                  activeOpacity={0.8}
+                >
+                  {deleting ? (
+                    <ActivityIndicator size="small" color="#DC2626" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+                      <Text style={newProdStyles.bottomDeleteText}>Delete Product</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={newProdStyles.saveDraftBtn}
                 onPress={() => handleSaveProduct(true)}
-                disabled={saving}
+                disabled={saving || deleting}
                 activeOpacity={0.8}
               >
                 <Ionicons name="document-text-outline" size={17} color="#0F172A" style={{ marginRight: 6 }} />
@@ -772,14 +1175,14 @@ export default function AddProductModal({
               <TouchableOpacity
                 style={newProdStyles.publishProductBtn}
                 onPress={() => handleSaveProduct(false)}
-                disabled={saving}
+                disabled={saving || deleting}
                 activeOpacity={0.88}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#000000" />
                 ) : (
                   <>
-                    <Text style={newProdStyles.publishProductText}>Publish Product</Text>
+                    <Text style={newProdStyles.publishProductText}>{product ? 'Update Product' : 'Publish Product'}</Text>
                     <Ionicons name="arrow-forward" size={16} color="#000000" style={{ marginLeft: 6 }} />
                   </>
                 )}
@@ -998,8 +1401,13 @@ export default function AddProductModal({
           </View>
         </Modal>
 
-        {/* Add More Images Modal */}
-        <Modal visible={addImageModal} transparent animationType="fade">
+        {/* Add Image Link / Source Modal */}
+        <Modal
+          visible={addImageModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setAddImageModal(false)}
+        >
           <View style={newProdStyles.pickerOverlay}>
             <View style={newProdStyles.pickerCard}>
               <View style={newProdStyles.pickerHeader}>
@@ -1009,30 +1417,108 @@ export default function AddProductModal({
                 </TouchableOpacity>
               </View>
 
-              <Text style={newProdStyles.inputLabel}>Image URL</Text>
+              <Text style={newProdStyles.inputLabel}>Image Direct URL</Text>
               <TextInput
                 style={newProdStyles.textInputBox}
                 value={customImageUrl}
                 onChangeText={setCustomImageUrl}
-                placeholder="https://... (direct image link or data URL)"
+                placeholder="https://images.unsplash.com/... or CDN link"
                 placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
               />
+
+              {/* Live Preview Box if URL entered */}
+              {customImageUrl.trim().length > 10 && (
+                <View style={newProdStyles.modalLivePreviewBox}>
+                  <Text style={newProdStyles.modalLivePreviewLabel}>Live Preview:</Text>
+                  <View style={newProdStyles.modalLivePreviewImgWrap}>
+                    <Image
+                      source={{ uri: customImageUrl.trim() }}
+                      style={newProdStyles.modalLivePreviewImg}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+              )}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                 <TouchableOpacity
                   style={[newProdStyles.saveDraftBtn, { flex: 1 }]}
-                  onPress={() => setAddImageModal(false)}
+                  onPress={() => {
+                    setCustomImageUrl('');
+                    setAddImageModal(false);
+                  }}
                 >
                   <Text style={newProdStyles.saveDraftText}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[newProdStyles.publishProductBtn, { flex: 1 }]}
+                  style={[
+                    newProdStyles.publishProductBtn,
+                    { flex: 1 },
+                    !customImageUrl.trim() && { opacity: 0.5 },
+                  ]}
                   onPress={handleAddImage}
+                  disabled={!customImageUrl.trim()}
                 >
-                  <Text style={newProdStyles.publishProductText}>Add Image</Text>
+                  <Text style={newProdStyles.publishProductText}>Add to Product</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Fullscreen Image Preview Lightbox */}
+        <Modal
+          visible={!!previewModalUrl}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewModalUrl(null)}
+        >
+          <View style={newProdStyles.lightboxOverlay}>
+            <View style={newProdStyles.lightboxHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="image-outline" size={18} color="#FFFFFF" />
+                <Text style={newProdStyles.lightboxTitle}>Product Image Preview</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPreviewModalUrl(null)}
+                style={newProdStyles.lightboxCloseBtn}
+              >
+                <Ionicons name="close" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={newProdStyles.lightboxImgWrap}>
+              {previewModalUrl && (
+                <Image
+                  source={{ uri: previewModalUrl }}
+                  style={newProdStyles.lightboxImg}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+
+            <View style={newProdStyles.lightboxFooter}>
+              {previewModalUrl && images[0] !== previewModalUrl && (
+                <TouchableOpacity
+                  style={newProdStyles.lightboxMakeCoverBtn}
+                  onPress={() => {
+                    const idx = images.indexOf(previewModalUrl);
+                    if (idx > 0) handleSetCover(idx);
+                    setPreviewModalUrl(null);
+                  }}
+                >
+                  <Ionicons name="star" size={15} color="#0F172A" />
+                  <Text style={newProdStyles.lightboxMakeCoverText}>Set as Primary Cover</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={newProdStyles.lightboxDoneBtn}
+                onPress={() => setPreviewModalUrl(null)}
+              >
+                <Text style={newProdStyles.lightboxDoneText}>Close</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -1103,6 +1589,21 @@ const newProdStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  topBarDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  topBarDeleteText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
   },
   topBarSaveBtn: {
     flexDirection: 'row',
@@ -1236,52 +1737,352 @@ const newProdStyles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Images Strip
-  imagesStrip: {
+  // Section Header & Counter Badge
+  sectionHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  imagePreviewCard: {
-    width: 70,
-    height: 70,
-    borderRadius: 10,
+  photoCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  photoCountBadgeActive: {
+    backgroundColor: '#FEF9C3',
+    borderColor: '#FDE047',
+  },
+  photoCountDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#94A3B8',
+    marginRight: 6,
+  },
+  photoCountDotActive: {
+    backgroundColor: '#CA8A04',
+  },
+  photoCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+
+  // Uploading banner
+  uploadingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FDE047',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    gap: 8,
+  },
+  uploadingBarText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#854D0E',
+  },
+
+  // PRODUCT IMAGES SCROLL CONTENT
+  productCardsScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingRight: 10,
+    gap: 12,
+  },
+
+  // EXACT USER-REQUESTED DASHED UPLOAD CARD
+  userRefUploadCard: {
+    width: 126,
+    height: 148,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  userRefYellowCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEF08A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowColor: '#CA8A04',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  userRefCardTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    textAlign: 'center',
+  },
+  userRefCardSub: {
+    fontSize: 10.5,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+
+  // UPLOADED PRODUCT PHOTO CARD
+  productPhotoCard: {
+    width: 126,
+    height: 148,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  productPhotoImgWrap: {
+    width: '100%',
+    height: 114,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
     position: 'relative',
+    padding: 6,
   },
-  previewImg: {
-    width: 58,
-    height: 58,
+  productPhotoImg: {
+    width: '100%',
+    height: '100%',
   },
-  deleteImgBtn: {
+  cardCoverBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF08A',
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: '#FDE047',
+  },
+  cardCoverBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: 0.2,
+  },
+  cardIndexBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cardIndexBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  cardDeleteBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addMoreImagesCard: {
-    width: 70,
-    height: 70,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+  cardBottomActions: {
+    height: 34,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 4,
   },
-  addMoreImagesText: {
-    fontSize: 8.5,
+  cardMakeCoverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#F8FAFC',
+  },
+  cardMakeCoverText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  cardReplaceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 3,
+  },
+  cardReplaceText: {
+    fontSize: 10,
     fontWeight: '600',
     color: '#64748B',
+  },
+
+  // BOTTOM ROW TOOLBAR & GUIDANCE
+  imageSectionBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  imageSectionPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickSourcePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 5,
+  },
+  quickSourcePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  imageSectionHint: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+  },
+
+  // LIVE PREVIEW IN URL MODAL
+  modalLivePreviewBox: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  modalLivePreviewLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 6,
+    alignSelf: 'flex-start',
+  },
+  modalLivePreviewImgWrap: {
+    width: 140,
+    height: 120,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 6,
+  },
+  modalLivePreviewImg: {
+    width: '100%',
+    height: '100%',
+  },
+
+  // LIGHTBOX VIEWER MODAL
+  lightboxOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    justifyContent: 'space-between',
+    padding: 20,
+  },
+  lightboxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 36 : 10,
+  },
+  lightboxTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  lightboxCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxImgWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  lightboxImg: {
+    width: '100%',
+    height: '100%',
+    maxWidth: 600,
+    maxHeight: 500,
+  },
+  lightboxFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+  },
+  lightboxMakeCoverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FACC15',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  lightboxMakeCoverText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  lightboxDoneBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  lightboxDoneText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // Form Grids
@@ -1416,9 +2217,27 @@ const newProdStyles = StyleSheet.create({
   // Bottom Actions
   bottomActionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginTop: 6,
     marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  bottomDeleteBtn: {
+    flex: 1,
+    minWidth: 140,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    paddingVertical: 12,
+    backgroundColor: '#FEF2F2',
+  },
+  bottomDeleteText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DC2626',
   },
   saveDraftBtn: {
     flex: 1,

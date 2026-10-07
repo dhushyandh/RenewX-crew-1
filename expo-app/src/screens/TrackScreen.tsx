@@ -12,6 +12,7 @@ import {
   Modal,
   Linking,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,6 +28,7 @@ import {
   renewxRadius,
   renewxSpacing,
 } from '@/design-system';
+import { getCategoryThirdPartyImage } from '@/data/categories';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -45,6 +47,12 @@ interface OrderItem {
   price: number;
   qty: number;
   placed_date: string;
+  placed_time?: string;
+  buyer_name?: string;
+  buyer_phone?: string;
+  buyer_email?: string;
+  payment_method?: string;
+  payment_status?: string;
   status: 'processing' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled';
   status_label: string;
   status_color: string;
@@ -73,16 +81,20 @@ export interface SellRequestItem {
   storage: string;
   valuation_amount: number;
   expected_price: number;
+  approved_amount?: number;
   status: 'pending' | 'approved' | 'scheduled' | 'picked_up' | 'inspected' | 'completed' | 'cancelled' | 'rejected';
   status_label: string;
   status_color: string;
   status_bg: string;
   created_at: string;
+  created_time?: string;
   customer_name: string;
   customer_phone: string;
+  customer_email?: string;
   customer_address: string;
   pincode: string;
   photos: string[];
+  image: any;
   steps: TrackingStep[];
   pickup_partner?: {
     name: string;
@@ -90,6 +102,8 @@ export interface SellRequestItem {
     phone: string;
     avatar?: string;
   };
+  admin_note?: string;
+  raw_sell?: any;
 }
 
 const ORDER_FILTER_TABS = [
@@ -126,6 +140,336 @@ function getCategoryIcon(cat?: string): keyof typeof Ionicons.glyphMap {
   return 'phone-portrait-outline';
 }
 
+function mapUniversalOrder(o: any): OrderItem {
+  const id = String(o._id || o.id || '');
+  const display_id = o.display_id || formatShortId(id, 'ORD');
+  const rawStatus = String(o.status || 'processing').toLowerCase();
+  const status = (rawStatus === 'delivered'
+    ? 'delivered'
+    : rawStatus === 'out_for_delivery'
+    ? 'out_for_delivery'
+    : rawStatus === 'shipped'
+    ? 'shipped'
+    : rawStatus === 'cancelled'
+    ? 'cancelled'
+    : 'processing') as OrderItem['status'];
+
+  let status_label = o.status_label || 'Processing';
+  let status_color = '#D97706';
+  let status_bg = '#FEF3C7';
+  if (status === 'shipped') {
+    status_label = 'In Transit';
+    status_color = '#2563EB';
+    status_bg = '#EFF6FF';
+  } else if (status === 'out_for_delivery') {
+    status_label = 'Out for Delivery';
+    status_color = '#7C3AED';
+    status_bg = '#F5F3FF';
+  } else if (status === 'delivered') {
+    status_label = 'Delivered';
+    status_color = '#059669';
+    status_bg = '#ECFDF5';
+  } else if (status === 'cancelled') {
+    status_label = 'Cancelled';
+    status_color = '#DC2626';
+    status_bg = '#FEE2E2';
+  }
+
+  const items = Array.isArray(o.items) && o.items.length > 0
+    ? o.items
+    : (Array.isArray(o.order_items) ? o.order_items : []);
+  const firstItem = items[0] || {};
+
+  const placedDateStr = o.placed_date || (o.created_at
+    ? new Date(o.created_at).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : 'Recently');
+
+  const placedTimeStr = o.placed_time || (o.created_at
+    ? new Date(o.created_at).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : placedDateStr);
+
+  const steps: TrackingStep[] = Array.isArray(o.timeline) && o.timeline.length > 0
+    ? o.timeline.map((t: any) => ({
+        label: t.label || t.step,
+        description: t.description || '',
+        date: t.timestamp || '',
+        status: (t.completed ? 'completed' : 'pending') as any,
+      }))
+    : [
+        {
+          label: 'Order Placed & Confirmed',
+          description: 'Payment authorized and order sent to RenewX Fulfillment Center.',
+          date: placedDateStr,
+          status: 'completed',
+        },
+        {
+          label: 'Inspected & Packed',
+          description: 'Device cleared 32-point quality check and packed in tamper-proof seal.',
+          date: status === 'processing' ? 'In Progress' : 'Completed',
+          status: status === 'processing' ? 'active' : 'completed',
+        },
+        {
+          label: 'Handed to Courier Partner',
+          description: 'Dispatched via BlueDart Express Air Courier.',
+          date: status === 'processing' ? 'Expected Tomorrow' : 'Dispatched',
+          status:
+            status === 'shipped'
+              ? 'active'
+              : status === 'out_for_delivery' || status === 'delivered'
+              ? 'completed'
+              : 'pending',
+        },
+        {
+          label: 'Out for Doorstep Delivery',
+          description: 'Delivery executive is en route to your shipping address.',
+          date: status === 'out_for_delivery' ? 'Today' : 'Pending',
+          status:
+            status === 'out_for_delivery'
+              ? 'active'
+              : status === 'delivered'
+              ? 'completed'
+              : 'pending',
+        },
+        {
+          label: 'Package Delivered',
+          description: 'Handed over to customer with OTP verification.',
+          date: status === 'delivered' ? 'Delivered' : 'Pending',
+          status: status === 'delivered' ? 'completed' : 'pending',
+        },
+      ];
+
+  const courierName = o.tracking?.courier || o.courier || (status === 'shipped' || status === 'out_for_delivery' || status === 'delivered' ? 'BlueDart Express' : undefined);
+  const courierPhone = o.tracking?.courier_phone || o.courier_phone || '+91 98765 43210';
+  const trackingNumber = o.tracking?.tracking_number || o.tracking_number;
+
+  const buyerName = o.customer?.name || o.customer_info?.name || o.shipping_address?.name || (typeof o.user_id === 'object' ? o.user_id?.name : undefined) || 'Customer';
+  const buyerPhone = o.customer?.phone || o.customer_info?.phone || o.shipping_address?.phone || (typeof o.user_id === 'object' ? o.user_id?.phone : undefined) || '';
+  const buyerEmail = o.customer?.email || o.customer_info?.email || (typeof o.user_id === 'object' ? o.user_id?.email : undefined) || '';
+
+  const deliveryAddress = o.address?.full || o.shipping_address || (o.customer_info?.address
+    ? `${o.customer_info.address}${o.customer_info.pincode ? `, ${o.customer_info.pincode}` : ''}`
+    : '');
+
+  const paymentMethod = o.payment?.method || o.payment_method || 'Prepaid (Razorpay / UPI)';
+  const paymentStatus = o.payment?.status || o.payment_status || 'paid';
+  const price = Number(o.financial?.total || o.total_amount || o.total || firstItem.price || 0);
+
+  return {
+    id,
+    display_id,
+    product_name: firstItem.name || firstItem.product_name || 'RenewX Device',
+    specs: firstItem.specs || firstItem.condition || 'Tested & Certified • Pristine Condition',
+    price,
+    qty: items.length || 1,
+    placed_date: placedDateStr,
+    placed_time: placedTimeStr,
+    buyer_name: buyerName,
+    buyer_phone: buyerPhone,
+    buyer_email: buyerEmail,
+    payment_method: paymentMethod,
+    payment_status: paymentStatus,
+    status,
+    status_label,
+    status_color,
+    status_bg,
+    image: firstItem.image_url || firstItem.image || firstItem.product_image || firstItem.thumbnail || o.image || o.image_url
+      ? { uri: firstItem.image_url || firstItem.image || firstItem.product_image || firstItem.thumbnail || o.image || o.image_url }
+      : { uri: getCategoryThirdPartyImage(firstItem.category || o.category || 'Smartphones') },
+    tracking_id: trackingNumber || (status === 'shipped' || status === 'out_for_delivery' ? `RX-${id.slice(-6).toUpperCase()}` : undefined),
+    delivery_partner: courierName ? {
+      name: courierName,
+      role: 'RenewX Delivery Partner',
+      phone: courierPhone,
+      avatar: o.tracking?.courier_avatar || o.courier_avatar,
+    } : undefined,
+    delivery_address: deliveryAddress,
+    estimated_delivery_date: o.tracking?.estimated_delivery_formatted || (() => {
+      const created = o.created_at ? new Date(o.created_at) : new Date();
+      const est = o.estimated_delivery
+        ? new Date(o.estimated_delivery)
+        : new Date(created.getTime() + 4 * 24 * 60 * 60 * 1000);
+      return est.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    })(),
+    estimated_delivery_time: 'by 6:00 PM',
+    steps,
+    raw_order: o,
+  };
+}
+
+function mapUniversalSell(sr: any): SellRequestItem {
+  const id = String(sr._id || sr.id || '');
+  const display_id = sr.display_id || formatShortId(id, 'REQ');
+  const rawStatus = String(sr.status || 'pending').toLowerCase();
+  const valuation = Number(sr.financial?.valuation_amount || sr.valuation_amount || sr.expected_price || 0);
+  const approved = Number(sr.financial?.approved_amount || sr.approved_amount || valuation);
+
+  let status_label = sr.status_label || 'Under Review';
+  let status_color = '#D97706';
+  let status_bg = '#FEF3C7';
+  if (rawStatus === 'approved') {
+    status_label = 'Valuation Approved';
+    status_color = '#059669';
+    status_bg = '#ECFDF5';
+  } else if (rawStatus === 'scheduled') {
+    status_label = 'Pickup Scheduled';
+    status_color = '#2563EB';
+    status_bg = '#EFF6FF';
+  } else if (rawStatus === 'picked_up') {
+    status_label = 'Device Picked Up';
+    status_color = '#7C3AED';
+    status_bg = '#F5F3FF';
+  } else if (rawStatus === 'inspected') {
+    status_label = 'Inspection Passed';
+    status_color = '#059669';
+    status_bg = '#ECFDF5';
+  } else if (rawStatus === 'completed') {
+    status_label = 'Paid & Completed';
+    status_color = '#059669';
+    status_bg = '#ECFDF5';
+  } else if (rawStatus === 'cancelled' || rawStatus === 'rejected') {
+    status_label = rawStatus === 'rejected' ? 'Declined' : 'Cancelled';
+    status_color = '#DC2626';
+    status_bg = '#FEE2E2';
+  }
+
+  const createdDateStr = sr.submitted_date || (sr.created_at
+    ? new Date(sr.created_at).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : 'Recently');
+
+  const createdTimeStr = sr.submitted_time || (sr.created_at
+    ? new Date(sr.created_at).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : createdDateStr);
+
+  const steps: TrackingStep[] = Array.isArray(sr.timeline) && sr.timeline.length > 0
+    ? sr.timeline.map((t: any) => ({
+        label: t.label || t.step,
+        description: t.description || '',
+        date: t.timestamp || '',
+        status: (t.completed ? 'completed' : 'pending') as any,
+      }))
+    : [
+        {
+          label: 'Request Submitted',
+          description: 'Device specifications submitted for online evaluation.',
+          date: createdDateStr,
+          status: 'completed',
+        },
+        {
+          label: 'Price Valuation Approved',
+          description: `Instant cash quote of ₹${valuation.toLocaleString('en-IN')} confirmed.`,
+          date: rawStatus === 'pending' ? 'In Review' : 'Approved',
+          status: rawStatus === 'pending' ? 'active' : 'completed',
+        },
+        {
+          label: 'Doorstep Pickup & Inspection',
+          description: 'Executive visits doorstep to run quick automated diagnostics.',
+          date:
+            rawStatus === 'scheduled'
+              ? 'Scheduled'
+              : ['picked_up', 'inspected', 'completed'].includes(rawStatus)
+              ? 'Picked Up'
+              : 'Pending',
+          status:
+            rawStatus === 'scheduled'
+              ? 'active'
+              : ['picked_up', 'inspected', 'completed'].includes(rawStatus)
+              ? 'completed'
+              : 'pending',
+        },
+        {
+          label: 'Final Quality Confirmation',
+          description: 'Hardware, battery health, and display verified.',
+          date: ['inspected', 'completed'].includes(rawStatus) ? 'Passed' : 'Pending',
+          status:
+            rawStatus === 'picked_up'
+              ? 'active'
+              : ['inspected', 'completed'].includes(rawStatus)
+              ? 'completed'
+              : 'pending',
+        },
+        {
+          label: 'Instant Bank Payout',
+          description: `₹${(approved || valuation).toLocaleString('en-IN')} transferred via UPI / IMPS.`,
+          date: rawStatus === 'completed' ? 'Transferred' : 'Pending',
+          status: rawStatus === 'completed' ? 'completed' : 'pending',
+        },
+      ];
+
+  const device = sr.device || {};
+  const seller = sr.seller || {};
+  const logistics = sr.logistics || {};
+
+  const photos = Array.isArray(device.photos) && device.photos.length > 0
+    ? device.photos
+    : Array.isArray(sr.photos) && sr.photos.length > 0
+    ? sr.photos
+    : [];
+
+  const primaryPhoto = photos.find((p: any) => typeof p === 'string' && p.trim().length > 0);
+  const fallbackCatImg = getCategoryThirdPartyImage(device.category || sr.category || 'Smartphone');
+  const resolvedSellImg = primaryPhoto ? { uri: primaryPhoto } : { uri: fallbackCatImg };
+
+  return {
+    id,
+    display_id,
+    category: device.category || sr.category || 'Smartphone',
+    brand: device.brand || sr.brand || 'Device',
+    model: device.model || sr.model || '',
+    storage: device.storage || sr.storage || 'Standard',
+    valuation_amount: valuation,
+    expected_price: Number(sr.financial?.expected_price || sr.expected_price || valuation),
+    approved_amount: approved,
+    status: rawStatus as any,
+    status_label,
+    status_color,
+    status_bg,
+    created_at: createdDateStr,
+    created_time: createdTimeStr,
+    customer_name: seller.name || sr.customer_name || 'Customer',
+    customer_phone: seller.phone || sr.customer_phone || '',
+    customer_email: seller.email || sr.customer_email || (typeof sr.user_id === 'object' ? sr.user_id?.email : ''),
+    customer_address: sr.address?.full || sr.address || '',
+    pincode: sr.address?.pincode || sr.pincode || '',
+    photos,
+    image: resolvedSellImg,
+    steps,
+    pickup_partner: logistics.assigned_executive || sr.assigned_executive ? {
+      name: logistics.assigned_executive || sr.assigned_executive,
+      role: 'RenewX Inspection Specialist',
+      phone: logistics.executive_phone || sr.executive_phone || '+91 98765 43210',
+      avatar: logistics.executive_avatar || sr.executive_avatar,
+    } : undefined,
+    admin_note: sr.admin_note || '',
+    raw_sell: sr,
+  };
+}
+
 export default function TrackScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<any>();
@@ -155,6 +499,11 @@ export default function TrackScreen() {
   const [cancellingSellId, setCancellingSellId] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
+
+  // Universal lookup state
+  const [isSearchingUniversal, setIsSearchingUniversal] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Update selection if route params change
   useEffect(() => {
@@ -184,269 +533,13 @@ export default function TrackScreen() {
       ]);
 
       if (orderRes.status === 'fulfilled' && Array.isArray(orderRes.value) && orderRes.value.length > 0) {
-        const mapped: OrderItem[] = orderRes.value.map((o: any) => {
-          const rawStatus = String(o.status || 'processing').toLowerCase();
-          const items = o.order_items || o.items || [];
-          const firstItem = items[0] || {};
-          const status = (rawStatus === 'delivered'
-            ? 'delivered'
-            : rawStatus === 'out_for_delivery'
-            ? 'out_for_delivery'
-            : rawStatus === 'shipped'
-            ? 'shipped'
-            : rawStatus === 'cancelled'
-            ? 'cancelled'
-            : 'processing') as OrderItem['status'];
-
-          const id = String(o.id || o._id || '');
-          const display_id = formatShortId(id, 'ORD');
-
-          let status_label = 'Processing';
-          let status_color = '#D97706';
-          let status_bg = '#FEF3C7';
-
-          if (status === 'shipped') {
-            status_label = 'In Transit';
-            status_color = '#2563EB';
-            status_bg = '#EFF6FF';
-          } else if (status === 'out_for_delivery') {
-            status_label = 'Out for Delivery';
-            status_color = '#7C3AED';
-            status_bg = '#F5F3FF';
-          } else if (status === 'delivered') {
-            status_label = 'Delivered';
-            status_color = '#059669';
-            status_bg = '#ECFDF5';
-          } else if (status === 'cancelled') {
-            status_label = 'Cancelled';
-            status_color = '#DC2626';
-            status_bg = '#FEE2E2';
-          }
-
-          const placedDateStr = o.created_at
-            ? new Date(o.created_at).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })
-            : '03 Oct 2026';
-
-          const steps: TrackingStep[] = [
-            {
-              label: 'Order Placed & Confirmed',
-              description: 'Payment authorized and order sent to RenewX Fulfillment Center.',
-              date: placedDateStr,
-              status: 'completed',
-            },
-            {
-              label: 'Inspected & Packed',
-              description: 'Device cleared 32-point quality check and packed in tamper-proof seal.',
-              date: status === 'processing' ? 'In Progress' : 'Completed',
-              status: status === 'processing' ? 'active' : 'completed',
-            },
-            {
-              label: 'Handed to Courier Partner',
-              description: 'Dispatched via BlueDart Express Air Courier.',
-              date: status === 'processing' ? 'Expected Tomorrow' : 'Dispatched',
-              status:
-                status === 'shipped'
-                  ? 'active'
-                  : status === 'out_for_delivery' || status === 'delivered'
-                  ? 'completed'
-                  : 'pending',
-            },
-            {
-              label: 'Out for Doorstep Delivery',
-              description: 'Delivery executive is en route to your shipping address.',
-              date: status === 'out_for_delivery' ? 'Today' : 'Pending',
-              status:
-                status === 'out_for_delivery'
-                  ? 'active'
-                  : status === 'delivered'
-                  ? 'completed'
-                  : 'pending',
-            },
-            {
-              label: 'Package Delivered',
-              description: 'Handed over to customer with OTP verification.',
-              date: status === 'delivered' ? 'Delivered' : 'Pending',
-              status: status === 'delivered' ? 'completed' : 'pending',
-            },
-          ];
-
-          return {
-            id,
-            display_id,
-            product_name: firstItem.name || firstItem.product_name || 'Device',
-            specs: firstItem.specs || firstItem.condition || 'Pristine Condition • Tested & Verified',
-            price: Number(o.total_amount || o.total || firstItem.price || 0),
-            qty: items.length || 1,
-            placed_date: placedDateStr,
-            status,
-            status_label,
-            status_color,
-            status_bg,
-            image:
-              firstItem.image_url || firstItem.image
-                ? { uri: firstItem.image_url || firstItem.image }
-                : { uri: 'https://pngimg.com/uploads/iphone_14/small/iphone_14_PNG21.png' },
-            tracking_id: o.tracking_number || (o.status === 'shipped' || o.status === 'out_for_delivery' ? `RX-${id.slice(-6).toUpperCase()}` : undefined),
-            delivery_partner: o.delivery_partner || (o.courier ? {
-              name: o.courier,
-              role: 'RenewX Delivery Partner',
-              phone: o.courier_phone || '',
-              avatar: o.courier_avatar || undefined,
-            } : undefined),
-            delivery_address:
-              o.shipping_address ||
-              (o.customer_info?.address
-                ? `${o.customer_info.address}${o.customer_info.pincode ? `, ${o.customer_info.pincode}` : ''}`
-                : undefined),
-            estimated_delivery_date: (() => {
-              const created = o.created_at ? new Date(o.created_at) : new Date();
-              const est = o.estimated_delivery
-                ? new Date(o.estimated_delivery)
-                : new Date(created.getTime() + 4 * 24 * 60 * 60 * 1000);
-              return est.toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              });
-            })(),
-            estimated_delivery_time: 'by 6:00 PM',
-            steps,
-            raw_order: o,
-          };
-        });
-
-        setOrders(mapped);
+        setOrders(orderRes.value.map(mapUniversalOrder));
       } else {
         setOrders([]);
       }
 
       if (sellRes.status === 'fulfilled' && Array.isArray(sellRes.value) && sellRes.value.length > 0) {
-        const mappedSell: SellRequestItem[] = sellRes.value.map((sr: any) => {
-          const rawStatus = String(sr.status || 'pending').toLowerCase();
-          const id = String(sr.id || sr._id || '');
-          const display_id = formatShortId(id, 'REQ');
-          const valuation = Number(sr.valuation_amount || sr.expected_price || 0);
-
-          let status_label = 'Under Review';
-          let status_color = '#D97706';
-          let status_bg = '#FEF3C7';
-
-          if (rawStatus === 'approved') {
-            status_label = 'Valuation Approved';
-            status_color = '#059669';
-            status_bg = '#ECFDF5';
-          } else if (rawStatus === 'scheduled') {
-            status_label = 'Pickup Scheduled';
-            status_color = '#2563EB';
-            status_bg = '#EFF6FF';
-          } else if (rawStatus === 'picked_up') {
-            status_label = 'Device Picked Up';
-            status_color = '#7C3AED';
-            status_bg = '#F5F3FF';
-          } else if (rawStatus === 'inspected') {
-            status_label = 'Inspection Passed';
-            status_color = '#059669';
-            status_bg = '#ECFDF5';
-          } else if (rawStatus === 'completed') {
-            status_label = 'Paid & Completed';
-            status_color = '#059669';
-            status_bg = '#ECFDF5';
-          } else if (rawStatus === 'cancelled' || rawStatus === 'rejected') {
-            status_label = rawStatus === 'rejected' ? 'Declined' : 'Cancelled';
-            status_color = '#DC2626';
-            status_bg = '#FEE2E2';
-          }
-
-          const createdDateStr = sr.created_at
-            ? new Date(sr.created_at).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })
-            : 'Recently';
-
-          const steps: TrackingStep[] = [
-            {
-              label: 'Request Submitted',
-              description: 'Device specifications submitted for online evaluation.',
-              date: createdDateStr,
-              status: 'completed',
-            },
-            {
-              label: 'Price Valuation Approved',
-              description: `Instant cash quote of ₹${valuation.toLocaleString('en-IN')} confirmed.`,
-              date: rawStatus === 'pending' ? 'In Review' : 'Approved',
-              status: rawStatus === 'pending' ? 'active' : 'completed',
-            },
-            {
-              label: 'Doorstep Pickup & Inspection',
-              description: 'Executive visits doorstep to run quick automated diagnostics.',
-              date:
-                rawStatus === 'scheduled'
-                  ? 'Scheduled'
-                  : ['picked_up', 'inspected', 'completed'].includes(rawStatus)
-                  ? 'Picked Up'
-                  : 'Pending',
-              status:
-                rawStatus === 'scheduled'
-                  ? 'active'
-                  : ['picked_up', 'inspected', 'completed'].includes(rawStatus)
-                  ? 'completed'
-                  : 'pending',
-            },
-            {
-              label: 'Final Quality Confirmation',
-              description: 'Hardware, battery health, and display verified.',
-              date: ['inspected', 'completed'].includes(rawStatus) ? 'Passed' : 'Pending',
-              status:
-                rawStatus === 'picked_up'
-                  ? 'active'
-                  : ['inspected', 'completed'].includes(rawStatus)
-                  ? 'completed'
-                  : 'pending',
-            },
-            {
-              label: 'Instant Bank Payout',
-              description: `₹${valuation.toLocaleString('en-IN')} transferred via UPI / IMPS.`,
-              date: rawStatus === 'completed' ? 'Transferred' : 'Pending',
-              status: rawStatus === 'completed' ? 'completed' : 'pending',
-            },
-          ];
-
-          return {
-            id,
-            display_id,
-            category: sr.category || 'Smartphone',
-            brand: sr.brand || 'Device',
-            model: sr.model || '',
-            storage: sr.storage || 'Standard',
-            valuation_amount: valuation,
-            expected_price: valuation,
-            status: rawStatus as any,
-            status_label,
-            status_color,
-            status_bg,
-            created_at: createdDateStr,
-            customer_name: sr.customer_name || 'Customer',
-            customer_phone: sr.customer_phone || '',
-            customer_address: sr.address || '',
-            pincode: sr.pincode || '',
-            photos: Array.isArray(sr.photos) ? sr.photos : [],
-            steps,
-            pickup_partner: sr.pickup_partner || (sr.assigned_executive ? {
-              name: sr.assigned_executive,
-              role: 'RenewX Inspection Specialist',
-              phone: sr.executive_phone || '',
-              avatar: sr.executive_avatar || undefined,
-            } : undefined),
-          };
-        });
-
-        setSellRequests(mappedSell);
+        setSellRequests(sellRes.value.map(mapUniversalSell));
       } else {
         setSellRequests([]);
       }
@@ -455,6 +548,97 @@ export default function TrackScreen() {
       setSellRequests([]);
     }
   }, []);
+
+  // Universal ID Lookup (Searches Orders and Sell Requests globally without ownership constraints)
+  const handleUniversalLookup = useCallback(async (queryInput?: string) => {
+    const rawQ = (queryInput !== undefined ? queryInput : searchQuery).trim();
+    if (!rawQ) {
+      toast.error('Please enter an Order ID or Sell Request ID to track.');
+      return;
+    }
+
+    setSearchError(null);
+    setIsSearchingUniversal(true);
+
+    const cleanQ = rawQ.toUpperCase().replace(/^#/, '');
+
+    // 1. Try local list first
+    const localOrder = orders.find((o) =>
+      o.id.toUpperCase() === cleanQ ||
+      o.display_id.toUpperCase().replace(/^#/, '') === cleanQ ||
+      o.id.slice(-6).toUpperCase() === cleanQ ||
+      (o.tracking_id && o.tracking_id.toUpperCase() === cleanQ)
+    );
+
+    if (localOrder) {
+      setIsSearchingUniversal(false);
+      setTrackType('orders');
+      setSelectedOrderId(localOrder.id);
+      setSelectedSellId(null);
+      toast.success(`Found Order ${localOrder.display_id}!`);
+      return;
+    }
+
+    const localSell = sellRequests.find((s) =>
+      s.id.toUpperCase() === cleanQ ||
+      s.display_id.toUpperCase().replace(/^#/, '') === cleanQ ||
+      s.id.slice(-6).toUpperCase() === cleanQ
+    );
+
+    if (localSell) {
+      setIsSearchingUniversal(false);
+      setTrackType('sell_requests');
+      setSelectedSellId(localSell.id);
+      setSelectedOrderId(null);
+      toast.success(`Found Sell Request ${localSell.display_id}!`);
+      return;
+    }
+
+    // 2. Query universal tracking backend
+    try {
+      const res = await api.tracking.universalLookup(rawQ);
+      if (res?.success && res.data) {
+        if (res.type === 'order') {
+          const mapped = mapUniversalOrder(res.data);
+          setOrders((prev) => [mapped, ...prev.filter((it) => it.id !== mapped.id)]);
+          setTrackType('orders');
+          setSelectedOrderId(mapped.id);
+          setSelectedSellId(null);
+          toast.success(`Found Order ${mapped.display_id}! Showing live tracking details.`);
+        } else if (res.type === 'sell_request') {
+          const mapped = mapUniversalSell(res.data);
+          setSellRequests((prev) => [mapped, ...prev.filter((it) => it.id !== mapped.id)]);
+          setTrackType('sell_requests');
+          setSelectedSellId(mapped.id);
+          setSelectedOrderId(null);
+          toast.success(`Found Sell Request ${mapped.display_id}! Showing live tracking details.`);
+        }
+      } else {
+        const msg = res?.message || `No order or sell request found for "${rawQ}".`;
+        setSearchError(msg);
+        toast.error(msg);
+      }
+    } catch (err: any) {
+      const msg = err?.message || `No records found matching "${rawQ}".`;
+      setSearchError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSearchingUniversal(false);
+    }
+  }, [orders, sellRequests, searchQuery, toast]);
+
+  // Auto universal lookup if navigated with an ID that isn't yet in local state
+  useEffect(() => {
+    const target = route.params?.id;
+    if (target && orders.length > 0) {
+      const clean = String(target).toUpperCase().replace(/^#/, '');
+      const foundO = orders.some((o) => o.id.toUpperCase() === clean || o.display_id.toUpperCase().replace(/^#/, '') === clean || o.id.slice(-6).toUpperCase() === clean);
+      const foundS = sellRequests.some((s) => s.id.toUpperCase() === clean || s.display_id.toUpperCase().replace(/^#/, '') === clean || s.id.slice(-6).toUpperCase() === clean);
+      if (!foundO && !foundS) {
+        handleUniversalLookup(String(target));
+      }
+    }
+  }, [orders.length, sellRequests.length, route.params?.id, handleUniversalLookup]);
 
   useEffect(() => {
     fetchData();
@@ -566,6 +750,8 @@ export default function TrackScreen() {
           o.display_id.toLowerCase().includes(q) ||
           o.product_name.toLowerCase().includes(q) ||
           o.specs.toLowerCase().includes(q) ||
+          (o.buyer_name && o.buyer_name.toLowerCase().includes(q)) ||
+          (o.buyer_phone && o.buyer_phone.toLowerCase().includes(q)) ||
           (o.tracking_id && o.tracking_id.toLowerCase().includes(q))
       );
     }
@@ -595,7 +781,9 @@ export default function TrackScreen() {
           sr.display_id.toLowerCase().includes(q) ||
           sr.brand.toLowerCase().includes(q) ||
           sr.model.toLowerCase().includes(q) ||
-          sr.category.toLowerCase().includes(q)
+          sr.category.toLowerCase().includes(q) ||
+          (sr.customer_name && sr.customer_name.toLowerCase().includes(q)) ||
+          (sr.customer_phone && sr.customer_phone.toLowerCase().includes(q))
       );
     }
 
@@ -678,6 +866,42 @@ export default function TrackScreen() {
               </View>
             </View>
           </View>
+
+          {/* Multi-Item Order Gallery if order has more than 1 item */}
+          {Array.isArray(currentTrackOrder.raw_order?.order_items) && currentTrackOrder.raw_order.order_items.length > 1 && (
+            <View style={styles.multiItemsCard}>
+              <View style={styles.devicePhotosHeader}>
+                <Ionicons name="bag-check-outline" size={16} color="#0F172A" />
+                <Text style={styles.devicePhotosTitle}>
+                  All Ordered Items ({currentTrackOrder.raw_order.order_items.length})
+                </Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.devicePhotosScroll}
+              >
+                {currentTrackOrder.raw_order.order_items.map((it: any, itIdx: number) => {
+                  const itImg = it.image_url || it.image || currentTrackOrder.image;
+                  return (
+                    <View key={itIdx} style={styles.multiItemBox}>
+                      <Image
+                        source={typeof itImg === 'string' ? { uri: itImg } : itImg}
+                        style={styles.multiItemImg}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.multiItemName} numberOfLines={1}>
+                        {it.product_name || it.name}
+                      </Text>
+                      <Text style={styles.multiItemQtyPrice}>
+                        Qty: {it.quantity || 1} • ₹{Number(it.price || 0).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Live Delivery Status Banner */}
           <View style={styles.liveBannerCard}>
@@ -819,16 +1043,132 @@ export default function TrackScreen() {
             </View>
           )}
 
-          {/* Shipping Address Card - Only rendered when address exists */}
-          {currentTrackOrder.delivery_address ? (
-            <View style={styles.addressCard}>
-              <View style={styles.addressHeaderRow}>
-                <Ionicons name="location-sharp" size={18} color="#0F172A" />
-                <Text style={styles.addressCardTitle}>Delivery Address</Text>
+          {/* Comprehensive Buyer, Shipping, Time & Financial Information Card */}
+          <View style={styles.richDetailCard}>
+            <View style={styles.richDetailCardHeader}>
+              <View style={styles.richDetailHeaderIconBox}>
+                <Ionicons name="person-circle-sharp" size={20} color="#0F172A" />
               </View>
-              <Text style={styles.addressText}>{currentTrackOrder.delivery_address}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.richDetailCardTitle}>Buyer & Delivery Details</Text>
+                <Text style={styles.richDetailCardSubtitle}>Universal Verification & Order Record</Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: currentTrackOrder.status_bg }]}>
+                <Text style={[styles.statusBadgeText, { color: currentTrackOrder.status_color }]}>
+                  {currentTrackOrder.status_label}
+                </Text>
+              </View>
             </View>
-          ) : null}
+
+            <View style={styles.richDetailCardDivider} />
+
+            {/* Buyer Name & Contact */}
+            <View style={styles.richDetailRow}>
+              <View style={styles.richDetailIconCol}>
+                <Ionicons name="person-outline" size={16} color="#64748B" />
+              </View>
+              <View style={styles.richDetailInfoCol}>
+                <Text style={styles.richDetailLabel}>Purchased By (Buyer)</Text>
+                <Text style={styles.richDetailValueBold}>
+                  {currentTrackOrder.buyer_name || 'Customer'}
+                </Text>
+              </View>
+              {currentTrackOrder.buyer_phone ? (
+                <TouchableOpacity
+                  style={styles.richDetailActionBtn}
+                  onPress={() => handleCallPartner(currentTrackOrder.buyer_phone!, currentTrackOrder.buyer_name || 'Buyer')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="call" size={13} color="#0F172A" />
+                  <Text style={styles.richDetailActionBtnText}>Call</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Phone & Email */}
+            {(currentTrackOrder.buyer_phone || currentTrackOrder.buyer_email) ? (
+              <View style={styles.richDetailRow}>
+                <View style={styles.richDetailIconCol}>
+                  <Ionicons name="call-outline" size={16} color="#64748B" />
+                </View>
+                <View style={styles.richDetailInfoCol}>
+                  <Text style={styles.richDetailLabel}>Contact Phone & Email</Text>
+                  <Text style={styles.richDetailValue}>
+                    {currentTrackOrder.buyer_phone || 'N/A'}
+                    {currentTrackOrder.buyer_email ? ` • ${currentTrackOrder.buyer_email}` : ''}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Order Placed Date & Exact Time */}
+            <View style={styles.richDetailRow}>
+              <View style={styles.richDetailIconCol}>
+                <Ionicons name="time-outline" size={16} color="#64748B" />
+              </View>
+              <View style={styles.richDetailInfoCol}>
+                <Text style={styles.richDetailLabel}>Order Placed Time</Text>
+                <Text style={styles.richDetailValue}>
+                  {currentTrackOrder.placed_time || currentTrackOrder.placed_date}
+                </Text>
+              </View>
+            </View>
+
+            {/* Delivery Address */}
+            {currentTrackOrder.delivery_address ? (
+              <View style={styles.richDetailRow}>
+                <View style={styles.richDetailIconCol}>
+                  <Ionicons name="location-outline" size={16} color="#64748B" />
+                </View>
+                <View style={styles.richDetailInfoCol}>
+                  <Text style={styles.richDetailLabel}>Delivery Address</Text>
+                  <Text style={styles.richDetailValue}>
+                    {currentTrackOrder.delivery_address}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Payment & Invoice Summary */}
+            <View style={styles.richDetailRow}>
+              <View style={styles.richDetailIconCol}>
+                <Ionicons name="wallet-outline" size={16} color="#64748B" />
+              </View>
+              <View style={styles.richDetailInfoCol}>
+                <Text style={styles.richDetailLabel}>Payment & Billing</Text>
+                <Text style={styles.richDetailValue}>
+                  {currentTrackOrder.payment_method || 'Prepaid'}
+                  {` • Total: ₹${currentTrackOrder.price.toLocaleString('en-IN')}`}
+                </Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: '#ECFDF5', paddingHorizontal: 7, paddingVertical: 2 }]}>
+                <Text style={[styles.statusBadgeText, { color: '#059669', fontSize: 10 }]}>
+                  {String(currentTrackOrder.payment_status || 'PAID').toUpperCase()}
+                </Text>
+              </View>
+            </View>
+
+            {/* Courier Tracking Airway Bill */}
+            {currentTrackOrder.tracking_id ? (
+              <View style={styles.richDetailRow}>
+                <View style={styles.richDetailIconCol}>
+                  <Ionicons name="barcode-outline" size={16} color="#64748B" />
+                </View>
+                <View style={styles.richDetailInfoCol}>
+                  <Text style={styles.richDetailLabel}>Tracking Airway Bill</Text>
+                  <Text style={styles.richDetailValueBold}>
+                    {currentTrackOrder.tracking_id}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleCopyId(currentTrackOrder.tracking_id!, 'Tracking Number')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="copy-outline" size={15} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
 
           {/* Action Buttons */}
           <View style={styles.bottomButtonsRow}>
@@ -965,8 +1305,12 @@ export default function TrackScreen() {
         >
           {/* Device Summary Card */}
           <View style={styles.summaryCard}>
-            <View style={[styles.summaryThumbBox, { backgroundColor: '#F8FAFC' }]}>
-              <Ionicons name={getCategoryIcon(currentTrackSell.category)} size={32} color="#0F172A" />
+            <View style={styles.summaryThumbBox}>
+              <Image
+                source={currentTrackSell.image}
+                style={styles.summaryThumbImg}
+                resizeMode="cover"
+              />
             </View>
             <View style={styles.summaryInfoCol}>
               <View style={styles.summaryHeaderRow}>
@@ -996,6 +1340,38 @@ export default function TrackScreen() {
               </View>
             </View>
           </View>
+
+          {/* Uploaded Device Photos Gallery (Seller Photos) */}
+          {Array.isArray(currentTrackSell.photos) && currentTrackSell.photos.length > 0 && (
+            <View style={styles.devicePhotosCard}>
+              <View style={styles.devicePhotosHeader}>
+                <Ionicons name="images-outline" size={16} color="#0F172A" />
+                <Text style={styles.devicePhotosTitle}>
+                  Seller Inspection Photos ({currentTrackSell.photos.length})
+                </Text>
+                <Text style={styles.devicePhotosSub}>Tap to enlarge</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.devicePhotosScroll}
+              >
+                {currentTrackSell.photos.map((photoUri, pIdx) => (
+                  <TouchableOpacity
+                    key={pIdx}
+                    activeOpacity={0.88}
+                    onPress={() => setSelectedPreviewImage(photoUri)}
+                    style={styles.devicePhotoItem}
+                  >
+                    <Image source={{ uri: photoUri }} style={styles.devicePhotoImg} resizeMode="cover" />
+                    <View style={styles.photoCountBadge}>
+                      <Text style={styles.photoCountBadgeText}>#{pIdx + 1}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Timeline Section */}
           <View style={styles.timelineSection}>
@@ -1087,21 +1463,127 @@ export default function TrackScreen() {
             </View>
           )}
 
-          {/* Address Card - Only rendered when customer address is provided */}
-          {currentTrackSell.customer_address ? (
-            <View style={styles.addressCard}>
-              <View style={styles.addressHeaderRow}>
-                <Ionicons name="home-sharp" size={18} color="#0F172A" />
-                <Text style={styles.addressCardTitle}>Inspection & Pickup Address</Text>
+          {/* Comprehensive Seller, Pickup, Time & Valuation Details Card */}
+          <View style={styles.richDetailCard}>
+            <View style={styles.richDetailCardHeader}>
+              <View style={styles.richDetailHeaderIconBox}>
+                <Ionicons name="person-circle-sharp" size={20} color="#0F172A" />
               </View>
-              <Text style={styles.addressText}>{currentTrackSell.customer_address}</Text>
-              {currentTrackSell.pincode ? (
-                <Text style={[styles.addressText, { marginTop: 4, color: '#64748B' }]}>
-                  Pincode: {currentTrackSell.pincode}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.richDetailCardTitle}>Seller & Inspection Details</Text>
+                <Text style={styles.richDetailCardSubtitle}>Universal Trade-In Device Record</Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: currentTrackSell.status_bg }]}>
+                <Text style={[styles.statusBadgeText, { color: currentTrackSell.status_color }]}>
+                  {currentTrackSell.status_label}
                 </Text>
+              </View>
+            </View>
+
+            <View style={styles.richDetailCardDivider} />
+
+            {/* Seller Name & Contact */}
+            <View style={styles.richDetailRow}>
+              <View style={styles.richDetailIconCol}>
+                <Ionicons name="person-outline" size={16} color="#64748B" />
+              </View>
+              <View style={styles.richDetailInfoCol}>
+                <Text style={styles.richDetailLabel}>Sold / Requested By (Seller)</Text>
+                <Text style={styles.richDetailValueBold}>
+                  {currentTrackSell.customer_name || 'Seller'}
+                </Text>
+              </View>
+              {currentTrackSell.customer_phone ? (
+                <TouchableOpacity
+                  style={styles.richDetailActionBtn}
+                  onPress={() => handleCallPartner(currentTrackSell.customer_phone, currentTrackSell.customer_name || 'Seller')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="call" size={13} color="#0F172A" />
+                  <Text style={styles.richDetailActionBtnText}>Call</Text>
+                </TouchableOpacity>
               ) : null}
             </View>
-          ) : null}
+
+            {/* Phone & Email */}
+            {(currentTrackSell.customer_phone || currentTrackSell.customer_email) ? (
+              <View style={styles.richDetailRow}>
+                <View style={styles.richDetailIconCol}>
+                  <Ionicons name="call-outline" size={16} color="#64748B" />
+                </View>
+                <View style={styles.richDetailInfoCol}>
+                  <Text style={styles.richDetailLabel}>Contact Phone & Email</Text>
+                  <Text style={styles.richDetailValue}>
+                    {currentTrackSell.customer_phone || 'N/A'}
+                    {currentTrackSell.customer_email ? ` • ${currentTrackSell.customer_email}` : ''}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Request Submitted Date & Exact Time */}
+            <View style={styles.richDetailRow}>
+              <View style={styles.richDetailIconCol}>
+                <Ionicons name="time-outline" size={16} color="#64748B" />
+              </View>
+              <View style={styles.richDetailInfoCol}>
+                <Text style={styles.richDetailLabel}>Request Submitted Time</Text>
+                <Text style={styles.richDetailValue}>
+                  {currentTrackSell.created_time || currentTrackSell.created_at}
+                </Text>
+              </View>
+            </View>
+
+            {/* Inspection & Pickup Address */}
+            {currentTrackSell.customer_address ? (
+              <View style={styles.richDetailRow}>
+                <View style={styles.richDetailIconCol}>
+                  <Ionicons name="home-outline" size={16} color="#64748B" />
+                </View>
+                <View style={styles.richDetailInfoCol}>
+                  <Text style={styles.richDetailLabel}>Doorstep Pickup Address</Text>
+                  <Text style={styles.richDetailValue}>
+                    {currentTrackSell.customer_address}
+                    {currentTrackSell.pincode ? `, PIN: ${currentTrackSell.pincode}` : ''}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Valuation & Payout Summary */}
+            <View style={styles.richDetailRow}>
+              <View style={styles.richDetailIconCol}>
+                <Ionicons name="cash-outline" size={16} color="#64748B" />
+              </View>
+              <View style={styles.richDetailInfoCol}>
+                <Text style={styles.richDetailLabel}>Estimated & Approved Payout</Text>
+                <Text style={styles.richDetailValue}>
+                  {`Approved: ₹${(currentTrackSell.approved_amount || currentTrackSell.valuation_amount).toLocaleString('en-IN')}`}
+                  {currentTrackSell.expected_price ? ` (Quote: ₹${currentTrackSell.expected_price.toLocaleString('en-IN')})` : ''}
+                </Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: '#EFF6FF', paddingHorizontal: 7, paddingVertical: 2 }]}>
+                <Text style={[styles.statusBadgeText, { color: '#2563EB', fontSize: 10 }]}>
+                  INSTANT PAYOUT
+                </Text>
+              </View>
+            </View>
+
+            {/* Inspection / Diagnostic Notes */}
+            {currentTrackSell.admin_note ? (
+              <View style={styles.richDetailRow}>
+                <View style={styles.richDetailIconCol}>
+                  <Ionicons name="document-text-outline" size={16} color="#64748B" />
+                </View>
+                <View style={styles.richDetailInfoCol}>
+                  <Text style={styles.richDetailLabel}>Diagnostic / Inspection Note</Text>
+                  <Text style={styles.richDetailValue}>
+                    {currentTrackSell.admin_note}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
 
           {/* Bottom Actions */}
           <View style={styles.bottomButtonsRow}>
@@ -1128,6 +1610,36 @@ export default function TrackScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Full Image Preview Modal */}
+        <Modal
+          visible={Boolean(selectedPreviewImage)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedPreviewImage(null)}
+        >
+          <TouchableOpacity
+            style={styles.previewBackdrop}
+            activeOpacity={1}
+            onPress={() => setSelectedPreviewImage(null)}
+          >
+            <View style={styles.previewCard}>
+              <View style={styles.previewHeader}>
+                <Text style={styles.previewTitle}>Inspection Photo</Text>
+                <TouchableOpacity onPress={() => setSelectedPreviewImage(null)} style={styles.previewCloseBtn}>
+                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+              {selectedPreviewImage ? (
+                <Image
+                  source={{ uri: selectedPreviewImage }}
+                  style={styles.previewFullImg}
+                  resizeMode="contain"
+                />
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
     );
   }
@@ -1218,27 +1730,75 @@ export default function TrackScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 3. CLEAN SEARCH BAR */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={18} color="#64748B" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={
-              trackType === 'orders'
-                ? 'Search by Order ID or device...'
-                : 'Search by Request ID, brand or model...'
-            }
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={16} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
+        {/* 3. UNIVERSAL SEARCH BAR & QUICK TRACK */}
+        <View style={styles.searchContainerRow}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={18} color="#64748B" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={
+                trackType === 'orders'
+                  ? 'Enter Order ID (e.g. ORD-A1B2C3)...'
+                  : 'Enter Sell ID (e.g. REQ-A1B2C3)...'
+              }
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                if (searchError) setSearchError(null);
+              }}
+              onSubmitEditing={() => handleUniversalLookup()}
+              returnKeyType="search"
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery('');
+                  if (searchError) setSearchError(null);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.trackGoBtn, isSearchingUniversal && { opacity: 0.7 }]}
+            onPress={() => handleUniversalLookup()}
+            disabled={isSearchingUniversal}
+            activeOpacity={0.85}
+          >
+            {isSearchingUniversal ? (
+              <ActivityIndicator size="small" color="#0F172A" />
+            ) : (
+              <>
+                <Ionicons name="flash" size={14} color="#0F172A" style={{ marginRight: 4 }} />
+                <Text style={styles.trackGoBtnText}>Track</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
+
+        {/* UNIVERSAL TRACKING STATUS / HINT NOTICE */}
+        {searchError ? (
+          <View style={styles.searchErrorBox}>
+            <Ionicons name="alert-circle" size={16} color="#DC2626" />
+            <Text style={styles.searchErrorText}>{searchError}</Text>
+            <TouchableOpacity onPress={() => setSearchError(null)} style={{ marginLeft: 'auto' }}>
+              <Ionicons name="close" size={14} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.universalHintRow}>
+            <Ionicons name="globe-outline" size={14} color="#0284C7" />
+            <Text style={styles.universalHintText}>
+              Universal Tracking: Enter Your Order or Sell ID to view live status, buyer/seller & address.
+            </Text>
+          </View>
+        )}
 
         {/* 4. HORIZONTAL STATUS FILTER CHIPS */}
         <View style={styles.filterWrapper}>
@@ -1408,8 +1968,12 @@ export default function TrackScreen() {
 
                   {/* Card Body */}
                   <View style={styles.orderCardBody}>
-                    <View style={[styles.orderThumbnailBox, { backgroundColor: '#F8FAFC' }]}>
-                      <Ionicons name={getCategoryIcon(req.category)} size={28} color="#0F172A" />
+                    <View style={styles.orderThumbnailBox}>
+                      <Image
+                        source={req.image}
+                        style={styles.orderThumbnailImg}
+                        resizeMode="cover"
+                      />
                     </View>
                     <View style={styles.orderCardInfo}>
                       <Text style={styles.orderCardTitle} numberOfLines={1}>
@@ -1511,7 +2075,14 @@ const styles = StyleSheet.create({
   },
 
   // Search Bar
+  searchContainerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -1520,7 +2091,6 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     paddingHorizontal: 12,
     height: 44,
-    marginBottom: 12,
   },
   searchIcon: {
     marginRight: 8,
@@ -1531,6 +2101,66 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontFamily: renewxFontFamily.regular,
     paddingVertical: 0,
+  },
+  trackGoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FDE047',
+    borderWidth: 1,
+    borderColor: '#FACC15',
+    borderRadius: 14,
+    height: 44,
+    paddingHorizontal: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  trackGoBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontFamily: renewxFontFamily.bold,
+  },
+  universalHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  universalHintText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#0369A1',
+    fontFamily: renewxFontFamily.regular,
+    lineHeight: 15,
+  },
+  searchErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  searchErrorText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#DC2626',
+    fontFamily: renewxFontFamily.regular,
+    lineHeight: 15,
   },
 
   // Filter Chips
@@ -2054,6 +2684,105 @@ const styles = StyleSheet.create({
     fontFamily: renewxFontFamily.regular,
   },
 
+  // Rich Detail Card (Comprehensive Buyer, Seller, Delivery & Financial Information)
+  richDetailCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  richDetailCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  richDetailHeaderIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FDE047',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  richDetailCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontFamily: renewxFontFamily.bold,
+  },
+  richDetailCardSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: renewxFontFamily.regular,
+    marginTop: 1,
+  },
+  richDetailCardDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 8,
+  },
+  richDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  richDetailIconCol: {
+    width: 24,
+    paddingTop: 2,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  richDetailInfoCol: {
+    flex: 1,
+    paddingRight: 6,
+  },
+  richDetailLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: renewxFontFamily.regular,
+    marginBottom: 2,
+  },
+  richDetailValue: {
+    fontSize: 13,
+    color: '#1E293B',
+    fontFamily: renewxFontFamily.regular,
+    lineHeight: 18,
+  },
+  richDetailValueBold: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: renewxFontFamily.bold,
+  },
+  richDetailActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FDE047',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  richDetailActionBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: renewxFontFamily.bold,
+  },
+
   // Bottom Buttons in Tracking Detail View
   bottomButtonsRow: {
     gap: 10,
@@ -2260,5 +2989,135 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     marginTop: 2,
+  },
+
+  // Device Photos Card
+  devicePhotosCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 12,
+  },
+  devicePhotosHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  devicePhotosTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: renewxFontFamily.bold,
+  },
+  devicePhotosSub: {
+    marginLeft: 'auto',
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  devicePhotosScroll: {
+    gap: 10,
+  },
+  devicePhotoItem: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  devicePhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoCountBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  photoCountBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Multi-Items Box
+  multiItemsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 12,
+  },
+  multiItemBox: {
+    width: 120,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 8,
+    alignItems: 'center',
+  },
+  multiItemImg: {
+    width: 56,
+    height: 56,
+    marginBottom: 6,
+  },
+  multiItemName: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  multiItemQtyPrice: {
+    fontSize: 10.5,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+
+  // Image Preview Modal
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  previewCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#0F172A',
+    borderRadius: 18,
+    padding: 14,
+    overflow: 'hidden',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  previewTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  previewCloseBtn: {
+    padding: 4,
+  },
+  previewFullImg: {
+    width: '100%',
+    height: 320,
+    borderRadius: 12,
   },
 });

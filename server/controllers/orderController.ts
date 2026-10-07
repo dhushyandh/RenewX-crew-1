@@ -80,7 +80,9 @@ function buildOrderItems(products: any[], requested: Map<string, number>) {
       product_name: product.name,
       quantity,
       price: Number(product.price),
-    });
+      image_url: product.image || (Array.isArray(product.images) ? product.images[0] : ''),
+      specs: product.specs || '',
+    } as any);
   }
 
   return {
@@ -173,10 +175,42 @@ export async function getOrders(req: AuthenticatedRequest, res: Response, next: 
       OrderModel.countDocuments(filter),
     ]);
 
-    const normalizedOrders = orders.map(({ _id, ...order }: any) => ({
-      ...order,
-      id: _id ? _id.toString() : order.id,
-    }));
+    // Enrich order_items with product images from ProductModel if missing
+    const allProductIds = new Set<string>();
+    orders.forEach((o: any) => {
+      (o.order_items || o.items || []).forEach((it: any) => {
+        if (it.product_id) allProductIds.add(String(it.product_id));
+      });
+    });
+
+    const productMap = new Map<string, any>();
+    if (allProductIds.size > 0) {
+      try {
+        const prods = await ProductModel.find({ _id: { $in: Array.from(allProductIds) } })
+          .select('name image images specs')
+          .lean();
+        prods.forEach((p) => productMap.set(String(p._id), p));
+      } catch {
+        // safe fallback
+      }
+    }
+
+    const normalizedOrders = orders.map(({ _id, ...order }: any) => {
+      const orderItems = (order.order_items || order.items || []).map((it: any) => {
+        const prod = it.product_id ? productMap.get(String(it.product_id)) : null;
+        return {
+          ...it,
+          image_url: it.image_url || it.image || prod?.image || (Array.isArray(prod?.images) ? prod.images[0] : '') || '',
+          specs: it.specs || prod?.specs || '',
+        };
+      });
+      return {
+        ...order,
+        id: _id ? _id.toString() : order.id,
+        order_items: orderItems,
+        items: orderItems,
+      };
+    });
 
     res.json({
       success: true,
@@ -217,7 +251,34 @@ export async function getOrderById(req: AuthenticatedRequest, res: Response, nex
     }
 
     const { _id, ...orderData } = order as any;
-    res.json({ success: true, data: { ...orderData, id: _id ? _id.toString() : orderData.id } });
+    const rawItems = orderData.order_items || orderData.items || [];
+    const pIds = rawItems.map((it: any) => it.product_id).filter(Boolean);
+    const pMap = new Map<string, any>();
+    if (pIds.length > 0) {
+      try {
+        const prods = await ProductModel.find({ _id: { $in: pIds } }).select('name image images specs').lean();
+        prods.forEach((p) => pMap.set(String(p._id), p));
+      } catch {}
+    }
+
+    const enrichedItems = rawItems.map((it: any) => {
+      const prod = it.product_id ? pMap.get(String(it.product_id)) : null;
+      return {
+        ...it,
+        image_url: it.image_url || it.image || prod?.image || (Array.isArray(prod?.images) ? prod.images[0] : '') || '',
+        specs: it.specs || prod?.specs || '',
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...orderData,
+        id: _id ? _id.toString() : orderData.id,
+        order_items: enrichedItems,
+        items: enrichedItems,
+      },
+    });
   } catch (err) {
     next(err);
   }

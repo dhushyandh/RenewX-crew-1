@@ -618,7 +618,7 @@ export default function EditProfileScreen() {
           <View style={styles.addressTipRow}>
             <Ionicons name="information-circle-outline" size={16} color="#059669" />
             <Text style={styles.addressTipText}>
-              This address is stored in your database record and synchronized with your saved delivery locations.
+              Please enter your primary delivery address. This address will be used for all your orders and deliveries.
             </Text>
           </View>
         </View>

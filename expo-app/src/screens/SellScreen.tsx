@@ -522,7 +522,7 @@ export default function SellScreen() {
               'image/jpeg'
             );
             uri = uploaded?.url || uri;
-          } catch {}
+          } catch { }
         }
 
         const slotLabels = ['Front View', 'Back View', 'Side View', 'Screen (On)', 'Any Damage'];

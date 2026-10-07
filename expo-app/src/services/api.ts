@@ -306,6 +306,8 @@ export const api = {
         method: 'DELETE',
       });
     },
+
+    track: async (id: string) => request<any>(`/orders/track/${encodeURIComponent(id)}`),
   },
 
   users: {
@@ -376,6 +378,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
+    track: async (id: string) => request<any>(`/trade-in/track/${encodeURIComponent(id)}`),
+  },
+
+  tracking: {
+    universalLookup: async (query: string) => request<any>(`/tracking/universal/${encodeURIComponent(query)}`),
+    trackOrder: async (id: string) => request<any>(`/tracking/order/${encodeURIComponent(id)}`),
+    trackSell: async (id: string) => request<any>(`/tracking/sell/${encodeURIComponent(id)}`),
   },
 
   notifications: {

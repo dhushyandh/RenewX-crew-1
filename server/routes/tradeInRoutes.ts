@@ -8,8 +8,12 @@ import {
   cancelMyTradeInRequest,
 } from '../controllers/tradeInController';
 import { authenticateToken, requireAuthenticated, requireAdmin } from '../middleware/auth';
+import { trackSellRequestUniversally } from '../controllers/trackingController';
 
 const router = Router();
+
+// Universal public sell request tracking (anyone can type Sell ID to track)
+router.get('/track/:id', trackSellRequestUniversally);
 
 // Public trade-in valuation quote & pickup submission
 router.post('/quote', getValuationQuote);

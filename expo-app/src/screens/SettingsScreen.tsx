@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -50,6 +51,7 @@ export default function SettingsScreen() {
   const [activeModal, setActiveModal] = useState<
     'language' | 'location' | 'address' | 'payment' | 'help' | 'contact' | 'terms' | null
   >(null);
+  const [settingsPincode, setSettingsPincode] = useState('');
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -472,19 +474,14 @@ export default function SettingsScreen() {
 
             {activeModal === 'location' && (
               <>
-                <Text style={styles.modalTitle}>Select Delivery Location</Text>
+                <Text style={styles.modalTitle}>Delivery Location</Text>
+                <Text style={styles.modalBodyText}>
+                  Set your location via GPS, enter a pincode, or select your saved address.
+                </Text>
+
+                {/* GPS Auto-Detect */}
                 <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: '#FEF9C3',
-                    borderWidth: 1,
-                    borderColor: '#FACC15',
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 12,
-                    gap: 10,
-                  }}
+                  style={styles.detectLocationBtn}
                   onPress={async () => {
                     toast.detecting('Please wait, this may take a few seconds.', 'Detecting your location...');
                     const res = await detectLocation();
@@ -498,43 +495,87 @@ export default function SettingsScreen() {
                   }}
                   disabled={isDetecting}
                 >
-                  <Ionicons name="locate" size={20} color="#0F172A" />
+                  <Ionicons name="navigate" size={18} color="#0F172A" />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>
+                    <Text style={styles.detectLocationTitle}>
                       {isDetecting ? 'Detecting GPS location...' : 'Use Current Location'}
                     </Text>
-                    <Text style={{ fontSize: 11, color: '#713F12' }}>
-                      Auto-detect area and pincode
+                    <Text style={styles.detectLocationSub}>
+                      Auto-detect district and postal code
                     </Text>
                   </View>
                 </TouchableOpacity>
 
-                {[
-                  'Bangalore - 560004',
-                  'Indiranagar - 560038',
-                  'Koramangala - 560034',
-                  'Mumbai - 400001',
-                  'Delhi NCR - 110001',
-                  'Hyderabad - 500001',
-                  'Chennai - 600001',
-                  'Pune - 411001',
-                ].map((loc) => (
+                {/* 6-digit Pincode Input */}
+                <View style={styles.settingsPincodeBox}>
+                  <TextInput
+                    style={styles.settingsPincodeInput}
+                    placeholder="Enter 6-digit pincode"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={settingsPincode}
+                    onChangeText={setSettingsPincode}
+                  />
                   <TouchableOpacity
-                    key={loc}
-                    style={styles.modalOption}
+                    style={[
+                      styles.settingsPincodeBtn,
+                      settingsPincode.trim().length === 6 && styles.settingsPincodeBtnActive,
+                    ]}
                     onPress={() => {
-                      setLocationManually(loc);
+                      const pin = settingsPincode.trim();
+                      if (pin.length !== 6 || isNaN(Number(pin))) {
+                        toast.error('Please enter a valid 6-digit pincode');
+                        return;
+                      }
+                      setLocationManually(`Delivery Area - ${pin}`);
+                      toast.manual(`Delivery Area • ${pin}`, 'Location saved');
+                      setSettingsPincode('');
                       setActiveModal(null);
-                      const formatted = loc.replace(/\s*-\s*/g, ' • ');
-                      toast.manual(formatted, 'Location saved');
                     }}
                   >
-                    <Text style={styles.modalOptionText}>{loc}</Text>
-                    {location === loc && (
-                      <Ionicons name="checkmark" size={18} color="#F59E0B" />
-                    )}
+                    <Text style={styles.settingsPincodeBtnText}>Apply</Text>
                   </TouchableOpacity>
-                ))}
+                </View>
+
+                {/* Current Active Location */}
+                {Boolean(location) && (
+                  <View style={styles.currentLocCard}>
+                    <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.currentLocLabel}>Current Location</Text>
+                      <Text style={styles.currentLocValue}>{location}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Saved Profile Address (if available) */}
+                {Boolean(user?.address) && (
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => {
+                      const formatted = user?.pincode ? `${user.address} - ${user.pincode}` : user.address;
+                      setLocationManually(formatted);
+                      toast.manual(user.address, 'Location saved');
+                      setActiveModal(null);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modalOptionText}>Use Profile Address</Text>
+                      <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }} numberOfLines={1}>
+                        {user?.address}{user?.pincode ? ` (${user.pincode})` : ''}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.modalPrimaryBtn, { marginTop: 12 }]}
+                  onPress={() => setActiveModal(null)}
+                >
+                  <Text style={styles.modalPrimaryBtnText}>Close</Text>
+                </TouchableOpacity>
               </>
             )}
 
@@ -620,51 +661,6 @@ export default function SettingsScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {/* 8. Bottom Navigation Bar matching Mockup */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="home-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Shop' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="grid-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Categories</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Track' })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="cube-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Orders</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.bottomTabItem}
-          onPress={() => navigation.navigate('Wishlist')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="heart-outline" size={22} color="#64748B" />
-          <Text style={styles.bottomTabLabel}>Wishlist</Text>
-        </TouchableOpacity>
-
-        {/* Active Profile Pill */}
-        <View style={styles.bottomActiveTabPill}>
-          <Ionicons name="person" size={19} color="#0F172A" />
-          <Text style={styles.bottomActiveTabLabel}>Profile</Text>
-        </View>
-      </View>
     </View>
   );
 }
@@ -740,7 +736,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 110,
+    paddingBottom: 40,
   },
   titleSection: {
     marginBottom: 14,
@@ -941,51 +937,81 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0F172A',
   },
-
-  /* Bottom Navigation Bar */
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: Platform.OS === 'ios' ? 78 : 64,
-    paddingBottom: Platform.OS === 'ios' ? 18 : 6,
+  detectLocationBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
+    gap: 10,
+    backgroundColor: '#FFFDF5',
+    borderWidth: 1.5,
+    borderColor: '#FACC15',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
   },
-  bottomTabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  bottomTabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 2,
-  },
-  bottomActiveTabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF08A',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  bottomActiveTabLabel: {
-    fontSize: 12,
+  detectLocationTitle: {
+    fontSize: 13,
     fontWeight: '800',
     color: '#0F172A',
+  },
+  detectLocationSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  settingsPincodeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 42,
+    marginBottom: 10,
+    gap: 8,
+  },
+  settingsPincodeInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0F172A',
+    padding: 0,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
+  },
+  settingsPincodeBtn: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  settingsPincodeBtnActive: {
+    backgroundColor: '#0F172A',
+  },
+  settingsPincodeBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  currentLocCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  currentLocLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#166534',
+    textTransform: 'uppercase',
+  },
+  currentLocValue: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 1,
   },
 });

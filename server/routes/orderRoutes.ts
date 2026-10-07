@@ -12,7 +12,12 @@ import {
 import { authenticateToken, requireAuthenticated, requireAdmin } from '../middleware/auth';
 import { checkoutRateLimiter } from '../middleware/rateLimiter';
 
+import { trackOrderUniversally } from '../controllers/trackingController';
+
 const router = Router();
+
+// Universal public order tracking (anyone can type order ID to track)
+router.get('/track/:id', trackOrderUniversally);
 
 router.post('/checkout', checkoutRateLimiter, authenticateToken, requireAuthenticated, createCheckoutOrder);
 router.post('/verify-payment', authenticateToken, requireAuthenticated, verifyPayment);

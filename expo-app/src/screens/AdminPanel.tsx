@@ -2119,8 +2119,16 @@ function DashboardView({
 }
 
 /* ========================================================================================
-   TAB 2: MINIMAL PRODUCTS MANAGEMENT
+   TAB 2: PRODUCTION-READY PRODUCTS MANAGEMENT
 ======================================================================================== */
+const PRODUCT_SORT_OPTIONS: { id: 'newest' | 'price-asc' | 'price-desc' | 'stock-asc' | 'name-asc'; label: string }[] = [
+  { id: 'newest', label: 'Newest' },
+  { id: 'price-asc', label: 'Price: Low to High' },
+  { id: 'price-desc', label: 'Price: High to Low' },
+  { id: 'stock-asc', label: 'Low Stock First' },
+  { id: 'name-asc', label: 'Name: A to Z' },
+];
+
 function ProductsView({
   onAddProduct,
   onEditProduct,
@@ -2135,6 +2143,10 @@ function ProductsView({
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortBy, setSortBy] = useState<'newest' | 'price-asc' | 'price-desc' | 'stock-asc' | 'name-asc'>('newest');
+  const [stockFilter, setStockFilter] = useState<'all' | 'in-stock' | 'low-stock' | 'out-of-stock'>('all');
+  const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const toast = useToast();
 
   const fetchListings = useCallback(async (isRefresh = false) => {
@@ -2159,44 +2171,79 @@ function ProductsView({
     fetchListings();
   }, [fetchListings, refreshSignal]);
 
-  const handleDelete = (id: string, name: string) => {
-    confirmAction(
-      'Delete Product',
-      `Are you sure you want to remove "${name}" from inventory?`,
-      async () => {
-        try {
-          await api.products.delete(id);
-          setProducts((prev) => prev.filter((p) => p.id !== id && (p as any)._id !== id));
-          toast.info(`"${name}" was deleted.`, 'Product Removed');
-        } catch (err: any) {
-          toast.error(err?.message || 'Failed to delete product', 'Error');
-        }
-      }
-    );
+  const handleCycleSort = () => {
+    const currentIdx = PRODUCT_SORT_OPTIONS.findIndex((s) => s.id === sortBy);
+    const nextIdx = (currentIdx + 1) % PRODUCT_SORT_OPTIONS.length;
+    setSortBy(PRODUCT_SORT_OPTIONS[nextIdx].id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const prodId = String(deleteTarget.id || (deleteTarget as any)._id);
+    const prodName = deleteTarget.name || 'Product';
+    setIsDeleting(true);
+    try {
+      await api.products.delete(prodId);
+      setProducts((prev) => prev.filter((p) => String(p.id || (p as any)._id) !== prodId));
+      toast.success(`"${prodName}" was removed from inventory.`, 'Product Deleted');
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete product', 'Error');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filtered = products.filter((p) => {
+    const q = search.trim().toLowerCase();
     const matchesSearch =
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.brand.toLowerCase().includes(search.toLowerCase());
+      !q ||
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.brand && p.brand.toLowerCase().includes(q)) ||
+      (p.category && p.category.toLowerCase().includes(q));
+
     const matchesCategory =
       selectedCategory === 'All' ||
-      p.category === selectedCategory ||
-      (selectedCategory === 'Smartphones' && p.category === 'Phones');
-    return matchesSearch && matchesCategory;
+      (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
+      (selectedCategory === 'Phones' && p.category && p.category.toLowerCase() === 'smartphones') ||
+      (selectedCategory === 'Smartphones' && p.category && p.category.toLowerCase() === 'phones');
+
+    const stockNum = Number(p.stock || 0);
+    const matchesStock =
+      stockFilter === 'all' ||
+      (stockFilter === 'in-stock' && stockNum > 3) ||
+      (stockFilter === 'low-stock' && stockNum > 0 && stockNum <= 3) ||
+      (stockFilter === 'out-of-stock' && stockNum === 0);
+
+    return matchesSearch && matchesCategory && matchesStock;
   });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'price-asc') return (Number(a.price) || 0) - (Number(b.price) || 0);
+    if (sortBy === 'price-desc') return (Number(b.price) || 0) - (Number(a.price) || 0);
+    if (sortBy === 'stock-asc') return (Number(a.stock) || 0) - (Number(b.stock) || 0);
+    if (sortBy === 'name-asc') return (a.name || '').localeCompare(b.name || '');
+    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+  });
+
+  const activeSortLabel = PRODUCT_SORT_OPTIONS.find((s) => s.id === sortBy)?.label || 'Newest';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
       {/* Title + Add Product Button */}
-      <View style={[styles.viewHeaderRow, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }]}>
+      <View style={[styles.viewHeaderRow, { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.viewTitle}>Products</Text>
-          <Text style={styles.viewSubtitle}>Manage your product inventory</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.viewTitle}>Products</Text>
+            <View style={styles.countBadgePill}>
+              <Text style={styles.countBadgePillText}>{products.length}</Text>
+            </View>
+          </View>
+          <Text style={styles.viewSubtitle}>Manage catalog, stock & pricing</Text>
         </View>
 
         <TouchableOpacity onPress={onAddProduct} style={styles.blackAddBtn} activeOpacity={0.85}>
-          <Ionicons name="add" size={16} color="#FFFFFF" />
+          <Ionicons name="add" size={17} color="#FFFFFF" />
           <Text style={styles.blackAddBtnText}>Add Product</Text>
         </TouchableOpacity>
       </View>
@@ -2220,42 +2267,62 @@ function ProductsView({
         </ScrollView>
       </View>
 
-      {/* Search Input Bar with Filter Icon */}
+      {/* Search Input Bar with Clear and Filter Action */}
       <View style={[styles.searchBarWrapM2, { marginHorizontal: 16, marginBottom: 8 }]}>
         <Ionicons name="search" size={16} color="#94A3B8" />
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search products..."
+          placeholder="Search by product name, brand or category..."
           placeholderTextColor="#94A3B8"
           style={styles.searchInputM2}
         />
         {search ? (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={16} color="#94A3B8" />
+          <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={17} color="#94A3B8" />
           </TouchableOpacity>
         ) : null}
-        <TouchableOpacity style={styles.filterSliderBtn} activeOpacity={0.7}>
-          <Ionicons name="options-outline" size={16} color="#0F172A" />
+        <TouchableOpacity
+          style={styles.filterSliderBtn}
+          onPress={() => {
+            // Quick toggle stock filter
+            setStockFilter((f) => (f === 'all' ? 'low-stock' : f === 'low-stock' ? 'out-of-stock' : 'all'));
+          }}
+          activeOpacity={0.7}
+          accessibilityLabel="Toggle Stock Filter"
+        >
+          <Ionicons
+            name={stockFilter === 'all' ? 'options-outline' : 'alert-circle'}
+            size={17}
+            color={stockFilter === 'all' ? '#0F172A' : '#D97706'}
+          />
         </TouchableOpacity>
       </View>
 
-      {/* Count & Sort Sub-bar */}
+      {/* Count & Dynamic Sort Sub-bar */}
       <View style={styles.countSortRow}>
-        <Text style={styles.countText}>{filtered.length > 0 ? `${filtered.length} products` : '482 products'}</Text>
-        <TouchableOpacity style={styles.sortDropdownBtn} activeOpacity={0.7}>
-          <Text style={styles.sortDropdownText}>Sort by: <Text style={{ fontWeight: '700' }}>Newest</Text></Text>
-          <Ionicons name="chevron-down" size={12} color="#64748B" />
+        <Text style={styles.countText}>
+          {search || selectedCategory !== 'All' || stockFilter !== 'all'
+            ? `Showing ${sorted.length} of ${products.length} products`
+            : `${products.length} ${products.length === 1 ? 'product' : 'products'} in inventory`}
+        </Text>
+
+        <TouchableOpacity style={styles.sortDropdownBtn} onPress={handleCycleSort} activeOpacity={0.7}>
+          <Ionicons name="swap-vertical" size={13} color="#64748B" />
+          <Text style={styles.sortDropdownText}>
+            Sort: <Text style={{ fontWeight: '700', color: '#0F172A' }}>{activeSortLabel}</Text>
+          </Text>
         </TouchableOpacity>
       </View>
 
+      {/* Products Content List */}
       {loading && !refreshing ? (
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 110, gap: 10, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 110, gap: 12, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           alwaysBounceVertical={true}
           refreshControl={
@@ -2267,45 +2334,143 @@ function ProductsView({
             />
           }
         >
-          {filtered.length === 0 ? (
-            <View style={[styles.centerBox, { minHeight: 250 }]}>
-              <Ionicons name="cube-outline" size={36} color="#94a3b8" />
-              <Text style={styles.emptyNote}>No products match your search</Text>
+          {sorted.length === 0 ? (
+            <View style={[styles.centerBox, { minHeight: 280, paddingHorizontal: 24 }]}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="cube-outline" size={38} color="#94A3B8" />
+              </View>
+              <Text style={styles.emptyTitleText}>No products found</Text>
+              <Text style={styles.emptyNote}>
+                {search || selectedCategory !== 'All' || stockFilter !== 'all'
+                  ? 'No products match your current search and filter settings.'
+                  : 'Your product inventory is currently empty.'}
+              </Text>
+              {(search || selectedCategory !== 'All' || stockFilter !== 'all') && (
+                <TouchableOpacity
+                  style={styles.clearFilterBtn}
+                  onPress={() => {
+                    setSearch('');
+                    setSelectedCategory('All');
+                    setStockFilter('all');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.clearFilterBtnText}>Reset Filters</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
-            filtered.map((item, itemIdx) => {
-              const stockNum = Number(item.stock || 12);
-              const isLow = stockNum <= 3;
+            sorted.map((item, itemIdx) => {
+              const stockNum = Number(item.stock ?? 12);
+              const isOut = stockNum === 0;
+              const isLow = stockNum > 0 && stockNum <= 3;
               const productKey = String(item.id || (item as any)._id || itemIdx);
-              const categoryLabel = item.category || 'Smartphones';
+              const categoryLabel = item.category || 'Phones';
+              const priceNum = Number(item.price) || 0;
+              const mrpNum = Number(item.original_price || (item as any).mrp) || 0;
+              const hasDiscount = mrpNum > priceNum;
+              const discountPct = hasDiscount ? Math.round(((mrpNum - priceNum) / mrpNum) * 100) : 0;
+              const thumbUrl = item.image_url || (Array.isArray((item as any).images) && (item as any).images[0]) || '';
+              const conditionLabel = item.condition || 'Pre-Owned';
+
+              // Stock badge colors
+              const stockBg = isOut ? '#FEE2E2' : isLow ? '#FEF3C7' : '#DCFCE7';
+              const stockBorder = isOut ? '#FECACA' : isLow ? '#FDE68A' : '#BBF7D0';
+              const stockColor = isOut ? '#DC2626' : isLow ? '#D97706' : '#15803D';
+              const stockText = isOut ? 'Out of Stock' : isLow ? `Low Stock (${stockNum})` : `In Stock (${stockNum})`;
 
               return (
-                <View key={productKey} style={styles.productCardM2}>
-                  {item.image_url ? (
-                    <Image source={{ uri: item.image_url }} style={styles.productThumbM2} resizeMode="contain" />
-                  ) : (
-                    <View style={styles.productThumbPlaceholderM2}>
-                      <Ionicons name="phone-portrait-outline" size={24} color="#94A3B8" />
+                <View key={productKey} style={styles.productCardClean}>
+                  {/* Top Row: Thumbnail + Product Info + Stock Status */}
+                  <View style={styles.productCardTopRow}>
+                    {/* Thumbnail Box */}
+                    <View style={styles.productThumbCleanWrap}>
+                      {thumbUrl ? (
+                        <Image source={{ uri: thumbUrl }} style={styles.productThumbImg} resizeMode="contain" />
+                      ) : (
+                        <View style={styles.productThumbFallback}>
+                          <Ionicons name="phone-portrait-outline" size={28} color="#94A3B8" />
+                        </View>
+                      )}
+                      {conditionLabel ? (
+                        <View style={styles.productThumbConditionBadge}>
+                          <Text style={styles.productThumbConditionText} numberOfLines={1}>
+                            {conditionLabel}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
-                  )}
 
-                  <View style={{ flex: 1, justifyContent: 'center' }}>
-                    <Text style={styles.productTitleM2} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.productCategoryM2}>{categoryLabel}</Text>
-                    <Text style={styles.productPriceM2}>₹{Number(item.price).toLocaleString('en-IN')}</Text>
+                    {/* Middle: Details */}
+                    <View style={styles.productDetailsCol}>
+                      <View style={styles.productTagRow}>
+                        <View style={styles.productBrandPill}>
+                          <Text style={styles.productBrandPillText}>
+                            {item.brand ? item.brand.toUpperCase() : 'RENEWX'}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '500' }}>
+                          {categoryLabel}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.productTitleClean} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+
+                      <View style={styles.productPriceRowClean}>
+                        <Text style={styles.productPriceTextClean}>
+                          ₹{priceNum.toLocaleString('en-IN')}
+                        </Text>
+                        {hasDiscount ? (
+                          <Text style={styles.productMrpStrike}>
+                            ₹{mrpNum.toLocaleString('en-IN')}
+                          </Text>
+                        ) : null}
+                        {hasDiscount ? (
+                          <View style={styles.productDiscountPill}>
+                            <Text style={styles.productDiscountPillText}>{discountPct}% OFF</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
                   </View>
 
-                  <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', paddingVertical: 2 }}>
-                    <View style={[styles.stockPillM2, { backgroundColor: isLow ? '#FEF3C7' : '#DCFCE7' }]}>
-                      <View style={[styles.stockDotM2, { backgroundColor: isLow ? '#D97706' : '#16A34A' }]} />
-                      <Text style={[styles.stockPillM2Text, { color: isLow ? '#D97706' : '#16A34A' }]}>
-                        {isLow ? `Low Stock (${stockNum})` : `In Stock (${stockNum})`}
+                  {/* Card Divider */}
+                  <View style={styles.productCardDivider} />
+
+                  {/* Bottom Row: Stock Badge on Left, Action Buttons on Right */}
+                  <View style={styles.productCardBottomActionRow}>
+                    <View style={[styles.stockPillClean, { backgroundColor: stockBg, borderColor: stockBorder }]}>
+                      <View style={[styles.stockDotClean, { backgroundColor: stockColor }]} />
+                      <Text style={[styles.stockPillCleanText, { color: stockColor }]}>
+                        {stockText}
                       </Text>
                     </View>
 
-                    <TouchableOpacity onPress={() => onEditProduct(item)} style={styles.threeDotsBtn} activeOpacity={0.7}>
-                      <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
-                    </TouchableOpacity>
+                    <View style={styles.productActionButtonsWrap}>
+                      {/* Edit Button */}
+                      <TouchableOpacity
+                        onPress={() => onEditProduct(item)}
+                        style={styles.cardActionBtnEdit}
+                        activeOpacity={0.75}
+                        accessibilityLabel={`Edit ${item.name}`}
+                      >
+                        <Ionicons name="create-outline" size={14} color="#0F172A" />
+                        <Text style={styles.cardActionBtnEditText}>Edit</Text>
+                      </TouchableOpacity>
+
+                      {/* Delete Button */}
+                      <TouchableOpacity
+                        onPress={() => setDeleteTarget(item)}
+                        style={styles.cardActionBtnDelete}
+                        activeOpacity={0.75}
+                        accessibilityLabel={`Delete ${item.name}`}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                        <Text style={styles.cardActionBtnDeleteText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               );
@@ -2313,6 +2478,83 @@ function ProductsView({
           )}
         </ScrollView>
       )}
+
+      {/* Production-Ready Delete Confirmation Modal */}
+      <Modal
+        visible={!!deleteTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isDeleting && setDeleteTarget(null)}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalCard}>
+            <View style={styles.deleteModalIconWrap}>
+              <View style={styles.deleteModalIconCircle}>
+                <Ionicons name="trash-outline" size={26} color="#DC2626" />
+              </View>
+            </View>
+
+            <Text style={styles.deleteModalTitle}>Delete Product</Text>
+            <Text style={styles.deleteModalDesc}>
+              Are you sure you want to delete this product? It will be permanently removed from inventory and the customer store.
+            </Text>
+
+            {deleteTarget && (
+              <View style={styles.deleteModalPreviewCard}>
+                {deleteTarget.image_url ? (
+                  <Image
+                    source={{ uri: deleteTarget.image_url }}
+                    style={styles.deleteModalPreviewThumb}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.deleteModalPreviewPlaceholder}>
+                    <Ionicons name="cube-outline" size={22} color="#94A3B8" />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.deleteModalPreviewTitle} numberOfLines={1}>
+                    {deleteTarget.name}
+                  </Text>
+                  <Text style={styles.deleteModalPreviewMeta}>
+                    {deleteTarget.brand} • {deleteTarget.category}
+                  </Text>
+                  <Text style={styles.deleteModalPreviewPrice}>
+                    ₹{Number(deleteTarget.price || 0).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.deleteModalBtnRow}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelBtn}
+                onPress={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.deleteModalConfirmBtn, isDeleting && { opacity: 0.7 }]}
+                onPress={handleDeleteConfirm}
+                disabled={isDeleting}
+                activeOpacity={0.85}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="trash" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.deleteModalConfirmText}>Yes, Delete</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -5367,67 +5609,352 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
   },
-  productCardM2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 12,
-    gap: 12,
+  /* Header Product Count Badge */
+  countBadgePill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: '#E2E8F0',
   },
-  productThumbM2: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+  countBadgePillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#334155',
   },
-  productThumbPlaceholderM2: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
+
+  /* Empty State Polish */
+  emptyIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
   },
-  productTitleM2: {
-    fontSize: 14,
+  emptyTitleText: {
+    fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
-    marginBottom: 2,
-  },
-  productCategoryM2: {
-    fontSize: 11,
-    color: '#94A3B8',
     marginBottom: 4,
   },
-  productPriceM2: {
+  clearFilterBtn: {
+    marginTop: 14,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  clearFilterBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* Production-Ready Clean Product Cards */
+  productCardClean: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  productCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  productThumbCleanWrap: {
+    width: 74,
+    height: 74,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#EEF2F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  productThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  productThumbFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productThumbConditionBadge: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    right: 2,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    borderRadius: 4,
+    paddingVertical: 1.5,
+    alignItems: 'center',
+  },
+  productThumbConditionText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  productDetailsCol: {
+    flex: 1,
+    justifyContent: 'space-between',
+    minHeight: 74,
+  },
+  productTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  productBrandPill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  productBrandPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#334155',
+    letterSpacing: 0.3,
+  },
+  productTitleClean: {
     fontSize: 14,
     fontWeight: '800',
     color: '#0F172A',
+    lineHeight: 18,
+    marginBottom: 5,
   },
-  stockPillM2: {
+  productPriceRowClean: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  productPriceTextClean: {
+    fontSize: 14.5,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  productMrpStrike: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+  },
+  productDiscountPill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  productDiscountPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  productCardDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  productCardBottomActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  stockPillClean: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  stockDotClean: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  stockPillCleanText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  productActionButtonsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  cardActionBtnEdit: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  stockDotM2: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-  },
-  stockPillM2Text: {
-    fontSize: 10,
+  cardActionBtnEditText: {
+    fontSize: 11.5,
     fontWeight: '700',
+    color: '#0F172A',
+  },
+  cardActionBtnDelete: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  cardActionBtnDeleteText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+
+  /* Product Delete Confirmation Modal */
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  deleteModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  deleteModalIconWrap: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  deleteModalIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  deleteModalDesc: {
+    fontSize: 12.5,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  deleteModalPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    gap: 12,
+    marginBottom: 18,
+  },
+  deleteModalPreviewThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  deleteModalPreviewPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteModalPreviewTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  deleteModalPreviewMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  deleteModalPreviewPrice: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  deleteModalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  deleteModalCancelBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  deleteModalCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  deleteModalConfirmBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#DC2626',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  deleteModalConfirmText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   /* Orders Screen Rows */

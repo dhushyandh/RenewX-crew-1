@@ -27,7 +27,12 @@ export default function BrandSocialFooter({
   version = 'v 1.0.0',
   style,
 }: BrandSocialFooterProps) {
-  const navigation = useNavigation<any>();
+  let navigation: any = null;
+  try {
+    navigation = useNavigation<any>();
+  } catch {
+    // May be rendered outside NavigationContainer in OfflineScreen / ConnectionStatusBanner
+  }
 
   // Continuous shimmer wave animation
   const shimmerValue = useRef(new Animated.Value(0)).current;
@@ -94,7 +99,7 @@ export default function BrandSocialFooter({
             style={styles.legalRow}
             onPress={() => {
               try {
-                navigation.navigate('AboutRenewX', { tab: 'terms' });
+                navigation?.navigate('AboutRenewX', { tab: 'terms' });
               } catch {}
             }}
             activeOpacity={0.7}
@@ -106,7 +111,7 @@ export default function BrandSocialFooter({
             style={styles.legalRow}
             onPress={() => {
               try {
-                navigation.navigate('AboutRenewX', { tab: 'privacy' });
+                navigation?.navigate('AboutRenewX', { tab: 'privacy' });
               } catch {}
             }}
             activeOpacity={0.7}
