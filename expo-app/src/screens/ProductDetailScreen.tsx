@@ -325,8 +325,14 @@ export default function ProductDetailScreen() {
 
   // Stock status
   const stock = Number(baseProduct?.stock ?? 1);
-  const isOutOfStock = stock <= 0;
-  const isLowStock = stock > 0 && stock <= 3;
+  const isSoldOut = Boolean(
+    (baseProduct as any)?.is_sold_out === true ||
+    (baseProduct as any)?.isSoldOut === true ||
+    (baseProduct as any)?.status === 'sold_out' ||
+    stock <= 0
+  );
+  const isOutOfStock = isSoldOut;
+  const isLowStock = !isSoldOut && stock > 0 && stock <= 3;
 
   const conditionMeta = useMemo(() => getConditionMeta(baseProduct?.condition), [baseProduct?.condition]);
 
@@ -491,6 +497,22 @@ export default function ProductDetailScreen() {
           </View>
         )}
 
+        {/* SOLD OUT PLACEHOLDER BANNER ABOVE PRODUCT LAYOUT */}
+        {isSoldOut && (
+          <View style={styles.soldOutPlaceholderBanner}>
+            <View style={styles.soldOutBadgeGroup}>
+              <View style={styles.soldOutRedPill}>
+                <Ionicons name="alert-circle" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.soldOutRedPillText}>SOLD OUT</Text>
+              </View>
+              <Text style={styles.soldOutBannerHeading}>Currently Unavailable</Text>
+            </View>
+            <Text style={styles.soldOutBannerSub}>
+              This item is out of stock. Add it to your wishlist to receive an alert when restocked, or explore similar certified devices below.
+            </Text>
+          </View>
+        )}
+
         {/* 2. Full-Width Device Showcase */}
         <View style={styles.heroShowcase}>
           <View style={styles.imageStage}>
@@ -509,9 +531,19 @@ export default function ProductDetailScreen() {
                 baseProduct?.category,
                 baseProduct?.name
               )}
-              style={styles.mainDeviceImage}
+              style={[styles.mainDeviceImage, isSoldOut && { opacity: 0.55 }]}
               resizeMode="contain"
             />
+
+            {/* Sold Out Image Overlay */}
+            {isSoldOut && (
+              <View style={styles.soldOutImageStageOverlay}>
+                <View style={styles.soldOutCenterPill}>
+                  <Ionicons name="alert-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.soldOutCenterPillText}>SOLD OUT</Text>
+                </View>
+              </View>
+            )}
 
             {/* Counter Badge if multiple images */}
             {gallery.length > 1 && (
@@ -880,7 +912,12 @@ export default function ProductDetailScreen() {
       {/* 10. Sticky Bottom Action Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomPriceCol}>
-          {isBestPrice ? (
+          {isSoldOut ? (
+            <>
+              <Text style={[styles.bottomPriceText, { color: '#DC2626' }]}>Sold Out</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8' }}>Unavailable</Text>
+            </>
+          ) : isBestPrice ? (
             <>
               <Text style={styles.bottomPriceText}>Best Price</Text>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#B45309' }}>COD Only</Text>
@@ -920,7 +957,7 @@ export default function ProductDetailScreen() {
             style={{ marginRight: 8 }}
           />
           <Text style={[styles.addToCartBtnText, isOutOfStock && styles.addToCartBtnTextDisabled]}>
-            {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+            {isOutOfStock ? 'Sold Out' : 'Add to Cart'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1719,5 +1756,76 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '800',
     color: '#0F172A',
+  },
+  soldOutPlaceholderBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    padding: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 14,
+  },
+  soldOutBadgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  soldOutRedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  soldOutRedPillText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  soldOutBannerHeading: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#991B1B',
+  },
+  soldOutBannerSub: {
+    fontSize: 11.5,
+    color: '#7F1D1D',
+    lineHeight: 16,
+  },
+  soldOutImageStageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+    zIndex: 3,
+  },
+  soldOutCenterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  soldOutCenterPillText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 13.5,
+    letterSpacing: 1,
   },
 });

@@ -20,6 +20,9 @@ export interface Product {
   specs: string[];
   is_best_price?: boolean;
   isBestPrice?: boolean;
+  is_sold_out?: boolean;
+  isSoldOut?: boolean;
+  status?: 'active' | 'sold_out' | string;
 }
 
 export interface CartItem extends Product {

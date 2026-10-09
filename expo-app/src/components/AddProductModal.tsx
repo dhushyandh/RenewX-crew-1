@@ -47,6 +47,8 @@ export interface ProductRow {
   description?: string;
   specs?: string[];
   is_best_price?: boolean;
+  is_sold_out?: boolean;
+  status?: 'active' | 'sold_out' | string;
   created_at?: string;
 }
 
@@ -423,6 +425,7 @@ export default function AddProductModal({
 
   // 3. Pricing & Stock
   const [isBestPrice, setIsBestPrice] = useState<boolean>(Boolean(product?.is_best_price || (product && product.price === 0)));
+  const [isSoldOut, setIsSoldOut] = useState<boolean>(Boolean(product?.is_sold_out || (product as any)?.status === 'sold_out' || (product && product.stock === 0)));
   const [sellingPrice, setSellingPrice] = useState(product?.price ? String(product.price) : '');
   const [mrp, setMrp] = useState(product?.original_price ? String(product.original_price) : '');
   const [stock, setStock] = useState<string>(product?.stock !== undefined ? String(product.stock) : '');
@@ -452,9 +455,15 @@ export default function AddProductModal({
         setCategory(cat);
         const hasBestPrice = Boolean(product.is_best_price || (product.price === 0 && !product.original_price));
         setIsBestPrice(hasBestPrice);
+        const productIsSoldOut = Boolean(
+          product.is_sold_out ||
+          product.status === 'sold_out' ||
+          (product.stock !== undefined && product.stock <= 0)
+        );
+        setIsSoldOut(productIsSoldOut);
         setSellingPrice(hasBestPrice ? '' : product.price ? String(product.price) : '');
         setMrp(hasBestPrice ? '' : product.original_price ? String(product.original_price) : '');
-        setStock(product.stock !== undefined ? String(product.stock) : '');
+        setStock(productIsSoldOut ? '0' : (product.stock !== undefined ? String(product.stock) : '1'));
         setDescription(product.description || '');
         if (product.image_url) {
           setImages([product.image_url, ...(product.images || []).filter((img) => img !== product.image_url)]);
@@ -473,6 +482,7 @@ export default function AddProductModal({
         setModel('');
         setCategory('Smartphones');
         setIsBestPrice(false);
+        setIsSoldOut(false);
         setSellingPrice('');
         setMrp('');
         setStock('');
@@ -531,6 +541,7 @@ export default function AddProductModal({
 
     const finalPrice = isBestPrice ? 0 : priceNum;
     const finalMrp = isBestPrice ? 0 : parseInt(mrp, 10) || Math.round(priceNum * 1.38);
+    const finalStock = isSoldOut ? 0 : (stock ? Math.max(0, parseInt(stock, 10) || 0) : 1);
 
     const payload = {
       name: productName.trim(),
@@ -540,7 +551,9 @@ export default function AddProductModal({
       price: finalPrice,
       original_price: finalMrp,
       is_best_price: isBestPrice,
-      stock: stock ? Math.max(0, parseInt(stock, 10) || 0) : 1,
+      is_sold_out: isSoldOut,
+      status: isSoldOut ? 'sold_out' : 'active',
+      stock: finalStock,
       condition: activeCondition,
       image_url: images[0] || '',
       images: images.length > 0 ? images : undefined,
@@ -1197,6 +1210,39 @@ export default function AddProductModal({
             <View style={newProdStyles.sectionBox}>
               <Text style={newProdStyles.sectionHeaderTitle}>4. Pricing & Stock</Text>
 
+              {/* Product Status (Sold Out) Switch */}
+              <View style={[newProdStyles.bestPriceToggleCard, isSoldOut && { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }]}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Ionicons name="alert-circle" size={16} color={isSoldOut ? '#DC2626' : '#64748B'} />
+                    <Text style={[newProdStyles.bestPriceToggleTitle, isSoldOut && { color: '#991B1B' }]}>
+                      Mark as Sold Out
+                    </Text>
+                    {isSoldOut && (
+                      <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4, borderWidth: 1, borderColor: '#FCA5A5' }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#DC2626' }}>SOLD OUT</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={newProdStyles.bestPriceToggleSubtitle}>
+                    Show a prominent "SOLD OUT" badge and overlay above the product layout on the storefront. Add to cart will be disabled.
+                  </Text>
+                </View>
+                <Switch
+                  value={isSoldOut}
+                  onValueChange={(val) => {
+                    setIsSoldOut(val);
+                    if (val) {
+                      setStock('0');
+                    } else if (stock === '0' || !stock) {
+                      setStock('1');
+                    }
+                  }}
+                  trackColor={{ false: '#CBD5E1', true: '#FCA5A5' }}
+                  thumbColor={isSoldOut ? '#DC2626' : '#FFFFFF'}
+                />
+              </View>
+
               {/* Best Price (COD Only) Option Switch */}
               <View style={newProdStyles.bestPriceToggleCard}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
@@ -1425,6 +1471,39 @@ export default function AddProductModal({
                     style={newProdStyles.previewMainImg}
                     resizeMode="contain"
                   />
+                  {isSoldOut && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderRadius: 16,
+                        zIndex: 3,
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: '#DC2626',
+                          paddingHorizontal: 12,
+                          paddingVertical: 5,
+                          borderRadius: 20,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 5,
+                        }}
+                      >
+                        <Ionicons name="alert-circle" size={13} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 11.5, letterSpacing: 0.8 }}>
+                          SOLD OUT
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                   <View style={newProdStyles.previewCounterPill}>
                     <Text style={newProdStyles.previewCounterText}>1 / {images.length || 1}</Text>
                   </View>
@@ -1517,9 +1596,22 @@ export default function AddProductModal({
                 </View>
 
                 {/* Buttons */}
-                <TouchableOpacity style={newProdStyles.previewCartBtn}>
-                  <Ionicons name="cart" size={16} color="#000000" style={{ marginRight: 6 }} />
-                  <Text style={newProdStyles.previewCartBtnText}>Add to Cart</Text>
+                <TouchableOpacity
+                  style={[
+                    newProdStyles.previewCartBtn,
+                    isSoldOut && { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1' },
+                  ]}
+                  disabled={isSoldOut}
+                >
+                  <Ionicons
+                    name={isSoldOut ? 'close-circle' : 'cart'}
+                    size={16}
+                    color={isSoldOut ? '#94A3B8' : '#000000'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={[newProdStyles.previewCartBtnText, isSoldOut && { color: '#94A3B8' }]}>
+                    {isSoldOut ? 'Sold Out' : 'Add to Cart'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={newProdStyles.previewWishlistBtn}>

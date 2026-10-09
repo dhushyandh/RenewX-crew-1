@@ -595,7 +595,13 @@ export default function AllProductsScreen() {
           /* 2-COLUMN GRID VIEW - EXACT SCREENSHOT DESIGN */
           <View style={styles.gridContainer}>
             {filteredProducts.map((p) => {
-              const badgeLabel = getProductBadge(p);
+              const isSoldOut = Boolean(
+                p.is_sold_out === true ||
+                p.isSoldOut === true ||
+                p.status === 'sold_out' ||
+                (p.stock !== undefined && p.stock !== null && Number(p.stock) <= 0)
+              );
+              const badgeLabel = isSoldOut ? 'SOLD OUT' : getProductBadge(p);
               const isWish = isInWishlist(String(p.id));
               const specsSub = getSpecsSubtitle(p);
               const hasDiscount = p.originalPrice && p.originalPrice > p.price;
@@ -604,7 +610,7 @@ export default function AllProductsScreen() {
               return (
                 <TouchableOpacity
                   key={p.id}
-                  style={styles.productCard}
+                  style={[styles.productCard, isSoldOut && { opacity: 0.92 }]}
                   onPress={() => navigation.navigate('ProductDetail', { id: String(p.id), product: p })}
                   activeOpacity={0.9}
                 >
@@ -614,7 +620,9 @@ export default function AllProductsScreen() {
                       <View
                         style={[
                           styles.badgePill,
-                          badgeLabel === 'New'
+                          isSoldOut
+                            ? { backgroundColor: '#DC2626' }
+                            : badgeLabel === 'New'
                             ? styles.badgePillNew
                             : badgeLabel === 'Popular'
                             ? styles.badgePillPopular
@@ -624,7 +632,9 @@ export default function AllProductsScreen() {
                         <Text
                           style={[
                             styles.badgeText,
-                            badgeLabel === 'New'
+                            isSoldOut
+                              ? { color: '#FFFFFF' }
+                              : badgeLabel === 'New'
                               ? styles.badgeTextNew
                               : badgeLabel === 'Popular'
                               ? styles.badgeTextPopular
@@ -653,12 +663,24 @@ export default function AllProductsScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Product Cutout Image */}
+                  {/* Product Cutout Image with Sold Out Overlay */}
                   <View style={styles.productImageWrap}>
                     {imgUri ? (
-                      <Image source={{ uri: imgUri }} style={styles.productImg} resizeMode="contain" />
+                      <Image
+                        source={{ uri: imgUri }}
+                        style={[styles.productImg, isSoldOut && { opacity: 0.52 }]}
+                        resizeMode="contain"
+                      />
                     ) : (
                       <Ionicons name="phone-portrait-outline" size={48} color="#94A3B8" />
+                    )}
+                    {isSoldOut && (
+                      <View style={styles.soldOutCutoutOverlay}>
+                        <View style={styles.soldOutCutoutBadge}>
+                          <Ionicons name="alert-circle" size={11} color="#FFFFFF" style={{ marginRight: 3 }} />
+                          <Text style={styles.soldOutCutoutBadgeText}>SOLD OUT</Text>
+                        </View>
+                      </View>
                     )}
                   </View>
 
@@ -673,7 +695,12 @@ export default function AllProductsScreen() {
                   {/* Price Row & Yellow Cart Action */}
                   <View style={styles.priceCartRow}>
                     <View style={styles.priceCol}>
-                      {p.is_best_price || (p as any).isBestPrice || p.price === 0 ? (
+                      {isSoldOut ? (
+                        <View style={{ flexDirection: 'column', gap: 2 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
+                          <Text style={{ fontSize: 9.5, fontWeight: '600', color: '#94A3B8' }}>Restocking soon</Text>
+                        </View>
+                      ) : p.is_best_price || (p as any).isBestPrice || p.price === 0 ? (
                         <View style={{ flexDirection: 'column', gap: 2 }}>
                           <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
                           <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, alignSelf: 'flex-start' }}>COD Only</Text>
@@ -688,14 +715,24 @@ export default function AllProductsScreen() {
                       )}
                     </View>
 
-                    {/* Yellow Circular Cart Button */}
+                    {/* Circular Cart Button */}
                     <TouchableOpacity
-                      style={styles.yellowCartBtn}
-                      onPress={(e) => handleAddToCart(p, e)}
-                      activeOpacity={0.8}
-                      accessibilityLabel={`Add ${p.name} to cart`}
+                      style={[styles.yellowCartBtn, isSoldOut && { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', elevation: 0 }]}
+                      onPress={(e) => {
+                        if (isSoldOut) {
+                          toast.info('Item is sold out', p.name);
+                          return;
+                        }
+                        handleAddToCart(p, e);
+                      }}
+                      activeOpacity={isSoldOut ? 1 : 0.8}
+                      accessibilityLabel={isSoldOut ? `${p.name} is sold out` : `Add ${p.name} to cart`}
                     >
-                      <Ionicons name="cart-outline" size={18} color="#0F172A" />
+                      <Ionicons
+                        name={isSoldOut ? 'close-circle-outline' : 'cart-outline'}
+                        size={18}
+                        color={isSoldOut ? '#94A3B8' : '#0F172A'}
+                      />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -706,7 +743,13 @@ export default function AllProductsScreen() {
           /* LIST VIEW */
           <View style={styles.listContainer}>
             {filteredProducts.map((p) => {
-              const badgeLabel = getProductBadge(p);
+              const isSoldOut = Boolean(
+                p.is_sold_out === true ||
+                p.isSoldOut === true ||
+                p.status === 'sold_out' ||
+                (p.stock !== undefined && p.stock !== null && Number(p.stock) <= 0)
+              );
+              const badgeLabel = isSoldOut ? 'SOLD OUT' : getProductBadge(p);
               const isWish = isInWishlist(String(p.id));
               const specsSub = getSpecsSubtitle(p);
               const hasDiscount = p.originalPrice && p.originalPrice > p.price;
@@ -715,19 +758,28 @@ export default function AllProductsScreen() {
               return (
                 <TouchableOpacity
                   key={p.id}
-                  style={styles.productCardList}
+                  style={[styles.productCardList, isSoldOut && { opacity: 0.92 }]}
                   onPress={() => navigation.navigate('ProductDetail', { id: String(p.id), product: p })}
                   activeOpacity={0.9}
                 >
                   <View style={styles.listThumbWrap}>
                     {imgUri ? (
-                      <Image source={{ uri: imgUri }} style={styles.listThumbImg} resizeMode="contain" />
+                      <Image
+                        source={{ uri: imgUri }}
+                        style={[styles.listThumbImg, isSoldOut && { opacity: 0.52 }]}
+                        resizeMode="contain"
+                      />
                     ) : (
                       <Ionicons name="phone-portrait-outline" size={32} color="#94A3B8" />
                     )}
                     {badgeLabel && (
-                      <View style={styles.listBadgePill}>
-                        <Text style={styles.listBadgeText}>{badgeLabel}</Text>
+                      <View style={[styles.listBadgePill, isSoldOut && { backgroundColor: '#DC2626' }]}>
+                        <Text style={[styles.listBadgeText, isSoldOut && { color: '#FFFFFF' }]}>{badgeLabel}</Text>
+                      </View>
+                    )}
+                    {isSoldOut && (
+                      <View style={styles.soldOutCutoutOverlay}>
+                        <Text style={styles.soldOutCutoutBadgeText}>SOLD OUT</Text>
                       </View>
                     )}
                   </View>
@@ -740,9 +792,15 @@ export default function AllProductsScreen() {
                       {specsSub}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      <Text style={styles.priceCurrent}>₹{Number(p.price).toLocaleString('en-IN')}</Text>
-                      {hasDiscount && (
-                        <Text style={styles.priceMrp}>₹{Number(p.originalPrice).toLocaleString('en-IN')}</Text>
+                      {isSoldOut ? (
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
+                      ) : (
+                        <>
+                          <Text style={styles.priceCurrent}>₹{Number(p.price).toLocaleString('en-IN')}</Text>
+                          {hasDiscount && (
+                            <Text style={styles.priceMrp}>₹{Number(p.originalPrice).toLocaleString('en-IN')}</Text>
+                          )}
+                        </>
                       )}
                     </View>
                   </View>
@@ -761,11 +819,21 @@ export default function AllProductsScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.yellowCartBtn}
-                      onPress={(e) => handleAddToCart(p, e)}
-                      activeOpacity={0.8}
+                      style={[styles.yellowCartBtn, isSoldOut && { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', elevation: 0 }]}
+                      onPress={(e) => {
+                        if (isSoldOut) {
+                          toast.info('Item is sold out', p.name);
+                          return;
+                        }
+                        handleAddToCart(p, e);
+                      }}
+                      activeOpacity={isSoldOut ? 1 : 0.8}
                     >
-                      <Ionicons name="cart-outline" size={18} color="#0F172A" />
+                      <Ionicons
+                        name={isSoldOut ? 'close-circle-outline' : 'cart-outline'}
+                        size={18}
+                        color={isSoldOut ? '#94A3B8' : '#0F172A'}
+                      />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -1451,6 +1519,42 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     fontWeight: '800',
     color: '#854D0E',
+  },
+  soldOutCutoutOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.38)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  soldOutCutoutBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  soldOutCutoutBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 9.5,
+    letterSpacing: 0.5,
+  },
+  soldOutListOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
   },
 
   /* 8. BOTTOM NAVIGATION BAR */

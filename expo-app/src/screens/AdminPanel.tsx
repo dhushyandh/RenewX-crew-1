@@ -2177,6 +2177,47 @@ function ProductsView({
     setSortBy(PRODUCT_SORT_OPTIONS[nextIdx].id);
   };
 
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+
+  const handleToggleSoldOut = async (product: any) => {
+    const prodId = String(product.id || product._id);
+    const isCurrentlySoldOut = Boolean(
+      product.is_sold_out === true ||
+      product.status === 'sold_out' ||
+      (product.stock !== undefined && Number(product.stock) <= 0)
+    );
+    const nextSoldOut = !isCurrentlySoldOut;
+    setUpdatingStatusId(prodId);
+    try {
+      await api.products.update(prodId, {
+        is_sold_out: nextSoldOut,
+        status: nextSoldOut ? 'sold_out' : 'active',
+        stock: nextSoldOut ? 0 : (product.stock && Number(product.stock) > 0 ? Number(product.stock) : 1),
+      });
+      setProducts((prev) =>
+        prev.map((p) => {
+          if (String(p.id || (p as any)._id) === prodId) {
+            return {
+              ...p,
+              is_sold_out: nextSoldOut,
+              status: nextSoldOut ? 'sold_out' : 'active',
+              stock: nextSoldOut ? 0 : (p.stock && Number(p.stock) > 0 ? Number(p.stock) : 1),
+            };
+          }
+          return p;
+        })
+      );
+      toast.success(
+        nextSoldOut ? `Marked "${product.name}" as Sold Out` : `Marked "${product.name}" as Available in Stock`,
+        'Status Updated'
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update product status', 'Error');
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     const prodId = String(deleteTarget.id || (deleteTarget as any)._id);
@@ -2211,11 +2252,12 @@ function ProductsView({
       (selectedCategory === 'Vehicles' && p.category && (p.category.toLowerCase().includes('vehic') || p.category.toLowerCase() === 'vehicles' || p.category.toLowerCase().includes('car') || p.category.toLowerCase().includes('bike')));
 
     const stockNum = Number(p.stock || 0);
+    const isSoldOutItem = Boolean((p as any).is_sold_out === true || (p as any).status === 'sold_out' || stockNum === 0);
     const matchesStock =
       stockFilter === 'all' ||
-      (stockFilter === 'in-stock' && stockNum > 3) ||
-      (stockFilter === 'low-stock' && stockNum > 0 && stockNum <= 3) ||
-      (stockFilter === 'out-of-stock' && stockNum === 0);
+      (stockFilter === 'in-stock' && !isSoldOutItem && stockNum > 3) ||
+      (stockFilter === 'low-stock' && !isSoldOutItem && stockNum > 0 && stockNum <= 3) ||
+      (stockFilter === 'out-of-stock' && isSoldOutItem);
 
     return matchesSearch && matchesCategory && matchesStock;
   });
@@ -2363,9 +2405,10 @@ function ProductsView({
             </View>
           ) : (
             sorted.map((item, itemIdx) => {
+              const isExplicitSoldOut = Boolean((item as any).is_sold_out === true || (item as any).status === 'sold_out');
               const stockNum = Number(item.stock ?? 12);
-              const isOut = stockNum === 0;
-              const isLow = stockNum > 0 && stockNum <= 3;
+              const isOut = isExplicitSoldOut || stockNum === 0;
+              const isLow = !isOut && stockNum > 0 && stockNum <= 3;
               const productKey = String(item.id || (item as any)._id || itemIdx);
               const categoryLabel = item.category || 'Phones';
               const priceNum = Number(item.price) || 0;
@@ -2379,7 +2422,7 @@ function ProductsView({
               const stockBg = isOut ? '#FEE2E2' : isLow ? '#FFFBEA' : '#E8F7ED';
               const stockBorder = isOut ? '#FECACA' : isLow ? '#FDE68A' : '#D4EBDC';
               const stockColor = isOut ? '#DC2626' : isLow ? '#D97706' : '#0B6B3A';
-              const stockText = isOut ? 'Out of Stock' : isLow ? `Low Stock (${stockNum})` : `In Stock (${stockNum})`;
+              const stockText = isOut ? 'Sold Out' : isLow ? `Low Stock (${stockNum})` : `In Stock (${stockNum})`;
 
               return (
                 <View key={productKey} style={styles.productCardClean}>
@@ -2401,6 +2444,25 @@ function ProductsView({
                           </Text>
                         </View>
                       ) : null}
+                      {isOut && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderRadius: 12,
+                          }}
+                        >
+                          <View style={{ backgroundColor: '#DC2626', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: '#FFFFFF', fontSize: 8.5, fontWeight: '800' }}>SOLD OUT</Text>
+                          </View>
+                        </View>
+                      )}
                     </View>
 
                     {/* Middle: Details */}
@@ -2462,6 +2524,47 @@ function ProductsView({
                     </View>
 
                     <View style={styles.productActionButtonsWrap}>
+                      {/* Quick Status Toggle Button */}
+                      <TouchableOpacity
+                        onPress={() => handleToggleSoldOut(item)}
+                        disabled={updatingStatusId === productKey}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingHorizontal: 9,
+                          paddingVertical: 5.5,
+                          borderRadius: 8,
+                          backgroundColor: isOut ? '#ECFDF5' : '#FEF2F2',
+                          borderWidth: 1,
+                          borderColor: isOut ? '#A7F3D0' : '#FECACA',
+                          marginRight: 6,
+                          gap: 4,
+                        }}
+                        activeOpacity={0.75}
+                        accessibilityLabel={isOut ? `Mark ${item.name} available` : `Mark ${item.name} sold out`}
+                      >
+                        {updatingStatusId === productKey ? (
+                          <ActivityIndicator size="small" color={isOut ? '#059669' : '#DC2626'} />
+                        ) : (
+                          <>
+                            <Ionicons
+                              name={isOut ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                              size={13}
+                              color={isOut ? '#059669' : '#DC2626'}
+                            />
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: '700',
+                                color: isOut ? '#059669' : '#DC2626',
+                              }}
+                            >
+                              {isOut ? 'Set In Stock' : 'Mark Sold Out'}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
                       {/* Edit Button */}
                       <TouchableOpacity
                         onPress={() => onEditProduct(item)}

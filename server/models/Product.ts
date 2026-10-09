@@ -9,6 +9,8 @@ export interface Product {
   original_price: number;
   price: number;
   is_best_price?: boolean;
+  is_sold_out?: boolean;
+  status?: 'active' | 'sold_out' | string;
   condition: string;
   warranty_months: number;
   image_url: string;
@@ -30,6 +32,8 @@ export interface IProduct {
   original_price: number;
   price: number;
   is_best_price?: boolean;
+  is_sold_out?: boolean;
+  status?: string;
   condition: string;
   warranty_months: number;
   image_url: string;
@@ -51,6 +55,8 @@ export interface CreateProductDTO {
   original_price?: number;
   price?: number;
   is_best_price?: boolean;
+  is_sold_out?: boolean;
+  status?: string;
   condition?: string;
   warranty_months?: number;
   image_url?: string;
@@ -144,6 +150,7 @@ export function validateProductUpdate(data: any): { valid: boolean; errors: stri
     'image_url', 'image', 'images', 'rating', 'reviews', 'stock',
     'description', 'specs', 'id', '_id', '_uuid',
     'is_best_price', 'isBestPrice',
+    'is_sold_out', 'isSoldOut', 'status',
   ]);
   if (data && typeof data === 'object') {
     const unknown = Object.keys(data).filter((key) => !allowed.has(key));
@@ -161,6 +168,8 @@ const ProductSchema = new Schema<IProduct>(
     original_price: { type: Number, default: 0, min: 0 },
     price: { type: Number, default: 0, min: 0 },
     is_best_price: { type: Boolean, default: false, index: true },
+    is_sold_out: { type: Boolean, default: false, index: true },
+    status: { type: String, enum: ['active', 'sold_out'], default: 'active', index: true },
     condition: { type: String, required: true, trim: true, default: 'Like New' },
     warranty_months: { type: Number, min: 0, default: 12 },
     image_url: { type: String, default: '' },

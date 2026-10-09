@@ -22,5 +22,24 @@ export function mapProductRow(row: any): Product {
     stock: Number(row?.stock) || 0,
     description: row?.description ?? '',
     specs: Array.isArray(row?.specs) ? row.specs : [],
+    is_best_price: Boolean(row?.is_best_price ?? row?.isBestPrice),
+    isBestPrice: Boolean(row?.is_best_price ?? row?.isBestPrice),
+    is_sold_out: Boolean(
+      row?.is_sold_out === true ||
+      row?.isSoldOut === true ||
+      row?.status === 'sold_out' ||
+      (row?.stock !== undefined && row?.stock !== null && Number(row?.stock) <= 0)
+    ),
+    isSoldOut: Boolean(
+      row?.is_sold_out === true ||
+      row?.isSoldOut === true ||
+      row?.status === 'sold_out' ||
+      (row?.stock !== undefined && row?.stock !== null && Number(row?.stock) <= 0)
+    ),
+    status: row?.status ?? (
+      row?.is_sold_out === true || row?.isSoldOut === true || (row?.stock !== undefined && Number(row?.stock) <= 0)
+        ? 'sold_out'
+        : 'active'
+    ),
   };
 }

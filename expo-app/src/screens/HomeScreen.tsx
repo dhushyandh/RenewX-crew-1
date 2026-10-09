@@ -825,6 +825,12 @@ export default function HomeScreen() {
           >
             {featuredDevices.map((item) => {
               const pid = String((item as AnyProduct).id ?? (item as AnyProduct)._uuid ?? '');
+              const isSoldOut = Boolean(
+                (item as AnyProduct).is_sold_out === true ||
+                (item as AnyProduct).isSoldOut === true ||
+                (item as AnyProduct).status === 'sold_out' ||
+                (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+              );
               const name = getProductName(item);
               const price = getProductPrice(item);
               const origPrice = getOriginalPrice(item);
@@ -833,7 +839,7 @@ export default function HomeScreen() {
               const imgSource = getProductImageSource(item);
 
               return (
-                <View key={pid} style={styles.productCard}>
+                <View key={pid} style={[styles.productCard, isSoldOut && { opacity: 0.92 }]}>
                   {/* Top Right Wishlist Heart */}
                   <TouchableOpacity
                     style={styles.wishlistHeartBtn}
@@ -858,7 +864,7 @@ export default function HomeScreen() {
                     />
                   </TouchableOpacity>
 
-                  {/* Product Image */}
+                  {/* Product Image Layout with Sold Out Overlay */}
                   <TouchableOpacity
                     activeOpacity={0.9}
                     onPress={() => openProduct(item)}
@@ -866,9 +872,17 @@ export default function HomeScreen() {
                   >
                     <Image
                       source={imgSource}
-                      style={styles.productImg}
+                      style={[styles.productImg, isSoldOut && { opacity: 0.52 }]}
                       resizeMode="contain"
                     />
+                    {isSoldOut && (
+                      <View style={styles.soldOutImgOverlay}>
+                        <View style={styles.soldOutBadge}>
+                          <Ionicons name="alert-circle" size={11} color="#FFFFFF" style={{ marginRight: 3 }} />
+                          <Text style={styles.soldOutBadgeText}>SOLD OUT</Text>
+                        </View>
+                      </View>
+                    )}
                   </TouchableOpacity>
 
                   {/* Product Title & Specs */}
@@ -886,7 +900,12 @@ export default function HomeScreen() {
 
                   {/* Price Row */}
                   <View style={styles.priceRow}>
-                    {item.is_best_price || item.isBestPrice || price === 0 ? (
+                    {isSoldOut ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#94A3B8' }}>Restocking</Text>
+                      </View>
+                    ) : item.is_best_price || item.isBestPrice || price === 0 ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
                         <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>COD Only</Text>
@@ -907,16 +926,28 @@ export default function HomeScreen() {
 
                   {/* Full-width Yellow Add to Cart Button */}
                   <TouchableOpacity
-                    style={styles.addToCartBtn}
+                    style={[styles.addToCartBtn, isSoldOut && styles.addToCartBtnDisabled]}
+                    disabled={isSoldOut}
                     onPress={() => {
+                      if (isSoldOut) {
+                        toast?.info?.('This item is currently sold out.', name);
+                        return;
+                      }
                       addToCart(item);
                       toast?.success?.('Added to cart!', name);
                       (navigation as any).navigate('Cart');
                     }}
-                    activeOpacity={0.85}
+                    activeOpacity={isSoldOut ? 1 : 0.85}
                   >
-                    <Ionicons name="cart" size={15} color="#000000" style={{ marginRight: 6 }} />
-                    <Text style={styles.addToCartText}>Add to Cart</Text>
+                    <Ionicons
+                      name={isSoldOut ? 'close-circle' : 'cart'}
+                      size={15}
+                      color={isSoldOut ? '#94A3B8' : '#000000'}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.addToCartText, isSoldOut && styles.addToCartTextDisabled]}>
+                      {isSoldOut ? 'Sold Out' : 'Add to Cart'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               );
@@ -1469,6 +1500,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: renewxFontFamily.bold,
     color: '#000000',
+  },
+  addToCartBtnDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  addToCartTextDisabled: {
+    color: '#94A3B8',
+  },
+  soldOutImgOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.38)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  soldOutBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  soldOutBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 9.5,
+    letterSpacing: 0.5,
   },
 
   /* SHOP BY CATEGORY */

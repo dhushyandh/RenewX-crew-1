@@ -501,6 +501,12 @@ export default function ShopScreen() {
         ) : isGridView ? (
           <View style={styles.gridContainer}>
             {filteredProducts.map((item: any, idx) => {
+              const isSoldOut = Boolean(
+                item.is_sold_out === true ||
+                item.isSoldOut === true ||
+                item.status === 'sold_out' ||
+                (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+              );
               const isWish = isInWishlist(item.id);
               const origPrice = item.originalPrice || Math.round(item.price * 1.25);
               const discountText = item.badge || `${Math.round(((origPrice - item.price) / origPrice) * 100)}% OFF`;
@@ -509,13 +515,17 @@ export default function ShopScreen() {
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={styles.productCard}
+                  style={[styles.productCard, isSoldOut && styles.productCardSoldOut]}
                   activeOpacity={0.9}
                   onPress={() => navigation.navigate('ProductDetail', { id: item.id, product: item })}
                 >
                   {/* Top: Badge + Wishlist */}
                   <View style={styles.cardHeader}>
-                    {badgeType === 'new' ? (
+                    {isSoldOut ? (
+                      <View style={[styles.badgeDiscount, { backgroundColor: '#DC2626' }]}>
+                        <Text style={[styles.badgeDiscountText, { color: '#FFFFFF' }]}>SOLD OUT</Text>
+                      </View>
+                    ) : badgeType === 'new' ? (
                       <View style={styles.badgeNew}>
                         <Text style={styles.badgeNewText}>New</Text>
                       </View>
@@ -541,13 +551,21 @@ export default function ShopScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Product Image */}
+                  {/* Product Image Layout with Sold Out Overlay */}
                   <View style={styles.imageWrapper}>
                     <Image
                       source={{ uri: item.image || item.imageUrl }}
-                      style={styles.productImage}
+                      style={[styles.productImage, isSoldOut && { opacity: 0.52 }]}
                       resizeMode="contain"
                     />
+                    {isSoldOut && (
+                      <View style={styles.soldOutImageOverlay}>
+                        <View style={styles.soldOutCenterBadge}>
+                          <Ionicons name="alert-circle" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+                          <Text style={styles.soldOutCenterBadgeText}>SOLD OUT</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
 
                   {/* Title & Specs */}
@@ -561,7 +579,12 @@ export default function ShopScreen() {
                   {/* Bottom: Price + Cart Button */}
                   <View style={styles.cardFooter}>
                     <View style={styles.priceColumn}>
-                      {item.is_best_price || item.isBestPrice || item.price === 0 ? (
+                      {isSoldOut ? (
+                        <View style={{ flexDirection: 'column', gap: 2 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
+                          <Text style={{ fontSize: 9.5, fontWeight: '600', color: '#94A3B8' }}>Restocking soon</Text>
+                        </View>
+                      ) : item.is_best_price || item.isBestPrice || item.price === 0 ? (
                         <View style={{ flexDirection: 'column', gap: 2 }}>
                           <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
                           <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, alignSelf: 'flex-start' }}>COD Only</Text>
@@ -581,11 +604,21 @@ export default function ShopScreen() {
                     </View>
 
                     <TouchableOpacity
-                      style={styles.cardCartBtn}
-                      activeOpacity={0.85}
-                      onPress={(e) => handleAddToCart(item, e)}
+                      style={[styles.cardCartBtn, isSoldOut && styles.cardCartBtnDisabled]}
+                      activeOpacity={isSoldOut ? 1 : 0.85}
+                      onPress={(e) => {
+                        if (isSoldOut) {
+                          toast.info('Item is sold out', item.name);
+                          return;
+                        }
+                        handleAddToCart(item, e);
+                      }}
                     >
-                      <Ionicons name="cart-outline" size={17} color="#0F172A" />
+                      <Ionicons
+                        name={isSoldOut ? 'close-circle-outline' : 'cart-outline'}
+                        size={17}
+                        color={isSoldOut ? '#94A3B8' : '#0F172A'}
+                      />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -596,26 +629,44 @@ export default function ShopScreen() {
           /* List View */
           <View style={styles.listContainer}>
             {filteredProducts.map((item: any) => {
+              const isSoldOut = Boolean(
+                item.is_sold_out === true ||
+                item.isSoldOut === true ||
+                item.status === 'sold_out' ||
+                (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+              );
               const isWish = isInWishlist(item.id);
               const origPrice = item.originalPrice || Math.round(item.price * 1.25);
               const isBestPrice = item.is_best_price || item.isBestPrice || item.price === 0;
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={styles.listCard}
+                  style={[styles.listCard, isSoldOut && styles.productCardSoldOut]}
                   activeOpacity={0.9}
                   onPress={() => navigation.navigate('ProductDetail', { id: item.id, product: item })}
                 >
-                  <Image
-                    source={{ uri: item.image || item.imageUrl }}
-                    style={styles.listImage}
-                    resizeMode="contain"
-                  />
+                  <View style={{ position: 'relative' }}>
+                    <Image
+                      source={{ uri: item.image || item.imageUrl }}
+                      style={[styles.listImage, isSoldOut && { opacity: 0.52 }]}
+                      resizeMode="contain"
+                    />
+                    {isSoldOut && (
+                      <View style={styles.soldOutListOverlay}>
+                        <Text style={styles.soldOutListOverlayText}>SOLD OUT</Text>
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.listContent}>
                     <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.productSpecs}>{item.specsText || item.condition}</Text>
                     <View style={styles.listPriceRow}>
-                      {isBestPrice ? (
+                      {isSoldOut ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '600', color: '#94A3B8' }}>Restocking soon</Text>
+                        </View>
+                      ) : isBestPrice ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
                           <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>COD Only</Text>
@@ -631,10 +682,20 @@ export default function ShopScreen() {
                     </View>
                   </View>
                   <TouchableOpacity
-                    style={styles.cardCartBtn}
-                    onPress={(e) => handleAddToCart(item, e)}
+                    style={[styles.cardCartBtn, isSoldOut && styles.cardCartBtnDisabled]}
+                    onPress={(e) => {
+                      if (isSoldOut) {
+                        toast.info('Item is sold out', item.name);
+                        return;
+                      }
+                      handleAddToCart(item, e);
+                    }}
                   >
-                    <Ionicons name="cart-outline" size={17} color="#0F172A" />
+                    <Ionicons
+                      name={isSoldOut ? 'close-circle-outline' : 'cart-outline'}
+                      size={17}
+                      color={isSoldOut ? '#94A3B8' : '#0F172A'}
+                    />
                   </TouchableOpacity>
                 </TouchableOpacity>
               );
@@ -1256,5 +1317,65 @@ const styles = StyleSheet.create({
   },
   modalOptionTextSelected: {
     fontWeight: '700',
+  },
+  productCardSoldOut: {
+    opacity: 0.92,
+  },
+  cardCartBtnDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  soldOutImageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.38)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    zIndex: 2,
+  },
+  soldOutCenterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  soldOutCenterBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  soldOutListOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 12,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  soldOutListOverlayText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 9,
+    letterSpacing: 0.5,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 });

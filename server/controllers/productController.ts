@@ -14,7 +14,7 @@ const parsePositiveInt = (value: unknown, fallback: number, max: number): number
 const productFields = [
   'name', 'brand', 'model', 'category', 'original_price', 'price', 'condition',
   'warranty_months', 'image_url', 'images', 'rating', 'reviews', 'stock',
-  'description', 'specs', 'is_best_price',
+  'description', 'specs', 'is_best_price', 'is_sold_out', 'status',
 ] as const;
 
 const normalizeProductPayload = (payload: any) => {
@@ -33,11 +33,14 @@ const normalizeProductPayload = (payload: any) => {
   if (data.isBestPrice !== undefined && data.is_best_price === undefined) {
     data.is_best_price = data.isBestPrice;
   }
+  if (data.isSoldOut !== undefined && data.is_sold_out === undefined) {
+    data.is_sold_out = data.isSoldOut;
+  }
 
   for (const field of productFields) {
     if (data[field] !== undefined) {
       const value = data[field];
-      if (field === 'is_best_price') {
+      if (field === 'is_best_price' || field === 'is_sold_out') {
         normalized[field] = Boolean(value);
       } else {
         normalized[field] =
@@ -46,6 +49,15 @@ const normalizeProductPayload = (payload: any) => {
           value;
       }
     }
+  }
+
+  // Keep is_sold_out and status synchronized
+  if (normalized.is_sold_out !== undefined || normalized.status !== undefined || normalized.stock !== undefined) {
+    const isSoldOutExplicit = normalized.is_sold_out === true || normalized.status === 'sold_out';
+    const isZeroStock = normalized.stock !== undefined && Number(normalized.stock) <= 0;
+    const finalSoldOut = isSoldOutExplicit || (normalized.is_sold_out !== false && isZeroStock);
+    normalized.is_sold_out = finalSoldOut;
+    normalized.status = finalSoldOut ? 'sold_out' : 'active';
   }
 
   if (normalized.is_best_price) {
