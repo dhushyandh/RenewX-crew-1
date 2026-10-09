@@ -1,7 +1,21 @@
 import { NotificationModel } from '../models/Notification';
 import { User } from '../models/User';
 import { ProductModel } from '../models/Product';
+import { WebPushSubscriptionModel } from '../models/WebPushSubscription';
 import { env } from '../config/env';
+import webpush from 'web-push';
+
+if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(
+      env.VAPID_SUBJECT || 'mailto:admin@renewx.com',
+      env.VAPID_PUBLIC_KEY,
+      env.VAPID_PRIVATE_KEY
+    );
+  } catch (err) {
+    console.warn('[Notifications] Web push VAPID init warning:', err);
+  }
+}
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const MAX_BATCH_SIZE = 100;
@@ -484,8 +498,93 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 }
 
 /**
- * Broadcasts a "New Arrival" notification to ALL registered users and their devices
- * when an admin publishes a new product.
+ * Resolves a publicly accessible image URL for rich mobile and web push notifications.
+ * Ensures the URL is an absolute HTTPS or HTTP address, avoiding data URIs or private paths.
+ */
+function resolvePublicImageUrl(rawImage?: string): string {
+  if (!rawImage || typeof rawImage !== 'string') return '';
+  const trimmed = rawImage.trim();
+  if (!trimmed || trimmed.startsWith('data:')) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/')) {
+    return `${env.FRONTEND_URL}${trimmed}`;
+  }
+  return '';
+}
+
+/**
+ * Sends Web Push notifications to active browser subscriptions.
+ * Automatically purges dead or expired endpoints (HTTP 404 or 410 Gone).
+ */
+export async function sendWebPushMessages(
+  subscriptions: Array<{ endpoint: string; keys: { p256dh: string; auth: string } }>,
+  payload: {
+    title: string;
+    body: string;
+    icon?: string;
+    image?: string;
+    badge?: string;
+    data?: Record<string, unknown>;
+  }
+): Promise<void> {
+  if (!subscriptions.length) return;
+  const payloadString = JSON.stringify(payload);
+  const deadEndpoints: string[] = [];
+
+  for (let start = 0; start < subscriptions.length; start += MAX_BATCH_SIZE) {
+    const batch = subscriptions.slice(start, start + MAX_BATCH_SIZE);
+    await Promise.allSettled(
+      batch.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.keys.p256dh,
+                auth: sub.keys.auth,
+              },
+            },
+            payloadString,
+            {
+              TTL: 60 * 60 * 24, // 24 hours
+              urgency: 'high',
+            }
+          );
+        } catch (err: any) {
+          const status = err?.statusCode;
+          if (status === 404 || status === 410) {
+            deadEndpoints.push(sub.endpoint);
+          } else {
+            console.warn(`[WebPush] Failed push to ${sub.endpoint.slice(0, 35)}...`, err?.message || err);
+          }
+        }
+      })
+    );
+  }
+
+  if (deadEndpoints.length > 0) {
+    try {
+      await WebPushSubscriptionModel.deleteMany({ endpoint: { $in: deadEndpoints } });
+      console.log(`[WebPush] Pruned ${deadEndpoints.length} expired subscription endpoint(s)`);
+    } catch (e) {
+      console.warn('[WebPush] Error pruning expired subscriptions:', e);
+    }
+  }
+}
+
+/**
+ * Broadcasts a real "Product Arrival" rich notification to eligible Android, iOS,
+ * and Web subscribers whenever an admin successfully adds a new product to RenewX.
+ *
+ * Characteristics:
+ * - App icon: RenewX branding
+ * - Title: New arrival: <Product Name>
+ * - Body: Now available for ₹XX,XXX on RenewX.
+ * - Large image: Actual public product image (BigPictureStyle on Android)
+ * - Tap action: Deep links to /product/:id
+ * - Zero emojis, clean and genuine presentation.
  */
 export async function broadcastNewProductArrival(product: {
   id: string;
@@ -493,16 +592,47 @@ export async function broadcastNewProductArrival(product: {
   brand?: string;
   category?: string;
   price?: number;
+  is_best_price?: boolean;
   image?: string;
+  images?: string[];
 }): Promise<void> {
   try {
     const productIdStr = String(product.id || '').trim();
     if (!productIdStr) return;
 
-    const brandPrefix = product.brand ? `${product.brand} ` : '';
-    const priceStr = product.price ? ` starting at ₹${Number(product.price).toLocaleString('en-IN')}` : '';
-    const title = `✨ New Arrival: ${brandPrefix}${product.name}`;
-    const body = `Explore the newly added ${brandPrefix}${product.name}${priceStr}. Available in stock now!`;
+    // Fetch fresh database record if image or pricing is missing
+    let realImage = product.image;
+    let realPrice = product.price;
+    let realName = product.name;
+    let isBestPrice = product.is_best_price;
+
+    if (!realImage || realPrice === undefined) {
+      try {
+        const dbProduct = await ProductModel.findById(productIdStr).lean();
+        if (dbProduct) {
+          realImage = realImage || dbProduct.image_url || (Array.isArray(dbProduct.images) ? dbProduct.images[0] : '');
+          if (realPrice === undefined) realPrice = dbProduct.price;
+          realName = realName || dbProduct.name;
+          if (isBestPrice === undefined) isBestPrice = dbProduct.is_best_price;
+        }
+      } catch (dbErr) {
+        console.warn('[Notifications] Could not fetch DB product for arrival broadcast:', dbErr);
+      }
+    }
+
+    const publicImageUrl = resolvePublicImageUrl(realImage);
+
+    // Format clean title & body without any emojis
+    const title = `New arrival: ${realName.trim()}`;
+    const priceFormatted =
+      !isBestPrice && typeof realPrice === 'number' && !isNaN(realPrice) && realPrice > 0
+        ? `₹${Number(realPrice).toLocaleString('en-IN')}`
+        : '';
+    const body = priceFormatted
+      ? `Now available for ${priceFormatted} on RenewX.`
+      : `Now available on RenewX.`;
+
+    const canonicalUrl = `${env.FRONTEND_URL}/product/${productIdStr}`;
 
     // De-duplication: Find users who already received a notification for this product
     const alreadyNotifiedUserIds = await NotificationModel.find({
@@ -512,7 +642,10 @@ export async function broadcastNewProductArrival(product: {
 
     const alreadyNotifiedSet = new Set(alreadyNotifiedUserIds.map((id) => String(id)));
 
-    const allUsers = await User.find({}).select('_id notification_preferences +push_tokens').lean();
+    const adminEmail = (env.ADMIN_EMAIL || '').toLowerCase();
+
+    // Find all users (excluding admin from being broadcasted as a customer)
+    const allUsers = await User.find({}).select('_id email role notification_preferences +push_tokens').lean();
     if (!allUsers || !allUsers.length) return;
 
     const notificationsToInsert: Array<{
@@ -525,19 +658,27 @@ export async function broadcastNewProductArrival(product: {
     }> = [];
 
     const pushMessages: Array<Record<string, unknown>> = [];
+    const eligibleUserIds: string[] = [];
 
     for (const u of allUsers) {
       const uId = u._id.toString();
+
+      // Exclude admin accounts from being notified as an ordinary customer
+      if (u.role === 'admin' || (u.email && u.email.toLowerCase() === adminEmail)) {
+        continue;
+      }
 
       // Skip users who have already received this product's notification
       if (alreadyNotifiedSet.has(uId)) {
         continue;
       }
 
-      // Skip users who have opted out of promotional notifications
-      if (u.notification_preferences?.marketing === false) {
+      // Respect explicit user preference: product_updates (never treat product arrivals as marketing sale ads)
+      if (u.notification_preferences?.product_updates === false) {
         continue;
       }
+
+      eligibleUserIds.push(uId);
 
       notificationsToInsert.push({
         user_id: uId,
@@ -557,18 +698,24 @@ export async function broadcastNewProductArrival(product: {
           sound: 'default',
           title,
           body,
+          channelId: 'renewx-products',
+          priority: 'high',
           data: {
             screen: 'ProductDetail',
             productId: productIdStr,
             id: productIdStr,
-            url: `https://renewx.expo.app/product/${productIdStr}`,
+            name: realName,
+            price: priceFormatted,
+            imageUrl: publicImageUrl,
+            image: publicImageUrl,
+            url: canonicalUrl,
+            type: 'PRODUCT_ARRIVAL',
           },
-          channelId: 'default',
         });
       }
     }
 
-    // 1. Batch insert in-app notifications into MongoDB for all users
+    // 1. Batch insert in-app notifications into MongoDB for eligible users
     if (notificationsToInsert.length) {
       try {
         await NotificationModel.insertMany(notificationsToInsert, { ordered: false });
@@ -578,12 +725,50 @@ export async function broadcastNewProductArrival(product: {
       }
     }
 
-    // 2. Dispatch push notifications to all users' devices
+    // 2. Dispatch push notifications to mobile devices via Expo
     if (pushMessages.length) {
-      console.log(`[Notifications] Dispatching new arrival push broadcast to ${pushMessages.length} device(s)...`);
+      console.log(`[Notifications] Dispatching new arrival Expo push broadcast to ${pushMessages.length} device(s)...`);
       await sendExpoPushMessages(pushMessages);
     } else {
       console.log('[Notifications] No registered Expo push tokens for new arrival broadcast.');
+    }
+
+    // 3. Dispatch Web Push notifications to active web subscribers
+    try {
+      const webSubs = await WebPushSubscriptionModel.find({
+        is_active: true,
+        $or: [
+          { user_id: { $in: eligibleUserIds } },
+          { user_id: null },
+          { user_id: { $exists: false } },
+        ],
+      }).lean();
+
+      if (webSubs.length > 0) {
+        console.log(`[Notifications] Dispatching Web Push broadcast to ${webSubs.length} web subscriber(s)...`);
+        await sendWebPushMessages(
+          webSubs.map((s) => ({
+            endpoint: s.endpoint,
+            keys: s.keys,
+          })),
+          {
+            title,
+            body,
+            icon: `${env.FRONTEND_URL}/favicon.png`,
+            badge: `${env.FRONTEND_URL}/favicon.png`,
+            image: publicImageUrl || undefined,
+            data: {
+              url: canonicalUrl,
+              productId: productIdStr,
+              type: 'PRODUCT_ARRIVAL',
+            },
+          }
+        );
+      } else {
+        console.log('[Notifications] No active Web Push subscriptions found for broadcast.');
+      }
+    } catch (webPushErr) {
+      console.error('[Notifications] Web push broadcast error:', webPushErr);
     }
   } catch (err) {
     console.error('[Notifications] Error in broadcastNewProductArrival:', err);

@@ -127,14 +127,16 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
     invalidateCachePrefix('product');
     res.status(201).json({ success: true, data: saved });
 
-    // Broadcast "New Arrival" notification to ALL users & devices
+    // Broadcast "New Arrival" notification to eligible users & devices
     broadcastNewProductArrival({
       id: saved.id || (saved as any)._id?.toString(),
       name: saved.name,
       brand: (saved as any).brand,
       category: (saved as any).category,
       price: saved.price,
-      image: (saved as any).image_url || (saved as any).image,
+      is_best_price: (saved as any).is_best_price,
+      image: (saved as any).image_url || (Array.isArray((saved as any).images) ? (saved as any).images[0] : (saved as any).image),
+      images: (saved as any).images,
     }).catch((notifErr) => {
       console.error('[Products] Failed to dispatch new arrival broadcast:', notifErr);
     });

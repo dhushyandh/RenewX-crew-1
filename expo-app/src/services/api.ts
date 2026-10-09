@@ -408,6 +408,17 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
+    getWebPushPublicKey: async () => request<{ publicKey: string }>('/notifications/web-push/public-key'),
+    subscribeWebPush: async (subscription: any) =>
+      request<any>('/notifications/web-push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify(subscription),
+      }),
+    unsubscribeWebPush: async (endpoint?: string) =>
+      request<any>('/notifications/web-push/unsubscribe', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint }),
+      }),
   },
 
   upload: {

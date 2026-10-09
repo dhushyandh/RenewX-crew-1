@@ -52,6 +52,13 @@ if (fs.existsSync(assetLinksSrc)) {
   console.log('✅ Android App Links .well-known/assetlinks.json copied to dist/');
 }
 
+// 2c. Ensure Web Push Service Worker sw.js is copied to dist/
+const swSrc = path.join(expoDir, 'public', 'sw.js');
+if (fs.existsSync(swSrc)) {
+  fs.copyFileSync(swSrc, path.join(distDir, 'sw.js'));
+  console.log('✅ Web Push Service Worker sw.js copied to dist/sw.js');
+}
+
 // 3. Generate sitemap.xml
 const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

@@ -7,10 +7,18 @@ import {
   clearAllNotifications,
   triggerTestNotification,
   sendPromotionNotification,
+  getWebPushPublicKey,
+  subscribeWebPush,
+  unsubscribeWebPush,
 } from '../controllers/notificationController';
 import { authenticateToken, requireAuthenticated, requireAdmin } from '../middleware/auth';
 
 const router = Router();
+
+// Web Push API (Service Worker subscriptions)
+router.get('/web-push/public-key', getWebPushPublicKey);
+router.post('/web-push/subscribe', authenticateToken, subscribeWebPush);
+router.post('/web-push/unsubscribe', authenticateToken, unsubscribeWebPush);
 
 router.get('/', authenticateToken, requireAuthenticated, getNotifications);
 router.post('/test', authenticateToken, triggerTestNotification);

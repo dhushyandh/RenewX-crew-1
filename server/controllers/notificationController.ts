@@ -1,8 +1,10 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { NotificationModel } from '../models/Notification';
 import { User } from '../models/User';
+import { WebPushSubscriptionModel } from '../models/WebPushSubscription';
+import { env } from '../config/env';
 
 export async function getNotifications(
   req: AuthenticatedRequest,
@@ -249,12 +251,18 @@ export async function triggerTestNotification(
 
     if (action === 'new_arrival') {
       const { broadcastNewProductArrival } = await import('../services/notificationService');
-      await broadcastNewProductArrival({
-        id: 'sample-' + Date.now().toString().slice(-4),
-        name: 'iPhone 15 Pro Max 256GB',
-        brand: 'Apple',
-        price: 89999,
-      });
+      const { ProductModel } = await import('../models/Product');
+      const realProd = await ProductModel.findOne().lean();
+      if (realProd) {
+        await broadcastNewProductArrival({
+          id: (realProd as any)._id.toString(),
+          name: realProd.name,
+          brand: realProd.brand,
+          price: realProd.price,
+          is_best_price: (realProd as any).is_best_price,
+          image: realProd.image_url || (Array.isArray(realProd.images) ? realProd.images[0] : ''),
+        });
+      }
       res.json({ success: true, message: "New arrival notification broadcasted to all users" });
       return;
     }
@@ -385,4 +393,117 @@ export async function sendPromotionNotification(
     });
   }
 }
+
+/**
+ * Returns the public VAPID key so supported browsers can create push subscriptions.
+ * Public endpoint (no sensitive secrets returned).
+ */
+export function getWebPushPublicKey(_req: Request, res: Response): void {
+  res.json({
+    success: true,
+    data: {
+      publicKey: env.VAPID_PUBLIC_KEY,
+    },
+  });
+}
+
+/**
+ * Subscribes a browser to Web Push notifications.
+ * Accepts subscription object with endpoint and p256dh/auth keys.
+ * Associates authenticated user ID if logged in.
+ */
+export async function subscribeWebPush(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const raw = req.body || {};
+    const subscription = raw.subscription || raw;
+    const endpoint = (subscription.endpoint || raw.endpoint || '').trim();
+    const keys = subscription.keys || raw.keys;
+
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'Valid PushSubscription with endpoint, p256dh, and auth keys is required',
+          code: 'INVALID_PUSH_SUBSCRIPTION',
+        },
+      });
+      return;
+    }
+
+    const userId = req.user?.id || null;
+    const userAgent = req.headers['user-agent'] || undefined;
+
+    const saved = await WebPushSubscriptionModel.findOneAndUpdate(
+      { endpoint },
+      {
+        $set: {
+          endpoint,
+          keys: {
+            p256dh: String(keys.p256dh).trim(),
+            auth: String(keys.auth).trim(),
+          },
+          user_id: userId,
+          user_agent: userAgent,
+          is_active: true,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    console.log(`[WebPush] Registered browser subscription for user ${userId || 'guest'}: ${endpoint.slice(0, 35)}...`);
+    res.json({
+      success: true,
+      message: 'Web push subscription registered successfully',
+      data: { id: saved.id, is_active: saved.is_active },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Deactivates or unregisters a browser Web Push subscription.
+ */
+export async function unsubscribeWebPush(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const raw = req.body || {};
+    const subscription = raw.subscription || raw;
+    const endpoint = (subscription.endpoint || raw.endpoint || '').trim();
+
+    if (!endpoint) {
+      if (req.user?.id) {
+        await WebPushSubscriptionModel.updateMany(
+          { user_id: req.user.id },
+          { $set: { is_active: false } }
+        );
+        res.json({ success: true, message: 'All web push subscriptions deactivated for user' });
+        return;
+      }
+      res.status(400).json({
+        success: false,
+        error: { message: 'Subscription endpoint is required', code: 'ENDPOINT_REQUIRED' },
+      });
+      return;
+    }
+
+    await WebPushSubscriptionModel.findOneAndUpdate(
+      { endpoint },
+      { $set: { is_active: false } }
+    );
+
+    console.log(`[WebPush] Deactivated browser subscription: ${endpoint.slice(0, 35)}...`);
+    res.json({ success: true, message: 'Web push subscription deactivated' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 

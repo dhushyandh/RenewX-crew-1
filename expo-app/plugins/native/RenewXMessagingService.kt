@@ -38,6 +38,8 @@ class RenewXMessagingService : FirebaseMessagingService() {
         private const val TAG = "RenewXMessagingService"
         const val PROMOTIONS_CHANNEL_ID = "renewx-promotions"
         const val PROMOTIONS_CHANNEL_NAME = "RenewX Promotions"
+        const val PRODUCTS_CHANNEL_ID = "renewx-products"
+        const val PRODUCTS_CHANNEL_NAME = "RenewX New Arrivals"
         private const val MAX_IMAGE_DIMENSION = 512
         private const val NETWORK_TIMEOUT_MS = 8000
     }
@@ -45,23 +47,131 @@ class RenewXMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val type = message.data["type"] ?: ""
 
-        // ISOLATION: Normal customer notifications (orders, trade-ins, deliveries, security)
-        // must continue working through the standard expo-notifications system.
-        if (type.uppercase() != "PROMOTION") {
-            Log.d(TAG, "Non-promotion notification ($type) received; delegating to default handler.")
-            super.onMessageReceived(message)
+        // 1. PRODUCT ARRIVAL: Native BigPictureStyle with real product image, name, price & RenewX branding
+        if (type.uppercase() in listOf("PRODUCT_ARRIVAL", "PRODUCT")) {
+            Log.d(TAG, "Product arrival notification received: ${message.data}")
+            serviceScope.launch {
+                try {
+                    handleProductArrivalNotification(message.data)
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Failed to render rich product arrival notification, falling back", e)
+                    showFallbackProductNotification(message.data)
+                }
+            }
             return
         }
 
-        Log.d(TAG, "Promotional notification received with data: ${message.data}")
-
-        serviceScope.launch {
-            try {
-                handlePromotionNotification(message.data)
-            } catch (e: Throwable) {
-                Log.e(TAG, "Failed to render custom rich notification; triggering safe fallback", e)
-                showFallbackNotification(message.data)
+        // 2. PROMOTION: Dual-product card layout for sales/promotions
+        if (type.uppercase() == "PROMOTION") {
+            Log.d(TAG, "Promotional notification received with data: ${message.data}")
+            serviceScope.launch {
+                try {
+                    handlePromotionNotification(message.data)
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Failed to render custom rich notification; triggering safe fallback", e)
+                    showFallbackNotification(message.data)
+                }
             }
+            return
+        }
+
+        // 3. ISOLATION: Normal customer notifications (orders, trade-ins, deliveries, security)
+        // must continue working through standard expo-notifications system.
+        Log.d(TAG, "Non-custom notification ($type) received; delegating to default handler.")
+        super.onMessageReceived(message)
+    }
+
+    /**
+     * Renders a genuine single-product arrival notification using Android's native BigPictureStyle.
+     * Features:
+     * - Small icon: RenewX app icon (small branding)
+     * - Title: New arrival: <Product Name>
+     * - Body: Now available for <Price> on RenewX.
+     * - Large image: High-res downloaded product image
+     * - Tap action: opens renewx://product/<productId>
+     */
+    private suspend fun handleProductArrivalNotification(data: Map<String, String>) {
+        val productId = data["productId"] ?: data["id"] ?: ""
+        val productName = data["name"] ?: data["productName"] ?: "Certified Device"
+        val price = data["price"] ?: ""
+        val title = data["title"] ?: "New arrival: $productName"
+        val body = data["body"] ?: if (price.isNotBlank()) "Now available for $price on RenewX." else "Now available on RenewX."
+        val imageUrl = data["imageUrl"] ?: data["image"] ?: ""
+
+        val bitmap = if (imageUrl.isNotBlank()) downloadSampledBitmap(imageUrl) else null
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureProductsChannel(notificationManager)
+
+        val notificationId = (System.currentTimeMillis() % 100000).toInt() + Random.nextInt(100)
+
+        val targetUri = if (productId.isNotBlank()) "renewx://product/$productId" else "renewx://shop"
+        val tapIntent = createDeepLinkIntent(targetUri)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            notificationId * 10,
+            tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val smallIconRes = resolveSmallIcon()
+
+        val builder = NotificationCompat.Builder(this, PRODUCTS_CHANNEL_ID)
+            .setSmallIcon(smallIconRes)
+            .setColor(Color.parseColor("#FFC400"))
+            .setContentTitle(title)
+            .setContentText(body)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+        if (bitmap != null) {
+            val bigPictureStyle = NotificationCompat.BigPictureStyle()
+                .bigPicture(bitmap)
+                .setBigContentTitle(title)
+                .setSummaryText(body)
+            builder.setStyle(bigPictureStyle)
+        } else {
+            val bigTextStyle = NotificationCompat.BigTextStyle()
+                .bigText(body)
+                .setBigContentTitle(title)
+            builder.setStyle(bigTextStyle)
+        }
+
+        notificationManager.notify(notificationId, builder.build())
+        Log.d(TAG, "Product arrival notification successfully displayed for ID: $productId")
+    }
+
+    private fun showFallbackProductNotification(data: Map<String, String>) {
+        try {
+            val productId = data["productId"] ?: data["id"] ?: ""
+            val title = data["title"] ?: "New arrival on RenewX"
+            val body = data["body"] ?: "A newly certified device is now in stock."
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            ensureProductsChannel(notificationManager)
+
+            val targetUri = if (productId.isNotBlank()) "renewx://product/$productId" else "renewx://shop"
+            val mainIntent = createDeepLinkIntent(targetUri)
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                998,
+                mainIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = NotificationCompat.Builder(this, PRODUCTS_CHANNEL_ID)
+                .setSmallIcon(resolveSmallIcon())
+                .setColor(Color.parseColor("#FFC400"))
+                .setContentTitle(title)
+                .setContentText(body)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+
+            notificationManager.notify((System.currentTimeMillis() % 10000).toInt(), notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Fallback product notification also encountered error", e)
         }
     }
 
@@ -210,6 +320,26 @@ class RenewXMessagingService : FirebaseMessagingService() {
                 }
                 notificationManager.createNotificationChannel(channel)
                 Log.d(TAG, "Created notification channel: $PROMOTIONS_CHANNEL_ID")
+            }
+        }
+    }
+
+    private fun ensureProductsChannel(notificationManager: NotificationManager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val existing = notificationManager.getNotificationChannel(PRODUCTS_CHANNEL_ID)
+            if (existing == null) {
+                val channel = NotificationChannel(
+                    PRODUCTS_CHANNEL_ID,
+                    PRODUCTS_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Real-time updates when new products arrive on RenewX"
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 200, 100, 200)
+                    setShowBadge(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+                Log.d(TAG, "Created notification channel: $PRODUCTS_CHANNEL_ID")
             }
         }
     }

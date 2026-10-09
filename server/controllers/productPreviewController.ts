@@ -173,14 +173,11 @@ export async function renderProductPreview(req: Request, res: Response): Promise
     );
 
     // 3. Resolve primary product image
-    const rawImage =
-      (typeof product.image_url === 'string' && product.image_url.trim())
-        ? product.image_url.trim()
-        : Array.isArray(product.images) && product.images[0]
-        ? String(product.images[0]).trim()
-        : '';
-    const ogImageUrl = resolveAbsoluteImageUrl(rawImage, frontendBase);
-    const imageMime = getImageMimeType(ogImageUrl);
+    const serverOrigin =
+      process.env.SERVER_BASE_URL?.trim() ||
+      'https://renewx-crew-server.onrender.com';
+    const ogImageUrl = `${serverOrigin}/product/${productId}/image`;
+    const imageMime = 'image/jpeg';
 
     // Escape all values for HTML injection
     const escTitle = escapeHtml(ogTitle);
@@ -446,3 +443,73 @@ function renderFallbackHtml(
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.status(200).send(html);
 }
+
+/**
+ * Proxies and optimizes product images specifically for WhatsApp, Facebook, and social crawlers.
+ * Features:
+ * - Uses Supabase render/transform to downscale to 600x315 (~10KB vs 750KB).
+ * - Strips `x-robots-tag: none` which prevents WhatsApp/Facebook scraper from downloading images.
+ * - Sets `X-Robots-Tag: all` and long cache-control headers.
+ */
+export async function renderProductPreviewImage(req: Request, res: Response): Promise<void> {
+  const productId = String(req.params.id || '').trim();
+  const frontendBase = env.FRONTEND_URL || 'https://renewx.expo.app';
+  const fallbackUrl = `${frontendBase}/og-image.png`;
+
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    res.redirect(302, fallbackUrl);
+    return;
+  }
+
+  try {
+    const product = await ProductModel.findById(productId).lean();
+    let rawImage =
+      (typeof product?.image_url === 'string' && product.image_url.trim())
+        ? product.image_url.trim()
+        : Array.isArray(product?.images) && product.images[0]
+        ? String(product.images[0]).trim()
+        : '';
+
+    if (!rawImage) {
+      res.redirect(302, fallbackUrl);
+      return;
+    }
+
+    // If Supabase Storage image, use Supabase render API for 600x315 downsampling
+    if (rawImage.includes('.supabase.co/storage/v1/object/public/')) {
+      rawImage = rawImage.replace(
+        '/storage/v1/object/public/',
+        '/storage/v1/render/image/public/'
+      ) + '?width=600&height=315&resize=contain';
+    }
+
+    const imgRes = await fetch(rawImage, {
+      headers: {
+        'User-Agent': 'RenewX-Preview-Bot/1.0',
+        Accept: 'image/*',
+      },
+    });
+
+    if (!imgRes.ok) {
+      res.redirect(302, fallbackUrl);
+      return;
+    }
+
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    const arrayBuffer = await imgRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'public, max-age=604800, s-maxage=604800, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.removeHeader('X-Robots-Tag');
+    res.setHeader('X-Robots-Tag', 'all');
+
+    res.status(200).send(buffer);
+  } catch (err) {
+    console.error('[renderProductPreviewImage] Error:', err);
+    res.redirect(302, fallbackUrl);
+  }
+}
+

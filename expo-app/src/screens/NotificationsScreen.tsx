@@ -40,7 +40,6 @@ export default function NotificationsScreen() {
   const [permissionGranted, setPermissionGranted] = useState(true);
 
   const checkPermission = useCallback(async () => {
-    if (Platform.OS === 'web') return;
     const status = await getNotificationPermissionStatus();
     setPermissionGranted(status.granted);
   }, []);
@@ -93,16 +92,16 @@ export default function NotificationsScreen() {
   const handleTestPress = () => {
     Alert.alert(
       'Test System Push Notification',
-      'Select which event notification to send directly to your phone:',
+      'Select which event notification to send directly to your device:',
       [
-        { text: '🛍️ Admin: New Order Received', onPress: () => triggerTest('admin_new_order') },
-        { text: '📱 Admin: New Sell Request', onPress: () => triggerTest('admin_trade_in') },
-        { text: '✨ New Arrival (All Users)', onPress: () => triggerTest('new_arrival') },
-        { text: '🚚 Order Shipped', onPress: () => triggerTest('order_shipped') },
-        { text: '🏠 Out for Delivery', onPress: () => triggerTest('out_for_delivery') },
-        { text: '✅ Order Delivered', onPress: () => triggerTest('order_delivered') },
-        { text: '📱 Sell Request Submitted', onPress: () => triggerTest('trade_in_submitted') },
-        { text: '💰 Valuation Updated', onPress: () => triggerTest('trade_in_valuation_changed') },
+        { text: 'Admin: New Order Received', onPress: () => triggerTest('admin_new_order') },
+        { text: 'Admin: New Sell Request', onPress: () => triggerTest('admin_trade_in') },
+        { text: 'New Product Arrival', onPress: () => triggerTest('new_arrival') },
+        { text: 'Order Shipped', onPress: () => triggerTest('order_shipped') },
+        { text: 'Out for Delivery', onPress: () => triggerTest('out_for_delivery') },
+        { text: 'Order Delivered', onPress: () => triggerTest('order_delivered') },
+        { text: 'Sell Request Submitted', onPress: () => triggerTest('trade_in_submitted') },
+        { text: 'Valuation Updated', onPress: () => triggerTest('trade_in_valuation_changed') },
         { text: 'Cancel', style: 'cancel' },
       ]
     );

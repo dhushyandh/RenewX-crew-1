@@ -44,6 +44,9 @@ export const env = {
   SUPABASE_SERVICE_ROLE_KEY: optional('SUPABASE_SERVICE_ROLE_KEY'),
   SUPABASE_STORAGE_BUCKET: process.env.SUPABASE_STORAGE_BUCKET?.trim() || 'product-images',
   FRONTEND_URL: process.env.FRONTEND_URL?.trim() || 'https://renewx.expo.app',
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY?.trim() || 'BM8x0O0kwul8vZa6WqY5UgN0SxJXOmCecsFAviuEFQsSN7-k-M2Eg9U8gsIFRfSF2SgbHqr-0nbfF-CVT95AgIQ',
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY?.trim() || 'xGdYET2PWEVKgfK4LD1T9iOBPMyLzxOr4TySNaru85U',
+  VAPID_SUBJECT: process.env.VAPID_SUBJECT?.trim() || 'mailto:admin@renewx.com',
 };
 
 export const isProduction = env.NODE_ENV === 'production';

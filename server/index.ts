@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
+import fs from 'fs';
 import mongoose from 'mongoose';
 import { env } from './config/env';
 import apiRouter from './routes';
@@ -127,12 +128,32 @@ app.get('/', (_req, res) => {
 app.use('/api', generalRateLimiter, apiRouter);
 
 import { getUploadedFile } from './controllers/uploadController';
-import { renderProductPreview } from './controllers/productPreviewController';
+import { renderProductPreview, renderProductPreviewImage } from './controllers/productPreviewController';
 
 // Dynamic Open Graph HTML preview routes for WhatsApp, Facebook, Twitter and social crawlers
 app.get('/product/:id', renderProductPreview);
 app.get('/p/:id', renderProductPreview);
 app.get('/share/product/:id', renderProductPreview);
+app.get('/product/:id/image', renderProductPreviewImage);
+app.get('/p/:id/image', renderProductPreviewImage);
+
+// Web Push Service Worker delivery with root scope permission
+app.get('/sw.js', (_req: Request, res: Response) => {
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+  const swPathExpo = path.resolve(process.cwd(), 'expo-app', 'public', 'sw.js');
+  const swPathPublic = path.resolve(process.cwd(), 'public', 'sw.js');
+  const swPathDist = path.resolve(process.cwd(), 'expo-app', 'dist', 'sw.js');
+
+  const targetPath = [swPathExpo, swPathPublic, swPathDist].find((p) => fs.existsSync(p));
+  if (targetPath) {
+    res.sendFile(targetPath);
+  } else {
+    res.status(404).send('// Service worker not found');
+  }
+});
 
 // Persistent file delivery: serves from local disk first, or streams from MongoDB GridFS if on ephemeral host
 app.get('/uploads/:filename', getUploadedFile);

@@ -21,7 +21,17 @@ const PUSH_TOKEN_STORAGE_KEY = '@renewx_push_token';
 let registrationPromise: Promise<string | null> | null = null;
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        const { subscribeToWebPush } = await import('@/services/webPushService');
+        await subscribeToWebPush();
+      } catch (err) {
+        console.warn('[WebPush] Auto-sync failed:', err);
+      }
+    }
+    return null;
+  }
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -102,7 +112,15 @@ export async function getNotificationPermissionStatus(): Promise<{
   status: string;
 }> {
   if (Platform.OS === 'web') {
-    return { granted: true, canAskAgain: false, status: 'granted' };
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return { granted: false, canAskAgain: false, status: 'unsupported' };
+    }
+    const perm = Notification.permission;
+    return {
+      granted: perm === 'granted',
+      canAskAgain: perm === 'default',
+      status: perm,
+    };
   }
   try {
     const permissions = await Notifications.getPermissionsAsync();
@@ -117,7 +135,15 @@ export async function getNotificationPermissionStatus(): Promise<{
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (Platform.OS === 'web') return true;
+  if (Platform.OS === 'web') {
+    try {
+      const { subscribeToWebPush } = await import('@/services/webPushService');
+      return await subscribeToWebPush();
+    } catch (e) {
+      console.warn('[WebPush] Request permission error:', e);
+      return false;
+    }
+  }
 
   try {
     const current = await Notifications.getPermissionsAsync();

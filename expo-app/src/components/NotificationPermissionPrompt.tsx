@@ -25,11 +25,14 @@ export default function NotificationPermissionPrompt() {
   const [canAskAgain, setCanAskAgain] = useState(true);
 
   const checkPermission = useCallback(async () => {
-    if (Platform.OS === 'web') return;
-
     try {
       const status = await getNotificationPermissionStatus();
       if (status.granted) {
+        setVisible(false);
+        return;
+      }
+
+      if (status.status === 'denied' || status.status === 'unsupported') {
         setVisible(false);
         return;
       }

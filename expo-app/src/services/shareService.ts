@@ -10,7 +10,7 @@ export function getProductShareUrl(productId: string): string {
   const cleanId = String(productId || '').trim();
   const configuredBase =
     (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_SHARE_BASE_URL?.trim()) ||
-    'https://renewx.expo.app';
+    'https://renewx-crew-server.onrender.com';
   const base = configuredBase.replace(/\/+$/, '');
   return `${base}/product/${cleanId}`;
 }
@@ -44,7 +44,13 @@ export function formatProductShareContent(product: Product): ProductShareContent
   const originalPrice = product.originalPrice ? Number(product.originalPrice).toLocaleString('en-IN') : null;
   const condition = stripEmojis(product.condition || 'Certified Good');
   const cleanName = stripEmojis(product.name || 'Certified Device');
-  const brand = product.brand ? `${stripEmojis(product.brand)} ` : '';
+  const cleanBrand = stripEmojis(product.brand || '');
+
+  // Deduplicate brand name if product.name already starts with brand (e.g. "Apple" + "Apple iPhone 14 Pro")
+  const displayName =
+    cleanBrand && !cleanName.toLowerCase().startsWith(cleanBrand.toLowerCase())
+      ? `${cleanBrand} ${cleanName}`
+      : cleanName;
 
   const savings =
     product.originalPrice && product.originalPrice > (product.price || 0)
@@ -52,7 +58,7 @@ export function formatProductShareContent(product: Product): ProductShareContent
       : null;
 
   const lines = [
-    `${brand}${cleanName}`,
+    displayName,
     `Condition: ${condition}`,
     `Price: ₹${price}${originalPrice ? ` (MRP: ₹${originalPrice}${savings ? `, Save: ₹${savings}` : ''})` : ''}`,
   ];
@@ -74,7 +80,7 @@ export function formatProductShareContent(product: Product): ProductShareContent
   const fullText = lines.join('\n');
 
   return {
-    title: `${cleanName} - ₹${price} | RenewX`,
+    title: `${displayName} - ₹${price} | RenewX`,
     message: fullText,
     url,
     fullText,
@@ -102,16 +108,17 @@ export async function shareProduct(
 
     // 1. Mobile Native (Android & iOS)
     if (Platform.OS !== 'web') {
-      const result = await Share.share(
-        {
-          title,
-          message: fullText,
-          url,
-        },
-        {
-          dialogTitle: `Share ${product.name}`,
-        }
-      );
+      // NOTE: On Android, if both 'message' and 'url' are passed, React Native appends " " + url,
+      // resulting in a duplicate URL at the end of the message. We only pass 'message' on Android
+      // so WhatsApp receives exactly one clean URL.
+      const sharePayload =
+        Platform.OS === 'android'
+          ? { title, message: fullText }
+          : { title, message: fullText, url };
+
+      const result = await Share.share(sharePayload, {
+        dialogTitle: `Share ${product.name}`,
+      });
 
       if (result.action === Share.sharedAction) {
         return { success: true, action: 'shared' };
@@ -125,7 +132,6 @@ export async function shareProduct(
         await navigator.share({
           title,
           text: fullText,
-          url,
         });
         return { success: true, action: 'shared' };
       } catch (navShareErr: any) {
