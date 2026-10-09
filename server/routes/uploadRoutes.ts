@@ -8,16 +8,29 @@ const router = Router();
 // 0. Public File Streaming Endpoint (from GridFS / local disk)
 router.get('/file/:filename', getUploadedFile);
 
-// Configure multer memory storage with no file type restrictions
+// Allowed image MIME types for product photos, trade-in inspections, and avatars
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+]);
+
+// Configure multer memory storage with strict image validation & memory safety limits
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50 MB limit
+    fileSize: 15 * 1024 * 1024, // 15 MB limit per image to prevent memory exhaustion
   },
-  fileFilter: (_req, _file, cb) => {
-    // No restrictions: accept any image or file type
-    cb(null, true);
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.has(file.mimetype.toLowerCase()) || file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file format. Only JPEG, PNG, WebP and HEIC image files are allowed.'));
+    }
   },
 });
 

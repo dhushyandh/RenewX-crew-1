@@ -16,6 +16,7 @@ import { env } from '../config/env';
 import { User } from '../models/User';
 import { NotificationModel } from '../models/Notification';
 import { createUserNotification, notifyUserEvent, notifyAdminsNewOrder } from '../services/notificationService';
+import { invalidateCachePrefix } from '../utils/cache';
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 20;
@@ -723,8 +724,18 @@ export async function createCheckoutOrder(
             throw httpError('Product became unavailable: ' + item.product_name, 409, 'INSUFFICIENT_STOCK');
           }
 
+          if (product.stock <= 0) {
+            await ProductModel.updateOne(
+              { _id: product._id },
+              { $set: { is_sold_out: true, status: 'sold_out' } }
+            );
+          }
+
           reserved.push({ id: item.product_id, quantity: item.quantity });
         }
+
+        invalidateCachePrefix('products');
+        invalidateCachePrefix('product');
 
         const codOrder = await OrderModel.create({
           user_id: req.user.id,
@@ -1022,6 +1033,13 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
         throw httpError('Product became unavailable: ' + item.product_name, 409, 'INSUFFICIENT_STOCK');
       }
 
+      if (product.stock <= 0) {
+        await ProductModel.updateOne(
+          { _id: product._id },
+          { $set: { is_sold_out: true, status: 'sold_out' } }
+        );
+      }
+
       reserved.push({ id: item.product_id, quantity: item.quantity });
     }
 
@@ -1031,6 +1049,9 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
     order.status = 'verified';
     // Courier, tracking number and ETA are assigned by admin after dispatch.
     await order.save();
+
+    invalidateCachePrefix('products');
+    invalidateCachePrefix('product');
 
     // Dispatch payment & order notifications asynchronously in background
     setImmediate(async () => {

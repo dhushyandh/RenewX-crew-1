@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import BrandSocialFooter from '@/components/BrandSocialFooter';
+import RenewXLogo from '@/components/RenewXLogo';
 
 interface OfflineScreenProps {
   onRetrySuccess?: () => void;
@@ -91,76 +92,19 @@ export default function OfflineScreen({ onRetrySuccess }: OfflineScreenProps) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#DCFCE7" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* ============================================================== */}
-      {/* TOP HEADER & SEARCH / CATEGORIES BAR (MINT GREEN)              */}
+      {/* TOP HEADER: RENEWX BRAND HEADER WITH OFFLINE STATUS CHIP       */}
       {/* ============================================================== */}
-      <View style={[styles.headerContainer, { paddingTop: safeTop + 4 }]}>
-        {/* Search Bar Row */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color="#374151" style={styles.searchIcon} />
-            <Text style={styles.searchPlaceholder} numberOfLines={1}>
-              Search 'rice'
-            </Text>
-            <Ionicons name="mic-outline" size={19} color="#374151" />
+      <View style={[styles.headerContainer, { paddingTop: safeTop + 8 }]}>
+        <View style={styles.headerRow}>
+          <RenewXLogo size="md" showTagline />
+          <View style={styles.offlineStatusChip}>
+            <View style={styles.offlinePulseDot} />
+            <Text style={styles.offlineStatusText}>Offline</Text>
           </View>
-
-          <TouchableOpacity style={styles.headerIconBtn} activeOpacity={0.75}>
-            <Ionicons name="create-outline" size={21} color="#1F2937" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.headerIconBtn} activeOpacity={0.75}>
-            <Ionicons name="heart-outline" size={21} color="#1F2937" />
-          </TouchableOpacity>
         </View>
-
-        {/* Categories Bar Row */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
-        >
-          {/* Tab 1: All (Active white tab) */}
-          <View style={styles.categoryTabActive}>
-            <Ionicons name="storefront-outline" size={17} color="#111827" />
-            <Text style={styles.categoryTextActive}>All</Text>
-          </View>
-
-          {/* Tab 2: Fresh */}
-          <View style={styles.categoryTab}>
-            <Ionicons name="leaf-outline" size={17} color="#374151" />
-            <Text style={styles.categoryText}>Fresh</Text>
-          </View>
-
-          {/* Tab 3: Navaratri / Deals with "Shop now" badge */}
-          <View style={styles.categoryTabWithBadge}>
-            <View style={styles.shopNowBadge}>
-              <Text style={styles.shopNowBadgeText}>Shop now</Text>
-            </View>
-            <Ionicons name="flame-outline" size={17} color="#374151" />
-            <Text style={styles.categoryText}>Navaratri</Text>
-          </View>
-
-          {/* Tab 4: Electronics */}
-          <View style={styles.categoryTab}>
-            <Ionicons name="headset-outline" size={17} color="#374151" />
-            <Text style={styles.categoryText}>Electronics</Text>
-          </View>
-
-          {/* Tab 5: bbCafe */}
-          <View style={styles.categoryTab}>
-            <Ionicons name="cafe-outline" size={17} color="#374151" />
-            <Text style={styles.categoryText}>bbCafe</Text>
-          </View>
-
-          {/* Tab 6: Monsoon */}
-          <View style={styles.categoryTab}>
-            <Ionicons name="rainy-outline" size={17} color="#374151" />
-            <Text style={styles.categoryText}>Monsoon</Text>
-          </View>
-        </ScrollView>
       </View>
 
       {/* ============================================================== */}
@@ -255,115 +199,44 @@ const styles = StyleSheet.create({
 
   /* Header Container */
   headerContainer: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#BBF7D0',
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  searchBar: {
-    flex: 1,
-    height: 44,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
+    borderBottomColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchPlaceholder: {
-    flex: 1,
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '400',
-  },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-
-  /* Categories Bar */
-  categoryScroll: {
+  headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 2,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  offlineStatusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
     gap: 6,
   },
-  categoryTabActive: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 54,
+  offlinePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#EF4444',
   },
-  categoryTextActive: {
-    fontSize: 11,
+  offlineStatusText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#111827',
-    marginTop: 2,
-  },
-  categoryTab: {
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 56,
-  },
-  categoryText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#374151',
-    marginTop: 2,
-  },
-  categoryTabWithBadge: {
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 62,
-    position: 'relative',
-  },
-  shopNowBadge: {
-    position: 'absolute',
-    top: -6,
-    backgroundColor: '#000000',
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
-    borderRadius: 8,
-    zIndex: 10,
-  },
-  shopNowBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
+    color: '#B91C1C',
+    letterSpacing: 0.3,
   },
 
   /* Body Content */
@@ -535,36 +408,36 @@ const styles = StyleSheet.create({
 
   /* Typography */
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
     marginTop: 26,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 290,
+    lineHeight: 21,
+    maxWidth: 300,
     marginBottom: 26,
   },
 
   /* Reload Button */
   reloadBtn: {
-    backgroundColor: '#007A4D',
-    paddingVertical: 12,
+    backgroundColor: '#0F172A',
+    paddingVertical: 13,
     paddingHorizontal: 36,
-    borderRadius: 6,
-    minWidth: 120,
+    borderRadius: 12,
+    minWidth: 140,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#007A4D',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   reloadingRow: {
     flexDirection: 'row',
@@ -575,5 +448,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });

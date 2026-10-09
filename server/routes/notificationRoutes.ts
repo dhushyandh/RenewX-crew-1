@@ -21,8 +21,8 @@ router.post('/web-push/subscribe', authenticateToken, subscribeWebPush);
 router.post('/web-push/unsubscribe', authenticateToken, unsubscribeWebPush);
 
 router.get('/', authenticateToken, requireAuthenticated, getNotifications);
-router.post('/test', authenticateToken, triggerTestNotification);
-router.post('/test-event', authenticateToken, triggerTestNotification);
+router.post('/test', authenticateToken, requireAdmin, triggerTestNotification);
+router.post('/test-event', authenticateToken, requireAdmin, triggerTestNotification);
 router.post('/admin/promotion', authenticateToken, requireAdmin, sendPromotionNotification);
 router.post('/promotion', authenticateToken, requireAdmin, sendPromotionNotification);
 router.patch('/read-all', authenticateToken, requireAuthenticated, markAllNotificationsRead);
