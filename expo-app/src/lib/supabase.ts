@@ -31,6 +31,8 @@ export type ProductRow = {
   stock: number;
   description: string;
   specs: string[];
+  is_best_price?: boolean;
+  isBestPrice?: boolean;
   created_at: string;
 };
 

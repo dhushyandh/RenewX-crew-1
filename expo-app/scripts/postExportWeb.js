@@ -179,4 +179,63 @@ if (fs.existsSync(indexPath)) {
   console.log('✅ SEO and Title Bar Favicon tags injected into dist/index.html');
 }
 
-console.log('🎉 Post-export processing completed successfully!');
+// 5. Pre-render product routes for WhatsApp and crawler compatibility on static Expo Hosting
+async function preRenderProducts() {
+  const apiUrl =
+    process.env.EXPO_PUBLIC_API_URL ||
+    'https://renewx-crew-server.onrender.com/api';
+  console.log(`📡 Fetching products for static pre-rendering from ${apiUrl}...`);
+
+  try {
+    const res = await fetch(`${apiUrl}/products?limit=100`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) {
+      console.warn(`⚠️ Could not fetch products (status ${res.status}). Skipping static product pre-rendering.`);
+      return;
+    }
+    const json = await res.json();
+    const products = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+    console.log(`📦 Found ${products.length} products to pre-render for Expo Hosting.`);
+
+    const baseHtml = fs.readFileSync(indexPath, 'utf8');
+
+    for (const p of products) {
+      const pid = String(p.id || p._id || '').trim();
+      if (!pid) continue;
+
+      const pDir = path.join(distDir, 'product', pid);
+      if (!fs.existsSync(pDir)) {
+        fs.mkdirSync(pDir, { recursive: true });
+      }
+
+      const pName = String(p.name || 'Certified Device').trim().replace(/"/g, '&quot;');
+      const pPrice = Number(p.price || 0).toLocaleString('en-IN');
+      const pImage = (typeof p.image_url === 'string' && p.image_url.trim())
+        ? p.image_url.trim()
+        : 'https://renewx.expo.app/og-image.png';
+      const cleanDesc = String(p.description || '').replace(/[\r\n\t]+/g, ' ').slice(0, 160).replace(/"/g, '&quot;');
+      const pDesc = `Refurbished (${p.condition || 'Certified Good'}) | Price: ₹${pPrice}. ${cleanDesc} RenewX — Certified Pre-Owned Electronics.`;
+      const pUrl = `https://renewx.expo.app/product/${pid}`;
+
+      let pHtml = baseHtml;
+      pHtml = pHtml.replace(/<title>.*?<\/title>/i, `<title>${pName} • ₹${pPrice} | RenewX</title>`);
+      pHtml = pHtml.replace(/<meta property="og:title" content=".*?" \/>/i, `<meta property="og:title" content="${pName} • ₹${pPrice}" />`);
+      pHtml = pHtml.replace(/<meta property="og:description" content=".*?" \/>/i, `<meta property="og:description" content="${pDesc}" />`);
+      pHtml = pHtml.replace(/<meta property="og:image" content=".*?" \/>/i, `<meta property="og:image" content="${pImage}" />`);
+      pHtml = pHtml.replace(/<meta property="og:url" content=".*?" \/>/i, `<meta property="og:url" content="${pUrl}" />`);
+      pHtml = pHtml.replace(/<meta name="twitter:title" content=".*?" \/>/i, `<meta name="twitter:title" content="${pName} • ₹${pPrice}" />`);
+      pHtml = pHtml.replace(/<meta name="twitter:description" content=".*?" \/>/i, `<meta name="twitter:description" content="${pDesc}" />`);
+      pHtml = pHtml.replace(/<meta name="twitter:image" content=".*?" \/>/i, `<meta name="twitter:image" content="${pImage}" />`);
+
+      fs.writeFileSync(path.join(pDir, 'index.html'), pHtml, 'utf8');
+    }
+    console.log(`✅ Pre-rendered ${products.length} product Open Graph HTML files into dist/product/:id/index.html`);
+  } catch (err) {
+    console.warn('⚠️ Product pre-rendering skipped:', err.message);
+  }
+}
+
+preRenderProducts().then(() => {
+  console.log('🎉 Post-export processing completed successfully!');
+});

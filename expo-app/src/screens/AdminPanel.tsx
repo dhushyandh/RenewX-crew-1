@@ -39,7 +39,7 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 
 type AdminView = 'dashboard' | 'products' | 'orders' | 'users' | 'analytics' | 'settings' | 'tradeIns' | 'brands' | 'promotions';
 
-const CATEGORIES = ['All', 'Phones', 'Smartphones', 'Laptops', 'Tablets', 'Watches', 'Audio'];
+const CATEGORIES = ['All', 'Phones', 'Smartphones', 'Laptops', 'Tablets', 'Watches', 'Audio', 'Cameras', 'Vehicles'];
 
 const STATUS_OPTIONS = [
   { id: 'pending', label: 'Pending', color: '#64748b', bg: '#f1f5f9' },
@@ -210,7 +210,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
               <Ionicons
                 name="arrow-up"
                 size={14}
-                color="#EAB308"
+                color="#FFC400"
                 style={{ transform: [{ rotate: '45deg' }], marginLeft: -3, marginTop: -9 }}
               />
             </View>
@@ -219,16 +219,16 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
         </View>
 
         <View style={styles.headerRightActionsM3}>
-          {/* 1. Sell Req. Pill Button with tag and yellow dot */}
+          {/* 1. Sell Req. Pill Button with tag and dot */}
           <TouchableOpacity
             style={[styles.topBarSellReqBtn, view === 'tradeIns' && styles.topBarSellReqBtnActive]}
             onPress={() => handleTabPress('tradeIns')}
             activeOpacity={0.8}
             accessibilityLabel="Sell Requests"
           >
-            <Ionicons name="pricetag-outline" size={13} color="#0F172A" />
-            <View style={styles.topBarYellowDot} />
-            <Text style={styles.topBarSellReqText}>Sell Req.</Text>
+            <Ionicons name="pricetag-outline" size={13} color={view === 'tradeIns' ? '#0B6B3A' : '#111111'} />
+            <View style={[styles.topBarYellowDot, view === 'tradeIns' && { backgroundColor: '#168A4A' }]} />
+            <Text style={[styles.topBarSellReqText, view === 'tradeIns' && { color: '#0B6B3A' }]}>Sell Req.</Text>
           </TouchableOpacity>
 
           {/* 2. Notifications Bell with Badge */}
@@ -238,7 +238,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
             activeOpacity={0.8}
             accessibilityLabel="Notifications"
           >
-            <Ionicons name="notifications-outline" size={19} color="#0F172A" />
+            <Ionicons name="notifications-outline" size={19} color="#111111" />
             <View style={styles.topBarBadge}>
               <Text style={styles.topBarBadgeText}>3</Text>
             </View>
@@ -251,7 +251,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
             activeOpacity={0.8}
             accessibilityLabel="Admin Settings"
           >
-            <Ionicons name="settings-outline" size={19} color="#0F172A" />
+            <Ionicons name="settings-outline" size={19} color={view === 'settings' ? '#0B6B3A' : '#111111'} />
           </TouchableOpacity>
 
           {/* 4. Dedicated Exit Button (Requested by User) */}
@@ -350,7 +350,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
             >
               {isActive ? (
                 <View style={styles.adminTabActivePillM3}>
-                  <Ionicons name={tab.icon as any} size={20} color="#0F172A" />
+                  <Ionicons name={tab.icon as any} size={20} color="#0B6B3A" />
                   <Text style={styles.adminTabActiveTextM3} numberOfLines={1}>{tab.label}</Text>
                 </View>
               ) : (
@@ -1979,19 +1979,19 @@ function DashboardView({
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="stats-chart" size={17} color="#FBBF24" />
+            <Ionicons name="stats-chart" size={17} color="#FFC400" />
           </View>
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 13, fontWeight: '800', color: '#FFFFFF' }}>Realtime Analytics</Text>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' }} />
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#168A4A' }} />
             </View>
             <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>Live revenue, order pipeline & 7-day velocity</Text>
           </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FBBF24', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-          <Text style={{ fontSize: 11, fontWeight: '800', color: '#0F172A' }}>View</Text>
-          <Ionicons name="arrow-forward" size={12} color="#0F172A" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#168A4A', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+          <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFFFFF' }}>View</Text>
+          <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
         </View>
       </TouchableOpacity>
 
@@ -2001,7 +2001,7 @@ function DashboardView({
           <Text style={styles.cardSectionTitle}>Sales Overview</Text>
           <TouchableOpacity onPress={() => onNavigate('analytics')} style={styles.cardLinkRow} activeOpacity={0.8}>
             <Text style={styles.cardLinkText}>See Details</Text>
-            <Ionicons name="arrow-forward" size={12} color="#2563EB" />
+            <Ionicons name="arrow-forward" size={12} color="#168A4A" />
           </TouchableOpacity>
         </View>
 
@@ -2061,7 +2061,7 @@ function DashboardView({
           <Text style={styles.cardSectionTitle}>Recent Orders</Text>
           <TouchableOpacity onPress={() => onNavigate('orders')} style={styles.cardLinkRow} activeOpacity={0.8}>
             <Text style={styles.cardLinkText}>View All</Text>
-            <Ionicons name="arrow-forward" size={12} color="#2563EB" />
+            <Ionicons name="arrow-forward" size={12} color="#168A4A" />
           </TouchableOpacity>
         </View>
 
@@ -2205,8 +2205,10 @@ function ProductsView({
     const matchesCategory =
       selectedCategory === 'All' ||
       (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
-      (selectedCategory === 'Phones' && p.category && p.category.toLowerCase() === 'smartphones') ||
-      (selectedCategory === 'Smartphones' && p.category && p.category.toLowerCase() === 'phones');
+      (selectedCategory === 'Phones' && p.category && (p.category.toLowerCase() === 'smartphones' || p.category.toLowerCase() === 'phones')) ||
+      (selectedCategory === 'Smartphones' && p.category && (p.category.toLowerCase() === 'phones' || p.category.toLowerCase() === 'smartphones')) ||
+      (selectedCategory === 'Cameras' && p.category && (p.category.toLowerCase().includes('cam') || p.category.toLowerCase() === 'cameras')) ||
+      (selectedCategory === 'Vehicles' && p.category && (p.category.toLowerCase().includes('vehic') || p.category.toLowerCase() === 'vehicles' || p.category.toLowerCase().includes('car') || p.category.toLowerCase().includes('bike')));
 
     const stockNum = Number(p.stock || 0);
     const matchesStock =
@@ -2229,7 +2231,7 @@ function ProductsView({
   const activeSortLabel = PRODUCT_SORT_OPTIONS.find((s) => s.id === sortBy)?.label || 'Newest';
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+    <View style={{ flex: 1, backgroundColor: '#F7F8F6' }}>
       {/* Title + Add Product Button */}
       <View style={[styles.viewHeaderRow, { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }]}>
         <View style={{ flex: 1 }}>
@@ -2251,7 +2253,7 @@ function ProductsView({
       {/* Category Horizontal Filter Pills */}
       <View style={{ height: 42, marginBottom: 4 }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-          {['All', 'Phones', 'Laptops', 'Tablets', 'Watches', 'Audio'].map((cat) => {
+          {['All', 'Phones', 'Laptops', 'Tablets', 'Watches', 'Audio', 'Cameras', 'Vehicles'].map((cat) => {
             const isCatActive = selectedCategory.toLowerCase() === cat.toLowerCase();
             return (
               <TouchableOpacity
@@ -2374,9 +2376,9 @@ function ProductsView({
               const conditionLabel = item.condition || 'Pre-Owned';
 
               // Stock badge colors
-              const stockBg = isOut ? '#FEE2E2' : isLow ? '#FEF3C7' : '#DCFCE7';
-              const stockBorder = isOut ? '#FECACA' : isLow ? '#FDE68A' : '#BBF7D0';
-              const stockColor = isOut ? '#DC2626' : isLow ? '#D97706' : '#15803D';
+              const stockBg = isOut ? '#FEE2E2' : isLow ? '#FFFBEA' : '#E8F7ED';
+              const stockBorder = isOut ? '#FECACA' : isLow ? '#FDE68A' : '#D4EBDC';
+              const stockColor = isOut ? '#DC2626' : isLow ? '#D97706' : '#0B6B3A';
               const stockText = isOut ? 'Out of Stock' : isLow ? `Low Stock (${stockNum})` : `In Stock (${stockNum})`;
 
               return (
@@ -2418,21 +2420,32 @@ function ProductsView({
                         {item.name}
                       </Text>
 
-                      <View style={styles.productPriceRowClean}>
-                        <Text style={styles.productPriceTextClean}>
-                          ₹{priceNum.toLocaleString('en-IN')}
-                        </Text>
-                        {hasDiscount ? (
-                          <Text style={styles.productMrpStrike}>
-                            ₹{mrpNum.toLocaleString('en-IN')}
-                          </Text>
-                        ) : null}
-                        {hasDiscount ? (
-                          <View style={styles.productDiscountPill}>
-                            <Text style={styles.productDiscountPillText}>{discountPct}% OFF</Text>
+                      {item.is_best_price || item.isBestPrice || priceNum === 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6, borderWidth: 1, borderColor: '#A7F3D0' }}>
+                            <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#047857' }}>Best Price</Text>
                           </View>
-                        ) : null}
-                      </View>
+                          <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2.5, borderRadius: 6, borderWidth: 1, borderColor: '#FDE68A' }}>
+                            <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#92400E' }}>COD ONLY</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={styles.productPriceRowClean}>
+                          <Text style={styles.productPriceTextClean}>
+                            ₹{priceNum.toLocaleString('en-IN')}
+                          </Text>
+                          {hasDiscount ? (
+                            <Text style={styles.productMrpStrike}>
+                              ₹{mrpNum.toLocaleString('en-IN')}
+                            </Text>
+                          ) : null}
+                          {hasDiscount ? (
+                            <View style={styles.productDiscountPill}>
+                              <Text style={styles.productDiscountPillText}>{discountPct}% OFF</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      )}
                     </View>
                   </View>
 
@@ -2727,7 +2740,7 @@ function OrdersView() {
     : demoMockupOrders.map((d) => ({ ...d, rawOrder: null as any }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+    <View style={{ flex: 1, backgroundColor: '#F7F8F6' }}>
       {/* Title Header */}
       <View style={[styles.viewHeaderRow, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }]}>
         <View style={{ flex: 1 }}>
@@ -4037,7 +4050,7 @@ const ProductModal = AddProductModal;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F7F8F6',
   },
   header: {
     flexDirection: 'row',
@@ -4143,7 +4156,7 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#F7F8F6',
   },
   scrollContainer: {
     padding: spacing.md,
@@ -5355,7 +5368,7 @@ const styles = StyleSheet.create({
   cardLinkText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2563EB',
+    color: '#168A4A',
   },
 
   /* Chart Card */
@@ -5396,7 +5409,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     top: 28,
-    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    backgroundColor: 'rgba(22, 138, 74, 0.08)',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
   },
@@ -5406,7 +5419,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 26,
     height: 3,
-    backgroundColor: '#22C55E',
+    backgroundColor: '#168A4A',
     borderRadius: 2,
   },
   chartPeakTooltip: {
@@ -5416,7 +5429,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chartTooltipBubble: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#111111',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -5440,13 +5453,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 4,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: '#0F172A',
+    borderTopColor: '#111111',
   },
   chartPeakDot: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#22C55E',
+    backgroundColor: '#168A4A',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -5536,16 +5549,22 @@ const styles = StyleSheet.create({
   blackAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 14,
+    gap: 5,
+    backgroundColor: '#168A4A',
+    paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
+    shadowColor: '#168A4A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   blackAddBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   filterChipM2: {
     paddingHorizontal: 16,
@@ -5556,8 +5575,13 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   filterChipM2Active: {
-    backgroundColor: '#FDE047',
-    borderColor: '#FDE047',
+    backgroundColor: '#168A4A',
+    borderColor: '#168A4A',
+    shadowColor: '#168A4A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   filterChipM2Text: {
     fontSize: 12,
@@ -5565,7 +5589,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   filterChipM2TextActive: {
-    color: '#0F172A',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   searchBarWrapM2: {
@@ -5611,17 +5635,17 @@ const styles = StyleSheet.create({
   },
   /* Header Product Count Badge */
   countBadgePill: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#E8F7ED',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#D4EBDC',
   },
   countBadgePillText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#334155',
+    color: '#0B6B3A',
   },
 
   /* Empty State Polish */
@@ -5642,7 +5666,7 @@ const styles = StyleSheet.create({
   },
   clearFilterBtn: {
     marginTop: 14,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#168A4A',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 12,
@@ -5659,10 +5683,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 13,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
+    borderColor: '#E5E7EB',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 2,
   },
@@ -5675,9 +5699,9 @@ const styles = StyleSheet.create({
     width: 74,
     height: 74,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F8F6',
     borderWidth: 1,
-    borderColor: '#EEF2F6',
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -5718,7 +5742,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   productBrandPill: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F1F4F1',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 5,
@@ -5753,15 +5777,17 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   productDiscountPill: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#E8F7ED',
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 5,
+    borderWidth: 0.5,
+    borderColor: '#D4EBDC',
   },
   productDiscountPillText: {
     fontSize: 9.5,
     fontWeight: '800',
-    color: '#15803D',
+    color: '#0B6B3A',
   },
   productCardDivider: {
     height: 1,
@@ -6376,17 +6402,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: '#FEF08A',
+    backgroundColor: '#E8F7ED',
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FACC15',
+    borderColor: '#D4EBDC',
   },
   adminTabActiveText: {
     fontSize: 11.5,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#0B6B3A',
     letterSpacing: -0.2,
   },
   adminProfileActivePill: {
@@ -6447,19 +6473,19 @@ const styles = StyleSheet.create({
   headerBrandRenewM3: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#0F172A',
+    color: '#111111',
     letterSpacing: -0.6,
   },
   headerBrandXM3: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#EAB308',
+    color: '#168A4A',
     letterSpacing: -0.6,
   },
   headerSubtitleAdminPanelM3: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#6B7280',
     marginTop: 1,
     letterSpacing: 0.1,
   },
@@ -6474,26 +6500,26 @@ const styles = StyleSheet.create({
     gap: 5,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5E7EB',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     height: 36,
   },
   topBarSellReqBtnActive: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FACC15',
+    backgroundColor: '#E8F7ED',
+    borderColor: '#D4EBDC',
   },
   topBarYellowDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FACC15',
+    backgroundColor: '#FFC400',
   },
   topBarSellReqText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#111111',
   },
   topBarCircleBtn: {
     width: 36,
@@ -6501,20 +6527,20 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   topBarCircleBtnActive: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#CBD5E1',
+    backgroundColor: '#E8F7ED',
+    borderColor: '#D4EBDC',
   },
   topBarBadge: {
     position: 'absolute',
     top: -3,
     right: -3,
-    backgroundColor: '#FACC15',
+    backgroundColor: '#168A4A',
     width: 17,
     height: 17,
     borderRadius: 8.5,
@@ -6526,7 +6552,7 @@ const styles = StyleSheet.create({
   topBarBadgeText: {
     fontSize: 9.5,
     fontWeight: '900',
-    color: '#0F172A',
+    color: '#FFFFFF',
   },
   topBarExitBtn: {
     flexDirection: 'row',
@@ -6553,9 +6579,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F8F6',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E5E7EB',
   },
   secondaryBackBtn: {
     flexDirection: 'row',
@@ -6565,10 +6591,12 @@ const styles = StyleSheet.create({
   secondaryBackText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#111111',
   },
   secondaryActiveBadge: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#E8F7ED',
+    borderWidth: 1,
+    borderColor: '#D4EBDC',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -6576,7 +6604,7 @@ const styles = StyleSheet.create({
   secondaryActiveBadgeText: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#334155',
+    color: '#0B6B3A',
   },
 
   /* Mockup Bottom Navigation Bar */
@@ -6586,7 +6614,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: '#E5E7EB',
     paddingHorizontal: 8,
     paddingTop: 8,
     shadowColor: '#000000',
@@ -6601,7 +6629,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   adminTabActivePillM3: {
-    backgroundColor: '#FEF9C3',
+    backgroundColor: '#E8F7ED',
+    borderWidth: 1,
+    borderColor: '#D4EBDC',
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 22,
@@ -6612,7 +6642,7 @@ const styles = StyleSheet.create({
   adminTabActiveTextM3: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#0B6B3A',
     marginTop: 2,
   },
   adminTabInactiveWrapM3: {

@@ -696,9 +696,18 @@ export async function createCheckoutOrder(
     }
 
     const { subtotal, savings, orderItems } = buildOrderItems(products, requested);
-    if (subtotal < 100) throw httpError('Minimum payable amount is ₹1', 400, 'INVALID_AMOUNT');
-
+    const hasBestPriceItem = products.some((p: any) => p.is_best_price || p.price === 0);
     const isCod = (req.body as CreateOrderDTO)?.payment_method === 'cod';
+
+    if (hasBestPriceItem && !isCod) {
+      throw httpError(
+        'Orders containing Best Price products are only available via Cash on Delivery (COD)',
+        400,
+        'COD_ONLY_REQUIRED'
+      );
+    }
+
+    if (subtotal < 100 && !hasBestPriceItem) throw httpError('Minimum payable amount is ₹1', 400, 'INVALID_AMOUNT');
 
     if (isCod) {
       const reserved: { id: string; quantity: number }[] = [];

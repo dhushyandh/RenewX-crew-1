@@ -127,6 +127,12 @@ app.get('/', (_req, res) => {
 app.use('/api', generalRateLimiter, apiRouter);
 
 import { getUploadedFile } from './controllers/uploadController';
+import { renderProductPreview } from './controllers/productPreviewController';
+
+// Dynamic Open Graph HTML preview routes for WhatsApp, Facebook, Twitter and social crawlers
+app.get('/product/:id', renderProductPreview);
+app.get('/p/:id', renderProductPreview);
+app.get('/share/product/:id', renderProductPreview);
 
 // Persistent file delivery: serves from local disk first, or streams from MongoDB GridFS if on ephemeral host
 app.get('/uploads/:filename', getUploadedFile);

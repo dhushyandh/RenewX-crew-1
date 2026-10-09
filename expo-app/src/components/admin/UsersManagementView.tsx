@@ -893,8 +893,13 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   tabPillActive: {
-    backgroundColor: '#FFCC00',
-    borderColor: '#EAB308',
+    backgroundColor: '#168A4A',
+    borderColor: '#168A4A',
+    shadowColor: '#168A4A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabPillText: {
     fontFamily: renewxFontFamily.semibold,
@@ -903,8 +908,8 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   tabPillTextActive: {
-    color: '#000000',
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   sortBtn: {
     flexDirection: 'row',
@@ -1026,7 +1031,7 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
   },
   roleBadgeCustomer: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E8F7ED',
   },
   roleBadgeAdmin: {
     backgroundColor: '#FEF3C7',
@@ -1037,7 +1042,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   roleBadgeTextCustomer: {
-    color: '#2563EB',
+    color: '#0B6B3A',
   },
   roleBadgeTextAdmin: {
     color: '#D97706',

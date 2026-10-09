@@ -560,95 +560,12 @@ export async function seedDatabase() {
     console.log(`✓ Admin user verified: ${adminEmail} (role: admin)`);
   }
 
-  // 2. Seed Brands & Device Models
+  // 2. Seed Brands & Device Models (real reference catalog for dropdowns)
   const { brandsCount, modelsCount } = await seedBrandsAndModels();
 
-  // 3. Seed Certified Sample Products
-  const initialProducts = [
-    {
-      name: 'iPhone 15 Pro Max 256GB - Natural Titanium',
-      brand: 'Apple',
-      category: 'Phones',
-      original_price: 159900,
-      price: 119999,
-      condition: 'Like New',
-      warranty_months: 18,
-      image_url: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80',
-      rating: 4.9,
-      reviews: 142,
-      stock: 5,
-      description: 'Flawless condition with 100% battery health. Titanium frame with zero scratches, Super Retina XDR display with ProMotion.',
-      specs: ['256GB Storage', 'A17 Pro 3nm Chip', '48MP Main Camera + 5x Telephoto', 'USB-C Port', '100% Battery Health'],
-    },
-    {
-      name: 'MacBook Pro 16" M3 Max 36GB / 1TB SSD',
-      brand: 'Apple',
-      category: 'Laptops',
-      original_price: 349900,
-      price: 279999,
-      condition: 'Like New',
-      warranty_months: 24,
-      image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&auto=format&fit=crop&q=80',
-      rating: 5.0,
-      reviews: 88,
-      stock: 3,
-      description: 'Certified pristine workstation. 14-core CPU, 30-core GPU, Liquid Retina XDR display. Includes original 140W MagSafe charger.',
-      specs: ['M3 Max (14-core CPU, 30-core GPU)', '36GB Unified Memory', '1TB Superfast SSD', '120Hz Liquid Retina XDR', 'Cycle Count: 12'],
-    },
-    {
-      name: 'Samsung Galaxy S24 Ultra 512GB - Titanium Gray',
-      brand: 'Samsung',
-      category: 'Phones',
-      original_price: 139999,
-      price: 98999,
-      condition: 'Excellent',
-      warranty_months: 12,
-      image_url: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=800&auto=format&fit=crop&q=80',
-      rating: 4.8,
-      reviews: 96,
-      stock: 8,
-      description: 'Stunning Galaxy AI powerhouse with built-in S-Pen. Clean flat titanium edges, 200MP camera system, 2600 nit AMOLED display.',
-      specs: ['Snapdragon 8 Gen 3', '512GB UFS 4.0 Storage', '200MP Quad Tele System', 'S-Pen Included', '5000 mAh Battery'],
-    },
-    {
-      name: 'Sony WH-1000XM5 Wireless Noise Canceling Headphones',
-      brand: 'Sony',
-      category: 'Audio',
-      original_price: 34990,
-      price: 22499,
-      condition: 'Like New',
-      warranty_months: 12,
-      image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
-      rating: 4.9,
-      reviews: 230,
-      stock: 12,
-      description: 'Industry-leading dual processor active noise canceling. Plush synthetic leather earcups, 30-hour battery life with quick charge.',
-      specs: ['Integrated Processor V1 + QN1', '30-Hour Battery Life', 'Speak-to-Chat & Multipoint', 'Carry Case & Cable Included'],
-    },
-    {
-      name: 'Dell XPS 15 9530 i7-13700H / 32GB / RTX 4060 / 3.5K OLED',
-      brand: 'Dell',
-      category: 'Laptops',
-      original_price: 215000,
-      price: 144999,
-      condition: 'Excellent',
-      warranty_months: 12,
-      image_url: 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=800&auto=format&fit=crop&q=80',
-      rating: 4.7,
-      reviews: 39,
-      stock: 3,
-      description: 'Precision CNC machined aluminum chassis with carbon-fiber palm rest. Spectacular 3.5K touch OLED with 100% DCI-P3.',
-      specs: ['13th Gen Intel Core i7-13700H', '32GB DDR5 RAM', 'NVIDIA RTX 4060 8GB', '15.6" 3.5K OLED Touch', '1TB NVMe Gen4'],
-    },
-  ];
-
-  for (const p of initialProducts) {
-    await ProductModel.findOneAndUpdate({ name: p.name }, p, { upsert: true, new: true });
-  }
-  console.log(`✓ Seeded ${initialProducts.length} certified products`);
-
   console.log('====================================================');
-  console.log(`✨ Seeding Complete: ${brandsCount} Brands & ${modelsCount} Models!`);
+  console.log(`✨ Setup Complete: Admin Verified, ${brandsCount} Brands & ${modelsCount} Device Models Catalogued!`);
+  console.log('   (No mock/dummy product records created - clean production store)');
   console.log('====================================================');
 }
 

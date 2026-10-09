@@ -131,6 +131,7 @@ export default function CheckoutScreen() {
       price: item.price,
       originalPrice: item.originalPrice || Math.round(item.price * 1.38),
       quantity: item.quantity,
+      isBestPrice: Boolean((item as any).is_best_price || (item as any).isBestPrice || item.price === 0),
       image:
         typeof (item.image || item.images?.[0]) === 'string' &&
         !(item.image || item.images?.[0]).includes('unsplash.com') &&
@@ -140,6 +141,16 @@ export default function CheckoutScreen() {
       raw: item,
     }));
   }, [contextItems]);
+
+  const hasBestPriceItem = useMemo(() => {
+    return displayItems.some((it) => it.isBestPrice);
+  }, [displayItems]);
+
+  useEffect(() => {
+    if (hasBestPriceItem) {
+      setPaymentMethod('cod');
+    }
+  }, [hasBestPriceItem]);
 
   const totalItemCount = displayItems.reduce((acc, it) => acc + it.quantity, 0);
   const totalMRP = displayItems.reduce((acc, it) => acc + it.originalPrice * it.quantity, 0);
@@ -583,8 +594,14 @@ export default function CheckoutScreen() {
 
                 <View style={styles.orderItemPriceCol}>
                   <Text style={styles.orderItemQty}>Qty: {item.quantity}</Text>
-                  <Text style={styles.orderItemPrice}>{formatMoney(item.price)}</Text>
-                  <Text style={styles.orderItemOriginalPrice}>{formatMoney(item.originalPrice)}</Text>
+                  {item.isBestPrice ? (
+                    <Text style={[styles.orderItemPrice, { color: '#047857' }]}>Best Price</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.orderItemPrice}>{formatMoney(item.price)}</Text>
+                      <Text style={styles.orderItemOriginalPrice}>{formatMoney(item.originalPrice)}</Text>
+                    </>
+                  )}
                 </View>
               </View>
             ))}
@@ -674,9 +691,19 @@ export default function CheckoutScreen() {
               style={[
                 styles.cleanPaymentCard,
                 paymentMethod === 'razorpay' && styles.cleanPaymentCardSelectedRazorpay,
+                hasBestPriceItem && { opacity: 0.5, backgroundColor: '#F8FAFC' },
               ]}
-              onPress={() => setPaymentMethod('razorpay')}
-              activeOpacity={0.88}
+              onPress={() => {
+                if (hasBestPriceItem) {
+                  Alert.alert(
+                    'COD Only for Best Price Items',
+                    'Your order contains items offered at Best Price. Online payment is unavailable; you can only complete this purchase via Cash on Delivery (COD).'
+                  );
+                  return;
+                }
+                setPaymentMethod('razorpay');
+              }}
+              activeOpacity={hasBestPriceItem ? 1 : 0.88}
             >
               <View style={styles.cleanPaymentTopRow}>
                 <View
@@ -695,14 +722,22 @@ export default function CheckoutScreen() {
                       style={styles.razorpayBrandLogo}
                       resizeMode="contain"
                     />
-                    <View style={styles.cleanBadgeBlue}>
-                      <Ionicons name="flash" size={10} color="#0284C7" />
-                      <Text style={styles.cleanBadgeBlueText}>Instant</Text>
-                    </View>
+                    {hasBestPriceItem ? (
+                      <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#DC2626' }}>Unavailable</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.cleanBadgeBlue}>
+                        <Ionicons name="flash" size={10} color="#0284C7" />
+                        <Text style={styles.cleanBadgeBlueText}>Instant</Text>
+                      </View>
+                    )}
                   </View>
 
                   <Text style={styles.cleanSubtitle}>
-                    UPI (Google Pay, PhonePe, Paytm), Cards & NetBanking
+                    {hasBestPriceItem
+                      ? 'Unavailable: Cart contains Best Price item (COD only)'
+                      : 'UPI (Google Pay, PhonePe, Paytm), Cards & NetBanking'}
                   </Text>
 
                   <View style={styles.cleanFooterRow}>

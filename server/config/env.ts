@@ -43,6 +43,7 @@ export const env = {
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY?.trim() || process.env.VITE_SUPABASE_ANON_KEY?.trim() || '',
   SUPABASE_SERVICE_ROLE_KEY: optional('SUPABASE_SERVICE_ROLE_KEY'),
   SUPABASE_STORAGE_BUCKET: process.env.SUPABASE_STORAGE_BUCKET?.trim() || 'product-images',
+  FRONTEND_URL: process.env.FRONTEND_URL?.trim() || 'https://renewx.expo.app',
 };
 
 export const isProduction = env.NODE_ENV === 'production';

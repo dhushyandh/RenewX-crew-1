@@ -53,16 +53,36 @@ export default function MySellRequestsScreen() {
     return () => clearInterval(timer);
   }, [load]));
 
-  const handleCopyId = async (id: string) => {
+  const handleCopyId = async (displayId: string) => {
+    const value = String(displayId || '').trim();
+    if (!value) return;
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(id);
+      if (Platform.OS === 'web') {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(value);
+        } else if (typeof document !== 'undefined') {
+          const textarea = document.createElement('textarea');
+          textarea.value = value;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
       } else {
-        await Clipboard.setStringAsync(id);
+        await Clipboard.setStringAsync(value);
       }
-      toast.success(`Copied Sell Request ID #${id.slice(-8).toUpperCase()}!`);
-    } catch {
-      toast.info(`Sell Request ID: #${id.slice(-8).toUpperCase()}`);
+      toast.success(`Copied: ${value}`);
+    } catch (e) {
+      console.warn('[MySellRequestsScreen] Copy failed:', e);
+      try {
+        await Clipboard.setStringAsync(value);
+        toast.success(`Copied: ${value}`);
+      } catch {
+        toast.info(`Sell Request ID: ${value}`);
+      }
     }
   };
 
@@ -137,6 +157,7 @@ export default function MySellRequestsScreen() {
     const amount = Number(item.expected_price || item.valuation_amount || 0);
     const canCancel = status === 'pending';
     const isCancelling = cancellingId === id;
+    const displayId = item.display_id || `#RX-SELL-${id.slice(-8).toUpperCase()}`;
 
     return (
       <View style={styles.card}>
@@ -164,9 +185,9 @@ export default function MySellRequestsScreen() {
         <View style={styles.infoRow}>
           <Text style={styles.label}>Sell Request ID</Text>
           <View style={styles.idChipRow}>
-            <Text style={styles.value}>#RX-SELL-{id.slice(-8).toUpperCase()}</Text>
+            <Text style={styles.value}>{displayId}</Text>
             <TouchableOpacity
-              onPress={() => handleCopyId(id)}
+              onPress={() => handleCopyId(displayId)}
               style={styles.copyBadge}
               activeOpacity={0.7}
             >

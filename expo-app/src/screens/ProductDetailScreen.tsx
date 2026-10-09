@@ -32,17 +32,32 @@ function formatMoney(value: number) {
 
 function getSpecIcon(label: string): keyof typeof Ionicons.glyphMap {
   const l = label.toLowerCase();
-  if (l.includes('storage') || l.includes('rom') || l.includes('ssd')) return 'hardware-chip-outline';
+  if (l.includes('storage') || l.includes('rom') || l.includes('ssd')) return 'disc-outline';
   if (l.includes('ram') || l.includes('memory')) return 'speedometer-outline';
   if (l.includes('color')) return 'color-palette-outline';
-  if (l.includes('battery')) return 'battery-charging-outline';
-  if (l.includes('screen') || l.includes('display')) return 'phone-portrait-outline';
+  if (l.includes('battery') || l.includes('health') || l.includes('range')) return 'battery-charging-outline';
+  if (l.includes('km') || l.includes('mileage') || l.includes('driven') || l.includes('odometer')) return 'speedometer-outline';
+  if (l.includes('fuel') || l.includes('electric') || l.includes('power')) return 'flash-outline';
+  if (l.includes('transmission') || l.includes('gear')) return 'cog-outline';
+  if (l.includes('year') || l.includes('manufactur') || l.includes('registration')) return 'calendar-outline';
+  if (l.includes('owner') || l.includes('history')) return 'person-outline';
+  if (l.includes('insurance') || l.includes('document')) return 'document-text-outline';
+  if (l.includes('rto') || l.includes('state')) return 'location-outline';
+  if (l.includes('sensor') || l.includes('resolution') || l.includes('megapixel')) return 'aperture-outline';
+  if (l.includes('shutter')) return 'timer-outline';
+  if (l.includes('lens') || l.includes('mount')) return 'disc-outline';
+  if (l.includes('video') || l.includes('fps')) return 'videocam-outline';
+  if (l.includes('noise') || l.includes('anc')) return 'volume-mute-outline';
+  if (l.includes('bluetooth') || l.includes('connectivity')) return 'bluetooth-outline';
+  if (l.includes('screen') || l.includes('display')) return 'tv-outline';
   if (l.includes('camera')) return 'camera-outline';
   if (l.includes('processor') || l.includes('chip') || l.includes('cpu')) return 'hardware-chip-outline';
-  if (l.includes('accessory') || l.includes('accessories') || l.includes('box')) return 'cube-outline';
+  if (l.includes('graphics') || l.includes('gpu')) return 'desktop-outline';
+  if (l.includes('accessory') || l.includes('accessories') || l.includes('box') || l.includes('packaging')) return 'cube-outline';
   if (l.includes('imei') || l.includes('serial')) return 'finger-print-outline';
   if (l.includes('os') || l.includes('operating')) return 'code-slash-outline';
   if (l.includes('warranty')) return 'shield-checkmark-outline';
+  if (l.includes('water') || l.includes('splash')) return 'water-outline';
   return 'information-circle-outline';
 }
 
@@ -300,6 +315,7 @@ export default function ProductDetailScreen() {
 
   // Pricing calculations
   const price = Number(baseProduct?.price || 0);
+  const isBestPrice = Boolean(baseProduct?.is_best_price || (baseProduct as any)?.isBestPrice || price === 0);
   const originalPrice = Number(baseProduct?.originalPrice || Math.round(price * 1.35));
   const discountPercent =
     originalPrice > price && price > 0
@@ -363,6 +379,7 @@ export default function ProductDetailScreen() {
       ...baseProduct,
       price,
       originalPrice,
+      is_best_price: isBestPrice,
       specs: [
         selectedStorage ? `Storage: ${selectedStorage}` : '',
         selectedColor ? `Color: ${selectedColor}` : '',
@@ -371,7 +388,7 @@ export default function ProductDetailScreen() {
     });
     toast.success('Added to your cart', `${baseProduct.name}`);
     navigation.navigate('Cart');
-  }, [addToCart, baseProduct, price, originalPrice, selectedStorage, selectedColor, isOutOfStock, toast, navigation]);
+  }, [addToCart, baseProduct, price, originalPrice, isBestPrice, selectedStorage, selectedColor, isOutOfStock, toast, navigation]);
 
   const handleRefresh = useCallback(async () => {
     const prodId = baseProduct?.id || params.productId || params.id;
@@ -594,26 +611,46 @@ export default function ProductDetailScreen() {
           </View>
 
           {/* Price Row */}
-          <View style={styles.priceRow}>
-            <Text style={styles.currentPriceText}>{formatMoney(price)}</Text>
-            {originalPrice > price && (
-              <>
-                <Text style={styles.originalPriceText}>{formatMoney(originalPrice)}</Text>
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountBadgeText}>{discountPercent}% OFF</Text>
+          {isBestPrice ? (
+            <View style={{ marginTop: 4, marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                  <Ionicons name="pricetag" size={16} color="#047857" style={{ marginRight: 6 }} />
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#047857' }}>Best Price</Text>
                 </View>
-              </>
-            )}
-          </View>
-
-          {savings > 0 ? (
-            <Text style={styles.savingsText}>
-              You save {formatMoney(savings)} · Free express doorstep delivery
-            </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                  <Ionicons name="cash-outline" size={15} color="#92400E" style={{ marginRight: 5 }} />
+                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#92400E' }}>Cash on Delivery (COD) Only</Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 12, color: '#475569', lineHeight: 17 }}>
+                This product is offered at Best Price with COD payment only. Pay on delivery after inspecting the device at your doorstep.
+              </Text>
+            </View>
           ) : (
-            <Text style={styles.savingsText}>
-              Inclusive of all taxes · Free express doorstep delivery
-            </Text>
+            <>
+              <View style={styles.priceRow}>
+                <Text style={styles.currentPriceText}>{formatMoney(price)}</Text>
+                {originalPrice > price && (
+                  <>
+                    <Text style={styles.originalPriceText}>{formatMoney(originalPrice)}</Text>
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountBadgeText}>{discountPercent}% OFF</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              {savings > 0 ? (
+                <Text style={styles.savingsText}>
+                  You save {formatMoney(savings)} · Free express doorstep delivery
+                </Text>
+              ) : (
+                <Text style={styles.savingsText}>
+                  Inclusive of all taxes · Free express doorstep delivery
+                </Text>
+              )}
+            </>
           )}
 
           {/* Live Admin Stock Status */}
@@ -843,9 +880,18 @@ export default function ProductDetailScreen() {
       {/* 10. Sticky Bottom Action Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomPriceCol}>
-          <Text style={styles.bottomPriceText}>{formatMoney(price)}</Text>
-          {originalPrice > price && (
-            <Text style={styles.bottomMrpText}>{formatMoney(originalPrice)}</Text>
+          {isBestPrice ? (
+            <>
+              <Text style={styles.bottomPriceText}>Best Price</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#B45309' }}>COD Only</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.bottomPriceText}>{formatMoney(price)}</Text>
+              {originalPrice > price && (
+                <Text style={styles.bottomMrpText}>{formatMoney(originalPrice)}</Text>
+              )}
+            </>
           )}
         </View>
 

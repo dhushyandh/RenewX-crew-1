@@ -22,6 +22,15 @@ import { getCategoryDeviceImage } from '@/lib/imageUtils';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { confirmAction } from '@/lib/confirmAction';
 import { initialBrands, type BrandItem } from '@/data/brandsData';
+import {
+  CATEGORY_OPTIONS,
+  getSpecConfigForCategory,
+  getDefaultSpecsForCategory,
+  parseExistingSpecs,
+  buildSpecsPayload,
+  type CustomSpecItem,
+  type SpecFieldDefinition,
+} from '@/data/categorySpecs';
 
 export interface ProductRow {
   id: string;
@@ -37,6 +46,7 @@ export interface ProductRow {
   images?: string[];
   description?: string;
   specs?: string[];
+  is_best_price?: boolean;
   created_at?: string;
 }
 
@@ -83,13 +93,11 @@ export default function AddProductModal({
     );
   };
 
-  // 1. Form States initialized with mockup defaults if new product
-  const [productName, setProductName] = useState(
-    product?.name || (product ? '' : 'Apple iPhone 14 Pro')
-  );
-  const [brand, setBrand] = useState(product?.brand || (product ? '' : 'Apple'));
-  const [model, setModel] = useState(product?.model || (product ? '' : 'iPhone 14 Pro'));
-  const [category, setCategory] = useState(product?.category || (product ? '' : 'Smartphones'));
+  // 1. Form States initialized clean (empty for new product, ready for manual input)
+  const [productName, setProductName] = useState(product?.name || '');
+  const [brand, setBrand] = useState(product?.brand || '');
+  const [model, setModel] = useState(product?.model || '');
+  const [category, setCategory] = useState(product?.category || 'Smartphones');
 
   // Available brands list: initial static brands + any created via Admin API
   const [availableBrands, setAvailableBrands] = useState<BrandItem[]>(initialBrands);
@@ -364,38 +372,118 @@ export default function AddProductModal({
     }
   };
 
-  // 2. Specifications
-  const [storage, setStorage] = useState('128 GB');
-  const [color, setColor] = useState('Deep Purple');
-  const [condition, setCondition] = useState('Excellent');
-  const [batteryHealth, setBatteryHealth] = useState('Above 85%');
-  const [boxAccessories, setBoxAccessories] = useState('With charger & cable');
-  const [imei, setImei] = useState('');
+  // 2. Category-Specific Specifications & Custom Attributes
+  const [specValues, setSpecValues] = useState<Record<string, string>>(() => {
+    if (!product) return {};
+    return parseExistingSpecs(product.specs, product.category || 'Smartphones').specValues;
+  });
+  const [customSpecs, setCustomSpecs] = useState<CustomSpecItem[]>(() => {
+    if (!product) return [];
+    return parseExistingSpecs(product.specs, product.category || 'Smartphones').customSpecs;
+  });
+  const [newCustomKey, setNewCustomKey] = useState('');
+  const [newCustomVal, setNewCustomVal] = useState('');
+  const [showAddCustomSpec, setShowAddCustomSpec] = useState(false);
+
+  // Active category configuration
+  const currentCategoryConfig = useMemo(() => getSpecConfigForCategory(category), [category]);
+
+  const handleUpdateSpec = (fieldId: string, val: string) => {
+    setSpecValues((prev) => ({ ...prev, [fieldId]: val }));
+  };
+
+  const handleCategoryChange = (newCat: string) => {
+    setCategory(newCat);
+    // Keep condition if already selected, do not inject mockup data
+    setSpecValues((prev) => ({
+      ...(prev.condition ? { condition: prev.condition } : {}),
+    }));
+  };
+
+  const handleAddCustomSpec = () => {
+    const k = newCustomKey.trim();
+    const v = newCustomVal.trim();
+    if (!k || !v) {
+      toast.info('Please enter both specification name and value');
+      return;
+    }
+    setCustomSpecs((prev) => [...prev, { id: `custom-${Date.now()}-${Math.random().toString(36).substring(7)}`, key: k, value: v }]);
+    setNewCustomKey('');
+    setNewCustomVal('');
+    setShowAddCustomSpec(false);
+    toast.success(`Added specification "${k}"`);
+  };
+
+  const handleRemoveCustomSpec = (id: string) => {
+    setCustomSpecs((prev) => prev.filter((cs) => cs.id !== id));
+  };
 
   // Description
-  const [description, setDescription] = useState(
-    product?.description ||
-      'Apple iPhone 14 Pro in excellent condition. Fully functional, minimal signs of previous use. Comes with original charger and cable.'
-  );
+  const [description, setDescription] = useState(product?.description || '');
 
   // 3. Pricing & Stock
-  const [sellingPrice, setSellingPrice] = useState(product ? String(product.price) : '53999');
-  const [mrp, setMrp] = useState(product ? String(product.original_price || '') : '74900');
-  const [stock, setStock] = useState(product ? Number(product.stock) || 1 : 5);
+  const [isBestPrice, setIsBestPrice] = useState<boolean>(Boolean(product?.is_best_price || (product && product.price === 0)));
+  const [sellingPrice, setSellingPrice] = useState(product?.price ? String(product.price) : '');
+  const [mrp, setMrp] = useState(product?.original_price ? String(product.original_price) : '');
+  const [stock, setStock] = useState<string>(product?.stock !== undefined ? String(product.stock) : '');
 
   // Calculated discount
   const discountPercent = useMemo(() => {
+    if (isBestPrice) return 0;
     const sp = parseFloat(sellingPrice) || 0;
     const orig = parseFloat(mrp) || 0;
     if (orig > sp && sp > 0) {
       return Math.round(((orig - sp) / orig) * 100);
     }
-    return 28;
-  }, [sellingPrice, mrp]);
+    return 0;
+  }, [sellingPrice, mrp, isBestPrice]);
 
   // Active step in stepper
   const [activeStep, setActiveStep] = useState(1);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      if (product) {
+        setProductName(product.name || '');
+        setBrand(product.brand || '');
+        setModel(product.model || '');
+        const cat = product.category || 'Smartphones';
+        setCategory(cat);
+        const hasBestPrice = Boolean(product.is_best_price || (product.price === 0 && !product.original_price));
+        setIsBestPrice(hasBestPrice);
+        setSellingPrice(hasBestPrice ? '' : product.price ? String(product.price) : '');
+        setMrp(hasBestPrice ? '' : product.original_price ? String(product.original_price) : '');
+        setStock(product.stock !== undefined ? String(product.stock) : '');
+        setDescription(product.description || '');
+        if (product.image_url) {
+          setImages([product.image_url, ...(product.images || []).filter((img) => img !== product.image_url)]);
+        } else if (product.images && product.images.length > 0) {
+          setImages(product.images);
+        } else {
+          setImages([]);
+        }
+        const parsed = parseExistingSpecs(product.specs, cat);
+        setSpecValues(parsed.specValues);
+        setCustomSpecs(parsed.customSpecs);
+      } else {
+        // Clear all fields for new product so admin types them manually
+        setProductName('');
+        setBrand('');
+        setModel('');
+        setCategory('Smartphones');
+        setIsBestPrice(false);
+        setSellingPrice('');
+        setMrp('');
+        setStock('');
+        setDescription('');
+        setImages([]);
+        setSpecValues({});
+        setCustomSpecs([]);
+        setActiveStep(1);
+      }
+    }
+  }, [product, visible]);
 
   // Dropdown Picker Modal
   const [pickerSearch, setPickerSearch] = useState('');
@@ -426,38 +514,38 @@ export default function AddProductModal({
     return pickerModal.options.filter((opt) => opt.label.toLowerCase().includes(q));
   }, [pickerModal.options, pickerSearch]);
 
-
   const handleSaveProduct = async (asDraft = false) => {
     if (!productName.trim()) {
       Alert.alert('Required', 'Please enter a product name.');
       return;
     }
-    const priceNum = parseInt(sellingPrice, 10);
-    if (isNaN(priceNum) || priceNum <= 0) {
-      Alert.alert('Required', 'Please enter a valid selling price.');
+    const priceNum = isBestPrice ? 0 : parseInt(sellingPrice, 10);
+    if (!isBestPrice && (isNaN(priceNum) || priceNum <= 0)) {
+      Alert.alert('Required', 'Please enter a valid selling price, or turn on the "Best Price" option.');
       return;
     }
 
     setSaving(true);
+    const activeCondition = specValues.condition || 'Excellent';
+    const compiledSpecs = buildSpecsPayload(category, specValues, customSpecs);
+
+    const finalPrice = isBestPrice ? 0 : priceNum;
+    const finalMrp = isBestPrice ? 0 : parseInt(mrp, 10) || Math.round(priceNum * 1.38);
+
     const payload = {
       name: productName.trim(),
-      brand: brand.trim() || 'Apple',
-      model: model.trim() || 'iPhone 14 Pro',
+      brand: brand.trim() || 'General',
+      model: model.trim() || productName.trim(),
       category: category.trim() || 'Smartphones',
-      price: priceNum,
-      original_price: parseInt(mrp, 10) || Math.round(priceNum * 1.38),
-      stock: Math.max(0, stock),
-      condition: condition.trim() || 'Excellent',
+      price: finalPrice,
+      original_price: finalMrp,
+      is_best_price: isBestPrice,
+      stock: stock ? Math.max(0, parseInt(stock, 10) || 0) : 1,
+      condition: activeCondition,
       image_url: images[0] || '',
       images: images.length > 0 ? images : undefined,
       description: description.trim(),
-      specs: [
-        `Storage: ${storage}`,
-        `Color: ${color}`,
-        `Battery Health: ${batteryHealth}`,
-        `Accessories: ${boxAccessories}`,
-        imei ? `IMEI: ${imei}` : '',
-      ].filter(Boolean),
+      specs: compiledSpecs,
     };
 
     try {
@@ -856,7 +944,7 @@ export default function AddProductModal({
                     style={newProdStyles.textInputBox}
                     value={model}
                     onChangeText={setModel}
-                    placeholder="iPhone 14 Pro"
+                    placeholder="e.g. 14 Pro, Galaxy S23"
                     placeholderTextColor="#94A3B8"
                   />
                 </View>
@@ -871,20 +959,23 @@ export default function AddProductModal({
                     onPress={() =>
                       openPicker(
                         'Select Category',
-                        [
-                          { label: 'Smartphones', value: 'Smartphones', icon: 'phone-portrait-outline' },
-                          { label: 'Laptops', value: 'Laptops', icon: 'laptop-outline' },
-                          { label: 'Audio', value: 'Audio', icon: 'headset-outline' },
-                          { label: 'Tablets', value: 'Tablets', icon: 'tablet-portrait-outline' },
-                          { label: 'Watches', value: 'Watches', icon: 'watch-outline' },
-                        ],
-                        setCategory
+                        CATEGORY_OPTIONS.map((c) => ({
+                          label: c.label,
+                          value: c.value,
+                          icon: c.icon,
+                        })),
+                        handleCategoryChange
                       )
                     }
                     activeOpacity={0.8}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="phone-portrait-outline" size={16} color="#0F172A" style={{ marginRight: 6 }} />
+                      <Ionicons
+                        name={(currentCategoryConfig.icon as any) || 'phone-portrait-outline'}
+                        size={16}
+                        color="#0F172A"
+                        style={{ marginRight: 6 }}
+                      />
                       <Text style={newProdStyles.selectBoxText}>{category || 'Smartphones'}</Text>
                     </View>
                     <Ionicons name="chevron-down" size={16} color="#64748B" />
@@ -895,154 +986,191 @@ export default function AddProductModal({
 
             {/* 3. Specifications */}
             <View style={newProdStyles.sectionBox}>
-              <Text style={newProdStyles.sectionHeaderTitle}>3. Specifications</Text>
-
-              {/* Row 1: Storage & Color */}
-              <View style={newProdStyles.gridRow}>
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>
-                    Storage <Text style={newProdStyles.asterisk}>*</Text>
+              <View style={newProdStyles.sectionHeaderRow}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={newProdStyles.sectionHeaderTitle}>3. Specifications</Text>
+                  <Text style={newProdStyles.sectionSubtitle}>
+                    Dynamic specification fields tailored for {category}
                   </Text>
-                  <TouchableOpacity
-                    style={newProdStyles.selectBox}
-                    onPress={() =>
-                      openPicker(
-                        'Select Storage',
-                        [
-                          { label: '128 GB', value: '128 GB' },
-                          { label: '256 GB', value: '256 GB' },
-                          { label: '512 GB', value: '512 GB' },
-                          { label: '1 TB', value: '1 TB' },
-                          { label: '64 GB', value: '64 GB' },
-                        ],
-                        setStorage
-                      )
+                </View>
+                <View style={newProdStyles.categorySpecBadge}>
+                  <Ionicons name={(currentCategoryConfig.icon as any) || 'hardware-chip-outline'} size={13} color="#0B6B3A" />
+                  <Text style={newProdStyles.categorySpecBadgeText}>{category}</Text>
+                </View>
+              </View>
+
+              {/* Dynamic Category Specific Specification Fields */}
+              {(() => {
+                const fields = currentCategoryConfig.fields;
+                const rows: (SpecFieldDefinition[])[] = [];
+                let currentRow: SpecFieldDefinition[] = [];
+
+                fields.forEach((f) => {
+                  if (f.gridSpan === 'full') {
+                    if (currentRow.length > 0) {
+                      rows.push(currentRow);
+                      currentRow = [];
                     }
-                    activeOpacity={0.8}
+                    rows.push([f]);
+                  } else {
+                    currentRow.push(f);
+                    if (currentRow.length === 2) {
+                      rows.push(currentRow);
+                      currentRow = [];
+                    }
+                  }
+                });
+                if (currentRow.length > 0) {
+                  rows.push(currentRow);
+                }
+
+                return rows.map((row, rIdx) => (
+                  <View key={`row-${rIdx}`} style={newProdStyles.gridRow}>
+                    {row.map((field) => {
+                      const val = specValues[field.id] || '';
+                      const isColorField = field.type === 'color';
+
+                      return (
+                        <View
+                          key={field.id}
+                          style={field.gridSpan === 'full' ? { width: '100%', marginBottom: 12 } : newProdStyles.gridItem}
+                        >
+                          <Text style={newProdStyles.inputLabel}>
+                            {field.label} {field.required && <Text style={newProdStyles.asterisk}>*</Text>}
+                          </Text>
+
+                          {field.type === 'text' ? (
+                            <TextInput
+                              style={newProdStyles.textInputBox}
+                              value={val}
+                              onChangeText={(t) => handleUpdateSpec(field.id, t)}
+                              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                              placeholderTextColor="#94A3B8"
+                            />
+                          ) : (
+                            <TouchableOpacity
+                              style={newProdStyles.selectBox}
+                              onPress={() =>
+                                openPicker(
+                                  field.label,
+                                  field.options || [],
+                                  (selectedVal) => handleUpdateSpec(field.id, selectedVal)
+                                )
+                              }
+                              activeOpacity={0.8}
+                            >
+                              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                {isColorField ? (
+                                  <View
+                                    style={[
+                                      newProdStyles.colorDotSmall,
+                                      {
+                                        backgroundColor:
+                                          field.options?.find((o) => o.value === val)?.color ||
+                                          (val.toLowerCase().includes('black')
+                                            ? '#000000'
+                                            : val.toLowerCase().includes('white')
+                                            ? '#FFFFFF'
+                                            : val.toLowerCase().includes('blue')
+                                            ? '#3B82F6'
+                                            : val.toLowerCase().includes('purple')
+                                            ? '#7C3AED'
+                                            : '#64748B'),
+                                        borderWidth: val.toLowerCase().includes('white') ? 1 : 0,
+                                        borderColor: '#CBD5E1',
+                                      },
+                                    ]}
+                                  />
+                                ) : field.icon ? (
+                                  <Ionicons name={field.icon as any} size={15} color="#64748B" style={{ marginRight: 6 }} />
+                                ) : null}
+                                <Text style={newProdStyles.selectBoxText} numberOfLines={1}>
+                                  {val || 'Select option'}
+                                </Text>
+                              </View>
+                              <Ionicons name="chevron-down" size={16} color="#64748B" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ));
+              })()}
+
+              {/* Custom / Dynamic Specifications Management */}
+              <View style={newProdStyles.customSpecsContainer}>
+                <View style={newProdStyles.customSpecsHeaderRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="options-outline" size={15} color="#0F172A" />
+                    <Text style={newProdStyles.customSpecsTitle}>Custom Specifications</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={newProdStyles.addSpecToggleBtn}
+                    onPress={() => setShowAddCustomSpec((prev) => !prev)}
+                    activeOpacity={0.7}
                   >
-                    <Text style={newProdStyles.selectBoxText}>{storage}</Text>
-                    <Ionicons name="chevron-down" size={16} color="#64748B" />
+                    <Ionicons name={showAddCustomSpec ? 'close' : 'add'} size={14} color="#0F172A" />
+                    <Text style={newProdStyles.addSpecToggleText}>{showAddCustomSpec ? 'Cancel' : '+ Add Spec'}</Text>
                   </TouchableOpacity>
                 </View>
 
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>
-                    Color <Text style={newProdStyles.asterisk}>*</Text>
-                  </Text>
-                  <TouchableOpacity
-                    style={newProdStyles.selectBox}
-                    onPress={() =>
-                      openPicker(
-                        'Select Color',
-                        [
-                          { label: 'Deep Purple', value: 'Deep Purple', color: '#4E3C56' },
-                          { label: 'Gold', value: 'Gold', color: '#F5E7D3' },
-                          { label: 'Silver', value: 'Silver', color: '#E2E4E7' },
-                          { label: 'Space Black', value: 'Space Black', color: '#2B2B2D' },
-                          { label: 'Blue', value: 'Blue', color: '#3B82F6' },
-                          { label: 'Midnight', value: 'Midnight', color: '#1E293B' },
-                        ],
-                        setColor
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={[newProdStyles.colorDotSmall, { backgroundColor: '#4E3C56' }]} />
-                      <Text style={newProdStyles.selectBoxText}>{color}</Text>
+                {/* Existing custom spec chips */}
+                {customSpecs.length > 0 && (
+                  <View style={newProdStyles.customSpecChipsWrap}>
+                    {customSpecs.map((cs) => (
+                      <View key={cs.id} style={newProdStyles.customSpecChip}>
+                        <Text style={newProdStyles.customSpecChipKey}>{cs.key}:</Text>
+                        <Text style={newProdStyles.customSpecChipVal} numberOfLines={1}>
+                          {cs.value}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveCustomSpec(cs.id)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          style={newProdStyles.customSpecChipDelete}
+                        >
+                          <Ionicons name="close" size={12} color="#DC2626" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Add Custom Spec Inline Form */}
+                {showAddCustomSpec && (
+                  <View style={newProdStyles.addCustomSpecBox}>
+                    <View style={newProdStyles.gridRow}>
+                      <View style={newProdStyles.gridItem}>
+                        <Text style={newProdStyles.inputLabelSmall}>Spec Name / Key</Text>
+                        <TextInput
+                          style={newProdStyles.textInputBoxSmall}
+                          placeholder="e.g. Warranty, Motor Power, Lens Mount"
+                          placeholderTextColor="#94A3B8"
+                          value={newCustomKey}
+                          onChangeText={setNewCustomKey}
+                        />
+                      </View>
+                      <View style={newProdStyles.gridItem}>
+                        <Text style={newProdStyles.inputLabelSmall}>Value</Text>
+                        <TextInput
+                          style={newProdStyles.textInputBoxSmall}
+                          placeholder="e.g. 6 Months, 450 km, E-mount"
+                          placeholderTextColor="#94A3B8"
+                          value={newCustomVal}
+                          onChangeText={setNewCustomVal}
+                        />
+                      </View>
                     </View>
-                    <Ionicons name="chevron-down" size={16} color="#64748B" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Row 2: Condition & Battery Health */}
-              <View style={newProdStyles.gridRow}>
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>
-                    Condition <Text style={newProdStyles.asterisk}>*</Text>
-                  </Text>
-                  <TouchableOpacity
-                    style={newProdStyles.selectBox}
-                    onPress={() =>
-                      openPicker(
-                        'Select Condition',
-                        [
-                          { label: 'Excellent', value: 'Excellent' },
-                          { label: 'Good', value: 'Good' },
-                          { label: 'Fair', value: 'Fair' },
-                          { label: 'Like New', value: 'Like New' },
-                        ],
-                        setCondition
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <Text style={newProdStyles.selectBoxText}>{condition}</Text>
-                    <Ionicons name="chevron-down" size={16} color="#64748B" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>Battery Health</Text>
-                  <TouchableOpacity
-                    style={newProdStyles.selectBox}
-                    onPress={() =>
-                      openPicker(
-                        'Select Battery Health',
-                        [
-                          { label: 'Above 85%', value: 'Above 85%' },
-                          { label: '90%+', value: '90%+' },
-                          { label: '100% (New Battery)', value: '100%' },
-                          { label: '80% - 85%', value: '80% - 85%' },
-                        ],
-                        setBatteryHealth
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <Text style={newProdStyles.selectBoxText}>{batteryHealth}</Text>
-                    <Ionicons name="chevron-down" size={16} color="#64748B" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Row 3: Box & Accessories + IMEI */}
-              <View style={newProdStyles.gridRow}>
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>Box & Accessories</Text>
-                  <TouchableOpacity
-                    style={newProdStyles.selectBox}
-                    onPress={() =>
-                      openPicker(
-                        'Box & Accessories',
-                        [
-                          { label: 'With charger & cable', value: 'With charger & cable' },
-                          { label: 'With original box & accessories', value: 'With original box & accessories' },
-                          { label: 'Device only', value: 'Device only' },
-                        ],
-                        setBoxAccessories
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <Text style={newProdStyles.selectBoxText} numberOfLines={1}>
-                      {boxAccessories}
-                    </Text>
-                    <Ionicons name="chevron-down" size={16} color="#64748B" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>IMEI (Optional)</Text>
-                  <TextInput
-                    style={newProdStyles.textInputBox}
-                    value={imei}
-                    onChangeText={setImei}
-                    placeholder="Enter IMEI number"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
+                    <TouchableOpacity
+                      style={newProdStyles.addCustomSpecSubmitBtn}
+                      onPress={handleAddCustomSpec}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="checkmark" size={14} color="#0F172A" style={{ marginRight: 4 }} />
+                      <Text style={newProdStyles.addCustomSpecSubmitText}>Save Specification</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
 
               {/* Additional Details: Description with character count */}
@@ -1069,75 +1197,155 @@ export default function AddProductModal({
             <View style={newProdStyles.sectionBox}>
               <Text style={newProdStyles.sectionHeaderTitle}>4. Pricing & Stock</Text>
 
-              <View style={newProdStyles.gridRow}>
-                {/* Selling Price */}
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>
-                    Selling Price <Text style={newProdStyles.asterisk}>*</Text>
-                  </Text>
-                  <TextInput
-                    style={newProdStyles.textInputBox}
-                    value={sellingPrice}
-                    onChangeText={setSellingPrice}
-                    keyboardType="numeric"
-                    placeholder="53999"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                {/* MRP */}
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>MRP</Text>
-                  <TextInput
-                    style={newProdStyles.textInputBox}
-                    value={mrp}
-                    onChangeText={setMrp}
-                    keyboardType="numeric"
-                    placeholder="74900"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-              </View>
-
-              <View style={newProdStyles.gridRow}>
-                {/* Discount (%) */}
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>Discount (%)</Text>
-                  <View style={newProdStyles.discountDisplayBox}>
-                    <Text style={newProdStyles.discountNumberText}>{discountPercent}</Text>
-                    <Text style={newProdStyles.discountPercentSymbol}>%</Text>
-                  </View>
-                </View>
-
-                {/* Stock Quantity */}
-                <View style={newProdStyles.gridItem}>
-                  <Text style={newProdStyles.inputLabel}>
-                    Stock Quantity <Text style={newProdStyles.asterisk}>*</Text>
-                  </Text>
-                  <View style={newProdStyles.stockStepperBox}>
-                    <TextInput
-                      style={newProdStyles.stockInputText}
-                      value={String(stock)}
-                      onChangeText={(t) => setStock(Math.max(0, parseInt(t, 10) || 0))}
-                      keyboardType="numeric"
-                    />
-                    <View style={newProdStyles.stepperArrowsCol}>
-                      <TouchableOpacity
-                        onPress={() => setStock((s) => s + 1)}
-                        style={newProdStyles.stepperArrowBtn}
-                      >
-                        <Ionicons name="chevron-up" size={14} color="#0F172A" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => setStock((s) => Math.max(0, s - 1))}
-                        style={newProdStyles.stepperArrowBtn}
-                      >
-                        <Ionicons name="chevron-down" size={14} color="#0F172A" />
-                      </TouchableOpacity>
+              {/* Best Price (COD Only) Option Switch */}
+              <View style={newProdStyles.bestPriceToggleCard}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Ionicons name="pricetag" size={16} color={isBestPrice ? '#059669' : '#0F172A'} />
+                    <Text style={newProdStyles.bestPriceToggleTitle}>Show "Best Price" (COD Only)</Text>
+                    <View style={newProdStyles.codPillBadge}>
+                      <Text style={newProdStyles.codPillBadgeText}>COD ONLY</Text>
                     </View>
                   </View>
+                  <Text style={newProdStyles.bestPriceToggleSubtitle}>
+                    Don't want to specify a fixed price? Enable this to display "Best Price" on storefront. Customers can order via Cash on Delivery (COD) only.
+                  </Text>
                 </View>
+                <Switch
+                  value={isBestPrice}
+                  onValueChange={(val) => {
+                    setIsBestPrice(val);
+                    if (val) {
+                      setSellingPrice('');
+                      setMrp('');
+                    }
+                  }}
+                  trackColor={{ false: '#CBD5E1', true: '#86EFAC' }}
+                  thumbColor={isBestPrice ? '#16A34A' : '#FFFFFF'}
+                />
               </View>
+
+              {isBestPrice ? (
+                <>
+                  <View style={newProdStyles.bestPriceActiveBanner}>
+                    <Ionicons name="checkmark-circle" size={18} color="#047857" style={{ marginRight: 8, marginTop: 1 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={newProdStyles.bestPriceActiveTitle}>Best Price Mode Enabled</Text>
+                      <Text style={newProdStyles.bestPriceActiveDesc}>
+                        Fixed price is hidden. The product will display "Best Price" on storefront and orders will only be accepted via Cash on Delivery (COD).
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={newProdStyles.gridRow}>
+                    {/* Stock Quantity */}
+                    <View style={newProdStyles.gridItem}>
+                      <Text style={newProdStyles.inputLabel}>
+                        Stock Quantity <Text style={newProdStyles.asterisk}>*</Text>
+                      </Text>
+                      <View style={newProdStyles.stockStepperBox}>
+                        <TextInput
+                          style={newProdStyles.stockInputText}
+                          value={stock}
+                          onChangeText={(t) => setStock(t.replace(/[^0-9]/g, ''))}
+                          keyboardType="numeric"
+                          placeholder="1"
+                          placeholderTextColor="#94A3B8"
+                        />
+                        <View style={newProdStyles.stepperArrowsCol}>
+                          <TouchableOpacity
+                            onPress={() => setStock((s) => String((parseInt(s, 10) || 0) + 1))}
+                            style={newProdStyles.stepperArrowBtn}
+                          >
+                            <Ionicons name="chevron-up" size={14} color="#0F172A" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setStock((s) => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))}
+                            style={newProdStyles.stepperArrowBtn}
+                          >
+                            <Ionicons name="chevron-down" size={14} color="#0F172A" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={newProdStyles.gridItem} />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={newProdStyles.gridRow}>
+                    {/* Selling Price */}
+                    <View style={newProdStyles.gridItem}>
+                      <Text style={newProdStyles.inputLabel}>
+                        Selling Price <Text style={newProdStyles.asterisk}>*</Text>
+                      </Text>
+                      <TextInput
+                        style={newProdStyles.textInputBox}
+                        value={sellingPrice}
+                        onChangeText={setSellingPrice}
+                        keyboardType="numeric"
+                        placeholder="e.g. 45000"
+                        placeholderTextColor="#94A3B8"
+                      />
+                    </View>
+
+                    {/* MRP */}
+                    <View style={newProdStyles.gridItem}>
+                      <Text style={newProdStyles.inputLabel}>MRP</Text>
+                      <TextInput
+                        style={newProdStyles.textInputBox}
+                        value={mrp}
+                        onChangeText={setMrp}
+                        keyboardType="numeric"
+                        placeholder="e.g. 59900"
+                        placeholderTextColor="#94A3B8"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={newProdStyles.gridRow}>
+                    {/* Discount (%) */}
+                    <View style={newProdStyles.gridItem}>
+                      <Text style={newProdStyles.inputLabel}>Discount (%)</Text>
+                      <View style={newProdStyles.discountDisplayBox}>
+                        <Text style={newProdStyles.discountNumberText}>{discountPercent}</Text>
+                        <Text style={newProdStyles.discountPercentSymbol}>%</Text>
+                      </View>
+                    </View>
+
+                    {/* Stock Quantity */}
+                    <View style={newProdStyles.gridItem}>
+                      <Text style={newProdStyles.inputLabel}>
+                        Stock Quantity <Text style={newProdStyles.asterisk}>*</Text>
+                      </Text>
+                      <View style={newProdStyles.stockStepperBox}>
+                        <TextInput
+                          style={newProdStyles.stockInputText}
+                          value={stock}
+                          onChangeText={(t) => setStock(t.replace(/[^0-9]/g, ''))}
+                          keyboardType="numeric"
+                          placeholder="1"
+                          placeholderTextColor="#94A3B8"
+                        />
+                        <View style={newProdStyles.stepperArrowsCol}>
+                          <TouchableOpacity
+                            onPress={() => setStock((s) => String((parseInt(s, 10) || 0) + 1))}
+                            style={newProdStyles.stepperArrowBtn}
+                          >
+                            <Ionicons name="chevron-up" size={14} color="#0F172A" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setStock((s) => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))}
+                            style={newProdStyles.stepperArrowBtn}
+                          >
+                            <Ionicons name="chevron-down" size={14} color="#0F172A" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
 
 
@@ -1223,11 +1431,13 @@ export default function AddProductModal({
                 </View>
 
                 {/* Details */}
-                <Text style={newProdStyles.previewTitleText}>{productName || 'Apple iPhone 14 Pro'}</Text>
+                <Text style={newProdStyles.previewTitleText}>{productName || 'Product Name'}</Text>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 6 }}>
                   <View style={newProdStyles.previewConditionPill}>
-                    <Text style={newProdStyles.previewConditionText}>Pre-Owned • {condition}</Text>
+                    <Text style={newProdStyles.previewConditionText}>
+                      Pre-Owned • {specValues.condition || 'Excellent'}
+                    </Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Ionicons name="star" size={12} color="#F59E0B" />
@@ -1235,60 +1445,75 @@ export default function AddProductModal({
                   </View>
                 </View>
 
-                {/* Price */}
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-                  <Text style={newProdStyles.previewPriceText}>
-                    ₹{Number(sellingPrice || 53999).toLocaleString('en-IN')}
-                  </Text>
-                  {mrp ? (
-                    <Text style={newProdStyles.previewMrpText}>
-                      ₹{Number(mrp).toLocaleString('en-IN')}
-                    </Text>
-                  ) : null}
-                  <View style={newProdStyles.previewDiscountPill}>
-                    <Text style={newProdStyles.previewDiscountText}>{discountPercent}% OFF</Text>
+                {/* Price or Best Price */}
+                {isBestPrice ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <View style={newProdStyles.previewBestPriceBadge}>
+                      <Ionicons name="pricetag" size={13} color="#047857" style={{ marginRight: 4 }} />
+                      <Text style={newProdStyles.previewBestPriceText}>Best Price</Text>
+                    </View>
+                    <View style={newProdStyles.previewCodPill}>
+                      <Ionicons name="cash-outline" size={12} color="#92400E" style={{ marginRight: 4 }} />
+                      <Text style={newProdStyles.previewCodPillText}>COD Only</Text>
+                    </View>
                   </View>
-                </View>
-                <Text style={newProdStyles.previewTaxesSub}>Inclusive of all taxes</Text>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+                    <Text style={newProdStyles.previewPriceText}>
+                      ₹{Number(sellingPrice || 0).toLocaleString('en-IN')}
+                    </Text>
+                    {mrp ? (
+                      <Text style={newProdStyles.previewMrpText}>
+                        ₹{Number(mrp).toLocaleString('en-IN')}
+                      </Text>
+                    ) : null}
+                    {discountPercent > 0 && (
+                      <View style={newProdStyles.previewDiscountPill}>
+                        <Text style={newProdStyles.previewDiscountText}>{discountPercent}% OFF</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+                <Text style={newProdStyles.previewTaxesSub}>
+                  {isBestPrice ? 'Deal confirmed upon doorstep inspection' : 'Inclusive of all taxes'}
+                </Text>
 
-                {/* Storage pill preview */}
-                <Text style={newProdStyles.previewSectionLabel}>Storage</Text>
-                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
-                  {['128 GB', '256 GB', '512 GB'].map((sz) => (
-                    <View
-                      key={sz}
-                      style={[
-                        newProdStyles.previewStoragePill,
-                        storage === sz && newProdStyles.previewStoragePillActive,
-                      ]}
-                    >
-                      <Text style={[newProdStyles.previewStorageText, storage === sz && { fontWeight: '800' }]}>
-                        {sz}
+                {/* Category-Specific Dynamic Highlights */}
+                <Text style={newProdStyles.previewSectionLabel}>
+                  {category === 'Vehicles'
+                    ? 'Vehicle Highlights'
+                    : category === 'Cameras'
+                    ? 'Camera Specifications'
+                    : category === 'Laptops'
+                    ? 'Hardware Configuration'
+                    : category === 'Audio'
+                    ? 'Audio Features'
+                    : category === 'Watches'
+                    ? 'Watch Features'
+                    : 'Key Specifications'}
+                </Text>
+
+                <View style={newProdStyles.previewHighlightsGrid}>
+                  {currentCategoryConfig.previewHighlights.map((hl) => {
+                    const val = specValues[hl.fieldId];
+                    if (!val) return null;
+                    return (
+                      <View key={hl.fieldId} style={newProdStyles.previewHighlightPill}>
+                        <Text style={newProdStyles.previewHighlightKey}>{hl.label}:</Text>
+                        <Text style={newProdStyles.previewHighlightVal} numberOfLines={1}>
+                          {val}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                  {specValues.color ? (
+                    <View style={newProdStyles.previewHighlightPill}>
+                      <Text style={newProdStyles.previewHighlightKey}>Color:</Text>
+                      <Text style={newProdStyles.previewHighlightVal} numberOfLines={1}>
+                        {specValues.color}
                       </Text>
                     </View>
-                  ))}
-                </View>
-
-                {/* Color swatches preview */}
-                <Text style={newProdStyles.previewSectionLabel}>Color</Text>
-                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-                  {[
-                    { name: 'Deep Purple', hex: '#4E3C56' },
-                    { name: 'Gold', hex: '#F5E7D3' },
-                    { name: 'Silver', hex: '#E2E4E7' },
-                    { name: 'Space Black', hex: '#2B2B2D' },
-                  ].map((c) => (
-                    <View key={c.name} style={{ alignItems: 'center' }}>
-                      <View
-                        style={[
-                          newProdStyles.previewSwatchCircle,
-                          { backgroundColor: c.hex },
-                          color === c.name && { borderColor: '#FACC15', borderWidth: 2 },
-                        ]}
-                      />
-                      <Text style={newProdStyles.previewSwatchLabel}>{c.name}</Text>
-                    </View>
-                  ))}
+                  ) : null}
                 </View>
 
                 {/* Buttons */}
@@ -1354,8 +1579,7 @@ export default function AddProductModal({
                     const isSelected =
                       (pickerModal.title.includes('Brand') && brand === opt.value) ||
                       (pickerModal.title.includes('Category') && category === opt.value) ||
-                      (pickerModal.title.includes('Storage') && storage === opt.value) ||
-                      (pickerModal.title.includes('Condition') && condition === opt.value);
+                      Object.values(specValues).includes(opt.value);
                     return (
                       <TouchableOpacity
                         key={opt.value}
@@ -1530,7 +1754,7 @@ export default function AddProductModal({
 const newProdStyles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F8F6',
   },
   topBar: {
     flexDirection: 'row',
@@ -1540,7 +1764,7 @@ const newProdStyles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E5E7EB',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -1608,10 +1832,15 @@ const newProdStyles = StyleSheet.create({
   topBarSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FACC15',
-    paddingHorizontal: 12,
+    backgroundColor: '#168A4A',
+    paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 16,
+    shadowColor: '#168A4A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   topBarSaveBtnDisabled: {
     backgroundColor: '#E2E8F0',
@@ -1619,7 +1848,7 @@ const newProdStyles = StyleSheet.create({
   topBarSaveText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#FFFFFF',
   },
   topBarCloseBtn: {
     width: 32,
@@ -1680,10 +1909,10 @@ const newProdStyles = StyleSheet.create({
     marginBottom: 4,
   },
   stepCircleActive: {
-    backgroundColor: '#FACC15',
+    backgroundColor: '#168A4A',
   },
   stepCirclePassed: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#0B6B3A',
   },
   stepNumber: {
     fontSize: 11,
@@ -1691,7 +1920,7 @@ const newProdStyles = StyleSheet.create({
     color: '#64748B',
   },
   stepNumberActive: {
-    color: '#000000',
+    color: '#FFFFFF',
   },
   stepNumberPassed: {
     color: '#FFFFFF',
@@ -1702,7 +1931,7 @@ const newProdStyles = StyleSheet.create({
     fontWeight: '500',
   },
   stepLabelActive: {
-    color: '#0F172A',
+    color: '#0B6B3A',
     fontWeight: '700',
   },
   stepConnectingLine: {
@@ -1713,7 +1942,7 @@ const newProdStyles = StyleSheet.create({
     marginHorizontal: 4,
   },
   stepConnectingLineActive: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#168A4A',
   },
 
   // Section Box
@@ -1755,8 +1984,8 @@ const newProdStyles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   photoCountBadgeActive: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FDE047',
+    backgroundColor: '#E8F7ED',
+    borderColor: '#D4EBDC',
   },
   photoCountDot: {
     width: 6,
@@ -1766,7 +1995,7 @@ const newProdStyles = StyleSheet.create({
     marginRight: 6,
   },
   photoCountDotActive: {
-    backgroundColor: '#CA8A04',
+    backgroundColor: '#168A4A',
   },
   photoCountText: {
     fontSize: 11,
@@ -1809,7 +2038,7 @@ const newProdStyles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    borderColor: '#D4EBDC',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1820,13 +2049,15 @@ const newProdStyles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#FEF08A',
+    backgroundColor: '#E8F7ED',
+    borderWidth: 1,
+    borderColor: '#D4EBDC',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
-    shadowColor: '#CA8A04',
+    shadowColor: '#168A4A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -1874,18 +2105,18 @@ const newProdStyles = StyleSheet.create({
     left: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF08A',
+    backgroundColor: '#E8F7ED',
     paddingHorizontal: 6,
     paddingVertical: 2.5,
     borderRadius: 6,
     gap: 3,
     borderWidth: 1,
-    borderColor: '#FDE047',
+    borderColor: '#D4EBDC',
   },
   cardCoverBadgeText: {
     fontSize: 9,
     fontWeight: '900',
-    color: '#0F172A',
+    color: '#0B6B3A',
     letterSpacing: 0.2,
   },
   cardIndexBadge: {
@@ -2260,14 +2491,19 @@ const newProdStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FACC15',
+    backgroundColor: '#168A4A',
     borderRadius: 12,
     paddingVertical: 12,
+    shadowColor: '#168A4A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   publishProductText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#000000',
+    color: '#FFFFFF',
   },
 
   // RIGHT PREVIEW COLUMN
@@ -2375,36 +2611,162 @@ const newProdStyles = StyleSheet.create({
     color: '#0F172A',
     marginBottom: 4,
   },
-  previewStoragePill: {
+  previewHighlightsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  previewHighlightPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 6,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
-  previewStoragePillActive: {
-    borderColor: '#FACC15',
-    backgroundColor: '#FEFCE8',
-  },
-  previewStorageText: {
+  previewHighlightKey: {
     fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  previewHighlightVal: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#0F172A',
   },
-  previewSwatchCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    marginBottom: 2,
+  categorySpecBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#E8F7ED',
+    borderWidth: 1,
+    borderColor: '#D4EBDC',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
-  previewSwatchLabel: {
-    fontSize: 8.5,
+  categorySpecBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0B6B3A',
+  },
+  customSpecsContainer: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  customSpecsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  customSpecsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  addSpecToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  addSpecToggleText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  customSpecChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  customSpecChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    gap: 4,
+    maxWidth: '100%',
+  },
+  customSpecChipKey: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  customSpecChipVal: {
+    fontSize: 11,
+    color: '#0F172A',
+    fontWeight: '600',
+    maxWidth: 160,
+  },
+  customSpecChipDelete: {
+    marginLeft: 4,
+    padding: 2,
+  },
+  addCustomSpecBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  inputLabelSmall: {
+    fontSize: 11,
+    fontWeight: '600',
     color: '#64748B',
+    marginBottom: 4,
+  },
+  textInputBoxSmall: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    color: '#0F172A',
+    backgroundColor: '#FFFFFF',
+  },
+  addCustomSpecSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#168A4A',
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 10,
+    shadowColor: '#168A4A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  addCustomSpecSubmitText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   previewCartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FACC15',
+    backgroundColor: '#FFC400',
     borderRadius: 20,
     paddingVertical: 9,
     marginTop: 8,
@@ -2412,7 +2774,7 @@ const newProdStyles = StyleSheet.create({
   previewCartBtnText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#000000',
+    color: '#111111',
   },
   previewWishlistBtn: {
     flexDirection: 'row',
@@ -2525,5 +2887,92 @@ const newProdStyles = StyleSheet.create({
   selectedBrandLogoImg: {
     width: '100%',
     height: '100%',
+  },
+  bestPriceToggleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  bestPriceToggleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  codPillBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  codPillBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#92400E',
+    letterSpacing: 0.3,
+  },
+  bestPriceToggleSubtitle: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  bestPriceActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
+  },
+  bestPriceActiveTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#047857',
+    marginBottom: 2,
+  },
+  bestPriceActiveDesc: {
+    fontSize: 11.5,
+    color: '#065F46',
+    lineHeight: 16,
+  },
+  previewBestPriceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  previewBestPriceText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  previewCodPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  previewCodPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
   },
 });

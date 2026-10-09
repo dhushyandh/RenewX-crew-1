@@ -102,6 +102,7 @@ import SecurityScreen from '@/screens/SecurityScreen';
 import EditProfileScreen from '@/screens/EditProfileScreen';
 import OnboardingProfileScreen from '@/screens/OnboardingProfileScreen';
 import CategoriesScreen from '@/screens/CategoriesScreen';
+import AllProductsScreen from '@/screens/AllProductsScreen';
 import ManageAddressesScreen from '@/screens/ManageAddressesScreen';
 import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
@@ -120,6 +121,7 @@ export type RootStackParamList = {
   ResetPassword: { token?: string; email?: string } | undefined;
   MainTabs: { screen?: keyof TabParamList; params?: any } | undefined;
   Categories: { category?: string } | undefined;
+  AllProducts: { category?: string; brand?: string; search?: string } | undefined;
   Shop: { category?: string; brand?: string; _t?: number } | undefined;
   ProductDetail: { product?: Product; id?: string };
   Search: undefined;
@@ -243,6 +245,10 @@ export const linking: LinkingOptions<RootStackParamList> = {
     if (normalized.includes('token=') && (normalized.startsWith('/forgot-password') || normalized.startsWith('forgot-password'))) {
       normalized = normalized.replace(/^\/?forgot-password/, '/reset-password');
     }
+    // Support /allproducts and /all-products aliases for /products
+    if (normalized.startsWith('/allproducts') || normalized.startsWith('/all-products')) {
+      normalized = normalized.replace(/^\/(allproducts|all-products)/, '/products');
+    }
     return getStateFromPath(normalized, options);
   },
   config: {
@@ -253,13 +259,14 @@ export const linking: LinkingOptions<RootStackParamList> = {
       MainTabs: {
         screens: {
           Home: '',
+          Categories: 'categories',
           Shop: 'shop',
           Sell: 'sell',
           Track: 'track',
           Account: 'account',
         },
       } as any,
-      Categories: 'categories',
+      AllProducts: 'products',
       ProductDetail: 'product/:id',
       Search: 'search',
       Wishlist: 'wishlist',
@@ -294,10 +301,11 @@ export const linking: LinkingOptions<RootStackParamList> = {
 
 export type TabParamList = {
   Home: undefined;
-  Shop: { category?: string; brand?: string; _t?: number } | undefined;
+  Categories: { category?: string } | undefined;
   Sell: undefined;
   Track: { type?: 'orders' | 'sell_requests'; id?: string } | undefined;
   Account: undefined;
+  Shop: { category?: string; brand?: string; search?: string; _t?: number } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -318,11 +326,14 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
   const TAB_CONFIG: Record<string, { active: any; inactive: any; label: string }> = {
     Home: { active: 'home', inactive: 'home-outline', label: t('tab_home', 'Home') },
-    Shop: { active: 'grid', inactive: 'grid-outline', label: t('tab_shop', 'Categories') },
-    Sell: { active: 'pricetag', inactive: 'pricetag', label: t('tab_sell', 'Sell') },
+    Categories: { active: 'grid', inactive: 'grid-outline', label: t('tab_categories', 'Categories') },
     Track: { active: 'cube', inactive: 'cube-outline', label: t('tab_orders', 'Orders') },
     Account: { active: 'person', inactive: 'person-outline', label: t('tab_account', 'Profile') },
+    Sell: { active: 'pricetag', inactive: 'pricetag-outline', label: t('tab_sell', 'Sell') },
   };
+
+  const mainRoutes = state.routes.filter((r) => r.name !== 'Sell' && r.name !== 'Shop');
+  const sellRoute = state.routes.find((r) => r.name === 'Sell');
 
   return (
     <View
@@ -356,106 +367,144 @@ function ModernRoundedTabBar({ state, descriptors, navigation }: BottomTabBarPro
         </TouchableOpacity>
       )}
 
-      {/* Unified Floating Navbar with Scooped Top Edge & Center Floating Action */}
-      <View style={styles.curvedNavBarContainer}>
-        {/* SVG Scooped Pill Background */}
-        <Svg
-          width="100%"
-          height={68}
-          viewBox="0 0 400 68"
-          preserveAspectRatio="none"
-          style={StyleSheet.absoluteFill}
-        >
-          <Path
-            d="M 34 0 L 160 0 C 172 0, 175 16, 184 22 C 192 27, 208 27, 216 22 C 225 16, 228 0, 240 0 L 366 0 A 34 34 0 0 1 400 34 A 34 34 0 0 1 366 68 L 34 68 A 34 34 0 0 1 0 34 A 34 34 0 0 1 34 0 Z"
-            fill="#FFFFFF"
-            stroke="#F1F5F9"
-            strokeWidth={1.5}
+      <View style={styles.floatingNavRow}>
+        {/* 1. Main Navbar Capsule with Home, Categories, Orders, Profile */}
+        <View style={styles.floatingMainCapsule}>
+          <BlurView
+            intensity={85}
+            tint="light"
+            style={[
+              StyleSheet.absoluteFill,
+              styles.floatingBlurBackground,
+              Platform.OS === 'web'
+                ? ({
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                  } as any)
+                : undefined,
+            ]}
           />
-        </Svg>
 
-        {/* 5 Tab Items Row */}
-        <View style={styles.curvedNavRow}>
-          {state.routes.map((route, routeIndex) => {
-            const isFocused = state.index === routeIndex;
-            const config = TAB_CONFIG[route.name] || {
-              active: 'ellipse',
-              inactive: 'ellipse-outline',
-              label: route.name,
-            };
+          <View style={styles.floatingCapsuleRow}>
+            {mainRoutes.map((route) => {
+              const routeIndex = state.routes.findIndex((r) => r.key === route.key);
+              const isFocused = state.index === routeIndex;
+              const config = TAB_CONFIG[route.name] || {
+                active: 'ellipse',
+                inactive: 'ellipse-outline',
+                label: route.name,
+              };
 
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
+              const onPress = () => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
 
-              if (!event.defaultPrevented) {
-                if (!isFocused) {
-                  navigation.navigate(route.name);
+                if (!event.defaultPrevented) {
+                  if (!isFocused) {
+                    navigation.navigate(route.name);
+                  }
+                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+                  }
                 }
-                if (Platform.OS === 'web' && typeof window !== 'undefined') {
-                  window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
-                }
-              }
-            };
+              };
 
-            // Center Tab: Elevated Circular Golden Yellow "Sell" Button
-            if (route.name === 'Sell') {
               return (
                 <TouchableOpacity
                   key={route.key}
                   onPress={onPress}
-                  activeOpacity={0.85}
-                  style={styles.centerSellTabWrapper}
+                  activeOpacity={0.78}
+                  style={[
+                    styles.floatingTabItem,
+                    isFocused && styles.floatingTabItemActive,
+                  ]}
                   accessibilityRole="button"
                   accessibilityState={isFocused ? { selected: true } : {}}
-                  accessibilityLabel="Sell device for cash"
+                  accessibilityLabel={config.label}
                 >
-                  <View style={[styles.centerSellCircle, isFocused && styles.centerSellCircleActive]}>
+                  <View style={styles.floatingIconBox}>
                     <Ionicons
-                      name="pricetag"
-                      size={24}
-                      color="#000000"
-                      style={{ transform: [{ rotate: '-45deg' }] }}
+                      name={isFocused ? config.active : config.inactive}
+                      size={20}
+                      color={isFocused ? '#000000' : '#64748B'}
                     />
                   </View>
-                  <Text style={[styles.centerSellLabel, isFocused && styles.centerSellLabelActive]}>
+                  <Text style={[styles.floatingTabLabel, isFocused && styles.floatingTabLabelActive]}>
                     {config.label}
                   </Text>
-                  {isFocused && <View style={styles.centerSellDot} />}
+                  {isFocused && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: -3,
+                        width: 5,
+                        height: 5,
+                        borderRadius: 2.5,
+                        backgroundColor: '#F59E0B',
+                      }}
+                    />
+                  )}
                 </TouchableOpacity>
               );
-            }
-
-            // Normal Tabs: Home, Categories, Orders, Profile
-            return (
-              <TouchableOpacity
-                key={route.key}
-                onPress={onPress}
-                activeOpacity={0.8}
-                style={styles.regularTabItem}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={config.label}
-              >
-                {isFocused ? (
-                  <View style={styles.activePillContainer}>
-                    <Ionicons name={config.active} size={20} color="#000000" />
-                    <Text style={styles.activePillLabel}>{config.label}</Text>
-                    <View style={styles.activePillDot} />
-                  </View>
-                ) : (
-                  <View style={styles.inactiveTabContainer}>
-                    <Ionicons name={config.inactive} size={22} color="#334155" />
-                    <Text style={styles.inactiveTabLabel}>{config.label}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+            })}
+          </View>
         </View>
+
+        {/* 2. Separate Rounded Button for Sell */}
+        {sellRoute && (() => {
+          const sellIndex = state.routes.findIndex((r) => r.key === sellRoute.key);
+          const isSellFocused = state.index === sellIndex;
+
+          const onSellPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: sellRoute.key,
+              canPreventDefault: true,
+            });
+
+            if (!event.defaultPrevented) {
+              if (!isSellFocused) {
+                navigation.navigate('Sell');
+              }
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+              }
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              key={sellRoute.key}
+              onPress={onSellPress}
+              activeOpacity={0.85}
+              style={styles.floatingSellSeparateBtn}
+              accessibilityRole="button"
+              accessibilityState={isSellFocused ? { selected: true } : {}}
+              accessibilityLabel="Sell device for cash"
+            >
+              <View style={styles.sellSparkleTopRight}>
+                <Text style={styles.sparkleChar}>✨</Text>
+              </View>
+              <View style={styles.sellSparkleBottomLeft}>
+                <Text style={styles.sparkleChar}>✨</Text>
+              </View>
+              <View style={[styles.floatingSellCircle, isSellFocused && styles.floatingSellCircleActive]}>
+                <Ionicons
+                  name="pricetag"
+                  size={20}
+                  color="#000000"
+                  style={{ transform: [{ rotate: '-45deg' }] }}
+                />
+              </View>
+              <Text style={[styles.floatingSellLabel, isSellFocused && styles.floatingSellLabelActive]}>
+                {t('tab_sell', 'Sell')}
+              </Text>
+            </TouchableOpacity>
+          );
+        })()}
       </View>
     </View>
   );
@@ -470,10 +519,11 @@ function TabNavigator() {
       }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Shop" component={ShopScreen} />
-      <Tab.Screen name="Sell" component={SellScreen} />
+      <Tab.Screen name="Categories" component={CategoriesScreen} />
       <Tab.Screen name="Track" component={TrackScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
+      <Tab.Screen name="Sell" component={SellScreen} />
+      <Tab.Screen name="Shop" component={ShopScreen} />
     </Tab.Navigator>
   );
 }
@@ -687,6 +737,7 @@ function MainAppNavigation() {
                 const screenTitles: Record<string, string> = {
                   Home: 'RenewX | Certified Pre-Owned Electronics Marketplace',
                   Shop: 'Shop Certified Devices | RenewX',
+                  AllProducts: 'All Products | RenewX Marketplace',
                   Sell: 'Sell Your Device for Instant Cash | RenewX',
                   Track: 'Live Order Tracking | RenewX',
                   Account: 'My Account | RenewX',
@@ -720,12 +771,17 @@ function MainAppNavigation() {
               <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
               <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
               <Stack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
+              <Stack.Screen name="AllProducts" component={AllProductsScreen} />
+              <Stack.Screen name="Categories" component={CategoriesScreen} />
+              <Stack.Screen name="Shop" component={ShopScreen} />
             </Stack.Group>
           ) : (
             /* Main App Routes for Authenticated Users */
             <Stack.Group>
               <Stack.Screen name="MainTabs" component={TabNavigator} />
+              <Stack.Screen name="AllProducts" component={AllProductsScreen} />
               <Stack.Screen name="Categories" component={CategoriesScreen} />
+              <Stack.Screen name="Shop" component={ShopScreen} />
               <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
               <Stack.Screen name="Search" component={SearchScreen} />
               <Stack.Screen name="Wishlist" component={WishlistScreen} />
@@ -890,124 +946,127 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
-  curvedNavBarContainer: {
+  floatingNavRow: {
     width: '94%',
-    maxWidth: 440,
-    height: 68,
-    position: 'relative',
-    ...Platform.select({
-      web: {
-        filter: 'drop-shadow(0px 10px 28px rgba(15, 23, 42, 0.12)) drop-shadow(0px 2px 8px rgba(15, 23, 42, 0.05))',
-      },
-      default: {
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 18,
-        elevation: 12,
-      },
-    }),
-  },
-  curvedNavRow: {
+    maxWidth: 460,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 68,
-    paddingHorizontal: 8,
+    gap: 8,
   },
-  regularTabItem: {
+  floatingMainCapsule: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-  },
-  activePillContainer: {
-    backgroundColor: '#FEE588',
-    borderRadius: 26,
-    paddingHorizontal: 18,
-    paddingVertical: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 62,
     position: 'relative',
-    minWidth: 72,
-  },
-  activePillLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#000000',
-    fontFamily: renewxFontFamily.bold,
-    marginTop: 1,
-  },
-  activePillDot: {
-    position: 'absolute',
-    bottom: -4,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#F59E0B',
-  },
-  inactiveTabContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
-  },
-  inactiveTabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#334155',
-    fontFamily: renewxFontFamily.semibold,
-    marginTop: 3,
-  },
-  centerSellTabWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    position: 'relative',
-    zIndex: 10,
-  },
-  centerSellCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FACC15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -28,
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderRadius: renewxRadius.pill,
     ...Platform.select({
       web: {
-        boxShadow: '0 0 28px rgba(250, 204, 21, 0.7), 0 6px 16px rgba(234, 179, 8, 0.45)',
+        boxShadow: '0px 10px 30px rgba(15, 23, 42, 0.08)',
       },
       default: {
-        shadowColor: '#FACC15',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.75,
-        shadowRadius: 14,
-        elevation: 12,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        elevation: 8,
       },
     }),
   },
-  centerSellCircleActive: {
+  floatingBlurBackground: {
+    borderRadius: renewxRadius.pill,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  floatingCapsuleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    height: 62,
+    paddingHorizontal: 6,
+  },
+  floatingTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    borderRadius: renewxRadius.pill,
+    position: 'relative',
+  },
+  floatingTabItemActive: {
+    backgroundColor: '#FEF08A',
+    borderRadius: 20,
+    paddingHorizontal: 6,
+  },
+  floatingIconBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 22,
+  },
+  floatingTabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: renewxFontFamily.semibold,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  floatingTabLabelActive: {
+    color: '#000000',
+    fontWeight: '800',
+  },
+  floatingSellSeparateBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginLeft: 6,
+    paddingTop: 2,
+  },
+  floatingSellCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FACC15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    ...Platform.select({
+      web: { boxShadow: '0px 6px 18px rgba(250, 204, 21, 0.45)' },
+      default: {
+        shadowColor: '#FACC15',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.45,
+        shadowRadius: 8,
+        elevation: 8,
+      },
+    }),
+  },
+  floatingSellCircleActive: {
     backgroundColor: '#EAB308',
   },
-  centerSellLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
+  floatingSellLabel: {
+    fontSize: 10.5,
+    fontWeight: '800',
     fontFamily: renewxFontFamily.bold,
-    marginTop: 3,
+    color: '#0F172A',
+    marginTop: 2,
   },
-  centerSellLabelActive: {
+  floatingSellLabelActive: {
     color: '#000000',
     fontWeight: '900',
   },
-  centerSellDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#F59E0B',
-    marginTop: 2,
+  sellSparkleTopRight: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+  },
+  sellSparkleBottomLeft: {
+    position: 'absolute',
+    bottom: 12,
+    left: -4,
+  },
+  sparkleChar: {
+    fontSize: 10,
   },
 });

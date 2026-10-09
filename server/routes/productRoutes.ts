@@ -7,6 +7,7 @@ import {
   deleteProduct,
   getLowStockAlerts,
 } from '../controllers/productController';
+import { renderProductPreview } from '../controllers/productPreviewController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { validateProductInput, validateProductUpdate } from '../models/Product';
@@ -16,6 +17,7 @@ const router = Router();
 
 router.get('/', cacheResponse(60, 'products'), getProducts);
 router.get('/alerts/low-stock', authenticateToken, requireAdmin, getLowStockAlerts);
+router.get('/:id/preview', renderProductPreview);
 router.get('/:id', cacheResponse(60, 'product'), getProductById);
 
 router.post(

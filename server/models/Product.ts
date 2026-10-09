@@ -8,6 +8,7 @@ export interface Product {
   category: string;
   original_price: number;
   price: number;
+  is_best_price?: boolean;
   condition: string;
   warranty_months: number;
   image_url: string;
@@ -28,6 +29,7 @@ export interface IProduct {
   category: string;
   original_price: number;
   price: number;
+  is_best_price?: boolean;
   condition: string;
   warranty_months: number;
   image_url: string;
@@ -46,8 +48,9 @@ export interface CreateProductDTO {
   brand: string;
   model?: string;
   category: string;
-  original_price: number;
-  price: number;
+  original_price?: number;
+  price?: number;
+  is_best_price?: boolean;
   condition?: string;
   warranty_months?: number;
   image_url?: string;
@@ -87,10 +90,14 @@ const validateCommon = (data: any, partial = false): string[] => {
     if (typeof data.category !== 'string' || !data.category.trim()) errors.push('Category is required');
   }
 
+  const isBestPrice = Boolean(data.is_best_price ?? data.isBestPrice);
   for (const field of ['price', 'original_price'] as const) {
     if (!partial || data[field] !== undefined) {
+      if (isBestPrice && (data[field] === undefined || data[field] === null || data[field] === '' || data[field] === 0 || data[field] === '0')) {
+        continue;
+      }
       const value = toNumber(data[field]);
-      if (value === null || value <= 0) errors.push(`${field} must be greater than zero`);
+      if (!isBestPrice && (value === null || value <= 0)) errors.push(`${field} must be greater than zero`);
     }
   }
 
@@ -136,6 +143,7 @@ export function validateProductUpdate(data: any): { valid: boolean; errors: stri
     'price', 'condition', 'warranty_months', 'warrantyMonths',
     'image_url', 'image', 'images', 'rating', 'reviews', 'stock',
     'description', 'specs', 'id', '_id', '_uuid',
+    'is_best_price', 'isBestPrice',
   ]);
   if (data && typeof data === 'object') {
     const unknown = Object.keys(data).filter((key) => !allowed.has(key));
@@ -150,8 +158,9 @@ const ProductSchema = new Schema<IProduct>(
     brand: { type: String, required: true, trim: true, index: true },
     model: { type: String, trim: true, default: '' },
     category: { type: String, required: true, trim: true, index: true },
-    original_price: { type: Number, required: true, min: 0.01 },
-    price: { type: Number, required: true, min: 0.01, index: true },
+    original_price: { type: Number, default: 0, min: 0 },
+    price: { type: Number, default: 0, min: 0 },
+    is_best_price: { type: Boolean, default: false, index: true },
     condition: { type: String, required: true, trim: true, default: 'Like New' },
     warranty_months: { type: Number, min: 0, default: 12 },
     image_url: { type: String, default: '' },

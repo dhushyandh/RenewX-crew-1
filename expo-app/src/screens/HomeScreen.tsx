@@ -106,6 +106,20 @@ const SHOP_BY_CATEGORIES = [
     borderColor: '#BBF7D0',
   },
   {
+    id: 'Cameras',
+    label: 'Cameras',
+    image: CATEGORY_THIRD_PARTY_IMAGES.Cameras,
+    bg: '#FDF4FF',
+    borderColor: '#F0ABFC',
+  },
+  {
+    id: 'Vehicles',
+    label: 'Vehicles',
+    image: CATEGORY_THIRD_PARTY_IMAGES.Vehicles,
+    bg: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  {
     id: 'Accessories',
     label: 'Accessories',
     image: CATEGORY_THIRD_PARTY_IMAGES.Accessories,
@@ -371,10 +385,8 @@ export default function HomeScreen() {
       const data = await api.products.getAll({ limit: 100 });
       const rows = Array.isArray(data) ? data : [];
       const mapped = rows.map(mapProductRow);
-      if (mapped.length > 0) {
-        setProductList(mapped);
-        saveProductsCache(mapped);
-      }
+      setProductList(mapped);
+      saveProductsCache(mapped);
     } catch (error) {
       console.warn('[HomeScreen] Failed to fetch live products:', error);
     } finally {
@@ -874,13 +886,22 @@ export default function HomeScreen() {
 
                   {/* Price Row */}
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceText}>
-                      ₹{price.toLocaleString('en-IN')}
-                    </Text>
-                    {origPrice > price && (
-                      <Text style={styles.origPriceText}>
-                        ₹{origPrice.toLocaleString('en-IN')}
-                      </Text>
+                    {item.is_best_price || item.isBestPrice || price === 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
+                        <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>COD Only</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Text style={styles.priceText}>
+                          ₹{price.toLocaleString('en-IN')}
+                        </Text>
+                        {origPrice > price && (
+                          <Text style={styles.origPriceText}>
+                            ₹{origPrice.toLocaleString('en-IN')}
+                          </Text>
+                        )}
+                      </>
                     )}
                   </View>
 

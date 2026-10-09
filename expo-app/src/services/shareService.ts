@@ -4,10 +4,15 @@ import type { Product } from '@/types';
 
 /**
  * Resolves the canonical URL for a product across web and mobile.
+ * Uses EXPO_PUBLIC_SHARE_BASE_URL if configured, otherwise defaults to https://renewx.expo.app.
  */
 export function getProductShareUrl(productId: string): string {
   const cleanId = String(productId || '').trim();
-  return `https://renewx.expo.app/product/${cleanId}`;
+  const configuredBase =
+    (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_SHARE_BASE_URL?.trim()) ||
+    'https://renewx.expo.app';
+  const base = configuredBase.replace(/\/+$/, '');
+  return `${base}/product/${cleanId}`;
 }
 
 export interface ProductShareContent {
@@ -18,14 +23,28 @@ export interface ProductShareContent {
 }
 
 /**
- * Builds rich, enticing product share content with specs, pricing, and warranty.
+ * Helper to strip emojis from strings to maintain a clean, professional format.
+ */
+function stripEmojis(str: string): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * Builds clean, professional product share content without emojis.
+ * Formats the clean URL on its own line so WhatsApp and social scrapers immediately
+ * detect and generate the rich link preview card.
  */
 export function formatProductShareContent(product: Product): ProductShareContent {
-  const url = getProductShareUrl(String(product.id));
+  const url = getProductShareUrl(String(product.id || (product as any)._uuid || ''));
   const price = Number(product.price || 0).toLocaleString('en-IN');
   const originalPrice = product.originalPrice ? Number(product.originalPrice).toLocaleString('en-IN') : null;
-  const condition = product.condition || 'Certified Good';
-  const brand = product.brand ? `${product.brand} ` : '';
+  const condition = stripEmojis(product.condition || 'Certified Good');
+  const cleanName = stripEmojis(product.name || 'Certified Device');
+  const brand = product.brand ? `${stripEmojis(product.brand)} ` : '';
 
   const savings =
     product.originalPrice && product.originalPrice > (product.price || 0)
@@ -33,24 +52,29 @@ export function formatProductShareContent(product: Product): ProductShareContent
       : null;
 
   const lines = [
-    `Check out this certified pre-owned deal on RenewX:`,
-    `📱 ${brand}${product.name}`,
-    `✨ Condition: ${condition} • Tested & Verified`,
-    `💰 Price: ₹${price}${originalPrice ? ` (MRP ₹${originalPrice}${savings ? `, Save ₹${savings}` : ''})` : ''}`,
+    `${brand}${cleanName}`,
+    `Condition: ${condition}`,
+    `Price: ₹${price}${originalPrice ? ` (MRP: ₹${originalPrice}${savings ? `, Save: ₹${savings}` : ''})` : ''}`,
   ];
 
   if (Array.isArray(product.specs) && product.specs.length > 0) {
-    const topSpecs = product.specs.slice(0, 2).join(' • ');
-    lines.push(`⚙️ ${topSpecs}`);
+    const topSpecs = product.specs
+      .slice(0, 2)
+      .map((s) => stripEmojis(String(s)))
+      .filter(Boolean)
+      .join(' • ');
+    if (topSpecs) {
+      lines.push(`Specs: ${topSpecs}`);
+    }
   }
 
   lines.push('');
-  lines.push(`🛒 View details & order: ${url}`);
+  lines.push(url);
 
   const fullText = lines.join('\n');
 
   return {
-    title: `${product.name} on RenewX`,
+    title: `${cleanName} - ₹${price} | RenewX`,
     message: fullText,
     url,
     fullText,

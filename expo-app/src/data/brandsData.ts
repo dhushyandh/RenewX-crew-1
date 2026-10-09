@@ -248,6 +248,55 @@ export const initialBrands: BrandItem[] = [
     category: 'GAMING',
     description: 'Pioneering hybrid video game consoles and world-beloved interactive entertainment systems.',
   },
+  {
+    id: 'tesla',
+    name: 'Tesla',
+    logo: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Tesla_logo.png/960px-Tesla_logo.png',
+    category: 'VEHICLES',
+    description: 'Pioneering electric vehicles, autonomous autopilot software, and clean battery innovations.',
+  },
+  {
+    id: 'ather',
+    name: 'Ather Energy',
+    logo: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Ather_Energy_Logo.svg/960px-Ather_Energy_Logo.svg.png',
+    category: 'VEHICLES',
+    description: 'Smart connected electric scooters featuring Warp mode, touchscreen dashboard, and hypercharging.',
+  },
+  {
+    id: 'ola-electric',
+    name: 'Ola Electric',
+    logo: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Ola_Cabs_logo.svg/960px-Ola_Cabs_logo.svg.png',
+    category: 'VEHICLES',
+    description: 'High-speed EV scooters with MoveOS operating system, party mode, and extended long-range batteries.',
+  },
+  {
+    id: 'tata-ev',
+    name: 'Tata Motors',
+    logo: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Tata_logo.svg/960px-Tata_logo.svg.png',
+    category: 'VEHICLES',
+    description: 'Leading electric vehicles including Nexon EV, Punch EV, and Curvv EV with multi-star safety ratings.',
+  },
+  {
+    id: 'revolt',
+    name: 'Revolt Motors',
+    logo: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Revolt_Motors_Logo.png/960px-Revolt_Motors_Logo.png',
+    category: 'VEHICLES',
+    description: 'AI-enabled smart electric motorcycles with swappable lithium-ion battery architecture.',
+  },
+  {
+    id: 'royal-enfield',
+    name: 'Royal Enfield',
+    logo: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Royal_Enfield_logo.svg/960px-Royal_Enfield_logo.svg.png',
+    category: 'VEHICLES',
+    description: 'Legendary pure motorcycling heritage including Classic 350, Hunter 350, and Himalayan.',
+  },
+  {
+    id: 'tvs',
+    name: 'TVS Motor',
+    logo: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/TVS_Motor_Company_Logo.svg/960px-TVS_Motor_Company_Logo.svg.png',
+    category: 'VEHICLES',
+    description: 'Pioneers in Apache racing series and iQube smart electric family scooters.',
+  },
 ];
 
 export const initialModels: DeviceModelItem[] = [

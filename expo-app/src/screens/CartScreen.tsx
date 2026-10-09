@@ -121,6 +121,8 @@ export default function CartScreen() {
       originalPrice: item.originalPrice || Math.round(item.price * 1.38),
       discount: `${Math.round((((item.originalPrice || item.price * 1.38) - item.price) / (item.originalPrice || item.price * 1.38)) * 100)}% OFF`,
       quantity: item.quantity,
+      is_best_price: Boolean((item as any).is_best_price || (item as any).isBestPrice || item.price === 0),
+      isBestPrice: Boolean((item as any).is_best_price || (item as any).isBestPrice || item.price === 0),
       image:
         typeof (item.image || item.images?.[0]) === 'string' &&
         !(item.image || item.images?.[0]).includes('unsplash.com') &&
@@ -339,15 +341,24 @@ export default function CartScreen() {
 
                 {/* Right Price & Stepper Column */}
                 <View style={styles.priceStepperCol}>
-                  <Text style={styles.currentPriceText}>{formatMoney(item.price)}</Text>
-                  {item.originalPrice ? (
-                    <Text style={styles.originalPriceText}>{formatMoney(item.originalPrice)}</Text>
-                  ) : null}
-                  {item.discount ? (
-                    <View style={styles.discountBadge}>
-                      <Text style={styles.discountBadgeText}>{item.discount}</Text>
+                  {item.is_best_price || item.isBestPrice || item.price === 0 ? (
+                    <View style={{ alignItems: 'flex-end', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
+                      <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, marginTop: 2 }}>COD Only</Text>
                     </View>
-                  ) : null}
+                  ) : (
+                    <>
+                      <Text style={styles.currentPriceText}>{formatMoney(item.price)}</Text>
+                      {item.originalPrice ? (
+                        <Text style={styles.originalPriceText}>{formatMoney(item.originalPrice)}</Text>
+                      ) : null}
+                      {item.discount ? (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountBadgeText}>{item.discount}</Text>
+                        </View>
+                      ) : null}
+                    </>
+                  )}
 
                   {/* Stepper capsule */}
                   <View style={styles.stepperContainer}>

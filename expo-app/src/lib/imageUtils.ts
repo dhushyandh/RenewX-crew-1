@@ -78,6 +78,8 @@ export const CATEGORY_THIRD_PARTY_IMAGES = {
   Tablets: 'https://pngimg.com/uploads/tablet/small/tablet_PNG8601.png',
   Smartwatches: 'https://pngimg.com/uploads/apple_watch/small/apple_watch_PNG71.png',
   Earbuds: 'https://pngimg.com/uploads/airPods/small/airPods_PNG42.png',
+  Cameras: 'https://pngimg.com/uploads/photo_camera/small/photo_camera_PNG101644.png',
+  Vehicles: 'https://pngimg.com/uploads/tesla_car/small/tesla_car_PNG46.png',
   Accessories: 'https://pngimg.com/uploads/usb_cable/small/usb_cable_PNG77.png',
   Gaming: 'https://pngimg.com/uploads/gamepad/small/gamepad_PNG79.png',
   Mac: 'https://pngimg.com/uploads/macbook/small/macbook_PNG101760.png',
@@ -89,6 +91,8 @@ export const CATEGORY_DEVICE_IMAGES = {
   Tablets: { uri: CATEGORY_THIRD_PARTY_IMAGES.Tablets },
   Smartwatches: { uri: CATEGORY_THIRD_PARTY_IMAGES.Smartwatches },
   Earbuds: { uri: CATEGORY_THIRD_PARTY_IMAGES.Earbuds },
+  Cameras: { uri: CATEGORY_THIRD_PARTY_IMAGES.Cameras },
+  Vehicles: { uri: CATEGORY_THIRD_PARTY_IMAGES.Vehicles },
   Accessories: { uri: CATEGORY_THIRD_PARTY_IMAGES.Accessories },
   Gaming: { uri: CATEGORY_THIRD_PARTY_IMAGES.Gaming },
   Mac: { uri: CATEGORY_THIRD_PARTY_IMAGES.Mac },
@@ -149,6 +153,29 @@ export function getCategoryDeviceImage(category?: string, name?: string): any {
     text.includes('tws')
   ) {
     return { uri: CATEGORY_THIRD_PARTY_IMAGES.Earbuds };
+  }
+  if (
+    text.includes('camera') ||
+    text.includes('dslr') ||
+    text.includes('mirrorless') ||
+    text.includes('nikon') ||
+    text.includes('canon') ||
+    text.includes('gopro') ||
+    text.includes('fujifilm')
+  ) {
+    return { uri: CATEGORY_THIRD_PARTY_IMAGES.Cameras };
+  }
+  if (
+    text.includes('vehicle') ||
+    text.includes('car') ||
+    text.includes('bike') ||
+    text.includes('scooter') ||
+    text.includes('tesla') ||
+    text.includes('ather') ||
+    text.includes('ola electric') ||
+    text.includes('ev')
+  ) {
+    return { uri: CATEGORY_THIRD_PARTY_IMAGES.Vehicles };
   }
   if (
     text.includes('game') ||

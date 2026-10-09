@@ -14,7 +14,7 @@ const parsePositiveInt = (value: unknown, fallback: number, max: number): number
 const productFields = [
   'name', 'brand', 'model', 'category', 'original_price', 'price', 'condition',
   'warranty_months', 'image_url', 'images', 'rating', 'reviews', 'stock',
-  'description', 'specs',
+  'description', 'specs', 'is_best_price',
 ] as const;
 
 const normalizeProductPayload = (payload: any) => {
@@ -30,16 +30,29 @@ const normalizeProductPayload = (payload: any) => {
   if (data.image !== undefined && data.image_url === undefined) {
     data.image_url = data.image;
   }
+  if (data.isBestPrice !== undefined && data.is_best_price === undefined) {
+    data.is_best_price = data.isBestPrice;
+  }
 
   for (const field of productFields) {
     if (data[field] !== undefined) {
       const value = data[field];
-      normalized[field] =
-        typeof value === 'string' ? value.trim() :
-        Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) :
-        value;
+      if (field === 'is_best_price') {
+        normalized[field] = Boolean(value);
+      } else {
+        normalized[field] =
+          typeof value === 'string' ? value.trim() :
+          Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) :
+          value;
+      }
     }
   }
+
+  if (normalized.is_best_price) {
+    normalized.price = Number(normalized.price) || 0;
+    normalized.original_price = Number(normalized.original_price) || 0;
+  }
+
   return normalized;
 };
 

@@ -18,6 +18,8 @@ export interface Product {
   stock: number;
   description: string;
   specs: string[];
+  is_best_price?: boolean;
+  isBestPrice?: boolean;
 }
 
 export interface CartItem extends Product {

@@ -465,9 +465,18 @@ export default function SearchScreen() {
 
           {/* Price Row */}
           <View style={styles.priceRow}>
-            <Text style={styles.priceText}>₹{price.toLocaleString('en-IN')}</Text>
-            {origPrice > price && (
-              <Text style={styles.origPriceText}>₹{origPrice.toLocaleString('en-IN')}</Text>
+            {item.is_best_price || item.isBestPrice || price === 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
+                <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>COD Only</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.priceText}>₹{price.toLocaleString('en-IN')}</Text>
+                {origPrice > price && (
+                  <Text style={styles.origPriceText}>₹{origPrice.toLocaleString('en-IN')}</Text>
+                )}
+              </>
             )}
           </View>
 

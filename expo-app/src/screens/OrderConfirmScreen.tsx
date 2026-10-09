@@ -12,6 +12,7 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { downloadOrderInvoicePdf } from '@/services/invoiceService';
@@ -124,9 +125,29 @@ export default function OrderConfirmScreen() {
   const [copied, setCopied] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
 
-  const handleCopyOrderId = () => {
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(cleanOrderId);
+  const handleCopyOrderId = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(cleanOrderId);
+        } else if (typeof document !== 'undefined') {
+          const textarea = document.createElement('textarea');
+          textarea.value = cleanOrderId;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+      } else {
+        await Clipboard.setStringAsync(cleanOrderId);
+      }
+    } catch {
+      try {
+        await Clipboard.setStringAsync(cleanOrderId);
+      } catch {}
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

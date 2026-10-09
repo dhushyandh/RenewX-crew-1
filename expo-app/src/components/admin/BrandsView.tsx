@@ -441,7 +441,7 @@ const handleSaveBrand = async (b: BrandItem) => {
                         <Text style={styles.categoryBadgeText}>{(brand.category || 'DEVICES').toUpperCase()}</Text>
                       </View>
                       <View style={styles.modelsCountBadge}>
-                        <Ionicons name="hardware-chip-outline" size={11} color="#2563eb" />
+                        <Ionicons name="hardware-chip-outline" size={11} color="#0B6B3A" />
                         <Text style={styles.modelsCountBadgeText}>
                           {brandModels.length} {brandModels.length === 1 ? 'model' : 'models'}
                         </Text>
@@ -457,7 +457,7 @@ const handleSaveBrand = async (b: BrandItem) => {
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="pencil-outline" size={15} color="#2563eb" />
+                      <Ionicons name="pencil-outline" size={15} color="#168A4A" />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionIconBtn, styles.actionIconBtnDanger]}
@@ -797,7 +797,7 @@ function BrandFormModal({
                     }}
                   >
                     <Text style={{ fontSize: 14, color: '#0f172a', fontWeight: category === option ? '700' : '500' }}>{option}</Text>
-                    {category === option && <Ionicons name="checkmark" size={16} color="#2563eb" />}
+                    {category === option && <Ionicons name="checkmark" size={16} color="#168A4A" />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1264,7 +1264,7 @@ function ModelFormModal({
                                   width: 22,
                                   height: 22,
                                   borderRadius: 11,
-                                  backgroundColor: '#2563eb',
+                                  backgroundColor: '#168A4A',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                 }}
@@ -1323,7 +1323,7 @@ function ModelFormModal({
                       }}
                     >
                       <Text style={{ fontSize: 14, color: '#0f172a', fontWeight: category === option ? '700' : '500' }}>{option}</Text>
-                      {category === option && <Ionicons name="checkmark" size={16} color="#2563eb" />}
+                      {category === option && <Ionicons name="checkmark" size={16} color="#168A4A" />}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -1366,7 +1366,7 @@ function ModelFormModal({
               <Ionicons
                 name={isFeatured ? 'checkbox' : 'square-outline'}
                 size={18}
-                color={isFeatured ? '#2563eb' : '#9ca3af'}
+                color={isFeatured ? '#168A4A' : '#9ca3af'}
               />
               <Text style={formStyles.checkboxLabel}>Featured Device (Highlights in Shop)</Text>
             </TouchableOpacity>
@@ -1720,7 +1720,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3.5,
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#E8F7ED',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1728,7 +1728,7 @@ const styles = StyleSheet.create({
   modelsCountBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#2563eb',
+    color: '#0B6B3A',
   },
   topActionIcons: {
     flexDirection: 'row',
@@ -1925,7 +1925,7 @@ const modalStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#168A4A',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
@@ -2148,7 +2148,7 @@ const formStyles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#168A4A',
     alignItems: 'center',
   },
   saveBtnText: {

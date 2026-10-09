@@ -269,7 +269,13 @@ function mapUniversalOrder(o: any): OrderItem {
     id,
     display_id,
     product_name: firstItem.name || firstItem.product_name || 'RenewX Device',
-    specs: firstItem.specs || firstItem.condition || 'Tested & Certified • Pristine Condition',
+    specs: Array.isArray(firstItem.specs)
+      ? firstItem.specs.join(' • ')
+      : typeof firstItem.specs === 'string'
+      ? firstItem.specs
+      : firstItem.condition
+      ? String(firstItem.condition)
+      : 'Tested & Certified • Pristine Condition',
     price,
     qty: items.length || 1,
     placed_date: placedDateStr,
@@ -668,16 +674,44 @@ export default function TrackScreen() {
     navigation.navigate('MainTabs', { screen: 'Home' });
   };
 
-  const handleCopyId = async (id: string, label: string) => {
+  const handleCopyId = async (textToCopy: string, label: string) => {
+    const value = String(textToCopy || '').trim();
+    if (!value) return;
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(id);
-      } else {
-        await Clipboard.setStringAsync(id);
+      let copied = false;
+      if (Platform.OS === 'web') {
+        try {
+          if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(value);
+            copied = true;
+          }
+        } catch {
+          // fallback to hidden textarea
+        }
+        if (!copied && typeof document !== 'undefined') {
+          try {
+            const textArea = document.createElement('textarea');
+            textArea.value = value;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            copied = true;
+          } catch {
+            // fallback
+          }
+        }
       }
-      toast.success(`Copied ${label} to clipboard!`);
+      if (!copied) {
+        await Clipboard.setStringAsync(value);
+      }
+      toast.success(`Copied: ${value}`);
     } catch {
-      toast.info(`ID: ${id}`);
+      toast.info(`Copied: ${value}`);
     }
   };
 
@@ -746,13 +780,13 @@ export default function TrackScreen() {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
         (o) =>
-          o.id.toLowerCase().includes(q) ||
-          o.display_id.toLowerCase().includes(q) ||
-          o.product_name.toLowerCase().includes(q) ||
-          o.specs.toLowerCase().includes(q) ||
-          (o.buyer_name && o.buyer_name.toLowerCase().includes(q)) ||
-          (o.buyer_phone && o.buyer_phone.toLowerCase().includes(q)) ||
-          (o.tracking_id && o.tracking_id.toLowerCase().includes(q))
+          String(o.id || '').toLowerCase().includes(q) ||
+          String(o.display_id || '').toLowerCase().includes(q) ||
+          String(o.product_name || '').toLowerCase().includes(q) ||
+          String(o.specs || '').toLowerCase().includes(q) ||
+          (o.buyer_name && String(o.buyer_name).toLowerCase().includes(q)) ||
+          (o.buyer_phone && String(o.buyer_phone).toLowerCase().includes(q)) ||
+          (o.tracking_id && String(o.tracking_id).toLowerCase().includes(q))
       );
     }
 
@@ -777,13 +811,13 @@ export default function TrackScreen() {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
         (sr) =>
-          sr.id.toLowerCase().includes(q) ||
-          sr.display_id.toLowerCase().includes(q) ||
-          sr.brand.toLowerCase().includes(q) ||
-          sr.model.toLowerCase().includes(q) ||
-          sr.category.toLowerCase().includes(q) ||
-          (sr.customer_name && sr.customer_name.toLowerCase().includes(q)) ||
-          (sr.customer_phone && sr.customer_phone.toLowerCase().includes(q))
+          String(sr.id || '').toLowerCase().includes(q) ||
+          String(sr.display_id || '').toLowerCase().includes(q) ||
+          String(sr.brand || '').toLowerCase().includes(q) ||
+          String(sr.model || '').toLowerCase().includes(q) ||
+          String(sr.category || '').toLowerCase().includes(q) ||
+          (sr.customer_name && String(sr.customer_name).toLowerCase().includes(q)) ||
+          (sr.customer_phone && String(sr.customer_phone).toLowerCase().includes(q))
       );
     }
 
@@ -816,7 +850,7 @@ export default function TrackScreen() {
           title="Track Order"
           onBack={handleBack}
           onSupport={() => setShowHelpModal(true)}
-          onMenu={() => handleCopyId(currentTrackOrder.id, 'Order ID')}
+          onMenu={() => handleCopyId(currentTrackOrder.display_id || currentTrackOrder.id, 'Order ID')}
         />
 
         <ScrollView
@@ -842,7 +876,7 @@ export default function TrackScreen() {
               <View style={styles.summaryHeaderRow}>
                 <Text style={styles.summaryOrderId}>{currentTrackOrder.display_id}</Text>
                 <TouchableOpacity
-                  onPress={() => handleCopyId(currentTrackOrder.id, 'Order ID')}
+                  onPress={() => handleCopyId(currentTrackOrder.display_id || currentTrackOrder.id, 'Order ID')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons name="copy-outline" size={14} color="#64748B" />
@@ -1286,7 +1320,7 @@ export default function TrackScreen() {
           title="Track Sell Request"
           onBack={handleBack}
           onSupport={() => handleCallPartner('+919080168778', 'RenewX Valuation Support')}
-          onMenu={() => handleCopyId(currentTrackSell.id, 'Sell Request ID')}
+          onMenu={() => handleCopyId(currentTrackSell.display_id || currentTrackSell.id, 'Sell Request ID')}
         />
 
         <ScrollView
@@ -1316,7 +1350,7 @@ export default function TrackScreen() {
               <View style={styles.summaryHeaderRow}>
                 <Text style={styles.summaryOrderId}>{currentTrackSell.display_id}</Text>
                 <TouchableOpacity
-                  onPress={() => handleCopyId(currentTrackSell.id, 'Sell Request ID')}
+                  onPress={() => handleCopyId(currentTrackSell.display_id || currentTrackSell.id, 'Sell Request ID')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons name="copy-outline" size={14} color="#64748B" />
@@ -1858,7 +1892,7 @@ export default function TrackScreen() {
                     <View style={styles.orderCardIdGroup}>
                       <Text style={styles.orderCardId}>{order.display_id}</Text>
                       <TouchableOpacity
-                        onPress={() => handleCopyId(order.id, 'Order ID')}
+                        onPress={() => handleCopyId(order.display_id || order.id, 'Order ID')}
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                       >
                         <Ionicons name="copy-outline" size={13} color="#94A3B8" />
@@ -1950,7 +1984,7 @@ export default function TrackScreen() {
                     <View style={styles.orderCardIdGroup}>
                       <Text style={styles.orderCardId}>{req.display_id}</Text>
                       <TouchableOpacity
-                        onPress={() => handleCopyId(req.id, 'Sell Request ID')}
+                        onPress={() => handleCopyId(req.display_id || req.id, 'Sell Request ID')}
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                       >
                         <Ionicons name="copy-outline" size={13} color="#94A3B8" />

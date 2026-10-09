@@ -1,11 +1,12 @@
 export const categories: { name: string; icon: string }[] = [
   { name: 'All', icon: 'grid' },
+  { name: 'Smartphones', icon: 'phone' },
   { name: 'Laptops', icon: 'laptop' },
-  { name: 'Phones', icon: 'phone' },
   { name: 'Audio', icon: 'headphones' },
   { name: 'Wearables', icon: 'watch' },
   { name: 'Cameras', icon: 'camera' },
   { name: 'Tablets', icon: 'tablet' },
+  { name: 'Vehicles', icon: 'car' },
 ];
 
 /**
@@ -13,11 +14,13 @@ export const categories: { name: string; icon: string }[] = [
  * for all gadget categories across RenewX
  */
 export const CATEGORY_THIRD_PARTY_IMAGES = {
-  Smartphones: 'https://pngimg.com/uploads/iphone_12/iphone_12_PNG36.png',
-  Laptops: 'https://pngimg.com/uploads/laptop/laptop_PNG5900.png',
-  Tablets: 'https://pngimg.com/uploads/tablet/tablet_PNG8567.png',
-  Smartwatches: 'https://pngimg.com/uploads/apple_watch/apple_watch_PNG52.png',
+  Smartphones: 'https://pngimg.com/uploads/iphone_14/iphone_14_PNG21.png',
+  Laptops: 'https://pngimg.com/uploads/macbook/macbook_PNG65.png',
+  Tablets: 'https://pngimg.com/uploads/tablet/tablet_PNG8578.png',
+  Smartwatches: 'https://pngimg.com/uploads/apple_watch/apple_watch_PNG18.png',
   Earbuds: 'https://pngimg.com/uploads/airPods/airPods_PNG11.png',
+  Cameras: 'https://pngimg.com/uploads/photo_camera/photo_camera_PNG101644.png',
+  Vehicles: 'https://pngimg.com/uploads/tesla_car/tesla_car_PNG46.png',
   Accessories: 'https://pngimg.com/uploads/usb_cable/usb_cable_PNG64.png',
   Gaming: 'https://pngimg.com/uploads/gamepad/small/gamepad_PNG79.png',
 } as const;
@@ -38,6 +41,12 @@ export function getCategoryThirdPartyImage(category: string): string {
   }
   if (norm.includes('ear') || norm.includes('audio') || norm.includes('head') || norm.includes('airpod')) {
     return CATEGORY_THIRD_PARTY_IMAGES.Earbuds;
+  }
+  if (norm.includes('camera') || norm.includes('dslr') || norm.includes('lens')) {
+    return CATEGORY_THIRD_PARTY_IMAGES.Cameras;
+  }
+  if (norm.includes('vehic') || norm.includes('car') || norm.includes('bike') || norm.includes('scooter') || norm.includes('ev')) {
+    return CATEGORY_THIRD_PARTY_IMAGES.Vehicles;
   }
   if (norm.includes('game') || norm.includes('gaming') || norm.includes('console')) {
     return CATEGORY_THIRD_PARTY_IMAGES.Gaming;
