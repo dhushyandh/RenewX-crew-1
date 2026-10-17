@@ -68,12 +68,12 @@ function getConditionMeta(condition?: string) {
       label: 'Like New (Pristine)',
       badgeBg: '#DCFCE7',
       badgeColor: '#15803D',
-      summary: 'Flawless condition with zero scratches. Looks and performs indistinguishable from brand new.',
+      summary: 'Flawless condition with zero scratches. Looks and performs like brand new.',
       bullets: [
-        'Screen and body in 100% flawless cosmetic condition',
+        'Screen & body in 100% flawless cosmetic condition',
         'Battery health tested at 90%+ original capacity',
         'Passed all 32-point hardware and software diagnostic tests',
-        'Includes certified fast charger and quality inspection pass',
+        'Includes certified fast charging accessories & pass',
       ],
     };
   }
@@ -82,12 +82,12 @@ function getConditionMeta(condition?: string) {
       label: 'Excellent Condition',
       badgeBg: '#EFF6FF',
       badgeColor: '#1D4ED8',
-      summary: 'Minimal microscopic signs of handling. Fully certified with genuine parts and high battery health.',
+      summary: 'Minimal microscopic handling marks. Fully certified with genuine parts.',
       bullets: [
         'Flawless screen with no dead pixels or discoloration',
         'Minor micro-scratches barely noticeable under direct light',
         'Battery health tested above 85% peak performance',
-        'Includes original or OEM-certified charging accessories',
+        'Includes certified charging accessories',
       ],
     };
   }
@@ -96,7 +96,7 @@ function getConditionMeta(condition?: string) {
       label: 'Good Condition',
       badgeBg: '#FEF3C7',
       badgeColor: '#B45309',
-      summary: 'Light cosmetic wear on edges or back cover. Screen is clean and all hardware functions 100%.',
+      summary: 'Light cosmetic frame wear. Screen is clean and all hardware works 100%.',
       bullets: [
         'Clear display with full touch sensitivity',
         'Light cosmetic signs of previous use on body frame',
@@ -109,12 +109,12 @@ function getConditionMeta(condition?: string) {
     label: condition || 'Certified Pre-Owned',
     badgeBg: '#F3F4F6',
     badgeColor: '#374151',
-    summary: 'Rigorously inspected, fully tested, and certified for reliable everyday performance.',
+    summary: 'Rigorously inspected, fully tested, and certified for reliable performance.',
     bullets: [
       'Comprehensive multi-point functional verification',
-      'Clean IMEI / serial number verification and authentic hardware',
+      'Clean IMEI / serial number verification & authentic parts',
       'All buttons, ports, speakers, and cameras 100% working',
-      'Includes charging accessories and certified protective packaging',
+      'Includes charging accessories and certified packaging',
     ],
   };
 }
@@ -147,6 +147,7 @@ export default function ProductDetailScreen() {
   const [selectedStorage, setSelectedStorage] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'specs' | 'condition' | 'overview'>('specs');
 
   // Fetch complete product details by ID to ensure latest admin data
   const loadProduct = useCallback(async (prodId: string) => {
@@ -472,48 +473,20 @@ export default function ProductDetailScreen() {
           />
         }
       >
-        {/* Web App Banner: Get the RenewX App - Open in App */}
-        {Platform.OS === 'web' && (
-          <View style={styles.webAppBanner}>
-            <View style={styles.webAppBannerLeft}>
-              <View style={styles.webAppIconBadge}>
-                <Ionicons name="phone-portrait" size={17} color="#0F172A" />
-              </View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={styles.webAppBannerTitle}>Get the RenewX App</Text>
-                <Text style={styles.webAppBannerSub}>
-                  Enjoy certified warranty, real-time push tracking & doorstep inspection
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.webOpenAppBtn}
-              onPress={handleOpenInApp}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="open-outline" size={14} color="#0F172A" style={{ marginRight: 5 }} />
-              <Text style={styles.webOpenAppBtnText}>Open in App</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* SOLD OUT PLACEHOLDER BANNER ABOVE PRODUCT LAYOUT */}
+        {/* SOLD OUT COMPACT ALERT (if sold out) */}
         {isSoldOut && (
-          <View style={styles.soldOutPlaceholderBanner}>
-            <View style={styles.soldOutBadgeGroup}>
-              <View style={styles.soldOutRedPill}>
-                <Ionicons name="alert-circle" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
-                <Text style={styles.soldOutRedPillText}>SOLD OUT</Text>
-              </View>
-              <Text style={styles.soldOutBannerHeading}>Currently Unavailable</Text>
+          <View style={styles.soldOutCompactBanner}>
+            <View style={styles.soldOutBadge}>
+              <Ionicons name="alert-circle" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={styles.soldOutBadgeText}>SOLD OUT</Text>
             </View>
-            <Text style={styles.soldOutBannerSub}>
-              This item is out of stock. Add it to your wishlist to receive an alert when restocked, or explore similar certified devices below.
+            <Text style={styles.soldOutCompactText}>
+              Currently unavailable. Add to wishlist to receive restock alerts.
             </Text>
           </View>
         )}
 
-        {/* 2. Full-Width Device Showcase */}
+        {/* 1. Full-Width Device Showcase */}
         <View style={styles.heroShowcase}>
           <View style={styles.imageStage}>
             {/* Condition Tag */}
@@ -588,30 +561,7 @@ export default function ProductDetailScreen() {
           )}
         </View>
 
-        {/* 3. Horizontal Trust Assurances Bar */}
-        <View style={styles.trustBar}>
-          <View style={styles.trustItem}>
-            <Ionicons name="shield-checkmark" size={15} color="#10B981" />
-            <Text style={styles.trustTitle}>32-Pt Tested</Text>
-          </View>
-          <View style={styles.trustDivider} />
-          <View style={styles.trustItem}>
-            <Ionicons name="checkmark-circle-outline" size={15} color="#0284C7" />
-            <Text style={styles.trustTitle}>100% Genuine</Text>
-          </View>
-          <View style={styles.trustDivider} />
-          <View style={styles.trustItem}>
-            <Ionicons name="flash-outline" size={15} color="#D97706" />
-            <Text style={styles.trustTitle}>Free Delivery</Text>
-          </View>
-          <View style={styles.trustDivider} />
-          <View style={styles.trustItem}>
-            <Ionicons name="lock-closed-outline" size={15} color="#7C3AED" />
-            <Text style={styles.trustTitle}>Secure Pay</Text>
-          </View>
-        </View>
-
-        {/* 4. Product Title, Pricing & Live Stock Card */}
+        {/* 2. Product Title, Pricing, Highlights & Stock Card */}
         <View style={styles.infoCard}>
           {/* Breadcrumb Tags */}
           <View style={styles.breadcrumbRow}>
@@ -644,20 +594,15 @@ export default function ProductDetailScreen() {
 
           {/* Price Row */}
           {isBestPrice ? (
-            <View style={{ marginTop: 4, marginBottom: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
-                  <Ionicons name="pricetag" size={16} color="#047857" style={{ marginRight: 6 }} />
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#047857' }}>Best Price</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
-                  <Ionicons name="cash-outline" size={15} color="#92400E" style={{ marginRight: 5 }} />
-                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#92400E' }}>Cash on Delivery (COD) Only</Text>
-                </View>
+            <View style={styles.bestPriceRow}>
+              <View style={styles.bestPriceBadge}>
+                <Ionicons name="pricetag" size={15} color="#047857" style={{ marginRight: 6 }} />
+                <Text style={styles.bestPriceBadgeText}>Best Price</Text>
               </View>
-              <Text style={{ fontSize: 12, color: '#475569', lineHeight: 17 }}>
-                This product is offered at Best Price with COD payment only. Pay on delivery after inspecting the device at your doorstep.
-              </Text>
+              <View style={styles.codPill}>
+                <Ionicons name="cash-outline" size={13} color="#92400E" style={{ marginRight: 4 }} />
+                <Text style={styles.codPillText}>Cash on Delivery (COD) Only</Text>
+              </View>
             </View>
           ) : (
             <>
@@ -673,15 +618,11 @@ export default function ProductDetailScreen() {
                 )}
               </View>
 
-              {savings > 0 ? (
-                <Text style={styles.savingsText}>
-                  You save {formatMoney(savings)} · Free express doorstep delivery
-                </Text>
-              ) : (
-                <Text style={styles.savingsText}>
-                  Inclusive of all taxes · Free express doorstep delivery
-                </Text>
-              )}
+              <Text style={styles.savingsText}>
+                {savings > 0
+                  ? `Save ${formatMoney(savings)} · Free express doorstep delivery`
+                  : 'Free express doorstep delivery · Inclusive of all taxes'}
+              </Text>
             </>
           )}
 
@@ -704,157 +645,192 @@ export default function ProductDetailScreen() {
               </View>
             )}
           </View>
-        </View>
 
-        {/* 5. Unified Device Specifications Card */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <Ionicons name="hardware-chip-outline" size={17} color="#0F172A" />
-            <Text style={styles.sectionCardTitle}>Device Specifications</Text>
-            <View style={styles.verifiedTag}>
-              <Ionicons name="checkmark-done" size={12} color="#059669" />
-              <Text style={styles.verifiedTagText}>Admin Verified</Text>
-            </View>
-          </View>
-
-          {/* Configuration Chips */}
-          <View style={styles.configChipsRow}>
+          {/* Quick Specification Highlight Chips */}
+          <View style={styles.quickSpecsRow}>
             {selectedStorage ? (
-              <View style={styles.configChip}>
-                <Text style={styles.configChipLabel}>Storage</Text>
-                <Text style={styles.configChipValue}>{selectedStorage}</Text>
+              <View style={styles.quickSpecChip}>
+                <Ionicons name="disc-outline" size={12} color="#0284C7" />
+                <Text style={styles.quickSpecChipText}>{selectedStorage}</Text>
               </View>
             ) : null}
             {selectedColor ? (
-              <View style={styles.configChip}>
-                <Text style={styles.configChipLabel}>Color</Text>
-                <Text style={styles.configChipValue}>{selectedColor}</Text>
+              <View style={styles.quickSpecChip}>
+                <Ionicons name="color-palette-outline" size={12} color="#7C3AED" />
+                <Text style={styles.quickSpecChipText}>{selectedColor}</Text>
               </View>
             ) : null}
-            <View style={styles.configChip}>
-              <Text style={styles.configChipLabel}>Condition</Text>
-              <Text style={styles.configChipValue}>{baseProduct.condition || 'Excellent'}</Text>
+            <View style={styles.quickSpecChip}>
+              <Ionicons name="shield-checkmark-outline" size={12} color="#16A34A" />
+              <Text style={styles.quickSpecChipText}>{baseProduct.condition || 'Like New'}</Text>
             </View>
-            {baseProduct.brand ? (
-              <View style={styles.configChip}>
-                <Text style={styles.configChipLabel}>Brand</Text>
-                <Text style={styles.configChipValue}>{baseProduct.brand}</Text>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Admin Specs Table */}
-          {parsedSpecs.length > 0 && (
-            <View style={styles.specsTable}>
-              {parsedSpecs.map((item, idx) => (
-                <View key={`spec_${idx}`} style={[styles.specRow, idx > 0 && styles.specRowBorder]}>
-                  <View style={styles.specIconWrap}>
-                    <Ionicons name={item.icon} size={15} color="#0284C7" />
-                  </View>
-                  <Text style={styles.specLabel}>{item.label}</Text>
-                  <Text style={styles.specValue}>{item.value}</Text>
-                </View>
-              ))}
+            <View style={styles.quickSpecChip}>
+              <Ionicons name="flash-outline" size={12} color="#D97706" />
+              <Text style={styles.quickSpecChipText}>32-Pt Tested</Text>
             </View>
-          )}
-        </View>
-
-        {/* 6. Condition & Quality Inspection Report */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <Ionicons name="shield-checkmark-outline" size={17} color="#16A34A" />
-            <Text style={styles.sectionCardTitle}>Condition Report: {conditionMeta.label}</Text>
-          </View>
-          <Text style={styles.conditionSummaryText}>{conditionMeta.summary}</Text>
-
-          <View style={styles.bulletsList}>
-            {conditionMeta.bullets.map((bullet, i) => (
-              <View key={`cond_b_${i}`} style={styles.bulletItem}>
-                <Ionicons name="checkmark-circle" size={15} color="#16A34A" style={styles.bulletCheck} />
-                <Text style={styles.bulletText}>{bullet}</Text>
-              </View>
-            ))}
           </View>
         </View>
 
-        {/* 7. Product Description & Package Contents */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <Ionicons name="document-text-outline" size={17} color="#0F172A" />
-            <Text style={styles.sectionCardTitle}>About This Device</Text>
-          </View>
-
-          <Text style={styles.descriptionBody} numberOfLines={showFullDescription ? undefined : 4}>
-            {baseProduct.description
-              ? baseProduct.description
-              : `${baseProduct.name} has been thoroughly tested, certified, and cleaned by RenewX technicians. Comes complete with genuine performance, battery health above 85%, and fully verified authentic components.`}
-          </Text>
-
-          {baseProduct.description && baseProduct.description.length > 180 && (
+        {/* 3. Interactive Details Tab Switcher */}
+        <View style={styles.tabSection}>
+          <View style={styles.tabBar}>
             <TouchableOpacity
-              onPress={() => setShowFullDescription((prev) => !prev)}
-              style={styles.toggleDescBtn}
-              activeOpacity={0.7}
+              style={[styles.tabItem, activeTab === 'specs' && styles.tabItemActive]}
+              onPress={() => setActiveTab('specs')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.toggleDescText}>
-                {showFullDescription ? 'Show Less' : 'Read Full Description'}
+              <Ionicons
+                name="hardware-chip-outline"
+                size={14}
+                color={activeTab === 'specs' ? '#0F172A' : '#64748B'}
+              />
+              <Text style={[styles.tabItemText, activeTab === 'specs' && styles.tabItemTextActive]}>
+                Specifications
               </Text>
-              <Ionicons name={showFullDescription ? 'chevron-up' : 'chevron-down'} size={14} color="#0284C7" />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabItem, activeTab === 'condition' && styles.tabItemActive]}
+              onPress={() => setActiveTab('condition')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={14}
+                color={activeTab === 'condition' ? '#0F172A' : '#64748B'}
+              />
+              <Text style={[styles.tabItemText, activeTab === 'condition' && styles.tabItemTextActive]}>
+                Quality Check
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabItem, activeTab === 'overview' && styles.tabItemActive]}
+              onPress={() => setActiveTab('overview')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="cube-outline"
+                size={14}
+                color={activeTab === 'overview' ? '#0F172A' : '#64748B'}
+              />
+              <Text style={[styles.tabItemText, activeTab === 'overview' && styles.tabItemTextActive]}>
+                In The Box
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* TAB 1: SPECIFICATIONS */}
+          {activeTab === 'specs' && (
+            <View style={styles.tabContentCard}>
+              {parsedSpecs.length > 0 ? (
+                <View style={styles.specsGrid}>
+                  {parsedSpecs.map((item, idx) => (
+                    <View key={`spec_${idx}`} style={styles.specGridItem}>
+                      <View style={styles.specIconBadge}>
+                        <Ionicons name={item.icon} size={14} color="#0284C7" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.specGridLabel}>{item.label}</Text>
+                        <Text style={styles.specGridValue}>{item.value}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyTabText}>Specifications verified by RenewX diagnostics lab.</Text>
+              )}
+            </View>
           )}
 
-          {/* In the box breakdown */}
-          <View style={styles.inTheBoxSection}>
-            <Text style={styles.inTheBoxTitle}>In The Box</Text>
-            <View style={styles.boxGrid}>
-              <View style={styles.boxGridItem}>
-                <Ionicons name="phone-portrait-outline" size={15} color="#0284C7" />
-                <Text style={styles.boxGridText}>1x Certified {baseProduct.name}</Text>
+          {/* TAB 2: CONDITION & 32-PT QUALITY CHECK */}
+          {activeTab === 'condition' && (
+            <View style={styles.tabContentCard}>
+              <View style={styles.conditionHeaderRow}>
+                <View style={[styles.conditionPill, { backgroundColor: conditionMeta.badgeBg }]}>
+                  <Ionicons name="shield-checkmark" size={13} color={conditionMeta.badgeColor} />
+                  <Text style={[styles.conditionPillText, { color: conditionMeta.badgeColor }]}>
+                    {conditionMeta.label}
+                  </Text>
+                </View>
+                <View style={styles.diagnosticsPassBadge}>
+                  <Ionicons name="checkmark-done" size={12} color="#059669" />
+                  <Text style={styles.diagnosticsPassText}>32-Point Diagnostic Pass</Text>
+                </View>
               </View>
-              <View style={styles.boxGridItem}>
-                <Ionicons name="flash-outline" size={15} color="#0284C7" />
-                <Text style={styles.boxGridText}>1x Charging Adapter & Cable</Text>
-              </View>
-              <View style={styles.boxGridItem}>
-                <Ionicons name="shield-checkmark-outline" size={15} color="#16A34A" />
-                <Text style={styles.boxGridText}>1x RenewX Quality Certificate & Diagnostics Pass</Text>
-              </View>
-              <View style={styles.boxGridItem}>
-                <Ionicons name="cube-outline" size={15} color="#0284C7" />
-                <Text style={styles.boxGridText}>Eco-Friendly Certified Protective Packaging</Text>
+
+              <Text style={styles.conditionSummaryText}>{conditionMeta.summary}</Text>
+
+              <View style={styles.checklistGrid}>
+                {conditionMeta.bullets.map((bullet, i) => (
+                  <View key={`cond_b_${i}`} style={styles.checklistItem}>
+                    <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+                    <Text style={styles.checklistItemText}>{bullet}</Text>
+                  </View>
+                ))}
               </View>
             </View>
-          </View>
+          )}
+
+          {/* TAB 3: OVERVIEW & IN THE BOX */}
+          {activeTab === 'overview' && (
+            <View style={styles.tabContentCard}>
+              <Text style={styles.descriptionText} numberOfLines={showFullDescription ? undefined : 3}>
+                {baseProduct.description
+                  ? baseProduct.description
+                  : `${baseProduct.name} certified and verified by RenewX technicians. Fully operational with tested battery health, authentic components, and clean IMEI.`}
+              </Text>
+              {baseProduct.description && baseProduct.description.length > 140 && (
+                <TouchableOpacity
+                  onPress={() => setShowFullDescription((p) => !p)}
+                  style={styles.descToggle}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.descToggleText}>
+                    {showFullDescription ? 'Show Less' : 'Read Full Description'}
+                  </Text>
+                  <Ionicons name={showFullDescription ? 'chevron-up' : 'chevron-down'} size={13} color="#0284C7" />
+                </TouchableOpacity>
+              )}
+
+              <Text style={styles.inBoxHeading}>In The Box</Text>
+              <View style={styles.boxChipsGrid}>
+                <View style={styles.boxChip}>
+                  <Ionicons name="phone-portrait-outline" size={14} color="#0F172A" />
+                  <Text style={styles.boxChipText}>1x Certified {baseProduct.name}</Text>
+                </View>
+                <View style={styles.boxChip}>
+                  <Ionicons name="flash-outline" size={14} color="#0F172A" />
+                  <Text style={styles.boxChipText}>Charging Adapter & Cable</Text>
+                </View>
+                <View style={styles.boxChip}>
+                  <Ionicons name="shield-checkmark-outline" size={14} color="#16A34A" />
+                  <Text style={styles.boxChipText}>RenewX Quality Certificate</Text>
+                </View>
+                <View style={styles.boxChip}>
+                  <Ionicons name="cube-outline" size={14} color="#0F172A" />
+                  <Text style={styles.boxChipText}>Protective Packaging</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
 
-        {/* 8. Delivery & Payment Assurance */}
-        <View style={styles.sectionCard}>
-          <View style={styles.deliveryRow}>
-            <View style={styles.deliveryPinCircle}>
-              <Ionicons name="location" size={16} color="#0F172A" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.deliveryHeadline}>Express Doorstep Delivery</Text>
-              <Text style={styles.deliverySubtext}>Dispatches in 24 hours · Delivering in 2–4 business days</Text>
-            </View>
-            <View style={styles.freeDeliveryPill}>
-              <Text style={styles.freeDeliveryText}>FREE</Text>
-            </View>
+        {/* 4. Streamlined Trust & Assurances Strip */}
+        <View style={styles.trustBar}>
+          <View style={styles.trustItem}>
+            <Ionicons name="airplane-outline" size={15} color="#0284C7" />
+            <Text style={styles.trustTitle}>Free Express Delivery</Text>
           </View>
-
-          <View style={styles.assuranceBadgesRow}>
-            <View style={styles.assuranceBadge}>
-              <Ionicons name="card-outline" size={13} color="#0284C7" />
-              <Text style={styles.assuranceBadgeText}>Razorpay Instant</Text>
-            </View>
-            <View style={styles.assuranceBadge}>
-              <Ionicons name="cash-outline" size={13} color="#16A34A" />
-              <Text style={styles.assuranceBadgeText}>Cash on Delivery</Text>
-            </View>
-            <View style={styles.assuranceBadge}>
-              <Ionicons name="shield-checkmark-outline" size={13} color="#D97706" />
-              <Text style={styles.assuranceBadgeText}>100% Genuine</Text>
-            </View>
+          <View style={styles.trustDivider} />
+          <View style={styles.trustItem}>
+            <Ionicons name="shield-checkmark-outline" size={15} color="#16A34A" />
+            <Text style={styles.trustTitle}>32-Pt Quality Tested</Text>
+          </View>
+          <View style={styles.trustDivider} />
+          <View style={styles.trustItem}>
+            <Ionicons name="card-outline" size={15} color="#D97706" />
+            <Text style={styles.trustTitle}>Secure UPI & COD</Text>
           </View>
         </View>
 
@@ -1279,10 +1255,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
+  // Best Price
+  bestPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  bestPriceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  bestPriceBadgeText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  codPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  codPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+
   stockContainer: {
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+    marginBottom: 10,
   },
   inStockBadge: {
     flexDirection: 'row',
@@ -1315,29 +1330,140 @@ const styles = StyleSheet.create({
     color: '#DC2626',
   },
 
-  // 4. Section Card Common Layout
-  sectionCard: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  // Quick Spec Chips
+  quickSpecsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingTop: 6,
   },
-  sectionCardHeader: {
+  quickSpecChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 5,
   },
-  sectionCardTitle: {
+  quickSpecChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+
+  // 3. Tab Section & Segmented Switcher
+  tabSection: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 10,
+    gap: 4,
+  },
+  tabItem: {
     flex: 1,
-    fontSize: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 9,
+    gap: 5,
+  },
+  tabItemActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabItemText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  tabItemTextActive: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  tabContentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+  },
+
+  // Tab 1: Specs Grid
+  specsGrid: {
+    gap: 8,
+  },
+  specGridItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 10,
+  },
+  specIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  specGridLabel: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  specGridValue: {
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#0F172A',
+    marginTop: 1,
   },
-  verifiedTag: {
+  emptyTabText: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+
+  // Tab 2: Condition & Quality Check
+  conditionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  conditionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  conditionPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  diagnosticsPassBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ECFDF5',
@@ -1346,215 +1472,89 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     gap: 4,
   },
-  verifiedTagText: {
-    fontSize: 10.5,
+  diagnosticsPassText: {
+    fontSize: 11,
     fontWeight: '700',
     color: '#059669',
   },
-
-  // 5. Specs & Quick Configuration
-  configChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 14,
-  },
-  configChip: {
-    flex: 1,
-    minWidth: 70,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-  },
-  configChipLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  configChipValue: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  specsTable: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  specRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  specRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-  specIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
-    backgroundColor: '#E0F2FE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  specLabel: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  specValue: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'right',
-  },
-
-  // 6. Condition Inspection
   conditionSummaryText: {
-    fontSize: 12.5,
-    color: '#334155',
-    lineHeight: 18,
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 17,
     marginBottom: 10,
   },
-  bulletsList: {
-    gap: 7,
+  checklistGrid: {
+    gap: 6,
   },
-  bulletItem: {
+  checklistItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     gap: 8,
   },
-  bulletCheck: {
-    marginTop: 1,
-  },
-  bulletText: {
+  checklistItemText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#334155',
-    lineHeight: 17,
+    fontWeight: '600',
   },
 
-  // 7. Description & In The Box
-  descriptionBody: {
+  // Tab 3: Overview & In Box
+  descriptionText: {
     fontSize: 12.5,
     color: '#475569',
-    lineHeight: 19,
+    lineHeight: 18,
   },
-  toggleDescBtn: {
+  descToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 8,
+    marginTop: 6,
+    marginBottom: 8,
   },
-  toggleDescText: {
+  descToggleText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#0284C7',
   },
-  inTheBoxSection: {
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  inTheBoxTitle: {
-    fontSize: 12.5,
+  inBoxHeading: {
+    fontSize: 12,
     fontWeight: '800',
     color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 10,
     marginBottom: 8,
   },
-  boxGrid: {
+  boxChipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
   },
-  boxGridItem: {
+  boxChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  boxGridText: {
-    fontSize: 11.5,
-    color: '#475569',
-    fontWeight: '500',
-  },
-
-  // 8. Delivery & Assurance
-  deliveryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  deliveryPinCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deliveryHeadline: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  deliverySubtext: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  freeDeliveryPill: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  freeDeliveryText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#15803D',
-  },
-  assuranceBadgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    gap: 6,
-  },
-  assuranceBadge: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#F8FAFC',
-    paddingVertical: 7,
-    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderRadius: 8,
-    gap: 4,
+    gap: 6,
   },
-  assuranceBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
+  boxChipText: {
+    fontSize: 11,
+    fontWeight: '600',
     color: '#334155',
   },
 
-  // 9. Similar Devices
+  // 4. Similar Devices
   similarSection: {
     marginHorizontal: 16,
-    marginTop: 6,
+    marginTop: 4,
     marginBottom: 16,
   },
   similarHeader: {
@@ -1564,7 +1564,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   similarTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0F172A',
   },
@@ -1582,7 +1582,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   similarCard: {
-    width: 140,
+    width: 135,
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,
@@ -1607,22 +1607,22 @@ const styles = StyleSheet.create({
   },
   similarImage: {
     width: '100%',
-    height: 90,
-    marginBottom: 8,
+    height: 85,
+    marginBottom: 6,
   },
   similarName: {
     fontSize: 11.5,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   similarPrice: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#0284C7',
   },
 
-  // 10. Bottom Sticky Bar
+  // 5. Bottom Sticky Bar
   bottomBar: {
     position: 'absolute',
     bottom: 0,
@@ -1633,7 +1633,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
     gap: 12,
@@ -1694,108 +1694,41 @@ const styles = StyleSheet.create({
   addToCartBtnTextDisabled: {
     color: '#94A3B8',
   },
-  webAppBanner: {
+
+  // Sold Out Compact Banner
+  soldOutCompactBanner: {
     marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 6,
-    backgroundColor: '#FEF9C3',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#FDE047',
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  webAppBannerLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  webAppIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FACC15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  webAppBannerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  webAppBannerSub: {
-    fontSize: 11,
-    color: '#854D0E',
-    fontWeight: '500',
-    marginTop: 1,
-  },
-  webOpenAppBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FACC15',
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  webOpenAppBtnText: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  soldOutPlaceholderBanner: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 6,
-    padding: 12,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 14,
-  },
-  soldOutBadgeGroup: {
+    borderColor: '#FECACA',
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
   },
-  soldOutRedPill: {
+  soldOutBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#DC2626',
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  soldOutRedPillText: {
+  soldOutBadgeText: {
     color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 10,
+    fontSize: 9.5,
     letterSpacing: 0.5,
   },
-  soldOutBannerHeading: {
-    fontSize: 13,
-    fontWeight: '800',
+  soldOutCompactText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
     color: '#991B1B',
-  },
-  soldOutBannerSub: {
-    fontSize: 11.5,
-    color: '#7F1D1D',
-    lineHeight: 16,
   },
   soldOutImageStageOverlay: {
     position: 'absolute',

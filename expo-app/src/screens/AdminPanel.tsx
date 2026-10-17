@@ -1,5 +1,5 @@
 import AddProductModal from '@/components/AddProductModal';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import {
   SafeAreaView,
   RefreshControl,
   useWindowDimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -167,8 +169,29 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
     }
   };
 
+  const viewOpacityAnim = useRef(new Animated.Value(1)).current;
+  const viewTranslateAnim = useRef(new Animated.Value(0)).current;
+
   const handleTabPress = (v: AdminView) => {
-    setView(v);
+    if (v !== view) {
+      viewOpacityAnim.setValue(0.75);
+      viewTranslateAnim.setValue(6);
+      setView(v);
+      Animated.parallel([
+        Animated.timing(viewOpacityAnim, {
+          toValue: 1,
+          duration: 190,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(viewTranslateAnim, {
+          toValue: 0,
+          duration: 190,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
     if (v === 'dashboard') navigation.navigate('AdminDashboard');
     else if (v === 'products') navigation.navigate('AdminProducts');
     else if (v === 'brands') navigation.navigate('AdminBrands');
@@ -287,7 +310,15 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
       )}
 
       {/* Main Content Area */}
-      <View style={styles.mainContent}>
+      <Animated.View
+        style={[
+          styles.mainContent,
+          {
+            opacity: viewOpacityAnim,
+            transform: [{ translateY: viewTranslateAnim }],
+          },
+        ]}
+      >
         {view === 'dashboard' && (
           <DashboardView
             onNavigate={(v) => handleTabPress(v)}
@@ -320,7 +351,7 @@ export default function AdminPanel({ route, onExit }: { route?: any; onExit?: ()
         )}
         {view === 'tradeIns' && <TradeInsView />}
         {view === 'promotions' && <PromotionsManagementView />}
-      </View>
+      </Animated.View>
 
       {/* Bottom Nav Bar - Exactly Matching Screenshot */}
       <View
@@ -1780,6 +1811,8 @@ function TradeInsView() {
 /* ========================================================================================
    TAB 1: MINIMAL DASHBOARD OVERVIEW
 ======================================================================================== */
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
 function DashboardView({
   onNavigate,
   onAddProduct,
@@ -1797,6 +1830,64 @@ function DashboardView({
   const [users, setUsers] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
+
+  // Staggered Entrance Animations
+  const headerFadeAnim = useRef(new Animated.Value(0)).current;
+  const headerTranslateAnim = useRef(new Animated.Value(-12)).current;
+  const kpi0Anim = useRef(new Animated.Value(0)).current;
+  const kpi1Anim = useRef(new Animated.Value(0)).current;
+  const kpi2Anim = useRef(new Animated.Value(0)).current;
+  const kpi3Anim = useRef(new Animated.Value(0)).current;
+  const bannerAnim = useRef(new Animated.Value(0)).current;
+  const chartAnim = useRef(new Animated.Value(0)).current;
+  const ordersAnim = useRef(new Animated.Value(0)).current;
+
+  // Continuous Micro-Animations
+  const radarPulseAnim = useRef(new Animated.Value(0)).current;
+  const tooltipFloatAnim = useRef(new Animated.Value(0)).current;
+
+  // Live Radar Pulse Loop
+  useEffect(() => {
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(radarPulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(radarPulseAnim, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseLoop.start();
+    return () => pulseLoop.stop();
+  }, [radarPulseAnim]);
+
+  // Chart Tooltip Floating Loop
+  useEffect(() => {
+    const floatLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(tooltipFloatAnim, {
+          toValue: -5,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(tooltipFloatAnim, {
+          toValue: 0,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    floatLoop.start();
+    return () => floatLoop.stop();
+  }, [tooltipFloatAnim]);
 
   const loadStats = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -1828,6 +1919,60 @@ function DashboardView({
     loadStats();
   }, [loadStats, refreshSignal]);
 
+  // Trigger choreographed entrance on load or refresh
+  useEffect(() => {
+    if (!loading) {
+      headerFadeAnim.setValue(0);
+      headerTranslateAnim.setValue(-12);
+      kpi0Anim.setValue(0);
+      kpi1Anim.setValue(0);
+      kpi2Anim.setValue(0);
+      kpi3Anim.setValue(0);
+      bannerAnim.setValue(0);
+      chartAnim.setValue(0);
+      ordersAnim.setValue(0);
+
+      Animated.stagger(55, [
+        Animated.parallel([
+          Animated.timing(headerFadeAnim, {
+            toValue: 1,
+            duration: 250,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(headerTranslateAnim, {
+            toValue: 0,
+            duration: 250,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.spring(kpi0Anim, { toValue: 1, friction: 6.5, tension: 80, useNativeDriver: true }),
+        Animated.spring(kpi1Anim, { toValue: 1, friction: 6.5, tension: 80, useNativeDriver: true }),
+        Animated.spring(kpi2Anim, { toValue: 1, friction: 6.5, tension: 80, useNativeDriver: true }),
+        Animated.spring(kpi3Anim, { toValue: 1, friction: 6.5, tension: 80, useNativeDriver: true }),
+        Animated.timing(bannerAnim, {
+          toValue: 1,
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(chartAnim, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(ordersAnim, {
+          toValue: 1,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [loading, refreshSignal]);
+
   if (loading && !refreshing) {
     return (
       <View style={styles.centerBox}>
@@ -1842,6 +1987,24 @@ function DashboardView({
   const totalProductsStr = Number(products.length || 0).toLocaleString('en-IN');
   const totalUsersStr = Number(users.length || 0).toLocaleString('en-IN');
   const totalBrandsStr = Number(brands.length || 0).toLocaleString('en-IN');
+
+  const getKpiAnimatedStyle = (anim: Animated.Value) => ({
+    opacity: anim,
+    transform: [
+      {
+        translateY: anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [16, 0],
+        }),
+      },
+      {
+        scale: anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.93, 1],
+        }),
+      },
+    ],
+  });
 
   // Demo recent orders matching mockup
   const sampleRecentOrders: any[] = [];
@@ -1861,7 +2024,15 @@ function DashboardView({
       }
     >
       {/* Title + Subtitle + Date Dropdown matching Mockup */}
-      <View style={styles.viewHeaderRow}>
+      <Animated.View
+        style={[
+          styles.viewHeaderRow,
+          {
+            opacity: headerFadeAnim,
+            transform: [{ translateY: headerTranslateAnim }],
+          },
+        ]}
+      >
         <View style={{ flex: 1 }}>
           <Text style={styles.viewTitle}>Dashboard</Text>
           <Text style={styles.viewSubtitle}>Welcome back, Admin!</Text>
@@ -1872,14 +2043,14 @@ function DashboardView({
           <Text style={styles.periodDropdownText}>{selectedPeriod}</Text>
           <Ionicons name="chevron-down" size={13} color="#64748B" />
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       {/* 4 Metric Cards Matching Mockup (2x2 Grid with Chevron >) */}
       <View style={styles.kpiGrid}>
         {/* 1. Total Orders */}
-        <TouchableOpacity
+        <AnimatedTouchable
           onPress={() => onNavigate('orders')}
-          style={styles.kpiCard}
+          style={[styles.kpiCard, getKpiAnimatedStyle(kpi0Anim)]}
           activeOpacity={0.8}
         >
           <View style={styles.kpiTopRow}>
@@ -1894,12 +2065,12 @@ function DashboardView({
             <Ionicons name="trending-up" size={11} color="#16A34A" />
             <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+12%</Text>
           </View>
-        </TouchableOpacity>
+        </AnimatedTouchable>
 
         {/* 2. Total Products */}
-        <TouchableOpacity
+        <AnimatedTouchable
           onPress={() => onNavigate('products')}
-          style={styles.kpiCard}
+          style={[styles.kpiCard, getKpiAnimatedStyle(kpi1Anim)]}
           activeOpacity={0.8}
         >
           <View style={styles.kpiTopRow}>
@@ -1914,12 +2085,12 @@ function DashboardView({
             <Ionicons name="trending-up" size={11} color="#16A34A" />
             <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+8%</Text>
           </View>
-        </TouchableOpacity>
+        </AnimatedTouchable>
 
         {/* 3. Total Users */}
-        <TouchableOpacity
+        <AnimatedTouchable
           onPress={() => onNavigate('users')}
-          style={styles.kpiCard}
+          style={[styles.kpiCard, getKpiAnimatedStyle(kpi2Anim)]}
           activeOpacity={0.8}
         >
           <View style={styles.kpiTopRow}>
@@ -1934,12 +2105,12 @@ function DashboardView({
             <Ionicons name="trending-up" size={11} color="#16A34A" />
             <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+15%</Text>
           </View>
-        </TouchableOpacity>
+        </AnimatedTouchable>
 
         {/* 4. Total Brands */}
-        <TouchableOpacity
+        <AnimatedTouchable
           onPress={() => onNavigate('brands')}
-          style={styles.kpiCard}
+          style={[styles.kpiCard, getKpiAnimatedStyle(kpi3Anim)]}
           activeOpacity={0.8}
         >
           <View style={styles.kpiTopRow}>
@@ -1954,49 +2125,102 @@ function DashboardView({
             <Ionicons name="trending-up" size={11} color="#16A34A" />
             <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+5%</Text>
           </View>
-        </TouchableOpacity>
+        </AnimatedTouchable>
       </View>
 
-      {/* Realtime Analytics Quick Banner */}
-      <TouchableOpacity
-        onPress={() => onNavigate('analytics')}
+      {/* Realtime Analytics Quick Banner with Animated Radar Pulse */}
+      <Animated.View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#0F172A',
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          borderRadius: 14,
-          marginBottom: 6,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 2,
+          opacity: bannerAnim,
+          transform: [
+            {
+              translateY: bannerAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [14, 0],
+              }),
+            },
+          ],
         }}
-        activeOpacity={0.85}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="stats-chart" size={17} color="#FFC400" />
-          </View>
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#FFFFFF' }}>Realtime Analytics</Text>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#168A4A' }} />
+        <TouchableOpacity
+          onPress={() => onNavigate('analytics')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: '#0F172A',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderRadius: 14,
+            marginBottom: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 2,
+          }}
+          activeOpacity={0.85}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="stats-chart" size={17} color="#FFC400" />
             </View>
-            <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>Live revenue, order pipeline & 7-day velocity</Text>
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#FFFFFF' }}>Realtime Analytics</Text>
+                {/* Live Radar Pulse Indicator */}
+                <View style={{ position: 'relative', width: 12, height: 12, alignItems: 'center', justifyContent: 'center' }}>
+                  <Animated.View
+                    style={{
+                      position: 'absolute',
+                      width: 12,
+                      height: 12,
+                      borderRadius: 6,
+                      backgroundColor: '#22C55E',
+                      transform: [
+                        {
+                          scale: radarPulseAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 2.5],
+                          }),
+                        },
+                      ],
+                      opacity: radarPulseAnim.interpolate({
+                        inputRange: [0, 0.7, 1],
+                        outputRange: [0.8, 0.2, 0],
+                      }),
+                    }}
+                  />
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' }} />
+                </View>
+              </View>
+              <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>Live revenue, order pipeline & 7-day velocity</Text>
+            </View>
           </View>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#168A4A', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-          <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFFFFF' }}>View</Text>
-          <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
-        </View>
-      </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#168A4A', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFFFFF' }}>View</Text>
+            <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
 
-      {/* Sales Overview Card */}
-      <View style={styles.cardContainer}>
+      {/* Sales Overview Card with Animated Entry & Floating Tooltip */}
+      <Animated.View
+        style={[
+          styles.cardContainer,
+          {
+            opacity: chartAnim,
+            transform: [
+              {
+                translateY: chartAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [16, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <View style={styles.cardHeaderRow}>
           <Text style={styles.cardSectionTitle}>Sales Overview</Text>
           <TouchableOpacity onPress={() => onNavigate('analytics')} style={styles.cardLinkRow} activeOpacity={0.8}>
@@ -2031,8 +2255,15 @@ function DashboardView({
             <View style={styles.curveFillUnderlay} />
             <View style={styles.curveLineStroke} />
 
-            {/* Peak Tooltip at ~45% (12 Sep) */}
-            <View style={styles.chartPeakTooltip}>
+            {/* Peak Tooltip at ~45% (12 Sep) with Floating Micro-Animation */}
+            <Animated.View
+              style={[
+                styles.chartPeakTooltip,
+                {
+                  transform: [{ translateY: tooltipFloatAnim }],
+                },
+              ]}
+            >
               <View style={styles.chartTooltipBubble}>
                 <Text style={styles.chartTooltipValue}>₹24,890</Text>
                 <Text style={styles.chartTooltipDate}>12 Sep</Text>
@@ -2041,7 +2272,7 @@ function DashboardView({
               <View style={styles.chartPeakDot}>
                 <View style={styles.chartPeakInnerDot} />
               </View>
-            </View>
+            </Animated.View>
           </View>
 
           {/* X-axis Dates */}
@@ -2053,10 +2284,25 @@ function DashboardView({
             <Text style={styles.chartXDateText}>30 Sep</Text>
           </View>
         </View>
-      </View>
+      </Animated.View>
 
-      {/* Recent Orders Overview */}
-      <View style={styles.cardContainer}>
+      {/* Recent Orders Overview with Animated Entry */}
+      <Animated.View
+        style={[
+          styles.cardContainer,
+          {
+            opacity: ordersAnim,
+            transform: [
+              {
+                translateY: ordersAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [18, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <View style={styles.cardHeaderRow}>
           <Text style={styles.cardSectionTitle}>Recent Orders</Text>
           <TouchableOpacity onPress={() => onNavigate('orders')} style={styles.cardLinkRow} activeOpacity={0.8}>
@@ -2113,7 +2359,7 @@ function DashboardView({
             </View>
           ))}
         </View>
-      </View>
+      </Animated.View>
     </ScrollView>
   );
 }

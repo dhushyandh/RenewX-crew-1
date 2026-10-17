@@ -12,9 +12,21 @@ if (!fs.existsSync(distDir)) {
   process.exit(1);
 }
 
-// 1. Copy Favicon and Touch Icons
+// 1. Copy PWA icons, favicon, and touch icons
 const iconSrc = path.join(assetsDir, 'icon.png');
 const logoSrc = path.join(assetsDir, 'logo.png');
+const pwaIconDir = path.join(distDir, 'icons');
+
+if (fs.existsSync(iconSrc)) {
+  fs.mkdirSync(pwaIconDir, { recursive: true });
+  for (const fileName of ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png']) {
+    const sourcePath = path.join(assetsDir, fileName);
+    if (fs.existsSync(sourcePath)) {
+      fs.copyFileSync(sourcePath, path.join(pwaIconDir, fileName));
+    }
+  }
+  console.log('✅ PWA icons copied to dist/icons/');
+}
 
 if (fs.existsSync(iconSrc)) {
   fs.copyFileSync(iconSrc, path.join(distDir, 'favicon.png'));
@@ -23,6 +35,23 @@ if (fs.existsSync(iconSrc)) {
   fs.copyFileSync(iconSrc, path.join(distDir, 'apple-touch-icon-precomposed.png'));
   console.log('✅ Favicon and Apple Touch icons copied to dist/');
 }
+
+const manifest = {
+  name: 'RenewX | Certified Pre-Owned Electronics Marketplace',
+  short_name: 'RenewX',
+  start_url: '/',
+  scope: '/',
+  display: 'standalone',
+  background_color: '#ffffff',
+  theme_color: '#ffc400',
+  icons: [
+    { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
+};
+fs.writeFileSync(path.join(distDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+console.log('✅ PWA manifest generated');
 
 if (fs.existsSync(logoSrc)) {
   fs.copyFileSync(logoSrc, path.join(distDir, 'og-image.png'));
@@ -111,6 +140,7 @@ if (fs.existsSync(indexPath)) {
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
 
     <!-- Google Fonts: Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
