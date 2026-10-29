@@ -16,6 +16,7 @@ export default function CartScreen({ userId }: { userId: string }) {
     useCart();
   const [checkoutDone, setCheckoutDone] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [whatsappConsent, setWhatsappConsent] = useState(true);
 
   const handleCheckout = async () => {
     if (!window.confirm(`Place order for ${totalItems} items totaling $${subtotal.toFixed(0)}?`))
@@ -23,14 +24,15 @@ export default function CartScreen({ userId }: { userId: string }) {
     setCheckoutError(null);
 
     try {
-      const { data: order, error: orderError } = await supabase
+      const { data: order, error: orderError } = await (supabase
         .from('orders')
         .insert({
           user_id: userId,
           subtotal: Math.round(subtotal),
           savings: Math.round(savings),
           status: 'pending',
-        })
+          whatsapp_consent: whatsappConsent,
+        }) as any)
         .select()
         .maybeSingle();
 
@@ -167,6 +169,17 @@ export default function CartScreen({ userId }: { userId: string }) {
           <span className="text-base font-bold text-gray-900">Total</span>
           <span className="text-xl font-black text-gray-900">${subtotal.toFixed(0)}</span>
         </div>
+        <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={whatsappConsent}
+            onChange={(e) => setWhatsappConsent(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-yellow-500 focus:ring-yellow-400"
+          />
+          <span className="text-xs text-gray-700">
+            Send order & delivery updates on WhatsApp
+          </span>
+        </label>
         <button
           onClick={handleCheckout}
           className="w-full flex items-center justify-center gap-2 bg-black text-[#ffc400] py-4 rounded-full active:scale-95 transition-transform mb-2"

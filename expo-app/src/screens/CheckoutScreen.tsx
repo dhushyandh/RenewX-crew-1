@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -95,6 +96,7 @@ export default function CheckoutScreen() {
 
   // Payment method: 'razorpay' | 'cod'
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
+  const [whatsappConsent, setWhatsappConsent] = useState(true);
 
   // Processing & Success Animation state
   const [processing, setProcessing] = useState(false);
@@ -245,6 +247,7 @@ export default function CheckoutScreen() {
         phone: currentAddress.phone,
         address: `${currentAddress.address}, ${currentAddress.cityStatePincode}`,
         pincode: currentAddress.pincode,
+        whatsapp_consent: whatsappConsent,
       },
       paymentMethod: paymentMethod === 'cod' ? 'cod' : 'razorpay',
       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
@@ -404,6 +407,7 @@ export default function CheckoutScreen() {
         phone: currentAddress.phone,
         address: `${currentAddress.address}, ${currentAddress.cityStatePincode}`,
         pincode: currentAddress.pincode,
+        whatsapp_consent: whatsappConsent,
       },
       paymentMethod: 'Razorpay',
       paymentStatus: 'paid',
@@ -805,6 +809,27 @@ export default function CheckoutScreen() {
                 />
               </View>
             </TouchableOpacity>
+          </View>
+
+          {/* WhatsApp Order Updates Consent */}
+          <View style={styles.whatsappConsentCard}>
+            <View style={styles.whatsappConsentLeft}>
+              <View style={styles.whatsappIconCircle}>
+                <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
+              </View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.whatsappConsentTitle}>WhatsApp Order Updates</Text>
+                <Text style={styles.whatsappConsentSubtitle}>
+                  Receive real-time confirmation & delivery tracking on WhatsApp
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={whatsappConsent}
+              onValueChange={setWhatsappConsent}
+              trackColor={{ false: '#E2E8F0', true: '#BBF7D0' }}
+              thumbColor={whatsappConsent ? '#16A34A' : '#94A3B8'}
+            />
           </View>
 
           {/* 7. Price Details */}
@@ -1785,5 +1810,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#15803D',
+  },
+  whatsappConsentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  whatsappConsentLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  whatsappIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whatsappConsentTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  whatsappConsentSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
 });

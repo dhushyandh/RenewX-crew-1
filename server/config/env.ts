@@ -47,6 +47,9 @@ export const env = {
   VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY?.trim() || 'BM8x0O0kwul8vZa6WqY5UgN0SxJXOmCecsFAviuEFQsSN7-k-M2Eg9U8gsIFRfSF2SgbHqr-0nbfF-CVT95AgIQ',
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY?.trim() || 'xGdYET2PWEVKgfK4LD1T9iOBPMyLzxOr4TySNaru85U',
   VAPID_SUBJECT: process.env.VAPID_SUBJECT?.trim() || 'mailto:admin@renewx.com',
+  OPENWA_BASE_URL: optional('OPENWA_BASE_URL') || 'http://localhost:2785',
+  OPENWA_API_KEY: optional('OPENWA_API_KEY'),
+  OPENWA_SESSION_ID: optional('OPENWA_SESSION_ID'),
 };
 
 export const isProduction = env.NODE_ENV === 'production';

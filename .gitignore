@@ -31,3 +31,6 @@ server-runtime.cjs
 firebase-service-account.json
 **/firebase-service-account.json
 
+
+# OpenWA local directory & data
+OpenWA/

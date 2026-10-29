@@ -254,7 +254,7 @@ export const api = {
     createCheckout: async (
       payload: {
         items: { product_id: string; quantity: number }[];
-        customer_info: { name: string; phone: string; address: string; pincode: string };
+        customer_info: { name: string; phone: string; address: string; pincode: string; whatsapp_consent?: boolean };
         payment_method?: 'razorpay' | 'cod';
       },
       idempotencyKey: string,
@@ -351,7 +351,12 @@ export const api = {
         method: 'DELETE',
         body: JSON.stringify({ token }),
       }),
-    updateNotificationPreferences: async (payload: { order_updates?: boolean; sell_request_updates?: boolean; marketing?: boolean }) =>
+    updateNotificationPreferences: async (payload: {
+      order_updates?: boolean;
+      sell_request_updates?: boolean;
+      marketing?: boolean;
+      whatsapp_order_updates?: boolean;
+    }) =>
       request<any>('/users/me/notification-preferences', { method: 'PATCH', body: JSON.stringify(payload) }),
     getAll: async () => request<any[]>('/users'),
     updateRole: async (id: string, role?: 'admin' | 'customer' | string, status?: 'active' | 'inactive' | 'blocked' | string) =>

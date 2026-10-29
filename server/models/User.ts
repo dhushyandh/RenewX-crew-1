@@ -36,6 +36,7 @@ export interface IUser {
     sell_request_updates: boolean;
     marketing: boolean;
     product_updates?: boolean;
+    whatsapp_order_updates?: boolean;
   };
   push_tokens?: string[];
   reset_password_token?: string;
@@ -157,6 +158,7 @@ const UserSchema = new Schema<IUser>(
       sell_request_updates: { type: Boolean, default: true },
       marketing: { type: Boolean, default: false },
       product_updates: { type: Boolean, default: true },
+      whatsapp_order_updates: { type: Boolean, default: true },
     },
     push_tokens: {
       type: [String],

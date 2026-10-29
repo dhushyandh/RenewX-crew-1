@@ -9,11 +9,13 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "dev:server": "tsx watch server/local.ts",
     "server": "tsx watch server/local.ts",
     "seed": "tsx server/seed.ts",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=cjs --packages=external --outfile=server-build.cjs && esbuild server/production.ts --bundle --platform=node --format=cjs --packages=external --outfile=server-runtime.cjs",
     "start": "node server-runtime.cjs",
-    "typecheck:server": "tsc -p tsconfig.server.json"
+    "typecheck:server": "tsc -p tsconfig.server.json",
+    "test": "esbuild server/tests/openwa.test.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/openwa.test.cjs && node --test dist/openwa.test.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

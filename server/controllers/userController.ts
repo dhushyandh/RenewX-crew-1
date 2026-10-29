@@ -186,6 +186,7 @@ export async function getMyNotificationPreferences(
         order_updates: user.notification_preferences?.order_updates ?? true,
         sell_request_updates: user.notification_preferences?.sell_request_updates ?? true,
         marketing: user.notification_preferences?.marketing ?? false,
+        whatsapp_order_updates: user.notification_preferences?.whatsapp_order_updates ?? true,
       },
     });
   } catch (err) {
@@ -204,7 +205,7 @@ export async function updateMyNotificationPreferences(
       return;
     }
 
-    const allowed = ['order_updates', 'sell_request_updates', 'marketing'] as const;
+    const allowed = ['order_updates', 'sell_request_updates', 'marketing', 'whatsapp_order_updates'] as const;
     const updates: Record<string, boolean> = {};
 
     for (const key of allowed) {
@@ -246,6 +247,7 @@ export async function updateMyNotificationPreferences(
         order_updates: user.notification_preferences?.order_updates ?? true,
         sell_request_updates: user.notification_preferences?.sell_request_updates ?? true,
         marketing: user.notification_preferences?.marketing ?? false,
+        whatsapp_order_updates: user.notification_preferences?.whatsapp_order_updates ?? true,
       },
     });
   } catch (err) {

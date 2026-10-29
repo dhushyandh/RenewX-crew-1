@@ -45,6 +45,7 @@ export interface Order {
     phone: string;
     address: string;
     pincode: string;
+    whatsapp_consent?: boolean;
   };
   order_items?: OrderItem[];
   created_at?: string;
@@ -72,6 +73,7 @@ export interface IOrder {
     phone: string;
     address: string;
     pincode: string;
+    whatsapp_consent?: boolean;
   };
   order_items: OrderItem[];
   created_at: Date;
@@ -88,6 +90,7 @@ export interface CreateOrderDTO {
     phone: string;
     address: string;
     pincode: string;
+    whatsapp_consent?: boolean;
   };
   payment_method?: 'razorpay' | 'cod';
 }
@@ -134,6 +137,7 @@ const OrderSchema = new Schema<IOrder>(
       phone: { type: String, default: '' },
       address: { type: String, default: '' },
       pincode: { type: String, default: '' },
+      whatsapp_consent: { type: Boolean, default: true },
     },
     order_items: { type: [OrderItemSchema], default: [] },
   },

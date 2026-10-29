@@ -273,7 +273,7 @@ export async function triggerTestNotification(
         orderId,
         subtotal: 54999,
         customerName: req.user?.full_name || 'Rahul Sharma',
-        customerPhone: '9876543210',
+        customerPhone: '9342763553',
         customerAddress: '42 MG Road, Indiranagar, Bengaluru, 560038',
         paymentMethod: 'Cash on Delivery',
         itemCount: 1,
@@ -288,7 +288,7 @@ export async function triggerTestNotification(
       await notifyAdminsNewTradeIn({
         tradeInId: orderId,
         customerName: req.user?.full_name || 'Rahul Sharma',
-        customerPhone: '9876543210',
+        customerPhone: '9342763553',
         customerEmail: req.user?.email || 'customer@example.com',
         brand: 'Apple',
         model: 'iPhone 14 Pro 128GB',

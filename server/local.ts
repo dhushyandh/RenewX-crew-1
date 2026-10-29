@@ -3,6 +3,7 @@ import { env } from './config/env';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db';
 import { setupOrderWebSocket } from './services/orderWebSocket';
+import { startWhatsAppRetryWorker, stopWhatsAppRetryWorker } from './services/openwaService';
 
 async function start() {
   await connectDB();
@@ -16,9 +17,11 @@ async function start() {
   });
 
   setupOrderWebSocket(server);
+  startWhatsAppRetryWorker();
 
   const gracefulShutdown = (signal: string) => {
     console.log(`[Server] Received ${signal}. Shutting down gracefully...`);
+    stopWhatsAppRetryWorker();
     server.close(() => {
       mongoose.disconnect().catch(() => undefined).finally(() => {
         console.log('[Server] Shutdown complete.');

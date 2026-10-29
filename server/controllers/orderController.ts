@@ -1060,18 +1060,21 @@ async function finalizePaidOrder(order: any, paymentId: string): Promise<any> {
           action: 'payment_successful',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
           subtotal: order.subtotal,
         });
         await notifyUserEvent({
           action: 'order_placed',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
           subtotal: order.subtotal,
           paymentMethod: 'Razorpay',
         });
 
         await notifyAdminsNewOrder({
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
           subtotal: order.subtotal,
           customerName: order.customer_info?.name || 'Customer',
           customerPhone: order.customer_info?.phone || '',
@@ -1149,14 +1152,19 @@ export async function handleRazorpayWebhook(req: Request, res: Response): Promis
     const payload = JSON.parse(rawBody.toString('utf8'));
     const event = String(payload.event || '');
     const payment = payload.payload?.payment?.entity;
+    const refund = payload.payload?.refund?.entity;
     const razorpayOrderId = payment?.order_id || payload.payload?.order?.entity?.id;
+    const paymentId = payment?.id || refund?.payment_id;
 
-    if (!razorpayOrderId) {
+    if (!razorpayOrderId && !paymentId) {
       res.json({ success: true, ignored: true });
       return;
     }
 
-    const order = await OrderModel.findOne({ razorpay_order_id: razorpayOrderId });
+    let order = razorpayOrderId ? await OrderModel.findOne({ razorpay_order_id: razorpayOrderId }) : null;
+    if (!order && paymentId) {
+      order = await OrderModel.findOne({ razorpay_payment_id: paymentId });
+    }
     if (!order) {
       res.json({ success: true, ignored: true });
       return;
@@ -1174,9 +1182,53 @@ export async function handleRazorpayWebhook(req: Request, res: Response): Promis
 
     if (event === 'payment.captured') {
       if (order.payment_status !== 'paid') {
-        const paymentId = payment?.id || order.razorpay_payment_id;
-        if (paymentId) await finalizePaidOrder(order, paymentId);
+        const pId = payment?.id || order.razorpay_payment_id;
+        if (pId) await finalizePaidOrder(order, pId);
       }
+      res.json({ success: true });
+      return;
+    }
+
+    if (event === 'refund.processed') {
+      if (order.payment_status !== 'refunded') {
+        order.payment_status = 'refunded';
+        await order.save();
+
+        const refundAmount = refund?.amount ? Math.round(refund.amount / 100) : order.subtotal;
+        if (order.user_id) {
+          await notifyUserEvent({
+            action: 'refund_update',
+            userId: order.user_id,
+            orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
+            amount: refundAmount,
+            status: 'completed',
+          });
+        }
+      }
+      res.json({ success: true });
+      return;
+    }
+
+    if (event === 'refund.created') {
+      if (order.payment_status !== 'refunded' && order.payment_status !== 'refund_pending') {
+        order.payment_status = 'refund_pending';
+        await order.save();
+
+        const refundAmount = refund?.amount ? Math.round(refund.amount / 100) : order.subtotal;
+        if (order.user_id) {
+          await notifyUserEvent({
+            action: 'refund_update',
+            userId: order.user_id,
+            orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
+            amount: refundAmount,
+            status: 'pending',
+          });
+        }
+      }
+      res.json({ success: true });
+      return;
     }
 
     res.json({ success: true });
@@ -1225,6 +1277,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
             action: 'refund_update',
             userId: order.user_id,
             orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
             amount: order.subtotal,
             status: 'completed',
           });
@@ -1236,6 +1289,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
             action: 'refund_update',
             userId: order.user_id,
             orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
             amount: order.subtotal,
             status: 'pending',
           });
@@ -1248,6 +1302,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
           action: 'refund_update',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
           amount: order.subtotal,
           status: payment_status === 'refunded' ? 'completed' : 'pending',
         });
@@ -1289,6 +1344,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
           action: 'order_shipped',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
           courier: order.courier,
           trackingNumber: order.tracking_number,
         });
@@ -1297,6 +1353,7 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
           action: 'out_for_delivery',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
           courier: order.courier,
         });
       } else if (order.status === 'delivered') {
@@ -1304,18 +1361,21 @@ export async function updateOrderStatus(req: AuthenticatedRequest, res: Response
           action: 'order_delivered',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
         });
       } else if (order.status === 'cancelled') {
         await notifyUserEvent({
           action: 'order_cancelled',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
         });
       } else if (statusChanged) {
         await notifyUserEvent({
           action: 'order_status_changed',
           userId: order.user_id,
           orderId: order.id,
+          reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
           status: order.status,
           courier: order.courier,
           trackingNumber: order.tracking_number,

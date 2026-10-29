@@ -4,6 +4,7 @@ import app from './index';
 import { env } from './config/env';
 import { connectDB } from './config/db';
 import { setupOrderWebSocket } from './services/orderWebSocket';
+import { startWhatsAppRetryWorker, stopWhatsAppRetryWorker } from './services/openwaService';
 import { observability } from './services/observability';
 
 const isPrimary = (cluster as any).isPrimary ?? (cluster as any).isMaster;
@@ -23,9 +24,11 @@ async function startWorker(): Promise<void> {
   });
 
   setupOrderWebSocket(server);
+  startWhatsAppRetryWorker();
 
   const shutdown = (signal: string): void => {
     console.log(`[HTTP ${process.pid}] Received ${signal}; shutting down gracefully`);
+    stopWhatsAppRetryWorker();
 
     server.close(() => {
       console.log(`[HTTP ${process.pid}] Server closed`);

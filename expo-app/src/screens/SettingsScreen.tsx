@@ -24,6 +24,7 @@ import { useLocation } from '@/context/LocationContext';
 import { useLanguage } from '@/context/LanguageContext';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
+import { api } from '@/services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -44,8 +45,53 @@ export default function SettingsScreen() {
 
   // Preferences toggles
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [whatsappNotifications, setWhatsappNotifications] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const { location, setLocationManually, detectLocation, isDetecting } = useLocation();
+
+  React.useEffect(() => {
+    let isMounted = true;
+    if (user) {
+      api.users
+        .getNotificationPreferences()
+        .then((res: any) => {
+          if (isMounted && res?.data) {
+            if (res.data.whatsapp_order_updates !== undefined) {
+              setWhatsappNotifications(res.data.whatsapp_order_updates);
+            }
+            if (res.data.order_updates !== undefined) {
+              setNotificationsEnabled(res.data.order_updates);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const handleToggleNotifications = async (val: boolean) => {
+    setNotificationsEnabled(val);
+    try {
+      await api.users.updateNotificationPreferences({ order_updates: val });
+      toast.show(val ? 'Notifications enabled' : 'Notifications muted');
+    } catch {
+      toast.error('Failed to update preferences');
+      setNotificationsEnabled(!val);
+    }
+  };
+
+  const handleToggleWhatsApp = async (val: boolean) => {
+    setWhatsappNotifications(val);
+    try {
+      await api.users.updateNotificationPreferences({ whatsapp_order_updates: val });
+      toast.show(val ? 'WhatsApp updates enabled' : 'WhatsApp updates disabled');
+    } catch {
+      toast.error('Failed to update preferences');
+      setWhatsappNotifications(!val);
+    }
+  };
 
   // Modals state
   const [activeModal, setActiveModal] = useState<
@@ -235,11 +281,27 @@ export default function SettingsScreen() {
               </View>
               <Switch
                 value={notificationsEnabled}
-                onValueChange={(val) => {
-                  setNotificationsEnabled(val);
-                  toast.show(val ? 'Notifications enabled' : 'Notifications muted');
-                }}
+                onValueChange={handleToggleNotifications}
                 trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* WhatsApp Notifications */}
+            <View style={styles.menuRow}>
+              <View style={styles.menuIconBox}>
+                <Ionicons name="logo-whatsapp" size={20} color="#16A34A" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuItemTitle}>{t('settings_whatsapp', 'WhatsApp Updates')}</Text>
+                <Text style={styles.menuItemSubtitle}>{t('settings_whatsapp_sub', 'Order status & delivery tracking on WhatsApp')}</Text>
+              </View>
+              <Switch
+                value={whatsappNotifications}
+                onValueChange={handleToggleWhatsApp}
+                trackColor={{ false: '#E2E8F0', true: '#16A34A' }}
                 thumbColor="#FFFFFF"
               />
             </View>

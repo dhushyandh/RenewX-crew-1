@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { env } from './env';
 import { OrderModel } from '../models/Order';
+import { reconcileWhatsAppIndexes } from '../models/WhatsAppMessage';
 
 let connectPromise: Promise<typeof mongoose> | null = null;
 
@@ -42,6 +43,7 @@ export async function connectDB(): Promise<typeof mongoose> {
     })
     .then(async (connection) => {
       await reconcileOrderIndexes();
+      await reconcileWhatsAppIndexes();
       console.log(`🌿 [MongoDB] Connected to ${connection.connection.name} at ${connection.connection.host}`);
       return connection;
     })

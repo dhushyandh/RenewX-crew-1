@@ -286,7 +286,19 @@ export type NotificationEvent =
 export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
   try {
     const user = await User.findById(event.userId).select('notification_preferences');
-    if (!user) return;
+    if (!user) {
+      if ('orderId' in event && event.orderId) {
+        setImmediate(async () => {
+          try {
+            const { handleOrderNotificationEvent } = await import('./openwaService');
+            await handleOrderNotificationEvent(event);
+          } catch (waErr: any) {
+            console.error('[Notifications] WhatsApp background dispatch error for guest:', waErr?.message || waErr);
+          }
+        });
+      }
+      return;
+    }
 
     let type = 'order';
     let title = '';
@@ -298,7 +310,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
     switch (event.action) {
       // 1. 🛒 Order placed -> Order placed successfully
       case 'order_placed': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Order placed successfully';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -311,7 +323,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 
       // 2. 💳 Payment successful -> Payment confirmed
       case 'payment_successful': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Payment confirmed';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -325,7 +337,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 
       // 3. 📦 Order status changed -> Order status updated
       case 'order_status_changed': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Order status updated';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -338,7 +350,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 
       // 4. 🚚 Order shipped -> Shipment update
       case 'order_shipped': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Shipment update';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -353,7 +365,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 
       // 5. 🏠 Out for delivery -> Delivery update
       case 'out_for_delivery': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Delivery update';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -366,7 +378,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 
       // 6. ✅ Order delivered -> Order delivered
       case 'order_delivered': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Order delivered';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -379,7 +391,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 
       // 7. ❌ Order cancelled -> Order cancelled
       case 'order_cancelled': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Order cancelled';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -393,7 +405,7 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
 
       // 8. 💰 Refund initiated/completed -> Refund update
       case 'refund_update': {
-        if (user.notification_preferences?.order_updates === false) return;
+        if (user.notification_preferences?.order_updates === false) break;
         type = 'order';
         title = 'Refund update';
         const orderShort = event.orderId.slice(-6).toUpperCase();
@@ -482,16 +494,28 @@ export async function notifyUserEvent(event: NotificationEvent): Promise<void> {
       }
     }
 
-    if (!title || !body) return;
+    if (title && body) {
+      await createUserNotification(event.userId, {
+        type,
+        title,
+        body,
+        reference_id,
+        reference_type,
+        data,
+      });
+    }
 
-    await createUserNotification(event.userId, {
-      type,
-      title,
-      body,
-      reference_id,
-      reference_type,
-      data,
-    });
+    // Background dispatch to OpenWA WhatsApp for order events (non-blocking)
+    if ('orderId' in event && event.orderId) {
+      setImmediate(async () => {
+        try {
+          const { handleOrderNotificationEvent } = await import('./openwaService');
+          await handleOrderNotificationEvent(event, user.notification_preferences);
+        } catch (waErr: any) {
+          console.error('[Notifications] WhatsApp background dispatch error:', waErr?.message || waErr);
+        }
+      });
+    }
   } catch (err) {
     console.error('[Notifications] Failed to notify user event:', err);
   }

@@ -20,6 +20,7 @@ const router = Router();
 router.get('/track/:id', trackOrderUniversally);
 
 router.post('/checkout', checkoutRateLimiter, authenticateToken, requireAuthenticated, createCheckoutOrder);
+router.post('/', checkoutRateLimiter, authenticateToken, requireAuthenticated, createCheckoutOrder);
 router.post('/verify-payment', authenticateToken, requireAuthenticated, verifyPayment);
 router.get('/', authenticateToken, requireAuthenticated, getOrders);
 router.get('/:id', authenticateToken, requireAuthenticated, getOrderById);
