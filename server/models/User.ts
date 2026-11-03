@@ -156,7 +156,7 @@ const UserSchema = new Schema<IUser>(
     notification_preferences: {
       order_updates: { type: Boolean, default: true },
       sell_request_updates: { type: Boolean, default: true },
-      marketing: { type: Boolean, default: false },
+      marketing: { type: Boolean, default: true },
       product_updates: { type: Boolean, default: true },
       whatsapp_order_updates: { type: Boolean, default: true },
     },

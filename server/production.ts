@@ -24,7 +24,12 @@ async function startWorker(): Promise<void> {
   });
 
   setupOrderWebSocket(server);
-  startWhatsAppRetryWorker();
+  
+  // In cluster mode or distributed microservices, only worker 1 runs the queue worker to prevent multi-process database polling
+  const shouldRunWorker = (!cluster.isWorker || (cluster.worker && cluster.worker.id === 1)) && process.env.DISABLE_INLINE_WORKER !== 'true';
+  if (shouldRunWorker) {
+    startWhatsAppRetryWorker();
+  }
 
   const shutdown = (signal: string): void => {
     console.log(`[HTTP ${process.pid}] Received ${signal}; shutting down gracefully`);

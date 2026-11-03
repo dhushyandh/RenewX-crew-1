@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Product } from '@/types';
+import { getCategoryFallback, handleImageError } from '@/lib/imageFallback';
 import {
   Search,
   Filter,
@@ -322,10 +323,11 @@ export default function ShopScreen({
 
                     {/* Product Image */}
                     <img
-                      src={p.image}
+                      src={p.image || getCategoryFallback(p.category, p.name)}
                       alt={p.name}
                       className="max-h-44 max-w-full object-contain drop-shadow-sm transition-transform hover:scale-105"
                       loading="lazy"
+                      onError={(e) => handleImageError(e, p.category, p.name)}
                     />
                   </div>
 

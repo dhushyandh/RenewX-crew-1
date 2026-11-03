@@ -249,6 +249,28 @@ export async function triggerTestNotification(
     const { action = 'out_for_delivery' } = req.body || {};
     const orderId = 'RNX' + Date.now().toString().slice(-6);
 
+        if (action === 'promotion') {
+      const { dispatchPromotionNotification } = await import('../services/notificationService');
+      const { ProductModel } = await import('../models/Product');
+      const prods = await ProductModel.find().limit(2).lean();
+      if (prods.length >= 2) {
+        await dispatchPromotionNotification({
+          title: '🔥 Weekend Device Deals 🔥',
+          body: 'Blockbuster deals on selected devices • Limited stock',
+          product1Id: (prods[0] as any)._id.toString(),
+          product2Id: (prods[1] as any)._id.toString(),
+        });
+      } else if (prods.length === 1) {
+        await dispatchPromotionNotification({
+          title: '🔥 Exclusive Device Deal 🔥',
+          body: 'Special offer on certified devices • Limited stock',
+          product1Id: (prods[0] as any)._id.toString(),
+          product2Id: (prods[0] as any)._id.toString(),
+        });
+      }
+      res.json({ success: true, message: "Promotional broadcast dispatched successfully" });
+      return;
+    }
     if (action === 'new_arrival') {
       const { broadcastNewProductArrival } = await import('../services/notificationService');
       const { ProductModel } = await import('../models/Product');

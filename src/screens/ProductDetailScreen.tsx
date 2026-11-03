@@ -1,4 +1,5 @@
 import type { Product } from '@/types';
+import { getCategoryFallback, handleImageError } from '@/lib/imageFallback';
 import { conditionColors } from '@/components/ProductCardGrid';
 import {
   ArrowLeft,
@@ -33,7 +34,7 @@ export default function ProductDetailScreen({
     <div className="flex flex-col h-full bg-white">
       <div className="flex-1 overflow-y-auto pb-24">
         <div className="relative aspect-square bg-[#f7f5ec]">
-          <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+          <img src={product.image || getCategoryFallback(product.category, product.name)} alt={product.name} className="w-full h-full object-contain p-4" onError={(e) => handleImageError(e, product.category, product.name)} />
           {discount > 0 && (
             <div className="absolute top-3 left-3 bg-black px-3.5 py-1.5 rounded-full">
               <span className="text-[#ffc400] text-xs font-black">-{discount}%</span>
@@ -114,13 +115,19 @@ export default function ProductDetailScreen({
         </div>
         <button
           onClick={() => {
+            if (isSoldOut) return;
             onAddToCart();
             onCart();
           }}
-          className="flex items-center gap-2 bg-black text-[#ffc400] px-6 py-3.5 rounded-full active:scale-95 transition-transform"
+          disabled={isSoldOut}
+          className={`flex items-center gap-2 px-6 py-3.5 rounded-full transition-transform ${
+            isSoldOut
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-black text-[#ffc400] active:scale-95'
+          }`}
         >
           <ShoppingCart className="w-5 h-5" />
-          <span className="text-sm font-bold">Add to Cart</span>
+          <span className="text-sm font-bold">{isSoldOut ? 'Sold Out' : 'Add to Cart'}</span>
         </button>
       </div>
     </div>

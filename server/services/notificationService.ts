@@ -1050,6 +1050,7 @@ export async function dispatchPromotionNotification(payload: PromotionNotificati
   success: boolean;
   recipientsCount: number;
   inAppCount: number;
+  webPushCount?: number;
   products: {
     product1: { id: string; name: string; price: string; oldPrice: string; image: string };
     product2: { id: string; name: string; price: string; oldPrice: string; image: string };
@@ -1068,10 +1069,20 @@ export async function dispatchPromotionNotification(payload: PromotionNotificati
   if (title.length > 120) throw new Error('Title cannot exceed 120 characters');
   if (body.length > 250) throw new Error('Body cannot exceed 250 characters');
 
-  // 1. Fetch real products from MongoDB
+  // 1. Fetch real products from MongoDB using resilient ID lookup
+  const findProduct = async (id: string) => {
+    if (!id) return null;
+    const mongoose = await import('mongoose');
+    if (mongoose.default.Types.ObjectId.isValid(id)) {
+      const p = await ProductModel.findById(id).lean();
+      if (p) return p;
+    }
+    return await ProductModel.findOne({ $or: [{ id }, { _id: id }] }).lean();
+  };
+
   const [product1, product2] = await Promise.all([
-    ProductModel.findById(p1Id).lean(),
-    ProductModel.findById(p2Id).lean(),
+    findProduct(p1Id),
+    findProduct(p2Id),
   ]);
 
   if (!product1) {
@@ -1095,7 +1106,7 @@ export async function dispatchPromotionNotification(payload: PromotionNotificati
   const p2OldPrice = formatPrice(product2.original_price);
   const p2Image = product2.image_url || (Array.isArray(product2.images) ? product2.images[0] : '') || '';
 
-  // 3. Find eligible users (not opted out of promotional notifications)
+  // 3. Find eligible users
   const allUsers = await User.find({}).select('_id notification_preferences +push_tokens').lean();
 
   const notificationsToInsert: Array<{
@@ -1113,11 +1124,7 @@ export async function dispatchPromotionNotification(payload: PromotionNotificati
   for (const u of allUsers) {
     const uId = u._id.toString();
 
-    // Skip users who opted out of marketing
-    if (u.notification_preferences?.marketing === false) {
-      continue;
-    }
-
+    // In-app notifications are saved for all user inboxes
     notificationsToInsert.push({
       user_id: uId,
       type: 'promotion',
@@ -1130,6 +1137,11 @@ export async function dispatchPromotionNotification(payload: PromotionNotificati
         product2Id: String(product2._id),
       },
     });
+
+    // For push notifications, respect explicit marketing opt-out
+    if (u.notification_preferences?.marketing === false) {
+      continue;
+    }
 
     const rawTokens = (u as any).push_tokens || [];
     const validTokens = rawTokens.filter(isExpoPushToken);
@@ -1144,6 +1156,9 @@ export async function dispatchPromotionNotification(payload: PromotionNotificati
         priority: 'high',
         data: {
           type: 'PROMOTION',
+          screen: 'ProductDetail',
+          id: String(product1._id),
+          productId: String(product1._id),
           title,
           body,
           product1Id: String(product1._id),
@@ -1179,10 +1194,42 @@ export async function dispatchPromotionNotification(payload: PromotionNotificati
     console.log('[Notifications] No registered push tokens for promotional broadcast.');
   }
 
+  // 6. Dispatch Web Push messages to active browser subscriptions
+  let webPushCount = 0;
+  try {
+    const webSubs = await WebPushSubscriptionModel.find({ is_active: true }).lean();
+    if (webSubs && webSubs.length > 0) {
+      console.log(`[Notifications] Dispatching promotional web push to ${webSubs.length} browser(s)...`);
+      await sendWebPushMessages(
+        webSubs.map((s) => ({
+          endpoint: s.endpoint,
+          keys: s.keys,
+        })),
+        {
+          title,
+          body,
+          icon: p1Image || '/icon-192.png',
+          badge: '/badge-72.png',
+          data: {
+            type: 'PROMOTION',
+            productId: String(product1._id),
+            product1Id: String(product1._id),
+            product2Id: String(product2._id),
+            url: `/product/${product1._id}`,
+          },
+        }
+      );
+      webPushCount = webSubs.length;
+    }
+  } catch (webErr) {
+    console.warn('[Notifications] Error broadcasting promotional web push:', webErr);
+  }
+
   return {
     success: true,
     recipientsCount: pushMessages.length,
     inAppCount: notificationsToInsert.length,
+    webPushCount,
     products: {
       product1: { id: String(product1._id), name: p1Name, price: p1Price, oldPrice: p1OldPrice, image: p1Image },
       product2: { id: String(product2._id), name: p2Name, price: p2Price, oldPrice: p2OldPrice, image: p2Image },

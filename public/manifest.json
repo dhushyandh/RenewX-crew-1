@@ -1,12 +1,24 @@
 {
-  "name": "RenewX | Certified Pre-Owned Electronics Marketplace",
+  "id": "/",
+  "name": "RenewX",
   "short_name": "RenewX",
+  "description": "Buy and sell tested, certified pre-owned smartphones, laptops, MacBooks, and smartwatches with 6-month warranty, doorstep inspection, and instant payouts.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffc400",
+  "orientation": "portrait-primary",
+  "dir": "ltr",
+  "lang": "en-IN",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
+  "categories": ["shopping", "business", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
@@ -24,6 +36,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Shop Certified Devices",
+      "short_name": "Shop",
+      "description": "Browse smartphones, laptops, and audio gear",
+      "url": "/shop",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sell Your Device",
+      "short_name": "Sell",
+      "description": "Get an instant valuation and doorstep pickup",
+      "url": "/sell",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Track Orders",
+      "short_name": "Orders",
+      "description": "Check live delivery and order status",
+      "url": "/track",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

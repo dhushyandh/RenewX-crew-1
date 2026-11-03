@@ -8,6 +8,7 @@ export interface INotification {
   body: string;
   reference_id?: string;
   reference_type?: string;
+  data?: Record<string, any>;
   read_at?: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -21,6 +22,7 @@ const NotificationSchema = new Schema<INotification>(
     body: { type: String, required: true },
     reference_id: { type: String, default: null },
     reference_type: { type: String, default: null },
+    data: { type: Schema.Types.Mixed, default: {} },
     read_at: { type: Date, default: null },
   },
   {

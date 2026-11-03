@@ -19,6 +19,7 @@ import { RefreshCw } from 'lucide-react';
 import StatusBar from '@/components/StatusBar';
 import BottomTabs, { type Tab } from '@/components/BottomTabs';
 import FloatingContactButtons from '@/components/FloatingContactButtons';
+import PwaInstallBanner from '@/components/PwaInstallBanner';
 import HomeScreen from '@/screens/HomeScreen';
 import ShopScreen from '@/screens/ShopScreen';
 import SellScreen from '@/screens/SellScreen';
@@ -48,6 +49,9 @@ function mapRow(row: ProductRow): Product {
     stock: row.stock,
     description: row.description,
     specs: Array.isArray(row.specs) ? row.specs : [],
+    is_sold_out: Boolean((row as any).is_sold_out || (row as any).isSoldOut || (row as any).status === 'sold_out'),
+    isSoldOut: Boolean((row as any).is_sold_out || (row as any).isSoldOut || (row as any).status === 'sold_out'),
+    status: (row as any).status,
   };
 }
 
@@ -328,6 +332,7 @@ export default function App() {
                 </div>
               </div>
             </div>
+            <PwaInstallBanner />
           </BrowserRouter>
         </CartProvider>
       </AuthProvider>

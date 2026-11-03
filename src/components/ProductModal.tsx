@@ -27,6 +27,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
 
   if (!product) return null;
 
+  const isSoldOut = Boolean((product as any)?.is_sold_out || (product as any)?.isSoldOut || (product as any)?.status === 'sold_out');
   const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
 
   const handleAdd = () => {
@@ -130,11 +131,19 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                 </span>
               </div>
               <button
-                onClick={handleAdd}
-                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 active:scale-[0.98]"
+                onClick={() => {
+                  if (isSoldOut) return;
+                  handleAdd();
+                }}
+                disabled={isSoldOut}
+                className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-semibold transition-all active:scale-[0.98] ${
+                  isSoldOut
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50'
+                }`}
               >
                 <ShoppingCart className="w-5 h-5" />
-                Add to Cart
+                {isSoldOut ? 'Sold Out' : 'Add to Cart'}
               </button>
             </div>
           </div>

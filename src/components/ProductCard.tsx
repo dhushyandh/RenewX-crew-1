@@ -1,6 +1,7 @@
 import { Star, ShoppingCart, Shield, Check } from 'lucide-react';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { getCategoryFallback, handleImageError } from '@/lib/imageFallback';
 
 interface ProductCardProps {
   product: Product;
@@ -16,6 +17,7 @@ const conditionColors: Record<string, string> = {
 
 export default function ProductCard({ product, onClick }: ProductCardProps) {
   const { addToCart } = useCart();
+  const isSoldOut = Boolean((product as any)?.is_sold_out || (product as any)?.isSoldOut || (product as any)?.status === 'sold_out');
   const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
 
   const handleAdd = (e: React.MouseEvent) => {
@@ -30,16 +32,21 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
     >
       <div className="relative aspect-square overflow-hidden bg-gray-50">
         <img
-          src={product.image}
+          src={product.image || getCategoryFallback(product.category, product.name)}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => handleImageError(e, product.category, product.name)}
+          className={`w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500 ${isSoldOut ? 'opacity-50' : ''}`}
         />
-        {discount > 0 && (
+        {isSoldOut ? (
+          <span className="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md">
+            SOLD OUT
+          </span>
+        ) : discount > 0 ? (
           <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md">
             -{discount}%
           </span>
-        )}
+        ) : null}
         <span className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${conditionColors[product.condition]}`}>
           {product.condition}
         </span>
@@ -74,10 +81,15 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
           </div>
           <button
             onClick={handleAdd}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-900 hover:bg-emerald-600 text-white text-xs font-medium transition-all active:scale-95"
+            disabled={isSoldOut}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all active:scale-95 ${
+              isSoldOut
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-900 hover:bg-emerald-600 text-white'
+            }`}
           >
             <ShoppingCart className="w-3.5 h-3.5" />
-            Add
+            {isSoldOut ? 'Sold Out' : 'Add'}
           </button>
         </div>
       </div>

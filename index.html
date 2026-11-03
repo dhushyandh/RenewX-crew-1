@@ -2,14 +2,45 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <title>RenewX</title>
+    
+    <!-- PWA & Mobile Meta Tags -->
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="RenewX" />
+    <meta name="application-name" content="RenewX" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Icons & Manifest -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-192.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RenewX — Certified Refurbished Electronics</title>
-    <meta property="og:image" content="https://bolt.new/static/og_default.png" />
+
+    <!-- SEO & Social -->
+    <meta name="description" content="Buy & sell tested iPhones, smartphones, MacBooks, laptops and smartwatches with 6-month warranty and doorstep delivery." />
+    <meta property="og:title" content="RenewX — Certified Refurbished Electronics" />
+    <meta property="og:description" content="Certified pre-owned electronics marketplace with warranty, doorstep inspection, and instant payouts." />
+    <meta property="og:image" content="/images/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://bolt.new/static/og_default.png" />
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('[RenewX PWA] Service Worker registered with scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('[RenewX PWA] Service Worker registration failed:', err);
+            });
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

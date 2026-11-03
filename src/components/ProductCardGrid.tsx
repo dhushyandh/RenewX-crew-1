@@ -1,4 +1,5 @@
 import type { Product } from '@/types';
+import { getCategoryFallback, handleImageError } from '@/lib/imageFallback';
 import { Star, ShieldCheck, ShoppingCart } from 'lucide-react';
 
 export const conditionColors: Record<string, string> = {
@@ -24,16 +25,21 @@ export default function ProductCardGrid({ product, onPress, onAdd }: ProductCard
     <div className="bg-white rounded-[20px] overflow-hidden border border-[#ece8dc] mb-3 active:scale-[0.98] transition-transform">
       <div onClick={onPress} className="cursor-pointer relative aspect-square bg-[#f7f5ec]">
         <img
-          src={product.image}
+          src={product.image || getCategoryFallback(product.category, product.name)}
           alt={product.name}
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-contain p-2 ${isSoldOut ? 'opacity-50' : ''}`}
           loading="lazy"
+          onError={(e) => handleImageError(e, product.category, product.name)}
         />
-        {discount > 0 && (
+        {isSoldOut ? (
+          <div className="absolute top-2.5 left-2.5 bg-red-600 px-2.5 py-1 rounded-full">
+            <span className="text-white text-[11px] font-black">SOLD OUT</span>
+          </div>
+        ) : discount > 0 ? (
           <div className="absolute top-2.5 left-2.5 bg-black px-2.5 py-1 rounded-full">
             <span className="text-[#ffc400] text-[11px] font-black">-{discount}%</span>
           </div>
-        )}
+        ) : null}
         <div className={`absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full ${condClass}`}>
           <span className="text-[11px] font-bold">{product.condition}</span>
         </div>
@@ -65,12 +71,18 @@ export default function ProductCardGrid({ product, onPress, onAdd }: ProductCard
           <button
             onClick={(e) => {
               e.stopPropagation();
+              if (isSoldOut) return;
               onAdd();
             }}
-            className="flex items-center gap-1 bg-black text-[#ffc400] px-3 py-2 rounded-lg active:scale-95 transition-transform"
+            disabled={isSoldOut}
+            className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-transform ${
+              isSoldOut
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-black text-[#ffc400] active:scale-95'
+            }`}
           >
             <ShoppingCart className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-bold">Add</span>
+            <span className="text-[11px] font-bold">{isSoldOut ? 'Sold Out' : 'Add'}</span>
           </button>
         </div>
       </div>

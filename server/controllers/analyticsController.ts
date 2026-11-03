@@ -52,7 +52,9 @@ export async function getAdminRealtimeAnalytics(
     // Financial calculations
     const isRevenueOrder = (o: any) =>
       o.status !== 'cancelled' &&
-      (o.payment_status === 'paid' || o.payment_method === 'cod' || o.status === 'delivered');
+      o.status !== 'failed' &&
+      o.payment_status !== 'failed' &&
+      o.payment_status !== 'refunded';
 
     const totalRevenue = filteredOrders
       .filter(isRevenueOrder)
@@ -168,30 +170,155 @@ export async function getAdminRealtimeAnalytics(
       .filter((t) => t.status === 'completed')
       .reduce((sum: number, t: any) => sum + (Number(t.approved_amount || t.offered_amount) || 0), 0);
 
-    // 7-day sales trend
-    const last7Days: { date: string; label: string; revenue: number; orders: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    // Dynamic sales trend based on requested period (real-time data analytics)
+    const salesTrend: { date: string; label: string; revenue: number; orders: number }[] = [];
+    let previousPeriodRevenue = 0;
+    const normPeriod = (period || '7d').toLowerCase();
 
-      const dayOrders = allOrders.filter((o: any) => {
-        const oDate = new Date(o.created_at || 0);
-        return oDate >= dayStart && oDate <= dayEnd;
-      });
+    if (normPeriod === 'today') {
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      for (let b = 0; b < 8; b++) {
+        const bStart = new Date(startOfDay.getTime() + b * 3 * 3600 * 1000);
+        const bEnd = new Date(startOfDay.getTime() + (b + 1) * 3 * 3600 * 1000 - 1);
+        const hour = b * 3;
+        const hourLabel = hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 
-      const dayRev = dayOrders
-        .filter(isRevenueOrder)
-        .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount) || 0), 0);
+        const bOrders = allOrders.filter((o: any) => {
+          const oDate = new Date(o.created_at || o.createdAt || 0);
+          return oDate >= bStart && oDate <= bEnd;
+        });
+        const bRev = bOrders
+          .filter(isRevenueOrder)
+          .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
 
-      last7Days.push({
-        date: dayStart.toISOString().split('T')[0],
-        label: d.toLocaleDateString('en-IN', { weekday: 'short' }),
-        revenue: dayRev,
-        orders: dayOrders.length,
-      });
+        salesTrend.push({
+          date: bStart.toISOString(),
+          label: hourLabel,
+          revenue: bRev,
+          orders: bOrders.length,
+        });
+      }
+
+      const startOfYesterday = new Date(startOfDay.getTime() - 24 * 3600 * 1000);
+      const endOfYesterday = new Date(startOfDay.getTime() - 1);
+      previousPeriodRevenue = allOrders
+        .filter((o: any) => {
+          const d = new Date(o.created_at || o.createdAt || 0);
+          return d >= startOfYesterday && d <= endOfYesterday && isRevenueOrder(o);
+        })
+        .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
+
+    } else if (normPeriod === '30d' || normPeriod === 'month') {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+        const dayOrders = allOrders.filter((o: any) => {
+          const oDate = new Date(o.created_at || o.createdAt || 0);
+          return oDate >= dayStart && oDate <= dayEnd;
+        });
+        const dayRev = dayOrders
+          .filter(isRevenueOrder)
+          .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
+
+        salesTrend.push({
+          date: dayStart.toISOString().split('T')[0],
+          label: `${d.getDate()} ${d.toLocaleDateString('en-IN', { month: 'short' })}`,
+          revenue: dayRev,
+          orders: dayOrders.length,
+        });
+      }
+
+      const p30Start = new Date(now.getTime() - 60 * 24 * 3600 * 1000);
+      const p30End = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+      previousPeriodRevenue = allOrders
+        .filter((o: any) => {
+          const d = new Date(o.created_at || o.createdAt || 0);
+          return d >= p30Start && d <= p30End && isRevenueOrder(o);
+        })
+        .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
+
+    } else if (normPeriod === 'year') {
+      for (let m = 11; m >= 0; m--) {
+        const mStart = new Date(now.getFullYear(), now.getMonth() - m, 1, 0, 0, 0, 0);
+        const mEnd = new Date(now.getFullYear(), now.getMonth() - m + 1, 0, 23, 59, 59, 999);
+
+        const mOrders = allOrders.filter((o: any) => {
+          const oDate = new Date(o.created_at || o.createdAt || 0);
+          return oDate >= mStart && oDate <= mEnd;
+        });
+        const mRev = mOrders
+          .filter(isRevenueOrder)
+          .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
+
+        salesTrend.push({
+          date: mStart.toISOString().slice(0, 7),
+          label: mStart.toLocaleDateString('en-IN', { month: 'short' }),
+          revenue: mRev,
+          orders: mOrders.length,
+        });
+      }
+
+      const pYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const pYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      previousPeriodRevenue = allOrders
+        .filter((o: any) => {
+          const d = new Date(o.created_at || o.createdAt || 0);
+          return d >= pYearStart && d <= pYearEnd && isRevenueOrder(o);
+        })
+        .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
+
+    } else {
+      // Default: Last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+        const dayOrders = allOrders.filter((o: any) => {
+          const oDate = new Date(o.created_at || o.createdAt || 0);
+          return oDate >= dayStart && oDate <= dayEnd;
+        });
+        const dayRev = dayOrders
+          .filter(isRevenueOrder)
+          .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
+
+        salesTrend.push({
+          date: dayStart.toISOString().split('T')[0],
+          label: `${d.toLocaleDateString('en-IN', { weekday: 'short' })} ${d.getDate()}`,
+          revenue: dayRev,
+          orders: dayOrders.length,
+        });
+      }
+
+      const p7Start = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
+      const p7End = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      previousPeriodRevenue = allOrders
+        .filter((o: any) => {
+          const d = new Date(o.created_at || o.createdAt || 0);
+          return d >= p7Start && d <= p7End && isRevenueOrder(o);
+        })
+        .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
     }
+
+    const currentPeriodRevenue = salesTrend.reduce((sum, item) => sum + item.revenue, 0);
+    const currentPeriodOrders = salesTrend.reduce((sum, item) => sum + item.orders, 0);
+    const growthPercentage =
+      previousPeriodRevenue > 0
+        ? Math.round(((currentPeriodRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 1000) / 10
+        : currentPeriodRevenue > 0
+        ? 100
+        : 0;
+
+    let peakPoint = salesTrend[0] || { date: '', label: '', revenue: 0, orders: 0 };
+    salesTrend.forEach((pt) => {
+      if (pt.revenue > peakPoint.revenue) {
+        peakPoint = pt;
+      }
+    });
 
     // Recent 6 transactions
     const recentTransactions = allOrders.slice(0, 6).map((o: any) => ({
@@ -238,7 +365,16 @@ export async function getAdminRealtimeAnalytics(
           inspected: tradeInInspected,
           totalPayouts: tradeInTotalPayouts,
         },
-        salesTrend: last7Days,
+        salesTrend,
+        periodSummary: {
+          period,
+          currentRevenue: currentPeriodRevenue,
+          previousRevenue: previousPeriodRevenue,
+          growthPercentage,
+          totalOrders: currentPeriodOrders,
+          avgOrderValue: currentPeriodOrders > 0 ? Math.round(currentPeriodRevenue / currentPeriodOrders) : 0,
+          peak: peakPoint,
+        },
         recentTransactions,
       },
     });

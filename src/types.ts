@@ -16,6 +16,9 @@ export interface Product {
   stock: number;
   description: string;
   specs: string[];
+  is_sold_out?: boolean;
+  isSoldOut?: boolean;
+  status?: string;
 }
 
 export interface CartItem extends Product {

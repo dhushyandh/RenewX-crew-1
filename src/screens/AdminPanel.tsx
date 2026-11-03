@@ -33,6 +33,7 @@ import {
 import type { Profile } from '@/lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BrandsView from '@/components/admin/BrandsView';
+import OrdersView from '@/components/admin/OrdersView';
 
 type AdminView = 'dashboard' | 'products' | 'brands' | 'orders' | 'users';
 
@@ -1390,71 +1391,7 @@ function ProductForm({
   );
 }
 
-function OrdersView() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .order('created_at', { ascending: false });
-      setOrders(data || []);
-      setLoading(false);
-    })();
-  }, []);
-
-  const statusColors: Record<string, string> = {
-    pending: 'bg-amber-100 text-amber-700',
-    confirmed: 'bg-blue-100 text-blue-700',
-    shipped: 'bg-purple-100 text-purple-700',
-    delivered: 'bg-emerald-100 text-emerald-700',
-    cancelled: 'bg-red-100 text-red-700',
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-40 text-gray-400 text-sm">Loading orders...</div>;
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-40 text-center">
-        <ShoppingBag className="w-8 h-8 text-gray-300 mb-2" />
-        <p className="text-sm text-gray-400">No orders yet</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 space-y-3">
-      {orders.map((order) => (
-        <div key={order.id} className="bg-white rounded-2xl p-4 border border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400">
-              {new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
-            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize ${statusColors[order.status] || statusColors.pending}`}>
-              {order.status}
-            </span>
-          </div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-gray-900">${order.subtotal}</span>
-            {order.savings > 0 && <span className="text-xs text-emerald-600">Saved ${order.savings}</span>}
-          </div>
-          <div className="space-y-1">
-            {(order.order_items || []).map((item: any) => (
-              <div key={item.id} className="flex justify-between text-xs text-gray-500">
-                <span>{item.product_name} × {item.quantity}</span>
-                <span>${item.price * item.quantity}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// OrdersView is imported from @/components/admin/OrdersView
 
 function UsersView() {
   const [profiles, setProfiles] = useState<Profile[]>([]);

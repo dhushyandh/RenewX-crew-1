@@ -163,10 +163,27 @@ export const api = {
         body: JSON.stringify(payload),
       });
     },
-    updateStatus: async (id: string, status: string, courier?: string, tracking_number?: string) => {
+    updateStatus: async (
+      id: string,
+      status: string,
+      courier?: string,
+      tracking_number?: string,
+      courier_phone?: string,
+      estimated_delivery?: string,
+      reason?: string,
+      refund?: boolean,
+    ) => {
       return await request<any>(`/orders/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, courier, tracking_number }),
+        body: JSON.stringify({
+          status,
+          courier,
+          tracking_number,
+          courier_phone,
+          estimated_delivery,
+          reason,
+          refund,
+        }),
       });
     },
   },
