@@ -71,10 +71,10 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/icon.png",
-      "name": "RenewX | Certified Pre-Owned Electronics Marketplace",
+      "name": "RenewX",
       "shortName": "RenewX",
-      "themeColor": "#ffc400",
-      "backgroundColor": "#ffffff"
+      "themeColor": "#FFFFFF",
+      "backgroundColor": "#FFFFFF"
     },
     "extra": {
       "eas": {

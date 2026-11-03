@@ -12,6 +12,7 @@ export interface NotificationItem {
   body: string;
   reference_id?: string;
   reference_type?: string;
+  data?: any;
   read_at?: string | null;
   created_at?: string;
 }
@@ -63,6 +64,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         body: n.body || '',
         reference_id: n.reference_id,
         reference_type: n.reference_type,
+        data: n.data,
         read_at: n.read_at || null,
         created_at: n.created_at || new Date().toISOString(),
       }));

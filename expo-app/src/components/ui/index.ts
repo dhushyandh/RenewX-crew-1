@@ -8,3 +8,4 @@ export {
 } from './ProductCardSkeleton';
 
 export { default as ShimmerText } from './ShimmerText';
+export { default as ProductImage } from './ProductImage';

@@ -29,6 +29,7 @@ import { mapProductRow } from '@/lib/productMapper';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { renewxFontFamily, renewxColors } from '@/design-system';
 import { CATEGORY_THIRD_PARTY_IMAGES } from '@/data/categories';
+import { ProductImage } from '@/components/ui';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -598,8 +599,7 @@ export default function AllProductsScreen() {
               const isSoldOut = Boolean(
                 p.is_sold_out === true ||
                 p.isSoldOut === true ||
-                p.status === 'sold_out' ||
-                (p.stock !== undefined && p.stock !== null && Number(p.stock) <= 0)
+                p.status === 'sold_out'
               );
               const badgeLabel = isSoldOut ? 'SOLD OUT' : getProductBadge(p);
               const isWish = isInWishlist(String(p.id));
@@ -665,15 +665,14 @@ export default function AllProductsScreen() {
 
                   {/* Product Cutout Image with Sold Out Overlay */}
                   <View style={styles.productImageWrap}>
-                    {imgUri ? (
-                      <Image
-                        source={{ uri: imgUri }}
-                        style={[styles.productImg, isSoldOut && { opacity: 0.52 }]}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <Ionicons name="phone-portrait-outline" size={48} color="#94A3B8" />
-                    )}
+                    <ProductImage
+                      source={imgUri}
+                      category={p.category}
+                      name={p.name}
+                      style={styles.productImg}
+                      isSoldOut={isSoldOut}
+                      resizeMode="contain"
+                    />
                     {isSoldOut && (
                       <View style={styles.soldOutCutoutOverlay}>
                         <View style={styles.soldOutCutoutBadge}>
@@ -746,8 +745,7 @@ export default function AllProductsScreen() {
               const isSoldOut = Boolean(
                 p.is_sold_out === true ||
                 p.isSoldOut === true ||
-                p.status === 'sold_out' ||
-                (p.stock !== undefined && p.stock !== null && Number(p.stock) <= 0)
+                p.status === 'sold_out'
               );
               const badgeLabel = isSoldOut ? 'SOLD OUT' : getProductBadge(p);
               const isWish = isInWishlist(String(p.id));
@@ -763,15 +761,14 @@ export default function AllProductsScreen() {
                   activeOpacity={0.9}
                 >
                   <View style={styles.listThumbWrap}>
-                    {imgUri ? (
-                      <Image
-                        source={{ uri: imgUri }}
-                        style={[styles.listThumbImg, isSoldOut && { opacity: 0.52 }]}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <Ionicons name="phone-portrait-outline" size={32} color="#94A3B8" />
-                    )}
+                    <ProductImage
+                      source={imgUri}
+                      category={p.category}
+                      name={p.name}
+                      style={styles.listThumbImg}
+                      isSoldOut={isSoldOut}
+                      resizeMode="contain"
+                    />
                     {badgeLabel && (
                       <View style={[styles.listBadgePill, isSoldOut && { backgroundColor: '#DC2626' }]}>
                         <Text style={[styles.listBadgeText, isSoldOut && { color: '#FFFFFF' }]}>{badgeLabel}</Text>

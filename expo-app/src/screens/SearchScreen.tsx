@@ -420,8 +420,7 @@ export default function SearchScreen() {
     const isSoldOut = Boolean(
       (item as AnyProduct).is_sold_out === true ||
       (item as AnyProduct).isSoldOut === true ||
-      (item as AnyProduct).status === 'sold_out' ||
-      (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+      (item as AnyProduct).status === 'sold_out'
     );
     const name = getProductName(item);
     const price = getProductPrice(item);

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AppState,
   AppStateStatus,
@@ -17,21 +17,36 @@ import {
   requestNotificationPermission,
 } from '@/services/pushNotifications';
 
-const PROMPT_DISMISSED_KEY = '@renewx_notif_permission_dismissed_at';
+export const PROMPT_DISMISSED_KEY = '@renewx_notif_permission_dismissed_at';
+export const PROMPT_GRANTED_KEY = '@renewx_notif_permission_granted';
 const COOLDOWN_HOURS = 24;
 
 export default function NotificationPermissionPrompt() {
   const [visible, setVisible] = useState(false);
   const [canAskAgain, setCanAskAgain] = useState(true);
+  const isRequestingRef = useRef(false);
 
   const checkPermission = useCallback(async () => {
+    // If permission request is currently active, don't reopen
+    if (isRequestingRef.current) return;
+
     try {
-      const status = await getNotificationPermissionStatus();
-      if (status.granted) {
+      // 1. Check if user already granted permission previously
+      const alreadyGranted = await AsyncStorage.getItem(PROMPT_GRANTED_KEY);
+      if (alreadyGranted === 'true') {
         setVisible(false);
         return;
       }
 
+      // 2. Query OS / browser permission status
+      const status = await getNotificationPermissionStatus();
+      if (status.granted) {
+        await AsyncStorage.setItem(PROMPT_GRANTED_KEY, 'true');
+        setVisible(false);
+        return;
+      }
+
+      // If permanently denied or unsupported on this platform, keep modal closed
       if (status.status === 'denied' || status.status === 'unsupported') {
         setVisible(false);
         return;
@@ -39,12 +54,13 @@ export default function NotificationPermissionPrompt() {
 
       setCanAskAgain(status.canAskAgain);
 
-      // Check if user dismissed the prompt recently
+      // 3. Check if user dismissed the prompt recently within cooldown window
       const dismissedAtStr = await AsyncStorage.getItem(PROMPT_DISMISSED_KEY);
       if (dismissedAtStr) {
         const dismissedAt = Number(dismissedAtStr);
         const hoursPassed = (Date.now() - dismissedAt) / (1000 * 60 * 60);
         if (hoursPassed < COOLDOWN_HOURS) {
+          setVisible(false);
           return;
         }
       }
@@ -60,7 +76,7 @@ export default function NotificationPermissionPrompt() {
     // Initial check on launch
     const timer = setTimeout(checkPermission, 1500);
 
-    // Re-check when user comes back from phone Settings
+    // Re-check when user comes back from phone Settings or background
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'active') {
         checkPermission();
@@ -74,19 +90,35 @@ export default function NotificationPermissionPrompt() {
   }, [checkPermission]);
 
   const handleAllow = async () => {
-    const granted = await requestNotificationPermission();
-    if (granted) {
-      await AsyncStorage.removeItem(PROMPT_DISMISSED_KEY);
-      setVisible(false);
-    } else {
-      // User tapped or settings opened; dismiss modal
+    // Immediately close the custom modal dialog so it disappears as soon as "Allow" is clicked
+    setVisible(false);
+    isRequestingRef.current = true;
+
+    try {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        // Permanently record that notifications are granted so prompt never shows again
+        await AsyncStorage.setItem(PROMPT_GRANTED_KEY, 'true');
+        await AsyncStorage.removeItem(PROMPT_DISMISSED_KEY);
+      } else {
+        // If user denied or dismissed, set cooldown timestamp so it doesn't immediately re-prompt
+        await AsyncStorage.setItem(PROMPT_DISMISSED_KEY, Date.now().toString());
+      }
+    } catch (err) {
+      console.warn('[NotificationPrompt] Failed to request permission:', err);
+    } finally {
+      isRequestingRef.current = false;
       setVisible(false);
     }
   };
 
   const handleDismiss = async () => {
-    await AsyncStorage.setItem(PROMPT_DISMISSED_KEY, Date.now().toString());
     setVisible(false);
+    try {
+      await AsyncStorage.setItem(PROMPT_DISMISSED_KEY, Date.now().toString());
+    } catch {
+      // Ignore storage errors
+    }
   };
 
   if (!visible) return null;

@@ -96,6 +96,7 @@ export default function NotificationsScreen() {
       [
         { text: 'Admin: New Order Received', onPress: () => triggerTest('admin_new_order') },
         { text: 'Admin: New Sell Request', onPress: () => triggerTest('admin_trade_in') },
+        { text: '🔥 Promotional Broadcast', onPress: () => triggerTest('promotion') },
         { text: 'New Product Arrival', onPress: () => triggerTest('new_arrival') },
         { text: 'Order Shipped', onPress: () => triggerTest('order_shipped') },
         { text: 'Out for Delivery', onPress: () => triggerTest('out_for_delivery') },
@@ -111,6 +112,10 @@ export default function NotificationsScreen() {
     const title = item.title?.toLowerCase() || '';
     const type = item.type || '';
 
+    // 🔥 Promotional notification / deals
+    if (type === 'promotion' || title.includes('deal') || title.includes('offer') || title.includes('sale') || title.includes('discount') || title.includes('weekend')) {
+      return { icon: 'pricetag-outline', color: '#ea580c', bg: '#fff7ed' };
+    }
     // 🛍️ Admin: New Order Received
     if (title.includes('new order received') || type === 'admin_order') {
       return { icon: 'bag-check-outline', color: '#f59e0b', bg: '#fef3c7' };
@@ -188,7 +193,15 @@ export default function NotificationsScreen() {
       await markAsRead(item.id);
     }
 
-    if (item.reference_type === 'admin_order' || item.type === 'admin_order') {
+    if (item.reference_type === 'promotion' || item.type === 'promotion') {
+      const targetId = item.data?.product1Id || item.reference_id;
+      if (targetId) {
+        navigation.navigate('ProductDetail', { id: targetId });
+      } else {
+        navigation.navigate('MainTabs', { screen: 'Shop' });
+      }
+      return;
+    } else if (item.reference_type === 'admin_order' || item.type === 'admin_order') {
       navigation.navigate('AdminOrders');
     } else if (item.reference_type === 'admin_trade_in' || item.type === 'admin_trade_in') {
       navigation.navigate('AdminTradeIns' as any);

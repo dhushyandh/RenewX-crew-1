@@ -108,6 +108,7 @@ import AdminPanel from '@/screens/AdminPanel';
 import ProtectedRoute, { withProtectedRoute } from '@/components/ProtectedRoute';
 import ConnectionStatusBanner from '@/components/ConnectionStatusBanner';
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
+import PwaInstallPrompt from '@/components/PwaInstallPrompt';
 import AnimatedSplashScreen from '@/components/AnimatedSplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { clientObservability } from '@/services/observability';
@@ -589,7 +590,9 @@ function MainAppNavigation() {
           return;
         }
 
-        if (targetScreen === 'ProductDetail' && (data.productId || data.id)) {
+        if ((data.type === 'PROMOTION' || targetScreen === 'Promotion' || targetScreen === 'ProductDetail') && (data.product1Id || data.productId || data.id)) {
+          navigationRef.navigate('ProductDetail', { id: String(data.product1Id || data.productId || data.id) });
+        } else if (targetScreen === 'ProductDetail' && (data.productId || data.id)) {
           navigationRef.navigate('ProductDetail', { id: String(data.productId || data.id) });
         } else if (targetScreen === 'OrderDetail' && (data.orderId || data.id)) {
           navigationRef.navigate('OrderDetail', { id: String(data.orderId || data.id) });
@@ -818,6 +821,7 @@ function MainAppNavigation() {
       </NavigationContainer>
       <ConnectionStatusBanner />
       <NotificationPermissionPrompt />
+      <PwaInstallPrompt />
     </View>
   );
 }

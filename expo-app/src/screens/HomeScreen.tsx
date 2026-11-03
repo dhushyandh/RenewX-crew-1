@@ -28,7 +28,7 @@ import { api } from '@/services/api';
 import { mapProductRow } from '@/lib/productMapper';
 import HomeHeader from '@/components/HomeHeader';
 import { renewxFontFamily } from '@/design-system';
-import { ProductRowSkeleton, ShimmerText } from '@/components/ui';
+import { ProductRowSkeleton, ShimmerText, ProductImage } from '@/components/ui';
 import { CATEGORY_THIRD_PARTY_IMAGES, getCategoryThirdPartyImage } from '@/data/categories';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -357,6 +357,10 @@ export default function HomeScreen() {
         category: row.category,
         storage: row.storage,
         color: row.color,
+        stock: row.stock,
+        is_sold_out: row.is_sold_out,
+        isSoldOut: row.isSoldOut,
+        status: row.status,
         image: typeof row.image === 'string' && row.image.length < 5000 ? row.image : '',
       }));
       await AsyncStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(lightweight));
@@ -828,8 +832,7 @@ export default function HomeScreen() {
               const isSoldOut = Boolean(
                 (item as AnyProduct).is_sold_out === true ||
                 (item as AnyProduct).isSoldOut === true ||
-                (item as AnyProduct).status === 'sold_out' ||
-                (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+                (item as AnyProduct).status === 'sold_out'
               );
               const name = getProductName(item);
               const price = getProductPrice(item);
@@ -870,9 +873,12 @@ export default function HomeScreen() {
                     onPress={() => openProduct(item)}
                     style={styles.productImgBox}
                   >
-                    <Image
+                    <ProductImage
                       source={imgSource}
-                      style={[styles.productImg, isSoldOut && { opacity: 0.52 }]}
+                      category={item.category}
+                      name={name}
+                      style={styles.productImg}
+                      isSoldOut={isSoldOut}
                       resizeMode="contain"
                     />
                     {isSoldOut && (

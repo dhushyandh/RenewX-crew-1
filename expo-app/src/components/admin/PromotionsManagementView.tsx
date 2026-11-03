@@ -154,7 +154,8 @@ export default function PromotionsManagementView() {
 
       const count = res?.data?.recipientsCount || 0;
       const inApp = res?.data?.inAppCount || 0;
-      const msg = `🎉 Broadcast dispatched! Sent to ${count} active Android device(s) and ${inApp} customer inboxes.`;
+      const webCount = res?.data?.webPushCount || 0;
+      const msg = `🎉 Broadcast dispatched! Sent to ${count} mobile device(s), ${webCount} web browser(s), and ${inApp} customer inboxes.`;
 
       setStatusMessage({ text: msg, isError: false });
       toast.success('Promotion Sent', `Dispatched to ${count} device(s)`);

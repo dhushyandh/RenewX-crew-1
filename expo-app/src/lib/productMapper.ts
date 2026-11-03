@@ -4,6 +4,16 @@ export function mapProductRow(row: any): Product {
   const price = Number(row?.price ?? 0);
   const originalPrice = Number(row?.original_price ?? row?.originalPrice ?? price);
 
+  // An item is ONLY sold out if the admin explicitly marked it as sold out
+  const isExplicitlySoldOut = Boolean(
+    row?.is_sold_out === true ||
+    row?.isSoldOut === true ||
+    row?.status === 'sold_out'
+  );
+
+  const rawStock = row?.stock !== undefined && row?.stock !== null ? Number(row?.stock) : null;
+  const stock = rawStock !== null && Number.isFinite(rawStock) ? rawStock : (isExplicitlySoldOut ? 0 : 5);
+
   return {
     id: row?.id ?? row?._id ?? '',
     _uuid: row?.id ?? row?._id,
@@ -19,27 +29,13 @@ export function mapProductRow(row: any): Product {
     image: row?.image_url ?? row?.image ?? '',
     rating: Number(row?.rating) || 0,
     reviews: Number(row?.reviews) || 0,
-    stock: Number(row?.stock) || 0,
+    stock,
     description: row?.description ?? '',
     specs: Array.isArray(row?.specs) ? row.specs : [],
     is_best_price: Boolean(row?.is_best_price ?? row?.isBestPrice),
     isBestPrice: Boolean(row?.is_best_price ?? row?.isBestPrice),
-    is_sold_out: Boolean(
-      row?.is_sold_out === true ||
-      row?.isSoldOut === true ||
-      row?.status === 'sold_out' ||
-      (row?.stock !== undefined && row?.stock !== null && Number(row?.stock) <= 0)
-    ),
-    isSoldOut: Boolean(
-      row?.is_sold_out === true ||
-      row?.isSoldOut === true ||
-      row?.status === 'sold_out' ||
-      (row?.stock !== undefined && row?.stock !== null && Number(row?.stock) <= 0)
-    ),
-    status: row?.status ?? (
-      row?.is_sold_out === true || row?.isSoldOut === true || (row?.stock !== undefined && Number(row?.stock) <= 0)
-        ? 'sold_out'
-        : 'active'
-    ),
+    is_sold_out: isExplicitlySoldOut,
+    isSoldOut: isExplicitlySoldOut,
+    status: isExplicitlySoldOut ? 'sold_out' : (row?.status || 'active'),
   };
 }

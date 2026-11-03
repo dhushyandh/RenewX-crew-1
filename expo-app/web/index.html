@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>RenewX | Certified Pre-Owned Electronics Marketplace</title>
+    <title>RenewX</title>
 
     <!-- Favicon & Title Bar Branding -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
@@ -45,7 +45,7 @@
     <meta name="twitter:image" content="https://renewx.expo.app/og-image.png" />
 
     <!-- Mobile & PWA Configuration -->
-    <meta name="theme-color" content="#ffc400" />
+    <meta name="theme-color" content="#FFFFFF" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -130,5 +130,19 @@
       You need to enable JavaScript to run this app.
     </noscript>
     <div id="root"></div>
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('[RenewX PWA] Service Worker registered with scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('[RenewX PWA] Service Worker registration failed:', err);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

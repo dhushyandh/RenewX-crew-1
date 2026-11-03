@@ -35,27 +35,24 @@ export function getApiBaseUrl(): string {
     return `http://${hostname}:5000/api`;
   }
 
-  const configured =
-    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
-  let url = configured || PRODUCTION_API_BASE_URL;
-
-  // On native mobile (Android / iOS physical device or emulator), resolve local host to the machine running Metro bundler & backend server.
-  if (Platform.OS !== 'web') {
+  // On native mobile in dev mode (__DEV__), default to the host machine running Metro
+  if (Platform.OS !== 'web' && typeof __DEV__ !== 'undefined' && __DEV__) {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (scriptURL) {
       const match = scriptURL.match(/^https?:\/\/([^/:]+)/);
       if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
-        if (url.includes('localhost') || url.includes('127.0.0.1') || /192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/.test(url)) {
-          return url.replace(/localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/, match[1]);
-        }
+        return `http://${match[1]}:5000/api`;
       }
     }
-    if (Platform.OS === 'android' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
-      return url.replace(/localhost|127\.0\.0\.1/, '10.0.2.2');
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:5000/api';
     }
+    return 'http://localhost:5000/api';
   }
 
-  return url;
+  const configured =
+    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
+  return configured || PRODUCTION_API_BASE_URL;
 }
 
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
@@ -115,11 +112,11 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       // Successful response received from backend
       notifyConnectionState(false);
     } catch (fetchError: any) {
-      notifyConnectionState(true);
       if (attempt <= maxRetries) {
         await sleep(Math.min(500 * Math.pow(2, attempt - 1), 2000));
         continue;
       }
+      notifyConnectionState(true);
       const error = new Error(
         fetchError?.name === 'AbortError'
           ? 'Request timed out. Please check your connection.'
@@ -162,6 +159,15 @@ export const api = {
     try {
       return await request<any>('/health', { timeoutMs: 8000 });
     } catch {
+      try {
+        const fallbackUrl = PRODUCTION_API_BASE_URL;
+        const res = await fetch(`${fallbackUrl}/health`, { signal: AbortSignal.timeout(6000) });
+        const json = await res.json();
+        if (json?.status === 'healthy') {
+          notifyConnectionState(false);
+          return json;
+        }
+      } catch {}
       return { status: 'offline', localFallback: true };
     }
   },
@@ -294,10 +300,20 @@ export const api = {
       tracking_number?: string,
       courier_phone?: string,
       estimated_delivery?: string,
+      reason?: string,
+      refund?: boolean,
     ) => {
       return await request<any>(`/orders/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, courier, tracking_number, courier_phone, estimated_delivery }),
+        body: JSON.stringify({
+          status,
+          courier,
+          tracking_number,
+          courier_phone,
+          estimated_delivery,
+          reason,
+          refund,
+        }),
       });
     },
 
@@ -482,7 +498,7 @@ export const api = {
   },
 
   analytics: {
-    getRealtime: async (period: 'today' | 'week' | 'month' | 'year' | 'all' = 'month') =>
+    getRealtime: async (period: 'today' | '7d' | 'week' | '30d' | 'month' | 'year' | 'all' = '7d') =>
       request<{
         timestamp: string;
         period: string;
@@ -521,6 +537,15 @@ export const api = {
           totalPayouts: number;
         };
         salesTrend: { date: string; label: string; revenue: number; orders: number }[];
+        periodSummary?: {
+          period: string;
+          currentRevenue: number;
+          previousRevenue: number;
+          growthPercentage: number;
+          totalOrders: number;
+          avgOrderValue: number;
+          peak: { date: string; label: string; revenue: number; orders: number };
+        };
         recentTransactions: {
           id: string;
           customerName: string;

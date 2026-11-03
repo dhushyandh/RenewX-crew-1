@@ -23,7 +23,7 @@ import { mapProductRow } from '@/lib/productMapper';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
 import { api } from '@/services/api';
-import { ProductDetailSkeleton } from '@/components/ui';
+import { ProductDetailSkeleton, ProductImage } from '@/components/ui';
 import { getCategoryDeviceImage, resolveImageSource } from '@/lib/imageUtils';
 
 function formatMoney(value: number) {
@@ -324,14 +324,13 @@ export default function ProductDetailScreen() {
       : 0;
   const savings = Math.max(0, originalPrice - price);
 
-  // Stock status
-  const stock = Number(baseProduct?.stock ?? 1);
+  // Stock status - Sold out is ONLY true when marked sold out by admin
   const isSoldOut = Boolean(
     (baseProduct as any)?.is_sold_out === true ||
     (baseProduct as any)?.isSoldOut === true ||
-    (baseProduct as any)?.status === 'sold_out' ||
-    stock <= 0
+    (baseProduct as any)?.status === 'sold_out'
   );
+  const stock = Number(baseProduct?.stock ?? (isSoldOut ? 0 : 5));
   const isOutOfStock = isSoldOut;
   const isLowStock = !isSoldOut && stock > 0 && stock <= 3;
 
@@ -498,13 +497,12 @@ export default function ProductDetailScreen() {
             </View>
 
             {/* Main Device Image */}
-            <Image
-              source={resolveImageSource(
-                gallery[activeImageIndex] || gallery[0],
-                baseProduct?.category,
-                baseProduct?.name
-              )}
-              style={[styles.mainDeviceImage, isSoldOut && { opacity: 0.55 }]}
+            <ProductImage
+              source={gallery[activeImageIndex] || gallery[0]}
+              category={baseProduct?.category}
+              name={baseProduct?.name}
+              style={styles.mainDeviceImage}
+              isSoldOut={isSoldOut}
               resizeMode="contain"
             />
 
@@ -553,7 +551,13 @@ export default function ProductDetailScreen() {
                     onPress={() => setActiveImageIndex(idx)}
                     activeOpacity={0.8}
                   >
-                    <Image source={thumbSrc} style={styles.thumbnailImg} resizeMode="contain" />
+                    <ProductImage
+                      source={img}
+                      category={baseProduct?.category}
+                      name={baseProduct?.name}
+                      style={styles.thumbnailImg}
+                      resizeMode="contain"
+                    />
                   </TouchableOpacity>
                 );
               })}
@@ -867,8 +871,10 @@ export default function ProductDetailScreen() {
                     </View>
                   ) : null}
 
-                  <Image
-                    source={resolveImageSource(prod.image, prod.raw?.category || baseProduct?.category, prod.name)}
+                  <ProductImage
+                    source={prod.image}
+                    category={prod.raw?.category || baseProduct?.category}
+                    name={prod.name}
                     style={styles.similarImage}
                     resizeMode="contain"
                   />

@@ -33,6 +33,9 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import BrandsView from '@/components/admin/BrandsView';
 import UsersManagementView from '@/components/admin/UsersManagementView';
 import PromotionsManagementView from '@/components/admin/PromotionsManagementView';
+import OrderUpdateModal from '@/components/admin/OrderUpdateModal';
+import SalesOverviewChart from '@/components/admin/SalesOverviewChart';
+import { ProductImage } from '@/components/ui';
 import ImagePickerButton from '@/components/ImagePickerButton';
 import * as Clipboard from 'expo-clipboard';
 import { sanitizeImageUrl } from '@/lib/imageUtils';
@@ -2003,7 +2006,7 @@ function DashboardView({
           outputRange: [0.93, 1],
         }),
       },
-    ],
+    ] as any,
   });
 
   // Demo recent orders matching mockup
@@ -2204,10 +2207,9 @@ function DashboardView({
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Sales Overview Card with Animated Entry & Floating Tooltip */}
+      {/* Real-Time Sales Overview Card with Live Data Analysis */}
       <Animated.View
         style={[
-          styles.cardContainer,
           {
             opacity: chartAnim,
             transform: [
@@ -2221,69 +2223,11 @@ function DashboardView({
           },
         ]}
       >
-        <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardSectionTitle}>Sales Overview</Text>
-          <TouchableOpacity onPress={() => onNavigate('analytics')} style={styles.cardLinkRow} activeOpacity={0.8}>
-            <Text style={styles.cardLinkText}>See Details</Text>
-            <Ionicons name="arrow-forward" size={12} color="#168A4A" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Chart Canvas Area */}
-        <View style={styles.chartAreaWrap}>
-          {/* Y-axis Guides */}
-          <View style={styles.chartYGuideRow}>
-            <Text style={styles.chartYGuideLabel}>30K</Text>
-            <View style={styles.chartGridLine} />
-          </View>
-          <View style={styles.chartYGuideRow}>
-            <Text style={styles.chartYGuideLabel}>20K</Text>
-            <View style={styles.chartGridLine} />
-          </View>
-          <View style={styles.chartYGuideRow}>
-            <Text style={styles.chartYGuideLabel}>10K</Text>
-            <View style={styles.chartGridLine} />
-          </View>
-          <View style={styles.chartYGuideRow}>
-            <Text style={styles.chartYGuideLabel}>0</Text>
-            <View style={styles.chartGridLine} />
-          </View>
-
-          {/* SVG-styled smooth curve overlay */}
-          <View style={styles.chartCurveContainer}>
-            {/* Visual curve using connected segments and gradient shade */}
-            <View style={styles.curveFillUnderlay} />
-            <View style={styles.curveLineStroke} />
-
-            {/* Peak Tooltip at ~45% (12 Sep) with Floating Micro-Animation */}
-            <Animated.View
-              style={[
-                styles.chartPeakTooltip,
-                {
-                  transform: [{ translateY: tooltipFloatAnim }],
-                },
-              ]}
-            >
-              <View style={styles.chartTooltipBubble}>
-                <Text style={styles.chartTooltipValue}>₹24,890</Text>
-                <Text style={styles.chartTooltipDate}>12 Sep</Text>
-              </View>
-              <View style={styles.chartTooltipArrow} />
-              <View style={styles.chartPeakDot}>
-                <View style={styles.chartPeakInnerDot} />
-              </View>
-            </Animated.View>
-          </View>
-
-          {/* X-axis Dates */}
-          <View style={styles.chartXDatesRow}>
-            <Text style={styles.chartXDateText}>1 Sep</Text>
-            <Text style={styles.chartXDateText}>8 Sep</Text>
-            <Text style={styles.chartXDateText}>15 Sep</Text>
-            <Text style={styles.chartXDateText}>22 Sep</Text>
-            <Text style={styles.chartXDateText}>30 Sep</Text>
-          </View>
-        </View>
+        <SalesOverviewChart
+          orders={orders}
+          onNavigate={onNavigate}
+          initialPeriod="7d"
+        />
       </Animated.View>
 
       {/* Recent Orders Overview with Animated Entry */}
@@ -2429,8 +2373,8 @@ function ProductsView({
     const prodId = String(product.id || product._id);
     const isCurrentlySoldOut = Boolean(
       product.is_sold_out === true ||
-      product.status === 'sold_out' ||
-      (product.stock !== undefined && Number(product.stock) <= 0)
+      product.isSoldOut === true ||
+      product.status === 'sold_out'
     );
     const nextSoldOut = !isCurrentlySoldOut;
     setUpdatingStatusId(prodId);
@@ -2498,7 +2442,7 @@ function ProductsView({
       (selectedCategory === 'Vehicles' && p.category && (p.category.toLowerCase().includes('vehic') || p.category.toLowerCase() === 'vehicles' || p.category.toLowerCase().includes('car') || p.category.toLowerCase().includes('bike')));
 
     const stockNum = Number(p.stock || 0);
-    const isSoldOutItem = Boolean((p as any).is_sold_out === true || (p as any).status === 'sold_out' || stockNum === 0);
+    const isSoldOutItem = Boolean((p as any).is_sold_out === true || (p as any).isSoldOut === true || (p as any).status === 'sold_out');
     const matchesStock =
       stockFilter === 'all' ||
       (stockFilter === 'in-stock' && !isSoldOutItem && stockNum > 3) ||
@@ -2651,9 +2595,9 @@ function ProductsView({
             </View>
           ) : (
             sorted.map((item, itemIdx) => {
-              const isExplicitSoldOut = Boolean((item as any).is_sold_out === true || (item as any).status === 'sold_out');
+              const isExplicitSoldOut = Boolean((item as any).is_sold_out === true || (item as any).isSoldOut === true || (item as any).status === 'sold_out');
               const stockNum = Number(item.stock ?? 12);
-              const isOut = isExplicitSoldOut || stockNum === 0;
+              const isOut = isExplicitSoldOut;
               const isLow = !isOut && stockNum > 0 && stockNum <= 3;
               const productKey = String(item.id || (item as any)._id || itemIdx);
               const categoryLabel = item.category || 'Phones';
@@ -3068,11 +3012,12 @@ function OrdersView() {
           day: 'numeric',
           month: 'short',
           year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
         });
         const firstItem = o.order_items?.[0] || o.items?.[0] || {};
         const itemsCount = (o.order_items || o.items || []).length || 1;
+        const paymentMethod = String(o.payment_method || o.paymentMethod || 'COD').toUpperCase();
+        const whatsappOptIn = o.customer_info?.whatsapp_consent !== false;
+
         return {
           id: idRaw.slice(-8).toUpperCase(),
           rawOrder: o,
@@ -3082,7 +3027,10 @@ function OrdersView() {
           status: statusMatch.label,
           statusBg: statusMatch.bg,
           statusColor: statusMatch.color,
-          img: firstItem.image_url || null,
+          img: firstItem.image_url || firstItem.image || null,
+          firstItem,
+          paymentMethod,
+          whatsappOptIn,
           total: Number(o.subtotal || o.total || 0),
         };
       })
@@ -3162,21 +3110,37 @@ function OrdersView() {
               key={idx}
               style={styles.orderCardRowM2}
               onPress={() => item.rawOrder && setSelectedManageOrder(item.rawOrder)}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              {item.img ? (
-                <Image source={{ uri: item.img }} style={styles.orderThumbM2} resizeMode="contain" />
-              ) : (
-                <View style={styles.orderThumbPlaceholderM2}>
-                  <Ionicons name="phone-portrait-outline" size={22} color="#94A3B8" />
-                </View>
-              )}
+              <View style={styles.orderThumbM2Wrap}>
+                <ProductImage
+                  source={item.img}
+                  category={item.firstItem?.category}
+                  name={item.firstItem?.name}
+                  style={styles.orderThumbM2}
+                  resizeMode="contain"
+                />
+              </View>
 
               <View style={{ flex: 1, justifyContent: 'center' }}>
-                <Text style={styles.orderRowIdM2}>#{item.id}</Text>
-                <Text style={styles.orderRowDateM2}>{item.date}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <Text style={styles.orderRowIdM2}>#{item.id}</Text>
+                  <Text style={styles.orderCardPriceText}>
+                    ₹{item.total.toLocaleString('en-IN')} · {item.paymentMethod}
+                  </Text>
+                </View>
                 <Text style={styles.orderRowCustomerM2}>{item.name}</Text>
-                <Text style={styles.orderRowItemsM2}>{item.itemsCount} {item.itemsCount === 1 ? 'item' : 'items'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <Text style={styles.orderRowDateM2}>{item.date}</Text>
+                  <Text style={styles.orderRowBullet}>•</Text>
+                  <Text style={styles.orderRowItemsM2}>{item.itemsCount} {item.itemsCount === 1 ? 'item' : 'items'}</Text>
+                  {item.whatsappOptIn && (
+                    <>
+                      <Text style={styles.orderRowBullet}>•</Text>
+                      <Ionicons name="logo-whatsapp" size={11} color="#16A34A" />
+                    </>
+                  )}
+                </View>
               </View>
 
               <View style={{ alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
@@ -3184,130 +3148,29 @@ function OrdersView() {
                   <View style={[styles.statusMiniDot, { backgroundColor: item.statusColor }]} />
                   <Text style={[styles.orderStatusPillTextM2, { color: item.statusColor }]}>{item.status}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                <View style={styles.orderQuickUpdatePill}>
+                  <Ionicons name="create-outline" size={11} color="#0F172A" />
+                  <Text style={styles.orderQuickUpdateText}>Update</Text>
+                </View>
               </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
       )}
 
-      {/* Order Management Modal */}
-      {selectedManageOrder && (
-        <Modal
-          visible={true}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setSelectedManageOrder(null)}
-        >
-          <View style={styles.orderModalOverlay}>
-            <View style={styles.orderModalCard}>
-              <View style={styles.orderModalHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.orderModalTitle}>
-                    Order #{String(selectedManageOrder.id || selectedManageOrder._id).slice(-8).toUpperCase()}
-                  </Text>
-                  <Text style={styles.orderModalSub}>
-                    {selectedManageOrder.customer_info?.name || selectedManageOrder.customer_name || 'Customer'} • ₹{Number(selectedManageOrder.subtotal || selectedManageOrder.total || 0).toLocaleString('en-IN')}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => setSelectedManageOrder(null)} style={styles.orderModalClose}>
-                  <Ionicons name="close" size={20} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-                {/* Status Switcher */}
-                <Text style={styles.modalFieldLabel}>UPDATE STATUS</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-                  {STATUS_OPTIONS.map((st) => {
-                    const isCur = selectedManageOrder.status === st.id;
-                    return (
-                      <TouchableOpacity
-                        key={st.id}
-                        onPress={async () => {
-                          const oId = String(selectedManageOrder.id || selectedManageOrder._id);
-                          await applyStatus(oId, st.id);
-                          setSelectedManageOrder((p: any) => p ? { ...p, status: st.id } : null);
-                        }}
-                        style={[
-                          styles.statusSelectPill,
-                          isCur && { backgroundColor: st.bg, borderColor: st.color, borderWidth: 1.5 }
-                        ]}
-                      >
-                        <Text style={[styles.statusSelectText, isCur && { color: st.color, fontWeight: '800' }]}>
-                          {st.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Shipping info */}
-                <Text style={styles.modalFieldLabel}>SHIPPING DETAILS</Text>
-                {(() => {
-                  const oId = String(selectedManageOrder.id || selectedManageOrder._id);
-                  const draft = shippingDrafts[oId] || { courier: '', courierPhone: '', tracking: '' };
-                  return (
-                    <View style={{ gap: 8, marginBottom: 14 }}>
-                      <TextInput
-                        value={draft.courier}
-                        onChangeText={(v) => setShippingDrafts((p) => ({ ...p, [oId]: { ...draft, courier: v } }))}
-                        placeholder="Courier (e.g. Blue Dart, Delhivery)"
-                        placeholderTextColor="#94a3b8"
-                        style={styles.modalInput}
-                      />
-                      <TextInput
-                        value={draft.tracking}
-                        onChangeText={(v) => setShippingDrafts((p) => ({ ...p, [oId]: { ...draft, tracking: v } }))}
-                        placeholder="Tracking number"
-                        placeholderTextColor="#94a3b8"
-                        style={styles.modalInput}
-                      />
-                      <TextInput
-                        value={draft.courierPhone}
-                        onChangeText={(v) => setShippingDrafts((p) => ({ ...p, [oId]: { ...draft, courierPhone: v } }))}
-                        placeholder="Courier contact number"
-                        placeholderTextColor="#94a3b8"
-                        keyboardType="phone-pad"
-                        style={styles.modalInput}
-                      />
-                      <TouchableOpacity
-                        onPress={() => applyStatus(oId, selectedManageOrder.status || 'pending')}
-                        style={styles.saveShippingBtn}
-                      >
-                        <Text style={styles.saveShippingBtnText}>Save Courier Details</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })()}
-
-                {/* Actions */}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                  <TouchableOpacity
-                    onPress={() => handleDownloadInvoice(selectedManageOrder)}
-                    disabled={downloadingInvoiceId !== null}
-                    style={styles.invoiceDownloadBtn}
-                  >
-                    <Ionicons name="document-text-outline" size={16} color="#0F172A" />
-                    <Text style={styles.invoiceDownloadBtnText}>Download Invoice PDF</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      const oId = String(selectedManageOrder.id || selectedManageOrder._id);
-                      setSelectedManageOrder(null);
-                      handleDeleteOrder(oId);
-                    }}
-                    style={styles.orderDeleteBtn}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-      )}
+      {/* Minimalism Clean Order Management Modal */}
+      <OrderUpdateModal
+        visible={Boolean(selectedManageOrder)}
+        order={selectedManageOrder}
+        onClose={() => setSelectedManageOrder(null)}
+        onOrderUpdated={(updated) => {
+          setOrders((prev) =>
+            prev.map((o) => (String(o.id || o._id) === String(updated.id || updated._id) ? updated : o))
+          );
+        }}
+        onDownloadInvoice={handleDownloadInvoice}
+        onDeleteOrder={handleDeleteOrder}
+      />
     </View>
   );
 }
@@ -3403,15 +3266,30 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
             inspected: 4,
             totalPayouts: 34500,
           },
-          salesTrend: [
-            { date: '2026-09-27', label: 'Mon', revenue: Math.round(totalRev * 0.1), orders: 2 },
-            { date: '2026-09-28', label: 'Tue', revenue: Math.round(totalRev * 0.14), orders: 3 },
-            { date: '2026-09-29', label: 'Wed', revenue: Math.round(totalRev * 0.08), orders: 1 },
-            { date: '2026-09-30', label: 'Thu', revenue: Math.round(totalRev * 0.22), orders: 5 },
-            { date: '2026-10-01', label: 'Fri', revenue: Math.round(totalRev * 0.18), orders: 4 },
-            { date: '2026-10-02', label: 'Sat', revenue: Math.round(totalRev * 0.26), orders: 6 },
-            { date: '2026-10-03', label: 'Sun', revenue: Math.round(totalRev * 0.12), orders: 2 },
-          ],
+          salesTrend: (() => {
+            const now = new Date();
+            const trend = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date(now);
+              d.setDate(now.getDate() - i);
+              const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+              const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+              const dayOrders = ords.filter((o: any) => {
+                const od = new Date(o.created_at || o.createdAt || 0);
+                return od >= dayStart && od <= dayEnd;
+              });
+              const dayRev = dayOrders
+                .filter((o: any) => o.status !== 'cancelled' && o.status !== 'failed')
+                .reduce((sum: number, o: any) => sum + (Number(o.subtotal || o.total_amount || o.total) || 0), 0);
+              trend.push({
+                date: dayStart.toISOString().split('T')[0],
+                label: `${d.toLocaleDateString('en-IN', { weekday: 'short' })} ${d.getDate()}`,
+                revenue: dayRev,
+                orders: dayOrders.length,
+              });
+            }
+            return trend;
+          })(),
           recentTransactions: ords.slice(0, 5).map((o: any) => ({
             id: o.id || o._id,
             customerName: o.customer_info?.name || 'Customer',
@@ -6347,6 +6225,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.02,
     shadowRadius: 3,
     elevation: 1,
+  },
+  orderThumbM2Wrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  orderCardPriceText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  orderRowBullet: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  orderQuickUpdatePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  orderQuickUpdateText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   orderThumbM2: {
     width: 58,

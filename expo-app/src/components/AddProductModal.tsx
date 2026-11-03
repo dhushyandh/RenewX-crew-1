@@ -425,7 +425,7 @@ export default function AddProductModal({
 
   // 3. Pricing & Stock
   const [isBestPrice, setIsBestPrice] = useState<boolean>(Boolean(product?.is_best_price || (product && product.price === 0)));
-  const [isSoldOut, setIsSoldOut] = useState<boolean>(Boolean(product?.is_sold_out || (product as any)?.status === 'sold_out' || (product && product.stock === 0)));
+  const [isSoldOut, setIsSoldOut] = useState<boolean>(Boolean(product?.is_sold_out || (product as any)?.isSoldOut || (product as any)?.status === 'sold_out'));
   const [sellingPrice, setSellingPrice] = useState(product?.price ? String(product.price) : '');
   const [mrp, setMrp] = useState(product?.original_price ? String(product.original_price) : '');
   const [stock, setStock] = useState<string>(product?.stock !== undefined ? String(product.stock) : '');
@@ -457,8 +457,8 @@ export default function AddProductModal({
         setIsBestPrice(hasBestPrice);
         const productIsSoldOut = Boolean(
           product.is_sold_out ||
-          product.status === 'sold_out' ||
-          (product.stock !== undefined && product.stock <= 0)
+          (product as any)?.isSoldOut ||
+          product.status === 'sold_out'
         );
         setIsSoldOut(productIsSoldOut);
         setSellingPrice(hasBestPrice ? '' : product.price ? String(product.price) : '');

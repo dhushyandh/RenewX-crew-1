@@ -34,11 +34,34 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   if (Platform.OS === 'android') {
+    // 1. General & Order updates
     await Notifications.setNotificationChannelAsync('default', {
       name: 'RenewX updates',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: 'default',
+      enableLights: true,
+      lightColor: '#ffc400',
+    });
+
+    // 2. Promotional & Flash Deal broadcasts
+    await Notifications.setNotificationChannelAsync('renewx-promotions', {
+      name: 'Promotions & Deals',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: 'default',
+      enableLights: true,
+      lightColor: '#ffc400',
+    });
+
+    // 3. New Product Arrivals & Restocks
+    await Notifications.setNotificationChannelAsync('renewx-products', {
+      name: 'New Arrivals & Catalog',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       sound: 'default',
+      enableLights: true,
+      lightColor: '#ffc400',
     });
   }
 
@@ -116,16 +139,24 @@ export async function getNotificationPermissionStatus(): Promise<{
       return { granted: false, canAskAgain: false, status: 'unsupported' };
     }
     const perm = Notification.permission;
+    const isGranted = perm === 'granted';
+    if (isGranted) {
+      AsyncStorage.setItem('@renewx_notif_permission_granted', 'true').catch(() => {});
+    }
     return {
-      granted: perm === 'granted',
+      granted: isGranted,
       canAskAgain: perm === 'default',
       status: perm,
     };
   }
   try {
     const permissions = await Notifications.getPermissionsAsync();
+    const isGranted = permissions.granted || permissions.status === 'granted';
+    if (isGranted) {
+      AsyncStorage.setItem('@renewx_notif_permission_granted', 'true').catch(() => {});
+    }
     return {
-      granted: permissions.granted || permissions.status === 'granted',
+      granted: isGranted,
       canAskAgain: permissions.canAskAgain,
       status: permissions.status,
     };
@@ -138,7 +169,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
   if (Platform.OS === 'web') {
     try {
       const { subscribeToWebPush } = await import('@/services/webPushService');
-      return await subscribeToWebPush();
+      const granted = await subscribeToWebPush();
+      if (granted) {
+        await AsyncStorage.setItem('@renewx_notif_permission_granted', 'true');
+      }
+      return granted;
     } catch (e) {
       console.warn('[WebPush] Request permission error:', e);
       return false;
@@ -148,6 +183,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
   try {
     const current = await Notifications.getPermissionsAsync();
     if (current.granted || current.status === 'granted') {
+      await AsyncStorage.setItem('@renewx_notif_permission_granted', 'true');
       registerPushTokenInBackground();
       return true;
     }
@@ -155,6 +191,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
     if (current.canAskAgain) {
       const requested = await Notifications.requestPermissionsAsync();
       if (requested.granted || requested.status === 'granted') {
+        await AsyncStorage.setItem('@renewx_notif_permission_granted', 'true');
         registerPushTokenInBackground();
         return true;
       }

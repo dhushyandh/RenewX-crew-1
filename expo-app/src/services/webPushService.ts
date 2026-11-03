@@ -74,41 +74,39 @@ export async function subscribeToWebPush(): Promise<boolean> {
       return false;
     }
 
-    // Ensure service worker is registered
-    await registerServiceWorker();
-
-    const registration = await navigator.serviceWorker.ready;
-    if (!registration) {
-      console.warn('[WebPush] Service worker ready state not reached');
-      return false;
-    }
-
-    // Fetch public VAPID key from backend
-    const keyRes = await api.notifications.getWebPushPublicKey();
-    const publicKey = (keyRes as any)?.data?.publicKey || (keyRes as any)?.publicKey;
-    if (!publicKey) {
-      throw new Error('VAPID public key not received from server');
-    }
-
-    const applicationServerKey = urlBase64ToUint8Array(publicKey);
-
-    // Check for existing subscription first
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as any,
-      });
-    }
-
-    // Send subscription object to server
-    const subJson = subscription.toJSON();
-    await api.notifications.subscribeWebPush(subJson);
     await AsyncStorage.setItem(WEB_PUSH_STORAGE_KEY, 'true');
-    console.log('[WebPush] Successfully subscribed browser to RenewX push notifications');
+    await AsyncStorage.setItem('@renewx_notif_permission_granted', 'true');
+
+    // Register service worker and server push in background non-blocking
+    (async () => {
+      try {
+        await registerServiceWorker();
+        const registration = await navigator.serviceWorker.ready;
+        if (!registration) return;
+
+        const keyRes = await api.notifications.getWebPushPublicKey();
+        const publicKey = (keyRes as any)?.data?.publicKey || (keyRes as any)?.publicKey;
+        if (!publicKey) return;
+
+        const applicationServerKey = urlBase64ToUint8Array(publicKey);
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey as any,
+          });
+        }
+        const subJson = subscription.toJSON();
+        await api.notifications.subscribeWebPush(subJson);
+        console.log('[WebPush] Successfully subscribed browser to RenewX push notifications');
+      } catch (subErr) {
+        console.warn('[WebPush] Background server push subscription failed:', subErr);
+      }
+    })();
+
     return true;
   } catch (error) {
-    console.error('[WebPush] Failed to subscribe to web push:', error);
+    console.error('[WebPush] Failed to request web notification permission:', error);
     return false;
   }
 }

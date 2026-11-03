@@ -25,6 +25,7 @@ import { api } from '@/services/api';
 import { mapProductRow } from '@/lib/productMapper';
 import type { Product } from '@/types';
 import RenewXLogo from '@/components/RenewXLogo';
+import { ProductImage } from '@/components/ui';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -504,8 +505,7 @@ export default function ShopScreen() {
               const isSoldOut = Boolean(
                 item.is_sold_out === true ||
                 item.isSoldOut === true ||
-                item.status === 'sold_out' ||
-                (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+                item.status === 'sold_out'
               );
               const isWish = isInWishlist(item.id);
               const origPrice = item.originalPrice || Math.round(item.price * 1.25);
@@ -553,9 +553,12 @@ export default function ShopScreen() {
 
                   {/* Product Image Layout with Sold Out Overlay */}
                   <View style={styles.imageWrapper}>
-                    <Image
-                      source={{ uri: item.image || item.imageUrl }}
-                      style={[styles.productImage, isSoldOut && { opacity: 0.52 }]}
+                    <ProductImage
+                      source={item.image || item.imageUrl || (item.images && item.images[0])}
+                      category={item.category}
+                      name={item.name}
+                      style={styles.productImage}
+                      isSoldOut={isSoldOut}
                       resizeMode="contain"
                     />
                     {isSoldOut && (
@@ -632,8 +635,7 @@ export default function ShopScreen() {
               const isSoldOut = Boolean(
                 item.is_sold_out === true ||
                 item.isSoldOut === true ||
-                item.status === 'sold_out' ||
-                (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+                item.status === 'sold_out'
               );
               const isWish = isInWishlist(item.id);
               const origPrice = item.originalPrice || Math.round(item.price * 1.25);
@@ -646,9 +648,12 @@ export default function ShopScreen() {
                   onPress={() => navigation.navigate('ProductDetail', { id: item.id, product: item })}
                 >
                   <View style={{ position: 'relative' }}>
-                    <Image
-                      source={{ uri: item.image || item.imageUrl }}
-                      style={[styles.listImage, isSoldOut && { opacity: 0.52 }]}
+                    <ProductImage
+                      source={item.image || item.imageUrl || (item.images && item.images[0])}
+                      category={item.category}
+                      name={item.name}
+                      style={styles.listImage}
+                      isSoldOut={isSoldOut}
                       resizeMode="contain"
                     />
                     {isSoldOut && (
