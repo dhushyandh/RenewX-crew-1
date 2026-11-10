@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
@@ -76,6 +77,7 @@ app.use(helmet({
 app.use(compression());
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.options('*', cors(corsOptions));
 
 // Ensure database connection is active using warm mongoose connection pool
