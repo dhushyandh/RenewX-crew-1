@@ -37,9 +37,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    // Assign admin role if email matches designated ADMIN_EMAIL
-    const role: 'admin' | 'customer' =
-      normalizedEmail === env.ADMIN_EMAIL.toLowerCase() ? 'admin' : 'customer';
+    // Public registration must never grant admin privileges.
+    const role: 'admin' | 'customer' = 'customer';
 
     const newUser = await User.create({
       email: normalizedEmail,
@@ -125,11 +124,6 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // Auto-promote admin email if not already admin
-    if (normalizedEmail === env.ADMIN_EMAIL.toLowerCase() && user.role !== 'admin') {
-      user.role = 'admin';
-      await user.save();
-    }
 
     const token = generateToken({
       id: user.id,
@@ -385,8 +379,7 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
     let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      const role: 'admin' | 'customer' =
-        env.ADMIN_EMAIL && normalizedEmail === env.ADMIN_EMAIL.toLowerCase() ? 'admin' : 'customer';
+      const role: 'admin' | 'customer' = 'customer';
 
       user = await User.create({
         email: normalizedEmail,
@@ -854,7 +847,7 @@ export async function sendAuthOtp(req: Request, res: Response, next: NextFunctio
           email: normalizedEmail,
           password,
           full_name: full_name?.trim() || '',
-          role: normalizedEmail === env.ADMIN_EMAIL.toLowerCase() ? 'admin' : 'customer',
+          role: 'customer',
           profile_completed: false,
           is_email_verified: false,
           email_verification_code: code,
