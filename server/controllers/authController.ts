@@ -26,6 +26,20 @@ const getSessionResponseToken = (req: Request, token: string): { token?: string;
   return isNative ? { token, authenticatedByCookie: false } : { authenticatedByCookie: true };
 };
 
+const setAuthCookie = (req: Request, res: Response, token: string): void => {
+  if (req.get('x-client-platform') === 'native') return;
+  const production = env.NODE_ENV === 'production';
+  res.cookie('renewx_access', token, {
+    httpOnly: true,
+    secure: production,
+    sameSite: production ? 'none' : 'lax',
+    path: '/api',
+    maxAge: 15 * 60 * 1000,
+  });
+};
+const sessionTokenPayload = (req: Request, token: string) =>
+  req.get('x-client-platform') === 'native' ? { token } : { authenticatedByCookie: true };
+
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email, password, full_name } = req.body;
@@ -73,6 +87,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
     });
 
     setAuthSession(req, res, token);
+    setAuthCookie(req, res, token);
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
@@ -152,6 +167,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     });
     setAuthSession(req, res, token);
 
+    setAuthCookie(req, res, token);
     res.json({
       success: true,
       message: 'Logged in successfully',
@@ -431,6 +447,7 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
     });
 
     setAuthSession(req, res, authToken);
+    setAuthCookie(req, res, authToken);
     res.json({
       success: true,
       message: 'Signed in with Google successfully',
@@ -990,6 +1007,7 @@ export async function verifyAuthOtp(req: Request, res: Response, next: NextFunct
     });
 
     setAuthSession(req, res, token);
+    setAuthCookie(req, res, token);
     res.json({
       success: true,
       message: 'Email verified successfully',
