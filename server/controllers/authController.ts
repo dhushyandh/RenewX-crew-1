@@ -7,6 +7,25 @@ import { env } from '../config/env';
 import { sendPasswordResetEmail, sendEmailVerificationCode } from '../services/emailService';
 import { notifyUserEvent } from '../services/notificationService';
 
+
+const setAuthSession = (req: Request, res: Response, token: string): void => {
+  const isNative = req.get('x-client-platform') === 'native';
+  if (!isNative) {
+    const production = env.NODE_ENV === 'production';
+    res.cookie('renewx_access', token, {
+      httpOnly: true,
+      secure: production,
+      sameSite: production ? 'none' : 'lax',
+      path: '/api',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+  }
+};
+const getSessionResponseToken = (req: Request, token: string): { token?: string; authenticatedByCookie: boolean } => {
+  const isNative = req.get('x-client-platform') === 'native';
+  return isNative ? { token, authenticatedByCookie: false } : { authenticatedByCookie: true };
+};
+
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email, password, full_name } = req.body;
@@ -53,11 +72,12 @@ export async function register(req: Request, res: Response, next: NextFunction):
       role: newUser.role,
     });
 
+    setAuthSession(req, res, token);
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
       data: {
-        token,
+        ...getSessionResponseToken(req, token),
         user: {
           id: newUser.id,
           email: newUser.email,
@@ -130,12 +150,13 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       email: user.email,
       role: user.role,
     });
+    setAuthSession(req, res, token);
 
     res.json({
       success: true,
       message: 'Logged in successfully',
       data: {
-        token,
+        ...getSessionResponseToken(req, token),
         user: {
           id: user.id,
           email: user.email,
@@ -409,11 +430,12 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
       role: user.role,
     });
 
+    setAuthSession(req, res, authToken);
     res.json({
       success: true,
       message: 'Signed in with Google successfully',
       data: {
-        token: authToken,
+        ...getSessionResponseToken(req, authToken),
         user: {
           id: user.id,
           email: user.email,
@@ -967,11 +989,12 @@ export async function verifyAuthOtp(req: Request, res: Response, next: NextFunct
       role: user.role,
     });
 
+    setAuthSession(req, res, token);
     res.json({
       success: true,
       message: 'Email verified successfully',
       data: {
-        token,
+        ...getSessionResponseToken(req, token),
         user: {
           id: user.id,
           email: user.email,
