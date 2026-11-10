@@ -8,6 +8,7 @@ export interface AuthenticatedRequest extends Request {
     id: string;
     email: string;
     role: 'admin' | 'customer';
+  full_name?: string;
     full_name?: string;
     phone?: string;
     address?: string;
@@ -27,7 +28,7 @@ export async function authenticateToken(
   next: NextFunction
 ): Promise<void> {
   const authHeader = req.headers.authorization;
-  const token = (authHeader && authHeader.split(' ')[1]) || (typeof req.query.token === 'string' ? req.query.token : undefined);
+  const token = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined) || (typeof req.query.token === 'string' ? req.query.token : undefined);
 
   if (!token) {
     // If no token, proceed as guest
@@ -43,8 +44,8 @@ export async function authenticateToken(
 
     // Resolve the current role from MongoDB so a revoked/demoted admin
     // cannot keep elevated access until the JWT expires.
-    const user = await User.findById(decoded.id).select('email role full_name');
-    if (!user) {
+    const user = await User.findById(decoded.id).select('email role full_name status');
+    if (!user || user.status !== 'active') {
       res.status(401).json({ success: false, error: { message: 'Account no longer exists', code: 'UNAUTHORIZED' } });
       return;
     }
