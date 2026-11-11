@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 const PWA_DISMISSED_KEY = '@renewx_pwa_install_dismissed_at';
 const COOLDOWN_DAYS = 5;
@@ -160,7 +161,7 @@ export default function PwaInstallPrompt() {
 
         {/* Text Content */}
         <View style={styles.textContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={styles.titleBadgeRow}>
             <Text style={styles.bannerTitle}>Install RenewX App</Text>
             <View style={styles.pwaBadge}>
               <Text style={styles.pwaBadgeText}>PWA</Text>
@@ -201,15 +202,15 @@ export default function PwaInstallPrompt() {
         <View style={styles.iosGuideBox}>
           <Text style={styles.iosGuideTitle}>How to install on iOS:</Text>
           <Text style={styles.iosGuideStep}>
-            1. Tap the <Text style={{ fontWeight: '800' }}>Share</Text> icon (
-            <Ionicons name="share-outline" size={13} color="#0F172A" />) at the bottom of Safari.
+            1. Tap the <Text style={styles.iosGuideBold}>Share</Text> icon (
+            <Ionicons name="share-outline" size={13} color={renewxColors.black} />) at the bottom of Safari.
           </Text>
           <Text style={styles.iosGuideStep}>
-            2. Scroll down and tap <Text style={{ fontWeight: '800' }}>'Add to Home Screen'</Text> (
-            <Ionicons name="add-circle-outline" size={13} color="#0F172A" />).
+            2. Scroll down and tap <Text style={styles.iosGuideBold}>'Add to Home Screen'</Text> (
+            <Ionicons name="add-circle-outline" size={13} color={renewxColors.black} />).
           </Text>
           <Text style={styles.iosGuideStep}>
-            3. Tap <Text style={{ fontWeight: '800' }}>'Add'</Text> at the top right corner.
+            3. Tap <Text style={styles.iosGuideBold}>'Add'</Text> at the top right corner.
           </Text>
         </View>
       )}
@@ -229,18 +230,14 @@ const styles = StyleSheet.create({
   bannerCard: {
     width: '100%',
     maxWidth: 520,
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 8,
+    ...(renewxShadows.floating as object),
     borderWidth: 1,
     borderColor: '#334155',
   },
@@ -249,7 +246,7 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#FFC400',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -262,28 +259,34 @@ const styles = StyleSheet.create({
   textContainer: {
     flex: 1,
   },
+  titleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   bannerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: 13.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.white,
     letterSpacing: -0.2,
   },
   pwaBadge: {
     backgroundColor: 'rgba(255, 196, 0, 0.2)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
     borderRadius: 4,
     borderWidth: 0.5,
-    borderColor: '#FFC400',
+    borderColor: renewxColors.yellow,
   },
   pwaBadgeText: {
-    fontSize: 8.5,
-    fontWeight: '900',
-    color: '#FFC400',
+    fontSize: 9.5,
+    ...renewxTextStyle('black'),
+    color: renewxColors.yellow,
   },
   bannerSubtitle: {
-    fontSize: 11,
-    color: '#94A3B8',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: '#CBD5E1',
     marginTop: 1,
   },
   actionsRow: {
@@ -293,15 +296,15 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   installButton: {
-    backgroundColor: '#FFC400',
+    backgroundColor: renewxColors.yellow,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 6.5,
     borderRadius: 10,
   },
   installButtonText: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#000000',
+    fontSize: 12,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   dismissButton: {
     padding: 4,
@@ -309,27 +312,29 @@ const styles = StyleSheet.create({
   iosGuideBox: {
     width: '100%',
     maxWidth: 520,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 14,
     padding: 12,
     marginTop: 6,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.elevated as object),
   },
   iosGuideTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 12.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     marginBottom: 6,
   },
   iosGuideStep: {
-    fontSize: 11,
-    color: '#475569',
+    fontSize: 12,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginBottom: 4,
-    lineHeight: 16,
+    lineHeight: 17,
+  },
+  iosGuideBold: {
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 });

@@ -26,7 +26,7 @@ import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { mapProductRow } from '@/lib/productMapper';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
-import { renewxFontFamily } from '@/design-system';
+import { renewxColors, renewxTextStyle } from '@/design-system';
 import HomeHeader from '@/components/HomeHeader';
 import { getCategoryThirdPartyImage } from '@/data/categories';
 
@@ -484,13 +484,13 @@ export default function SearchScreen() {
           <View style={styles.priceRow}>
             {isSoldOut ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: '#94A3B8' }}>Restocking</Text>
+                <Text style={styles.soldOutStatusText}>Sold Out</Text>
+                <Text style={styles.restockingStatusText}>Restocking</Text>
               </View>
             ) : item.is_best_price || item.isBestPrice || price === 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
-                <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>COD Only</Text>
+                <Text style={styles.bestPriceStatusText}>Best Price</Text>
+                <Text style={styles.codOnlyPill}>COD Only</Text>
               </View>
             ) : (
               <>
@@ -619,7 +619,7 @@ export default function SearchScreen() {
                   style={styles.popularChip}
                   onPress={() => handleSearchSubmit(item)}
                 >
-                  <Ionicons name="trending-up" size={13} color="#EAB308" style={{ marginRight: 6 }} />
+                  <Ionicons name="trending-up" size={13} color={renewxColors.yellowDark} style={{ marginRight: 6 }} />
                   <Text style={styles.popularChipText}>{item}</Text>
                 </TouchableOpacity>
               ))}
@@ -643,15 +643,15 @@ export default function SearchScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#FFC400"
-              colors={['#FFC400', '#10B981']}
+              tintColor={renewxColors.yellow}
+              colors={[renewxColors.yellow, renewxColors.emerald]}
               progressBackgroundColor="#FFFFFF"
             />
           }
           ListEmptyComponent={
             loading ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator size="large" color="#FACC15" />
+                <ActivityIndicator size="large" color={renewxColors.yellow} />
               </View>
             ) : (
               <View style={styles.emptyBox}>
@@ -866,10 +866,10 @@ const styles = StyleSheet.create({
     }),
   },
   searchInput: {
+    ...renewxTextStyle('regular'),
     flex: 1,
     fontSize: 13.5,
-    fontFamily: renewxFontFamily.regular,
-    color: '#0F172A',
+    color: renewxColors.black,
     paddingVertical: 0,
   },
   headerFilterBtn: {
@@ -882,8 +882,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerFilterBtnActive: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
   },
 
   /* CATEGORY CHIPS */
@@ -903,19 +903,18 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   categoryChipSelected: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
     borderWidth: 1,
   },
   categoryChipText: {
+    ...renewxTextStyle('semibold'),
     fontSize: 12,
-    fontFamily: renewxFontFamily.semibold,
-    fontWeight: '600',
-    color: '#475569',
+    color: renewxColors.textSecondary,
   },
   categoryChipTextSelected: {
-    color: '#000000',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 
   /* ACTION PILL BUTTONS (Filter & Sort) */
@@ -938,20 +937,19 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   actionPillBtnActive: {
-    borderColor: '#FACC15',
-    backgroundColor: '#FFFDF0',
+    borderColor: renewxColors.yellowDark,
+    backgroundColor: renewxColors.yellowSoft,
   },
   actionPillText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   filterDotBadge: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EAB308',
+    backgroundColor: renewxColors.yellowDark,
     marginLeft: 6,
   },
 
@@ -964,9 +962,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   resultsCountText: {
+    ...renewxTextStyle('medium'),
     fontSize: 12.5,
-    color: '#64748B',
-    fontFamily: renewxFontFamily.medium,
+    color: renewxColors.textMuted,
   },
 
   /* LIST CONTENT */
@@ -982,7 +980,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
     padding: 12,
     position: 'relative',
     ...Platform.select({
@@ -1015,15 +1013,14 @@ const styles = StyleSheet.create({
     height: 94,
   },
   productTitle: {
+    ...renewxTextStyle('bold'),
     fontSize: 14,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   productSpecs: {
+    ...renewxTextStyle('regular'),
     fontSize: 11,
-    fontFamily: renewxFontFamily.regular,
-    color: '#94A3B8',
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
   priceRow: {
@@ -1033,41 +1030,65 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   priceText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 15,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   origPriceText: {
+    ...renewxTextStyle('regular'),
     fontSize: 11.5,
-    fontFamily: renewxFontFamily.regular,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
+  },
+  soldOutStatusText: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13,
+    color: renewxColors.error,
+  },
+  restockingStatusText: {
+    ...renewxTextStyle('semibold'),
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  bestPriceStatusText: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13,
+    color: renewxColors.emerald,
+  },
+  codOnlyPill: {
+    ...renewxTextStyle('bold'),
+    fontSize: 9.5,
+    color: '#9A6700',
+    backgroundColor: renewxColors.yellowLight,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
   },
   addToCartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 12,
     height: 36,
     marginTop: 10,
     ...Platform.select({
-      web: { boxShadow: '0 2px 6px rgba(250, 204, 21, 0.25)' },
+      web: { boxShadow: '0 2px 6px rgba(217, 166, 0, 0.22)' },
       default: {
-        shadowColor: '#FACC15',
+        shadowColor: renewxColors.yellowDark,
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.25,
+        shadowOpacity: 0.2,
         shadowRadius: 3,
         elevation: 1,
       },
     }),
   },
   addToCartText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#000000',
+    color: renewxColors.black,
   },
   addToCartBtnDisabled: {
     backgroundColor: '#F1F5F9',
@@ -1091,14 +1112,14 @@ const styles = StyleSheet.create({
   soldOutBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC2626',
+    backgroundColor: renewxColors.error,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
   },
   soldOutBadgeText: {
+    ...renewxTextStyle('extraBold'),
     color: '#FFFFFF',
-    fontWeight: '800',
     fontSize: 9.5,
     letterSpacing: 0.5,
   },
@@ -1119,15 +1140,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   suggestionTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   clearAllRecentText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    color: '#64748B',
-    fontWeight: '600',
+    color: renewxColors.emerald,
   },
   recentItemRow: {
     flexDirection: 'row',
@@ -1143,6 +1163,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recentItemText: {
+    ...renewxTextStyle('regular'),
     fontSize: 13,
     color: '#334155',
   },
@@ -1166,9 +1187,9 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   popularChipText: {
+    ...renewxTextStyle('semibold'),
     fontSize: 12,
-    fontWeight: '600',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   /* EMPTY & LOADING STATES */
@@ -1193,31 +1214,31 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   emptyTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 16,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 6,
   },
   emptySubtitle: {
+    ...renewxTextStyle('regular'),
     fontSize: 12.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 16,
   },
   emptyClearBtn: {
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
     borderWidth: 1,
-    borderColor: '#FACC15',
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: 20,
   },
   emptyClearBtnText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    fontWeight: '700',
-    color: '#000000',
+    color: renewxColors.black,
   },
 
   /* MODAL (Filters & Sort Bottom Sheet) */
@@ -1244,10 +1265,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   modalTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 18,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   modalCloseBtn: {
     padding: 4,
@@ -1260,10 +1280,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   filterSectionTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 15,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 10,
   },
   sortOptionRow: {
@@ -1276,16 +1295,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sortOptionRowSelected: {
-    backgroundColor: '#FEFCE8',
+    backgroundColor: renewxColors.yellowSoft,
   },
   sortOptionText: {
+    ...renewxTextStyle('medium'),
     fontSize: 13.5,
-    fontFamily: renewxFontFamily.medium,
     color: '#334155',
   },
   sortOptionTextSelected: {
-    fontWeight: '700',
-    color: '#000000',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   radioCircle: {
     width: 20,
@@ -1297,8 +1316,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioCircleSelected: {
-    backgroundColor: '#FACC15',
-    borderColor: '#EAB308',
+    backgroundColor: renewxColors.yellow,
+    borderColor: renewxColors.yellowDark,
   },
   filtersTopRow: {
     flexDirection: 'row',
@@ -1308,18 +1327,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   clearAllFiltersText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
+    color: renewxColors.emerald,
   },
   filterGroup: {
     marginBottom: 16,
   },
   filterGroupLabel: {
+    ...renewxTextStyle('bold'),
     fontSize: 13,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 8,
   },
   pillRowWrap: {
@@ -1336,17 +1354,17 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   modalPillSelected: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
   },
   modalPillText: {
+    ...renewxTextStyle('medium'),
     fontSize: 12,
-    fontFamily: renewxFontFamily.medium,
-    color: '#475569',
+    color: renewxColors.textSecondary,
   },
   modalPillTextSelected: {
-    fontWeight: '800',
-    color: '#000000',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   modalBottomBar: {
     paddingHorizontal: 20,
@@ -1355,26 +1373,27 @@ const styles = StyleSheet.create({
     borderTopColor: '#F1F5F9',
   },
   applyFiltersBtn: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     height: 46,
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
-      web: { boxShadow: '0 2px 10px rgba(250, 204, 21, 0.35)' },
+      web: { boxShadow: '0 2px 10px rgba(217, 166, 0, 0.25)' },
       default: {
-        shadowColor: '#FACC15',
+        shadowColor: renewxColors.yellowDark,
         shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.35,
+        shadowOpacity: 0.25,
         shadowRadius: 5,
         elevation: 3,
       },
     }),
   },
   applyFiltersBtnText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 14.5,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#000000',
+    color: renewxColors.black,
   },
 });

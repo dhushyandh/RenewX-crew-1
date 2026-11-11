@@ -27,14 +27,14 @@ export const renewxColors = {
   yellowLight: '#FFF4C2',
   yellowSoft: '#FFFBEA',
 
-  black: '#111111',
-  text: '#252525',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
+  black: '#0F172A',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#64748B',
 
-  background: '#F7F8F6',
+  background: '#F8FAFC',
   surface: '#FFFFFF',
-  surfaceMuted: '#F1F4F1',
+  surfaceMuted: '#F1F5F9',
 
   border: '#E5E7EB',
   borderStrong: '#D1D5DB',
@@ -71,70 +71,11 @@ export const renewxRadius = {
   pill: 999,
 } as const;
 
-export const renewxTypography = {
-  display: {
-    fontSize: 32,
-    lineHeight: 38,
-    fontWeight: '800' as const,
-    letterSpacing: -0.8,
-  },
-  h1: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '800' as const,
-    letterSpacing: -0.5,
-  },
-  h2: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '700' as const,
-    letterSpacing: -0.25,
-  },
-  h3: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '700' as const,
-  },
-  body: {
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: '400' as const,
-  },
-  bodyMedium: {
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: '500' as const,
-  },
-  bodySemibold: {
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: '600' as const,
-  },
-  caption: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '400' as const,
-  },
-  label: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600' as const,
-    letterSpacing: 0.2,
-  },
-  price: {
-    fontSize: 22,
-    lineHeight: 27,
-    fontWeight: '800' as const,
-    letterSpacing: -0.35,
-  },
-} as const;
-
-/**
- * Outfit is already bundled in RenewX. The typography roles above are
- * deliberately centralized so Poppins/Inter can be introduced later
- * without changing screen-level styles.
- */
 export const renewxFontFamily = {
+  light: Platform.select({
+    web: 'Outfit, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    default: 'Outfit_300Light',
+  }),
   regular: Platform.select({
     web: 'Outfit, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     default: 'Outfit_400Regular',
@@ -155,6 +96,91 @@ export const renewxFontFamily = {
     web: 'Outfit, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     default: 'Outfit_800ExtraBold',
   }),
+  black: Platform.select({
+    web: 'Outfit, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    default: 'Outfit_900Black',
+  }),
+} as const;
+
+export type RenewxFontWeight = keyof typeof renewxFontFamily;
+
+const WEB_FONT_WEIGHT_MAP: Record<RenewxFontWeight, '300' | '400' | '500' | '600' | '700' | '800' | '900'> = {
+  light: '300',
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  extraBold: '800',
+  black: '900',
+};
+
+/**
+ * Cross-platform font styling helper:
+ * - On Web: uses CSS font-family 'Outfit' with explicit numeric weight.
+ * - On Native (Android/iOS): uses the exact bundled Outfit_*.ttf family
+ *   WITHOUT a redundant fontWeight (avoiding Android faux-bold or system fallback).
+ */
+export const renewxTextStyle = (weight: RenewxFontWeight = 'regular') =>
+  Platform.OS === 'web'
+    ? ({ fontFamily: renewxFontFamily[weight], fontWeight: WEB_FONT_WEIGHT_MAP[weight] } as const)
+    : ({ fontFamily: renewxFontFamily[weight] } as const);
+
+export const renewxTypography = {
+  display: {
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.8,
+    ...renewxTextStyle('extraBold'),
+  },
+  h1: {
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.5,
+    ...renewxTextStyle('extraBold'),
+  },
+  h2: {
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.25,
+    ...renewxTextStyle('bold'),
+  },
+  h3: {
+    fontSize: 18,
+    lineHeight: 24,
+    ...renewxTextStyle('bold'),
+  },
+  body: {
+    fontSize: 15,
+    lineHeight: 21,
+    ...renewxTextStyle('regular'),
+  },
+  bodyMedium: {
+    fontSize: 15,
+    lineHeight: 21,
+    ...renewxTextStyle('medium'),
+  },
+  bodySemibold: {
+    fontSize: 15,
+    lineHeight: 21,
+    ...renewxTextStyle('semibold'),
+  },
+  caption: {
+    fontSize: 13,
+    lineHeight: 18,
+    ...renewxTextStyle('regular'),
+  },
+  label: {
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.2,
+    ...renewxTextStyle('semibold'),
+  },
+  price: {
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.35,
+    ...renewxTextStyle('extraBold'),
+  },
 } as const;
 
 export const renewxShadows = {

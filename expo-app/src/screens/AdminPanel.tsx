@@ -1,5 +1,5 @@
 import AddProductModal from '@/components/AddProductModal';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { type ProductRow, type Profile } from '@/lib/supabase';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import { confirmAction } from '@/lib/confirmAction';
@@ -40,6 +41,12 @@ import ImagePickerButton from '@/components/ImagePickerButton';
 import * as Clipboard from 'expo-clipboard';
 import { sanitizeImageUrl } from '@/lib/imageUtils';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import ShippingOrderCard from '@/components/shipping/ShippingOrderCard';
+import {
+  SHOWCASE_ORDERS,
+  normalizeOrderToShipping,
+  type ShowcaseOrder,
+} from '@/data/showcaseOrders';
 
 
 type AdminView = 'dashboard' | 'products' | 'orders' | 'users' | 'analytics' | 'settings' | 'tradeIns' | 'brands' | 'promotions';
@@ -704,7 +711,7 @@ function TradeInsView() {
 
   const inspectionPhotos = selectedInspectionItem ? getItemPhotos(selectedInspectionItem) : [];
 
-  if (loading && !refreshing) return <View style={styles.centerBox}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (loading && !refreshing) return <View style={styles.centerBox}><ActivityIndicator size="large" color={renewxColors.emerald} /></View>;
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
@@ -736,8 +743,8 @@ function TradeInsView() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[renewxColors.emerald]}
+            tintColor={renewxColors.emerald}
           />
         }
       >
@@ -779,13 +786,13 @@ function TradeInsView() {
 
                 {/* Photos Thumbnail Preview Strip */}
                 {photos.length > 0 && (
-                  <View style={{ marginVertical: 8, padding: 10, backgroundColor: '#f8fafc', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <View style={{ marginVertical: 8, padding: 10, backgroundColor: renewxColors.background, borderRadius: 12, borderWidth: 1, borderColor: renewxColors.border }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#334155' }}>
+                      <Text style={{ fontSize: 11, ...renewxTextStyle('extraBold'), color: '#334155' }}>
                         📷 Customer Photos ({photos.length})
                       </Text>
                       <TouchableOpacity onPress={() => openInspection(item)}>
-                        <Text style={{ fontSize: 11, color: '#2563eb', fontWeight: '700' }}>Inspect All →</Text>
+                        <Text style={{ fontSize: 11, color: '#2563eb', ...renewxTextStyle('bold') }}>Inspect All →</Text>
                       </TouchableOpacity>
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -824,16 +831,16 @@ function TradeInsView() {
                 {/* Valuation Info & Photo Count */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9' }}>
                   <View>
-                    <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600' }}>Valuation / Asking</Text>
-                    <Text style={{ fontSize: 18, fontWeight: '900', color: '#0f172a' }}>
+                    <Text style={{ fontSize: 11, color: '#64748b', ...renewxTextStyle('semibold') }}>Valuation / Asking</Text>
+                    <Text style={{ fontSize: 18, ...renewxTextStyle('black'), color: renewxColors.black }}>
                       ₹{Number(item.approved_amount || item.expected_price || item.valuation_amount || 0).toLocaleString('en-IN')}
                     </Text>
                   </View>
 
                   {photos.length > 0 && (
-                    <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <View style={{ backgroundColor: renewxColors.surfaceMuted, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="images-outline" size={13} color="#475569" />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>{photos.length} photos</Text>
+                      <Text style={{ fontSize: 11, ...renewxTextStyle('bold'), color: '#475569' }}>{photos.length} photos</Text>
                     </View>
                   )}
                 </View>
@@ -849,20 +856,16 @@ function TradeInsView() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 7,
-                      backgroundColor: '#0f172a',
+                      backgroundColor: renewxColors.black,
                       paddingVertical: 11,
                       paddingHorizontal: 14,
                       borderRadius: 10,
-                      shadowColor: '#0f172a',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 2,
+                      ...(renewxShadows.card as object),
                     }}
                     activeOpacity={0.85}
                   >
                     <Ionicons name="search-outline" size={16} color="#38bdf8" />
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#ffffff' }}>
+                    <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.white }}>
                       Inspect Device
                     </Text>
                     <Ionicons name="chevron-forward" size={13} color="#94a3b8" />
@@ -892,7 +895,7 @@ function TradeInsView() {
                       ) : (
                         <>
                           <Ionicons name="close-circle-outline" size={16} color="#dc2626" />
-                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#dc2626' }}>Reject Request</Text>
+                          <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: '#dc2626' }}>Reject Request</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -919,7 +922,7 @@ function TradeInsView() {
                       ) : (
                         <>
                           <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
-                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#16a34a' }}>Re-Approve</Text>
+                          <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: '#16a34a' }}>Re-Approve</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -935,7 +938,7 @@ function TradeInsView() {
                       gap: 4,
                     }}>
                       <Ionicons name="ban-outline" size={14} color="#64748b" />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b' }}>Cancelled</Text>
+                      <Text style={{ fontSize: 11, ...renewxTextStyle('bold'), color: '#64748b' }}>Cancelled</Text>
                     </View>
                   ) : (
                     /* IF PENDING / SCHEDULED: Quick 1-click Approve */
@@ -960,7 +963,7 @@ function TradeInsView() {
                       ) : (
                         <>
                           <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
-                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#16a34a' }}>Approve</Text>
+                          <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: '#16a34a' }}>Approve</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -1021,11 +1024,7 @@ function TradeInsView() {
               maxHeight: isSmallScreen ? '100%' : ('92%' as any),
               flex: 1,
               overflow: 'hidden',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: isSmallScreen ? 0 : 0.25,
-              shadowRadius: 20,
-              elevation: 10,
+              ...(isSmallScreen ? {} : (renewxShadows.floating as object)),
               display: 'flex',
               flexDirection: 'column',
             }}>
@@ -1044,7 +1043,7 @@ function TradeInsView() {
                 <View style={{ flex: 1, paddingRight: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#334155', fontFamily: Platform.OS === 'web' ? 'monospace' : undefined }}>
+                      <Text style={{ fontSize: 10, ...renewxTextStyle('extraBold'), color: '#334155', fontFamily: Platform.OS === 'web' ? 'monospace' : 'Outfit_800ExtraBold' }}>
                         VT-{String(selectedInspectionItem.id || selectedInspectionItem._id || '1081').slice(0, 4).toUpperCase()}-SELL
                       </Text>
                     </View>
@@ -1055,8 +1054,8 @@ function TradeInsView() {
                       borderRadius: 6,
                     }}>
                       <Text style={{
-                        fontSize: 9,
-                        fontWeight: '800',
+                        fontSize: 10,
+                        ...renewxTextStyle('extraBold'),
                         color: selectedInspectionItem.status === 'approved' ? '#15803d' : selectedInspectionItem.status === 'rejected' ? '#b91c1c' : '#0369a1',
                         textTransform: 'uppercase',
                       }}>
@@ -1065,10 +1064,10 @@ function TradeInsView() {
                     </View>
                   </View>
 
-                  <Text style={{ fontSize: isSmallScreen ? 17 : 20, fontWeight: '900', color: '#0f172a', letterSpacing: -0.4 }} numberOfLines={1}>
+                  <Text style={{ fontSize: isSmallScreen ? 17 : 20, ...renewxTextStyle('black'), color: renewxColors.black, letterSpacing: -0.4 }} numberOfLines={1}>
                     {selectedInspectionItem.brand} {selectedInspectionItem.model}
                   </Text>
-                  <Text style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>
+                  <Text style={{ fontSize: 10, ...renewxTextStyle('regular'), color: '#64748b', marginTop: 1 }}>
                     Submitted on {new Date(selectedInspectionItem.created_at || Date.now()).toLocaleString('en-IN', {
                       month: 'numeric',
                       day: 'numeric',
@@ -1101,10 +1100,10 @@ function TradeInsView() {
                 {/* 1. CUSTOMER UPLOADED DEVICE PHOTOS */}
                 <View style={{ backgroundColor: '#ffffff', borderRadius: 16, padding: isSmallScreen ? 12 : 16, borderWidth: 1, borderColor: '#e2e8f0' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: renewxColors.black, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                       Customer Uploaded Photos ({inspectionPhotos.length})
                     </Text>
-                    <Text style={{ fontSize: 10, color: '#2563eb', fontWeight: '700' }}>
+                    <Text style={{ fontSize: 10, color: '#2563eb', ...renewxTextStyle('bold') }}>
                       TAP PHOTO TO ZOOM
                     </Text>
                   </View>
@@ -1136,7 +1135,7 @@ function TradeInsView() {
                     </ScrollView>
                   ) : (
                     <View style={{ padding: 14, backgroundColor: '#f8fafc', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 12, color: '#64748b' }}>No device photos uploaded by customer for this request.</Text>
+                      <Text style={{ fontSize: 12, color: '#64748b', ...renewxTextStyle('regular') }}>No device photos uploaded by customer for this request.</Text>
                     </View>
                   )}
                 </View>
@@ -1147,36 +1146,36 @@ function TradeInsView() {
                   <View style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#e2e8f0' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                       <Ionicons name="person-outline" size={16} color="#2563eb" />
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a', textTransform: 'uppercase' }}>
+                      <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: renewxColors.black, textTransform: 'uppercase' }}>
                         Customer Information
                       </Text>
                     </View>
                     <View style={{ gap: 6 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>Name:</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0f172a' }}>{selectedInspectionItem.customer_name || 'N/A'}</Text>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Name:</Text>
+                          <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>{selectedInspectionItem.customer_name || 'N/A'}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>Phone:</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0f172a' }}>{selectedInspectionItem.customer_phone || 'N/A'}</Text>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Phone:</Text>
+                          <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>{selectedInspectionItem.customer_phone || 'N/A'}</Text>
                         </View>
                       </View>
                       <View>
-                        <Text style={{ fontSize: 10, color: '#94a3b8' }}>Email:</Text>
-                        <Text style={{ fontSize: 12, color: '#334155' }} numberOfLines={1}>
+                        <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Email:</Text>
+                        <Text style={{ fontSize: 12, color: '#334155', ...renewxTextStyle('regular') }} numberOfLines={1}>
                           {selectedInspectionItem.customer_email || 'Not provided'}
                         </Text>
                       </View>
                       <View>
-                        <Text style={{ fontSize: 10, color: '#94a3b8' }}>City/State:</Text>
-                        <Text style={{ fontSize: 12, color: '#334155' }}>
+                        <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>City/State:</Text>
+                        <Text style={{ fontSize: 12, color: '#334155', ...renewxTextStyle('regular') }}>
                           {selectedInspectionItem.address?.split(',').slice(-2).join(',').trim() || 'Tamil Nadu'}
                         </Text>
                       </View>
                       <View>
-                        <Text style={{ fontSize: 10, color: '#94a3b8' }}>Pickup Address:</Text>
-                        <Text style={{ fontSize: 12, color: '#334155' }}>
+                        <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Pickup Address:</Text>
+                        <Text style={{ fontSize: 12, color: '#334155', ...renewxTextStyle('regular') }}>
                           {selectedInspectionItem.pickup_address || selectedInspectionItem.address || 'Standard Address'} (Pin: {selectedInspectionItem.pincode})
                         </Text>
                       </View>
@@ -1187,47 +1186,47 @@ function TradeInsView() {
                   <View style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#e2e8f0' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                       <Ionicons name="hardware-chip-outline" size={16} color="#059669" />
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a', textTransform: 'uppercase' }}>
+                      <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: renewxColors.black, textTransform: 'uppercase' }}>
                         Hardware Specifications
                       </Text>
                     </View>
                     <View style={{ gap: 6 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>Brand & Category:</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0f172a' }}>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Brand & Category:</Text>
+                          <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>
                             {selectedInspectionItem.brand} ({selectedInspectionItem.category || 'smartphones'})
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>Model:</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0f172a' }}>{selectedInspectionItem.model}</Text>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Model:</Text>
+                          <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>{selectedInspectionItem.model}</Text>
                         </View>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>Storage Capacity:</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '900', color: '#2563eb' }}>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Storage Capacity:</Text>
+                          <Text style={{ fontSize: 13, ...renewxTextStyle('black'), color: '#2563eb' }}>
                             {selectedInspectionItem.storage || '64GB'}
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>RAM / Variant:</Text>
-                          <Text style={{ fontSize: 12, color: '#334155' }}>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>RAM / Variant:</Text>
+                          <Text style={{ fontSize: 12, color: '#334155', ...renewxTextStyle('regular') }}>
                             {selectedInspectionItem.condition?.ram || selectedInspectionItem.storage || 'Standard Variant'}
                           </Text>
                         </View>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>Color:</Text>
-                          <Text style={{ fontSize: 12, color: '#334155' }}>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Color:</Text>
+                          <Text style={{ fontSize: 12, color: '#334155', ...renewxTextStyle('regular') }}>
                             {selectedInspectionItem.condition?.color || 'Standard White'}
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 10, color: '#94a3b8' }}>Purchase Year:</Text>
-                          <Text style={{ fontSize: 12, color: '#334155' }}>
+                          <Text style={{ fontSize: 10, color: '#94a3b8', ...renewxTextStyle('medium') }}>Purchase Year:</Text>
+                          <Text style={{ fontSize: 12, color: '#334155', ...renewxTextStyle('regular') }}>
                             {selectedInspectionItem.condition?.purchaseYear || '2023'}
                           </Text>
                         </View>
@@ -1246,7 +1245,7 @@ function TradeInsView() {
                 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                     <Ionicons name="shield-checkmark" size={17} color="#2563eb" />
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#1e3a8a', letterSpacing: 0.4, textTransform: 'uppercase' }}>
+                    <Text style={{ fontSize: 12, ...renewxTextStyle('black'), color: '#1e3a8a', letterSpacing: 0.4, textTransform: 'uppercase' }}>
                       12-Point Diagnostic Assessment & Inclusions
                     </Text>
                   </View>
@@ -1254,26 +1253,26 @@ function TradeInsView() {
                   {/* Row 1: Conditions & Grade */}
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                     <View style={{ flex: 1, minWidth: isSmallScreen ? '46%' : 120, backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                      <Text style={{ fontSize: 10, color: '#64748b' }}>Screen Condition</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a', textTransform: 'capitalize' }}>
+                      <Text style={{ fontSize: 10, color: '#64748b', ...renewxTextStyle('medium') }}>Screen Condition</Text>
+                      <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: renewxColors.black, textTransform: 'capitalize' }}>
                         {selectedInspectionItem.condition?.screen || 'Minor_scratches'}
                       </Text>
                     </View>
                     <View style={{ flex: 1, minWidth: isSmallScreen ? '46%' : 120, backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                      <Text style={{ fontSize: 10, color: '#64748b' }}>Body Condition</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a', textTransform: 'capitalize' }}>
+                      <Text style={{ fontSize: 10, color: '#64748b', ...renewxTextStyle('medium') }}>Body Condition</Text>
+                      <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: renewxColors.black, textTransform: 'capitalize' }}>
                         {selectedInspectionItem.condition?.body || 'Minor_scuffs'}
                       </Text>
                     </View>
                     <View style={{ flex: 1, minWidth: isSmallScreen ? '46%' : 120, backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                      <Text style={{ fontSize: 10, color: '#64748b' }}>Battery Health</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#059669' }}>
+                      <Text style={{ fontSize: 10, color: '#64748b', ...renewxTextStyle('medium') }}>Battery Health</Text>
+                      <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: '#059669' }}>
                         {selectedInspectionItem.condition?.batteryHealthy ? 'Normal High' : 'Degraded'}
                       </Text>
                     </View>
                     <View style={{ flex: 1, minWidth: isSmallScreen ? '46%' : 120, backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                      <Text style={{ fontSize: 10, color: '#64748b' }}>Grade Calculated</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#2563eb' }}>
+                      <Text style={{ fontSize: 10, color: '#64748b', ...renewxTextStyle('medium') }}>Grade Calculated</Text>
+                      <Text style={{ fontSize: 12, ...renewxTextStyle('black'), color: '#2563eb' }}>
                         {selectedInspectionItem.condition?.calculatedGrade || 'Grade A'}
                       </Text>
                     </View>
@@ -1288,8 +1287,8 @@ function TradeInsView() {
                       { label: 'Biometrics', val: selectedInspectionItem.condition?.touchWorking !== false },
                     ].map((itemCheck, cIdx) => (
                       <View key={cIdx} style={{ flex: 1, minWidth: isSmallScreen ? '46%' : 120, backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 11, color: '#334155' }}>{itemCheck.label}</Text>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: itemCheck.val ? '#059669' : '#dc2626' }}>
+                        <Text style={{ fontSize: 11, color: '#334155', ...renewxTextStyle('medium') }}>{itemCheck.label}</Text>
+                        <Text style={{ fontSize: 11, ...renewxTextStyle('extraBold'), color: itemCheck.val ? '#059669' : '#dc2626' }}>
                           {itemCheck.val ? 'Working' : 'Faulty'}
                         </Text>
                       </View>
@@ -1305,8 +1304,8 @@ function TradeInsView() {
                       { label: 'OEM Warranty', val: false, custom: 'Expired' },
                     ].map((itemAcc, aIdx) => (
                       <View key={aIdx} style={{ flex: 1, minWidth: isSmallScreen ? '46%' : 120, backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 11, color: '#334155' }}>{itemAcc.label}</Text>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: itemAcc.custom ? '#64748b' : itemAcc.val ? '#059669' : '#94a3b8' }}>
+                        <Text style={{ fontSize: 11, color: '#334155', ...renewxTextStyle('medium') }}>{itemAcc.label}</Text>
+                        <Text style={{ fontSize: 11, ...renewxTextStyle('extraBold'), color: itemAcc.custom ? '#64748b' : itemAcc.val ? '#059669' : '#94a3b8' }}>
                           {itemAcc.custom || (itemAcc.val ? 'Included' : 'Missing')}
                         </Text>
                       </View>
@@ -1318,24 +1317,24 @@ function TradeInsView() {
                 <View style={{ flexDirection: isSmallScreen ? 'column' : 'row', gap: 12 }}>
                   {/* Left: Pricing & Valuation */}
                   <View style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#bbf7d0' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#15803d', textTransform: 'uppercase', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 12, ...renewxTextStyle('black'), color: '#15803d', textTransform: 'uppercase', marginBottom: 8 }}>
                       Pricing & Valuation
                     </Text>
                     <View style={{ gap: 6 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, color: '#475569' }}>Customer Asking Price:</Text>
-                        <Text style={{ fontSize: 16, fontWeight: '900', color: '#059669' }}>
+                        <Text style={{ fontSize: 12, color: '#475569', ...renewxTextStyle('regular') }}>Customer Asking Price:</Text>
+                        <Text style={{ fontSize: 16, ...renewxTextStyle('black'), color: '#059669' }}>
                           ₹{Number(selectedInspectionItem.expected_price || 7000).toLocaleString('en-IN')}
                         </Text>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, color: '#475569' }}>System Market Appraisal:</Text>
-                        <Text style={{ fontSize: 15, fontWeight: '900', color: '#0f172a' }}>
+                        <Text style={{ fontSize: 12, color: '#475569', ...renewxTextStyle('regular') }}>System Market Appraisal:</Text>
+                        <Text style={{ fontSize: 15, ...renewxTextStyle('black'), color: renewxColors.black }}>
                           ₹{Number(selectedInspectionItem.valuation_amount || 16180).toLocaleString('en-IN')}
                         </Text>
                       </View>
                       <View style={{ marginTop: 6 }}>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#334155', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 11, ...renewxTextStyle('bold'), color: '#334155', marginBottom: 4 }}>
                           Final Approved / Adjusted Offer (₹)
                         </Text>
                         <TextInput
@@ -1352,8 +1351,9 @@ function TradeInsView() {
                             paddingHorizontal: 12,
                             paddingVertical: 8,
                             fontSize: 14,
-                            fontWeight: '800',
-                            color: '#0f172a',
+                            ...renewxTextStyle('extraBold'),
+                            color: renewxColors.black,
+                            ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
                           }}
                         />
                       </View>
@@ -1362,29 +1362,29 @@ function TradeInsView() {
 
                   {/* Right: Pickup & Payout Details */}
                   <View style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#bfdbfe' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#1d4ed8', textTransform: 'uppercase', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 12, ...renewxTextStyle('black'), color: '#1d4ed8', textTransform: 'uppercase', marginBottom: 8 }}>
                       Pickup & Payout Details
                     </Text>
                     <View style={{ gap: 6 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, color: '#475569' }}>Fulfillment Method:</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a' }}>Doorstep Pickup</Text>
+                        <Text style={{ fontSize: 12, color: '#475569', ...renewxTextStyle('regular') }}>Fulfillment Method:</Text>
+                        <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>Doorstep Pickup</Text>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, color: '#475569' }}>Scheduled Slot:</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#2563eb' }}>
+                        <Text style={{ fontSize: 12, color: '#475569', ...renewxTextStyle('regular') }}>Scheduled Slot:</Text>
+                        <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: '#2563eb' }}>
                           {selectedInspectionItem.condition?.pickupSchedule?.date || 'Weekend Slot, 11:00 AM - 3:00 PM'}
                         </Text>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, color: '#475569' }}>Payout Method:</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a' }}>
+                        <Text style={{ fontSize: 12, color: '#475569', ...renewxTextStyle('regular') }}>Payout Method:</Text>
+                        <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>
                           {selectedInspectionItem.condition?.payout?.method === 'upi' ? 'UPI Transfer' : 'Cash On Pickup'}
                         </Text>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, color: '#475569' }}>Account / UPI:</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#475569' }}>
+                        <Text style={{ fontSize: 12, color: '#475569', ...renewxTextStyle('regular') }}>Account / UPI:</Text>
+                        <Text style={{ fontSize: 12, ...renewxTextStyle('semibold'), color: '#475569' }}>
                           {selectedInspectionItem.condition?.payout?.upiId || 'On Handover'}
                         </Text>
                       </View>
@@ -1425,7 +1425,7 @@ function TradeInsView() {
                         gap: 8,
                       }}>
                         <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#15803d', textAlign: 'center' }}>
+                        <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: '#15803d', textAlign: 'center' }}>
                           Live in Store (₹{Number(selectedInspectionItem.approved_amount || selectedInspectionItem.valuation_amount || 7000).toLocaleString('en-IN')})
                         </Text>
                       </View>
@@ -1444,11 +1444,7 @@ function TradeInsView() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: 8,
-                          shadowColor: '#dc2626',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 4,
-                          elevation: 2,
+                          ...(renewxShadows.card as object),
                         }}
                         activeOpacity={0.85}
                       >
@@ -1457,7 +1453,7 @@ function TradeInsView() {
                         ) : (
                           <>
                             <Ionicons name="close-circle" size={18} color="#ffffff" />
-                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff' }}>
+                            <Text style={{ fontSize: 13, ...renewxTextStyle('black'), color: '#ffffff' }}>
                               ✕ Reject & Delist
                             </Text>
                           </>
@@ -1481,7 +1477,7 @@ function TradeInsView() {
                         gap: 8,
                       }}>
                         <Ionicons name="close-circle" size={18} color="#dc2626" />
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#b91c1c' }}>
+                        <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: '#b91c1c' }}>
                           Currently Rejected
                         </Text>
                       </View>
@@ -1500,11 +1496,7 @@ function TradeInsView() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: 8,
-                          shadowColor: '#16a34a',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 4,
-                          elevation: 2,
+                          ...(renewxShadows.card as object),
                         }}
                         activeOpacity={0.85}
                       >
@@ -1513,7 +1505,7 @@ function TradeInsView() {
                         ) : (
                           <>
                             <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
-                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff', textAlign: 'center' }}>
+                            <Text style={{ fontSize: 13, ...renewxTextStyle('black'), color: '#ffffff', textAlign: 'center' }}>
                               ✓ Re-Approve & Add to Store (₹{Number(inspectionOffer || selectedInspectionItem.approved_amount || selectedInspectionItem.expected_price || 7000).toLocaleString('en-IN')})
                             </Text>
                           </>
@@ -1536,11 +1528,7 @@ function TradeInsView() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: 8,
-                          shadowColor: '#16a34a',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 4,
-                          elevation: 2,
+                          ...(renewxShadows.card as object),
                         }}
                         activeOpacity={0.85}
                       >
@@ -1549,7 +1537,7 @@ function TradeInsView() {
                         ) : (
                           <>
                             <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
-                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#ffffff', textAlign: 'center' }}>
+                            <Text style={{ fontSize: 13, ...renewxTextStyle('black'), color: '#ffffff', textAlign: 'center' }}>
                               ✓ Approve & Add to Store (₹{Number(inspectionOffer || selectedInspectionItem.approved_amount || selectedInspectionItem.expected_price || 7000).toLocaleString('en-IN')})
                             </Text>
                           </>
@@ -1580,7 +1568,7 @@ function TradeInsView() {
                         ) : (
                           <>
                             <Ionicons name="close-circle" size={17} color="#dc2626" />
-                            <Text style={{ fontSize: 13, fontWeight: '900', color: '#dc2626' }}>
+                            <Text style={{ fontSize: 13, ...renewxTextStyle('black'), color: '#dc2626' }}>
                               ✕ Reject Request
                             </Text>
                           </>
@@ -1602,7 +1590,7 @@ function TradeInsView() {
                       paddingHorizontal: 4,
                     }}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b' }}>
+                    <Text style={{ fontSize: 11, ...renewxTextStyle('bold'), color: '#64748b' }}>
                       {showAdvancedNotes ? '▲ Hide Technician Notes & Status Override' : '▼ Technician Notes & Manual Status Override'}
                     </Text>
                   </TouchableOpacity>
@@ -1618,7 +1606,7 @@ function TradeInsView() {
                   }}>
                     {/* Status Dropdown */}
                     <View style={{ width: isSmallScreen ? '100%' : 150 }}>
-                      <Text style={{ fontSize: 10, color: '#64748b', fontWeight: '700', marginBottom: 3 }}>Status Override</Text>
+                      <Text style={{ fontSize: 10, color: '#64748b', ...renewxTextStyle('bold'), marginBottom: 3 }}>Status Override</Text>
                       <SelectPicker
                         value={inspectionStatus}
                         options={[
@@ -1636,7 +1624,7 @@ function TradeInsView() {
 
                     {/* Technician Notes */}
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 10, color: '#64748b', fontWeight: '700', marginBottom: 3 }}>Technician Notes</Text>
+                      <Text style={{ fontSize: 10, color: '#64748b', ...renewxTextStyle('bold'), marginBottom: 3 }}>Technician Notes</Text>
                       <TextInput
                         value={inspectionNote}
                         onChangeText={setInspectionNote}
@@ -1650,7 +1638,9 @@ function TradeInsView() {
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           fontSize: 12,
-                          color: '#0f172a',
+                          color: renewxColors.black,
+                          ...renewxTextStyle('regular'),
+                          ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
                         }}
                       />
                     </View>
@@ -1660,7 +1650,7 @@ function TradeInsView() {
                       onPress={handleSaveInspection}
                       disabled={isSavingInspection}
                       style={{
-                        backgroundColor: '#0f172a',
+                        backgroundColor: renewxColors.black,
                         paddingHorizontal: 14,
                         paddingVertical: 9,
                         borderRadius: 10,
@@ -1672,11 +1662,11 @@ function TradeInsView() {
                       activeOpacity={0.85}
                     >
                       {isSavingInspection ? (
-                        <ActivityIndicator size="small" color="#ffc400" />
+                        <ActivityIndicator size="small" color={renewxColors.yellow} />
                       ) : (
-                        <Ionicons name="save-outline" size={14} color="#ffc400" />
+                        <Ionicons name="save-outline" size={14} color={renewxColors.yellow} />
                       )}
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#ffffff' }}>Save Notes</Text>
+                      <Text style={{ fontSize: 12, ...renewxTextStyle('extraBold'), color: '#ffffff' }}>Save Notes</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1723,11 +1713,7 @@ function TradeInsView() {
             width: '100%',
             maxWidth: 780,
             overflow: 'hidden',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.35,
-            shadowRadius: 20,
-            elevation: 15,
+            ...(renewxShadows.floating as object),
           }}>
             {/* Header */}
             <View style={{
@@ -1741,7 +1727,7 @@ function TradeInsView() {
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="cube-outline" size={20} color="#6366f1" />
-                <Text style={{ fontSize: 15, fontWeight: '900', color: '#0f172a' }}>
+                <Text style={{ fontSize: 15, ...renewxTextStyle('black'), color: renewxColors.black }}>
                   Admin Image Inspection
                 </Text>
               </View>
@@ -1786,7 +1772,7 @@ function TradeInsView() {
               <Text style={{
                 fontSize: 12,
                 color: '#64748b',
-                fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
+                fontFamily: Platform.OS === 'web' ? 'monospace' : 'Outfit_400Regular',
               }}>
                 {inspectingPhotoUrl.startsWith('data:') ? 'Embedded Binary Upload (Base64)' : inspectingPhotoUrl.split('/').pop() || 'Customer Uploaded Image'}
               </Text>
@@ -1794,14 +1780,14 @@ function TradeInsView() {
               <TouchableOpacity
                 onPress={() => setInspectingPhotoUrl(null)}
                 style={{
-                  backgroundColor: '#0f172a',
+                  backgroundColor: renewxColors.black,
                   paddingHorizontal: 20,
                   paddingVertical: 9,
                   borderRadius: 20,
                 }}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '800' }}>Close Preview</Text>
+                <Text style={{ color: '#ffffff', fontSize: 12, ...renewxTextStyle('extraBold') }}>Close Preview</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1979,7 +1965,7 @@ function DashboardView({
   if (loading && !refreshing) {
     return (
       <View style={styles.centerBox}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={renewxColors.emerald} />
       </View>
     );
   }
@@ -2021,8 +2007,8 @@ function DashboardView({
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={[colors.primary]}
-          tintColor={colors.primary}
+          colors={[renewxColors.emerald]}
+          tintColor={renewxColors.emerald}
         />
       }
     >
@@ -2066,7 +2052,7 @@ function DashboardView({
           <Text style={styles.kpiValueText}>{totalOrdersStr}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
             <Ionicons name="trending-up" size={11} color="#16A34A" />
-            <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+12%</Text>
+            <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#16A34A' }}>+12%</Text>
           </View>
         </AnimatedTouchable>
 
@@ -2086,7 +2072,7 @@ function DashboardView({
           <Text style={styles.kpiValueText}>{totalProductsStr}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
             <Ionicons name="trending-up" size={11} color="#16A34A" />
-            <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+8%</Text>
+            <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#16A34A' }}>+8%</Text>
           </View>
         </AnimatedTouchable>
 
@@ -2106,7 +2092,7 @@ function DashboardView({
           <Text style={styles.kpiValueText}>{totalUsersStr}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
             <Ionicons name="trending-up" size={11} color="#16A34A" />
-            <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+15%</Text>
+            <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#16A34A' }}>+15%</Text>
           </View>
         </AnimatedTouchable>
 
@@ -2126,7 +2112,7 @@ function DashboardView({
           <Text style={styles.kpiValueText}>{totalBrandsStr}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
             <Ionicons name="trending-up" size={11} color="#16A34A" />
-            <Text style={{ fontSize: 10, fontWeight: '700', color: '#16A34A' }}>+5%</Text>
+            <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#16A34A' }}>+5%</Text>
           </View>
         </AnimatedTouchable>
       </View>
@@ -2151,26 +2137,22 @@ function DashboardView({
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: '#0F172A',
+            backgroundColor: renewxColors.black,
             paddingHorizontal: 16,
             paddingVertical: 12,
             borderRadius: 14,
             marginBottom: 6,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 2,
+            ...(renewxShadows.card as object),
           }}
           activeOpacity={0.85}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="stats-chart" size={17} color="#FFC400" />
+              <Ionicons name="stats-chart" size={17} color={renewxColors.yellow} />
             </View>
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#FFFFFF' }}>Realtime Analytics</Text>
+                <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: '#FFFFFF' }}>Realtime Analytics</Text>
                 {/* Live Radar Pulse Indicator */}
                 <View style={{ position: 'relative', width: 12, height: 12, alignItems: 'center', justifyContent: 'center' }}>
                   <Animated.View
@@ -2197,11 +2179,11 @@ function DashboardView({
                   <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' }} />
                 </View>
               </View>
-              <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>Live revenue, order pipeline & 7-day velocity</Text>
+              <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1, ...renewxTextStyle('regular') }}>Live revenue, order pipeline & 7-day velocity</Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#168A4A', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFFFFF' }}>View</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: renewxColors.emerald, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+            <Text style={{ fontSize: 11, ...renewxTextStyle('extraBold'), color: '#FFFFFF' }}>View</Text>
             <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
           </View>
         </TouchableOpacity>
@@ -2463,7 +2445,7 @@ function ProductsView({
   const activeSortLabel = PRODUCT_SORT_OPTIONS.find((s) => s.id === sortBy)?.label || 'Newest';
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F7F8F6' }}>
+    <View style={{ flex: 1, backgroundColor: renewxColors.background }}>
       {/* Title + Add Product Button */}
       <View style={[styles.viewHeaderRow, { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }]}>
         <View style={{ flex: 1 }}>
@@ -2528,7 +2510,7 @@ function ProductsView({
           <Ionicons
             name={stockFilter === 'all' ? 'options-outline' : 'alert-circle'}
             size={17}
-            color={stockFilter === 'all' ? '#0F172A' : '#D97706'}
+            color={stockFilter === 'all' ? renewxColors.black : '#D97706'}
           />
         </TouchableOpacity>
       </View>
@@ -2544,7 +2526,7 @@ function ProductsView({
         <TouchableOpacity style={styles.sortDropdownBtn} onPress={handleCycleSort} activeOpacity={0.7}>
           <Ionicons name="swap-vertical" size={13} color="#64748B" />
           <Text style={styles.sortDropdownText}>
-            Sort: <Text style={{ fontWeight: '700', color: '#0F172A' }}>{activeSortLabel}</Text>
+            Sort: <Text style={{ ...renewxTextStyle('bold'), color: renewxColors.black }}>{activeSortLabel}</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -2552,7 +2534,7 @@ function ProductsView({
       {/* Products Content List */}
       {loading && !refreshing ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={renewxColors.emerald} />
         </View>
       ) : (
         <ScrollView
@@ -2563,8 +2545,8 @@ function ProductsView({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[renewxColors.emerald]}
+              tintColor={renewxColors.emerald}
             />
           }
         >
@@ -2649,7 +2631,7 @@ function ProductsView({
                           }}
                         >
                           <View style={{ backgroundColor: '#DC2626', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                            <Text style={{ color: '#FFFFFF', fontSize: 8.5, fontWeight: '800' }}>SOLD OUT</Text>
+                            <Text style={{ color: '#FFFFFF', fontSize: 10, ...renewxTextStyle('extraBold') }}>SOLD OUT</Text>
                           </View>
                         </View>
                       )}
@@ -2663,7 +2645,7 @@ function ProductsView({
                             {item.brand ? item.brand.toUpperCase() : 'RENEWX'}
                           </Text>
                         </View>
-                        <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '500' }}>
+                        <Text style={{ fontSize: 11, color: '#94A3B8', ...renewxTextStyle('medium') }}>
                           {categoryLabel}
                         </Text>
                       </View>
@@ -2675,10 +2657,10 @@ function ProductsView({
                       {item.is_best_price || item.isBestPrice || priceNum === 0 ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                           <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6, borderWidth: 1, borderColor: '#A7F3D0' }}>
-                            <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#047857' }}>Best Price</Text>
+                            <Text style={{ fontSize: 12.5, ...renewxTextStyle('extraBold'), color: '#047857' }}>Best Price</Text>
                           </View>
                           <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2.5, borderRadius: 6, borderWidth: 1, borderColor: '#FDE68A' }}>
-                            <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#92400E' }}>COD ONLY</Text>
+                            <Text style={{ fontSize: 10.5, ...renewxTextStyle('extraBold'), color: '#92400E' }}>COD ONLY</Text>
                           </View>
                         </View>
                       ) : (
@@ -2745,7 +2727,7 @@ function ProductsView({
                             <Text
                               style={{
                                 fontSize: 11,
-                                fontWeight: '700',
+                                ...renewxTextStyle('bold'),
                                 color: isOut ? '#059669' : '#DC2626',
                               }}
                             >
@@ -2878,6 +2860,7 @@ function OrdersView() {
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
   const [shippingDrafts, setShippingDrafts] = useState<Record<string, { courier: string; courierPhone: string; tracking: string }>>({});
   const [selectedManageOrder, setSelectedManageOrder] = useState<any | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'compact'>('cards');
   const toast = useToast();
 
   const handleDownloadInvoice = async (order: any) => {
@@ -2913,7 +2896,10 @@ function OrdersView() {
         return next;
       });
     } catch (err: any) {
-      toast.error(err?.message || 'Unable to load orders. Please try again.');
+      console.warn('[OrdersView] Could not load live orders, using offline showcase orders:', err?.message);
+      if (isRefresh) {
+        toast.error(err?.message || 'Unable to load orders. Please try again.');
+      }
       setOrders([]);
     } finally {
       setLoading(false);
@@ -2981,19 +2967,52 @@ function OrdersView() {
     );
   };
 
-  const filtered = orders.filter((o) => {
-    const statusOk = filterStatus === 'all' || o.status === filterStatus;
-    if (!statusOk) return false;
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    const id = String(o.id || o._id || '').toLowerCase();
-    const name = String(o.customer_info?.name || o.customer_name || '').toLowerCase();
-    const phone = String(o.customer_info?.phone || o.phone || '').toLowerCase();
-    return id.includes(q) || name.includes(q) || phone.includes(q);
-  });
+  const filtered = useMemo(() => {
+    return orders.filter((o) => {
+      const statusOk = filterStatus === 'all' || o.status === filterStatus;
+      if (!statusOk) return false;
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      const id = String(o.id || o._id || '').toLowerCase();
+      const name = String(o.customer_info?.name || o.customer_name || '').toLowerCase();
+      const phone = String(o.customer_info?.phone || o.phone || '').toLowerCase();
+      return id.includes(q) || name.includes(q) || phone.includes(q);
+    });
+  }, [orders, filterStatus, search]);
+
+  const displayShippingOrders = useMemo<ShowcaseOrder[]>(() => {
+    let list: ShowcaseOrder[] = [];
+    if (orders.length > 0) {
+      list = orders.map((o, idx) => normalizeOrderToShipping(o, idx));
+    } else {
+      list = SHOWCASE_ORDERS;
+    }
+
+    if (filterStatus !== 'all') {
+      list = list.filter((o) => {
+        if (filterStatus === 'pending' || filterStatus === 'processing') return o.status === 'process';
+        if (filterStatus === 'shipped') return o.status === 'transit';
+        if (filterStatus === 'delivered') return o.status === 'delivered';
+        if (filterStatus === 'cancelled') return o.status === 'cancelled';
+        return true;
+      });
+    }
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (o) =>
+          o.trackingId.toLowerCase().includes(q) ||
+          o.productName.toLowerCase().includes(q) ||
+          (o.customerInfo?.name || '').toLowerCase().includes(q) ||
+          (o.customerInfo?.phone || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [orders, filterStatus, search]);
 
   if (loading) {
-    return <View style={styles.centerBox}><ActivityIndicator size="large" color={colors.primary} /></View>;
+    return <View style={styles.centerBox}><ActivityIndicator size="large" color={renewxColors.emerald} /></View>;
   }
 
   // Fallback demo orders matching Image 3 mockup
@@ -3037,12 +3056,36 @@ function OrdersView() {
     : demoMockupOrders.map((d) => ({ ...d, rawOrder: null as any }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F7F8F6' }}>
-      {/* Title Header */}
-      <View style={[styles.viewHeaderRow, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }]}>
+    <View style={{ flex: 1, backgroundColor: renewxColors.background }}>
+      {/* Title Header with View Mode Switcher */}
+      <View style={[styles.viewHeaderRow, { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6, alignItems: 'center' }]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.viewTitle}>Orders</Text>
           <Text style={styles.viewSubtitle}>View and manage all orders</Text>
+        </View>
+
+        <View style={styles.adminViewModeCapsule}>
+          <TouchableOpacity
+            style={[styles.adminViewModeBtn, viewMode === 'cards' && styles.adminViewModeBtnActive]}
+            onPress={() => setViewMode('cards')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cube-outline" size={13} color={viewMode === 'cards' ? '#0F172A' : '#64748B'} />
+            <Text style={[styles.adminViewModeBtnText, viewMode === 'cards' && styles.adminViewModeBtnTextActive]}>
+              3D Cards
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.adminViewModeBtn, viewMode === 'compact' && styles.adminViewModeBtnActive]}
+            onPress={() => setViewMode('compact')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="list-outline" size={13} color={viewMode === 'compact' ? '#0F172A' : '#64748B'} />
+            <Text style={[styles.adminViewModeBtnText, viewMode === 'compact' && styles.adminViewModeBtnTextActive]}>
+              List
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -3089,7 +3132,7 @@ function OrdersView() {
 
       {loading && !refreshing ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={renewxColors.emerald} />
         </View>
       ) : (
         <ScrollView
@@ -3100,61 +3143,96 @@ function OrdersView() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[renewxColors.emerald]}
+              tintColor={renewxColors.emerald}
             />
           }
         >
-          {displayOrders.map((item, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={styles.orderCardRowM2}
-              onPress={() => item.rawOrder && setSelectedManageOrder(item.rawOrder)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.orderThumbM2Wrap}>
-                <ProductImage
-                  source={item.img}
-                  category={item.firstItem?.category}
-                  name={item.firstItem?.name}
-                  style={styles.orderThumbM2}
-                  resizeMode="contain"
+          {viewMode === 'cards' ? (
+            displayShippingOrders.map((ord) => {
+              const raw = orders.find((o) => String(o.id || o._id) === ord.id);
+              return (
+                <ShippingOrderCard
+                  key={ord.id}
+                  order={ord}
+                  isAdmin={true}
+                  onDetails={() => {
+                    if (raw) {
+                      setSelectedManageOrder(raw);
+                    } else {
+                      setSelectedManageOrder({
+                        id: ord.id,
+                        status: ord.statusRaw,
+                        customer_info: ord.customerInfo,
+                        total: ord.total,
+                        items: [{ product_name: ord.productName, price: ord.price, quantity: ord.quantity }],
+                      });
+                    }
+                  }}
+                  onTrack={() => {
+                    toast.info(
+                      `Waybill: ${ord.trackingId}\nCourier: ${ord.courier.name}\nStatus: ${ord.statusLabel}`,
+                      'Certified Telemetry'
+                    );
+                  }}
+                  onStatusChange={(orderId, nextStatus) => {
+                    applyStatus(orderId, nextStatus);
+                  }}
                 />
-              </View>
+              );
+            })
+          ) : (
+            displayOrders.map((item, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.orderCardRowM2}
+                onPress={() => item.rawOrder && setSelectedManageOrder(item.rawOrder)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.orderThumbM2Wrap}>
+                  <ProductImage
+                    source={item.img}
+                    category={item.firstItem?.category}
+                    name={item.firstItem?.name}
+                    style={styles.orderThumbM2}
+                    resizeMode="contain"
+                  />
+                </View>
 
-              <View style={{ flex: 1, justifyContent: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <Text style={styles.orderRowIdM2}>#{item.id}</Text>
-                  <Text style={styles.orderCardPriceText}>
-                    ₹{item.total.toLocaleString('en-IN')} · {item.paymentMethod}
-                  </Text>
+                <View style={{ flex: 1, justifyContent: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <Text style={styles.orderRowIdM2}>#{item.id}</Text>
+                    <Text style={styles.orderCardPriceText}>
+                      ₹{item.total.toLocaleString('en-IN')} · {item.paymentMethod}
+                    </Text>
+                  </View>
+                  <Text style={styles.orderRowCustomerM2}>{item.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <Text style={styles.orderRowDateM2}>{item.date}</Text>
+                    <Text style={styles.orderRowBullet}>•</Text>
+                    <Text style={styles.orderRowItemsM2}>{item.itemsCount} {item.itemsCount === 1 ? 'item' : 'items'}</Text>
+                    {item.whatsappOptIn && (
+                      <>
+                        <Text style={styles.orderRowBullet}>•</Text>
+                        <Ionicons name="logo-whatsapp" size={11} color="#16A34A" />
+                      </>
+                    )}
+                  </View>
                 </View>
-                <Text style={styles.orderRowCustomerM2}>{item.name}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <Text style={styles.orderRowDateM2}>{item.date}</Text>
-                  <Text style={styles.orderRowBullet}>•</Text>
-                  <Text style={styles.orderRowItemsM2}>{item.itemsCount} {item.itemsCount === 1 ? 'item' : 'items'}</Text>
-                  {item.whatsappOptIn && (
-                    <>
-                      <Text style={styles.orderRowBullet}>•</Text>
-                      <Ionicons name="logo-whatsapp" size={11} color="#16A34A" />
-                    </>
-                  )}
-                </View>
-              </View>
 
-              <View style={{ alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
-                <View style={[styles.orderStatusPillM2, { backgroundColor: item.statusBg }]}>
-                  <View style={[styles.statusMiniDot, { backgroundColor: item.statusColor }]} />
-                  <Text style={[styles.orderStatusPillTextM2, { color: item.statusColor }]}>{item.status}</Text>
+                <View style={{ alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
+                  <View style={[styles.orderStatusPillM2, { backgroundColor: item.statusBg }]}>
+                    <View style={[styles.statusMiniDot, { backgroundColor: item.statusColor }]} />
+                    <Text style={[styles.orderStatusPillTextM2, { color: item.statusColor }]}>{item.status}</Text>
+                  </View>
+                  <View style={styles.orderQuickUpdatePill}>
+                    <Ionicons name="create-outline" size={11} color="#0F172A" />
+                    <Text style={styles.orderQuickUpdateText}>Update</Text>
+                  </View>
                 </View>
-                <View style={styles.orderQuickUpdatePill}>
-                  <Ionicons name="create-outline" size={11} color="#0F172A" />
-                  <Text style={styles.orderQuickUpdateText}>Update</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
       )}
 
@@ -3385,7 +3463,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
                 activeOpacity={0.8}
               >
                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: autoRefresh ? '#16A34A' : '#94A3B8' }} />
-                <Text style={{ fontSize: 10, fontWeight: '800', color: autoRefresh ? '#16A34A' : '#64748B' }}>
+                <Text style={{ fontSize: 10, ...renewxTextStyle('extraBold'), color: autoRefresh ? '#16A34A' : '#64748B' }}>
                   {autoRefresh ? 'LIVE (15s)' : 'PAUSED'}
                 </Text>
               </TouchableOpacity>
@@ -3410,9 +3488,9 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
             activeOpacity={0.8}
           >
             {refreshing ? (
-              <ActivityIndicator size="small" color="#0F172A" />
+              <ActivityIndicator size="small" color={renewxColors.black} />
             ) : (
-              <Ionicons name="refresh-outline" size={17} color="#0F172A" />
+              <Ionicons name="refresh-outline" size={17} color={renewxColors.black} />
             )}
           </TouchableOpacity>
         </View>
@@ -3431,16 +3509,16 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: 12,
-                  backgroundColor: isSelected ? '#0F172A' : '#FFFFFF',
+                  backgroundColor: isSelected ? renewxColors.black : '#FFFFFF',
                   borderWidth: 1,
-                  borderColor: isSelected ? '#0F172A' : '#E2E8F0',
+                  borderColor: isSelected ? renewxColors.black : '#E2E8F0',
                 }}
                 activeOpacity={0.8}
               >
                 <Text
                   style={{
                     fontSize: 11.5,
-                    fontWeight: isSelected ? '800' : '600',
+                    ...(isSelected ? renewxTextStyle('extraBold') : renewxTextStyle('semibold')),
                     color: isSelected ? '#FFFFFF' : '#64748B',
                   }}
                 >
@@ -3458,7 +3536,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
         <View style={styles.kpiCard}>
           <View style={styles.kpiTopRow}>
             <View style={[styles.kpiIconWrap, { backgroundColor: '#DCFCE7' }]}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: '#16A34A' }}>₹</Text>
+              <Text style={{ fontSize: 15, ...renewxTextStyle('extraBold'), color: '#16A34A' }}>₹</Text>
             </View>
             <View style={styles.kpiBadge}>
               <Ionicons name="trending-up" size={11} color="#16A34A" />
@@ -3467,7 +3545,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
           </View>
           <Text style={styles.kpiValueText}>₹{Number(kpis.totalRevenue || 0).toLocaleString('en-IN')}</Text>
           <Text style={styles.kpiLabelText}>Total Revenue</Text>
-          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, fontWeight: '500' }}>
+          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, ...renewxTextStyle('medium') }}>
             All-time: ₹{Number(kpis.allTimeRevenue || kpis.totalRevenue || 0).toLocaleString('en-IN')}
           </Text>
         </View>
@@ -3485,7 +3563,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
           </View>
           <Text style={styles.kpiValueText}>{kpis.totalOrders || 0}</Text>
           <Text style={styles.kpiLabelText}>Total Orders</Text>
-          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, fontWeight: '500' }}>
+          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, ...renewxTextStyle('medium') }}>
             All-time: {kpis.allTimeOrders || kpis.totalOrders || 0} orders
           </Text>
         </View>
@@ -3503,7 +3581,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
           </View>
           <Text style={styles.kpiValueText}>{kpis.totalCustomers || 0}</Text>
           <Text style={styles.kpiLabelText}>Total Customers</Text>
-          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, fontWeight: '500' }}>
+          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, ...renewxTextStyle('medium') }}>
             Registered buyer profiles
           </Text>
         </View>
@@ -3521,7 +3599,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
           </View>
           <Text style={styles.kpiValueText}>₹{Number(kpis.avgOrderValue || 0).toLocaleString('en-IN')}</Text>
           <Text style={styles.kpiLabelText}>Avg Order Value</Text>
-          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, fontWeight: '500' }}>
+          <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, ...renewxTextStyle('medium') }}>
             Per completed checkout
           </Text>
         </View>
@@ -3532,7 +3610,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
         <View style={styles.cardHeaderRow}>
           <View>
             <Text style={styles.cardSectionTitle}>Fulfillment Pipeline</Text>
-            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 1 }}>Live status of pending and transit orders</Text>
+            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 1, ...renewxTextStyle('regular') }}>Live status of pending and transit orders</Text>
           </View>
           <TouchableOpacity onPress={() => onNavigate('orders')} style={styles.cardLinkRow} activeOpacity={0.8}>
             <Text style={styles.cardLinkText}>View Orders</Text>
@@ -3561,8 +3639,8 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
                 borderColor: `${st.color}20`,
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: st.color }}>{st.count}</Text>
-              <Text style={{ fontSize: 9.5, fontWeight: '700', color: st.color, marginTop: 2, textAlign: 'center' }}>
+              <Text style={{ fontSize: 16, ...renewxTextStyle('extraBold'), color: st.color }}>{st.count}</Text>
+              <Text style={{ fontSize: 9.5, ...renewxTextStyle('bold'), color: st.color, marginTop: 2, textAlign: 'center' }} numberOfLines={1}>
                 {st.label}
               </Text>
             </View>
@@ -3575,11 +3653,11 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
         <View style={styles.cardHeaderRow}>
           <View>
             <Text style={styles.cardSectionTitle}>7-Day Sales Velocity</Text>
-            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 1 }}>Daily revenue and order volume trends</Text>
+            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 1, ...renewxTextStyle('regular') }}>Daily revenue and order volume trends</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' }} />
-            <Text style={{ fontSize: 11, fontWeight: '600', color: '#64748B' }}>Revenue (₹)</Text>
+            <Text style={{ fontSize: 11, ...renewxTextStyle('semibold'), color: '#64748B' }}>Revenue (₹)</Text>
           </View>
         </View>
 
@@ -3593,8 +3671,8 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
                 return (
                   <View key={idx} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                     {isPeak && (
-                      <View style={{ backgroundColor: '#0F172A', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6, marginBottom: 2 }}>
-                        <Text style={{ fontSize: 8, fontWeight: '800', color: '#FFFFFF' }}>Peak</Text>
+                      <View style={{ backgroundColor: renewxColors.black, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6, marginBottom: 2 }}>
+                        <Text style={{ fontSize: 9.5, ...renewxTextStyle('extraBold'), color: '#FFFFFF' }}>Peak</Text>
                       </View>
                     )}
                     <View
@@ -3606,8 +3684,8 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
                         opacity: rev > 0 ? 1 : 0.25,
                       }}
                     />
-                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#0F172A' }}>{day.label}</Text>
-                    <Text style={{ fontSize: 8.5, color: '#64748B', fontWeight: '500' }}>
+                    <Text style={{ fontSize: 10.5, ...renewxTextStyle('bold'), color: renewxColors.black }}>{day.label}</Text>
+                    <Text style={{ fontSize: 9.5, color: '#64748B', ...renewxTextStyle('medium') }}>
                       {rev > 0 ? `₹${Math.round(rev / 1000)}k` : '₹0'}
                     </Text>
                   </View>
@@ -3617,7 +3695,7 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
           </View>
         ) : (
           <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#94A3B8' }}>No sales data recorded for the past 7 days</Text>
+            <Text style={{ fontSize: 12, color: '#94A3B8', ...renewxTextStyle('regular') }}>No sales data recorded for the past 7 days</Text>
           </View>
         )}
       </View>
@@ -3712,16 +3790,12 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
           onPress={() => onNavigate('products')}
           style={{
             flex: 1,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: renewxColors.surface,
             borderRadius: 16,
             padding: 14,
             borderWidth: 1,
-            borderColor: '#F1F5F9',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.03,
-            shadowRadius: 4,
-            elevation: 1,
+            borderColor: renewxColors.border,
+            ...(renewxShadows.card as object),
           }}
           activeOpacity={0.8}
         >
@@ -3731,17 +3805,17 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
             </View>
             <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
           </View>
-          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>Inventory Pulse</Text>
-          <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+          <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>Inventory Pulse</Text>
+          <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, ...renewxTextStyle('regular') }}>
             {inventoryHealth.totalProducts || 0} active devices
           </Text>
           <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
             <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-              <Text style={{ fontSize: 9, fontWeight: '700', color: '#16A34A' }}>{inventoryHealth.inStock || 0} In Stock</Text>
+              <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#16A34A' }}>{inventoryHealth.inStock || 0} In Stock</Text>
             </View>
             {(inventoryHealth.lowStock || 0) > 0 && (
               <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#D97706' }}>{inventoryHealth.lowStock} Low</Text>
+                <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#D97706' }}>{inventoryHealth.lowStock} Low</Text>
               </View>
             )}
           </View>
@@ -3752,16 +3826,12 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
           onPress={() => onNavigate('tradeIns')}
           style={{
             flex: 1,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: renewxColors.surface,
             borderRadius: 16,
             padding: 14,
             borderWidth: 1,
-            borderColor: '#F1F5F9',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.03,
-            shadowRadius: 4,
-            elevation: 1,
+            borderColor: renewxColors.border,
+            ...(renewxShadows.card as object),
           }}
           activeOpacity={0.8}
         >
@@ -3771,16 +3841,16 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
             </View>
             <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
           </View>
-          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>Trade-In Queue</Text>
-          <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+          <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>Trade-In Queue</Text>
+          <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, ...renewxTextStyle('regular') }}>
             {tradeInStats.totalRequests || 0} customer requests
           </Text>
           <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
             <View style={{ backgroundColor: '#F3E8FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-              <Text style={{ fontSize: 9, fontWeight: '700', color: '#9333EA' }}>{tradeInStats.pending || 0} Pending</Text>
+              <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#9333EA' }}>{tradeInStats.pending || 0} Pending</Text>
             </View>
             <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-              <Text style={{ fontSize: 9, fontWeight: '700', color: '#16A34A' }}>{tradeInStats.inspected || 0} Verified</Text>
+              <Text style={{ fontSize: 10, ...renewxTextStyle('bold'), color: '#16A34A' }}>{tradeInStats.inspected || 0} Verified</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -3836,17 +3906,17 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
                       />
                     </View>
                     <View>
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>
+                      <Text style={{ fontSize: 13, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>
                         {tx.customerName}
                       </Text>
-                      <Text style={{ fontSize: 10.5, color: '#64748B', marginTop: 1 }}>
+                      <Text style={{ fontSize: 10.5, color: '#64748B', marginTop: 1, ...renewxTextStyle('regular') }}>
                         {tx.itemsCount} item{tx.itemsCount > 1 ? 's' : ''} • {tx.paymentMethod}
                       </Text>
                     </View>
                   </View>
 
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#0F172A' }}>
+                    <Text style={{ fontSize: 13.5, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>
                       ₹{Number(tx.amount || 0).toLocaleString('en-IN')}
                     </Text>
                     <View
@@ -3860,8 +3930,8 @@ function AnalyticsView({ onNavigate }: { onNavigate: (view: AdminView) => void }
                     >
                       <Text
                         style={{
-                          fontSize: 9,
-                          fontWeight: '800',
+                          fontSize: 10,
+                          ...renewxTextStyle('extraBold'),
                           color: isPaid ? '#16A34A' : '#D97706',
                           textTransform: 'uppercase',
                         }}
@@ -3982,45 +4052,42 @@ const userModalStyles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    ...(renewxShadows.floating as object),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
     gap: 12,
   },
   iconWrap: {
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: renewxColors.yellowLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   subtitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   closeBtn: {
     padding: 6,
     borderRadius: 16,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
   },
   body: {
     padding: 18,
@@ -4028,10 +4095,10 @@ const userModalStyles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#64748b',
+    color: renewxColors.textMuted,
     letterSpacing: 0.8,
     marginBottom: 4,
+    ...renewxTextStyle('extraBold'),
   },
   roleOption: {
     flexDirection: 'row',
@@ -4039,86 +4106,89 @@ const userModalStyles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.background,
     gap: 12,
   },
   roleOptionSelected: {
-    borderColor: '#f59e0b',
-    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+    borderColor: renewxColors.yellowDark,
+    backgroundColor: renewxColors.yellowSoft,
   },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   radioSelected: {
-    borderColor: '#f59e0b',
+    borderColor: renewxColors.yellowDark,
   },
   radioDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#f59e0b',
+    backgroundColor: renewxColors.yellowDark,
   },
   roleTitle: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   roleDesc: {
     fontSize: 12,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 3,
     lineHeight: 17,
+    ...renewxTextStyle('regular'),
   },
   adminBadge: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: renewxColors.yellowLight,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   adminBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#d97706',
+    fontSize: 10,
+    color: '#78350F',
+    ...renewxTextStyle('extraBold'),
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     padding: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: renewxColors.surfaceMuted,
     gap: 10,
   },
   cancelBtn: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: renewxColors.border,
   },
   cancelBtnText: {
     fontSize: 13,
-    fontWeight: '600',
     color: '#334155',
+    ...renewxTextStyle('semibold'),
   },
   saveBtn: {
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 10,
-    backgroundColor: '#f59e0b',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
   },
   saveBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0a0a0a',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
 });
 
@@ -4199,8 +4269,8 @@ function SelectPicker({
           backgroundColor: disabled ? '#f8fafc' : '#ffffff',
           border: '1px solid #cbd5e1',
           fontSize: 13,
-          fontWeight: '500',
-          color: value ? '#0f172a' : '#94a3b8',
+          fontFamily: 'Outfit_500Medium, system-ui, sans-serif',
+          color: value ? renewxColors.black : '#94a3b8',
           outline: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
           appearance: 'none',
@@ -4277,7 +4347,7 @@ const ProductModal = AddProductModal;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F8F6',
+    backgroundColor: renewxColors.background,
   },
   header: {
     flexDirection: 'row',
@@ -4286,19 +4356,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: '#ffffff',
-
+    borderBottomColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-
-
   },
   headerCenter: {
     flex: 1,
@@ -4312,30 +4379,35 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
   },
   headerTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   adminBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radius.sm,
   },
   adminBadgeText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    color: '#000',
+    fontSize: 10,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   headerSubtitle: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   addActionButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: radius.md,
@@ -4345,13 +4417,13 @@ const styles = StyleSheet.create({
   },
   addActionButtonText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#000',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   tabBarContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: '#f8fafc',
+    borderBottomColor: renewxColors.border,
+    backgroundColor: renewxColors.background,
     paddingVertical: 8,
   },
   tabBarContent: {
@@ -4365,25 +4437,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.full,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   tabButtonActive: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: renewxColors.black,
+    borderColor: renewxColors.black,
   },
   tabButtonText: {
     fontSize: 12,
-    fontWeight: fontWeight.semibold,
-    color: '#64748b',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   tabButtonTextActive: {
-    color: '#ffffff',
+    color: renewxColors.white,
   },
   mainContent: {
     flex: 1,
-    backgroundColor: '#F7F8F6',
+    backgroundColor: renewxColors.background,
   },
   scrollContainer: {
     padding: spacing.md,
@@ -4397,11 +4469,11 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     width: '48%',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.md,
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -4411,8 +4483,8 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: fontWeight.medium,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
   metricIcon: {
     width: 26,
@@ -4423,24 +4495,25 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.black,
-    color: colors.text,
+    color: renewxColors.black,
     marginBottom: 2,
+    ...renewxTextStyle('black'),
   },
   metricSub: {
     fontSize: 10,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   quickActionsContainer: {
     marginBottom: 16,
   },
   sectionHeaderTitle: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
+    ...renewxTextStyle('bold'),
   },
   quickActionsRow: {
     flexDirection: 'row',
@@ -4448,11 +4521,11 @@ const styles = StyleSheet.create({
   },
   actionPill: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     paddingVertical: 10,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -4460,15 +4533,15 @@ const styles = StyleSheet.create({
   },
   actionPillText: {
     fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   cardContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.md,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -4478,12 +4551,13 @@ const styles = StyleSheet.create({
   },
   cardHeaderTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   cardHeaderSub: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   viewAllBtn: {
     flexDirection: 'row',
@@ -4492,14 +4566,15 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#2563eb',
+    color: renewxColors.info,
+    ...renewxTextStyle('bold'),
   },
   emptyNote: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
     textAlign: 'center',
     paddingVertical: 14,
+    ...renewxTextStyle('regular'),
   },
   recentOrderRow: {
     flexDirection: 'row',
@@ -4507,12 +4582,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   orderIdText: {
     fontSize: 12,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   statusTag: {
     paddingHorizontal: 6,
@@ -4520,8 +4595,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   statusTagText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
+    fontSize: 10,
+    ...renewxTextStyle('bold'),
   },
   methodTag: {
     paddingHorizontal: 6,
@@ -4529,34 +4604,35 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   methodTagText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
+    fontSize: 10,
+    ...renewxTextStyle('bold'),
   },
   codTag: {
     backgroundColor: '#fef3c7',
   },
   codTagText: {
     color: '#b45309',
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
+    fontSize: 10,
+    ...renewxTextStyle('bold'),
   },
   razorpayTag: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: renewxColors.mint,
   },
   razorpayTagText: {
-    color: '#059669',
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
+    color: renewxColors.emerald,
+    fontSize: 10,
+    ...renewxTextStyle('bold'),
   },
   orderMetaText: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   orderTotalAmount: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   centerBox: {
     flex: 1,
@@ -4570,15 +4646,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     gap: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: renewxColors.border,
   },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderRadius: radius.md,
     paddingHorizontal: 10,
     height: 38,
@@ -4587,12 +4663,16 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: fontSize.xs,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   addButtonMini: {
     width: 38,
     height: 38,
-    backgroundColor: colors.primary,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -4601,45 +4681,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.full,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: renewxColors.black,
+    borderColor: renewxColors.black,
   },
   filterChipText: {
     fontSize: 11,
-    fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
   },
   filterChipTextActive: {
-    color: '#ffffff',
+    color: renewxColors.white,
   },
   productListItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.md,
     padding: 10,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     gap: 10,
   },
   productThumb: {
     width: 54,
     height: 54,
     borderRadius: radius.sm,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
   },
   productThumbPlaceholder: {
     width: 54,
     height: 54,
     borderRadius: radius.sm,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -4648,21 +4728,22 @@ const styles = StyleSheet.create({
   },
   productItemTitle: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   productBrandBadge: {
     fontSize: 10,
-    color: colors.textMuted,
-    backgroundColor: '#f1f5f9',
+    color: renewxColors.textMuted,
+    backgroundColor: renewxColors.surfaceMuted,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: radius.sm,
+    ...renewxTextStyle('medium'),
   },
   productItemPrice: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   stockPill: {
     alignSelf: 'flex-start',
@@ -4671,15 +4752,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   stockText: {
-    fontSize: 9,
-    fontWeight: '700' as const,
+    fontSize: 10,
+    ...renewxTextStyle('bold'),
   },
-  stockOk: { backgroundColor: '#ecfdf5' },
-  stockOkText: { color: '#059669', fontSize: 9, fontWeight: '700' },
+  stockOk: { backgroundColor: renewxColors.mint },
+  stockOkText: { color: renewxColors.emerald, fontSize: 10, ...renewxTextStyle('bold') },
   stockLow: { backgroundColor: '#fef3c7' },
-  stockLowText: { color: '#b45309', fontSize: 9, fontWeight: '700' },
+  stockLowText: { color: '#b45309', fontSize: 10, ...renewxTextStyle('bold') },
   stockOut: { backgroundColor: '#fee2e2' },
-  stockOutText: { color: '#dc2626', fontSize: 9, fontWeight: '700' },
+  stockOutText: { color: renewxColors.error, fontSize: 10, ...renewxTextStyle('bold') },
   productActionsRow: {
     flexDirection: 'row',
     gap: 6,
@@ -4687,16 +4768,16 @@ const styles = StyleSheet.create({
   iconActionBtn: {
     padding: 8,
     borderRadius: radius.sm,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   orderCardBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.md,
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     gap: 8,
   },
   orderCardHeader: {
@@ -4706,12 +4787,13 @@ const styles = StyleSheet.create({
   },
   orderNumberTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   orderDateSubtitle: {
     fontSize: 10,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   statusTagAction: {
     flexDirection: 'row',
@@ -4728,16 +4810,17 @@ const styles = StyleSheet.create({
   },
   orderCustomerText: {
     fontSize: 11,
-    fontWeight: fontWeight.medium,
-    color: colors.textSecondary,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
   orderAddressText: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
     lineHeight: 16,
+    ...renewxTextStyle('regular'),
   },
   orderItemsBox: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: radius.sm,
     padding: 8,
     gap: 4,
@@ -4749,13 +4832,14 @@ const styles = StyleSheet.create({
   },
   orderItemName: {
     fontSize: 11,
-    color: colors.text,
+    color: renewxColors.black,
     flex: 1,
+    ...renewxTextStyle('regular'),
   },
   orderItemPrice: {
     fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   orderCardFooter: {
     flexDirection: 'row',
@@ -4763,21 +4847,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: renewxColors.surfaceMuted,
   },
   orderGrandTotal: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.black,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('black'),
   },
   userCardBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.md,
     padding: 10,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     gap: 10,
   },
   userEditOverlay: {
@@ -4790,11 +4874,11 @@ const styles = StyleSheet.create({
   userEditModal: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   inventoryAutoNotice: {
     flexDirection: 'row',
@@ -4812,29 +4896,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     color: '#1d4ed8',
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
   },
   userAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
     alignItems: 'center',
     justifyContent: 'center',
   },
   userAvatarLetter: {
-    color: colors.primary,
-    fontWeight: fontWeight.bold,
+    color: renewxColors.yellow,
     fontSize: 14,
+    ...renewxTextStyle('bold'),
   },
   userEmailText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   userJoinedText: {
     fontSize: 10,
-    color: colors.textMuted,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   roleBadge: {
     paddingHorizontal: 8,
@@ -4843,12 +4928,12 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontSize: 10,
-    fontWeight: '700' as const,
+    ...renewxTextStyle('bold'),
   },
   roleAdmin: { backgroundColor: '#fef3c7' },
-  roleAdminText: { color: '#b45309', fontSize: 10, fontWeight: '700' },
-  roleCustomer: { backgroundColor: '#f1f5f9' },
-  roleCustomerText: { color: '#475569', fontSize: 10, fontWeight: '700' },
+  roleAdminText: { color: '#b45309', fontSize: 10, ...renewxTextStyle('bold') },
+  roleCustomer: { backgroundColor: renewxColors.surfaceMuted },
+  roleCustomerText: { color: renewxColors.textSecondary, fontSize: 10, ...renewxTextStyle('bold') },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -4856,42 +4941,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: renewxColors.border,
   },
   closeBtn: {
     padding: 4,
   },
   modalHeaderTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   saveHeaderBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: radius.sm,
   },
   saveHeaderBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#000',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   inputLabel: {
     fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: colors.textSecondary,
+    color: renewxColors.textSecondary,
     marginBottom: 4,
+    ...renewxTextStyle('bold'),
   },
   formInput: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     borderRadius: radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: fontSize.xs,
-    color: colors.text,
-    backgroundColor: '#fff',
+    color: renewxColors.black,
+    backgroundColor: renewxColors.surface,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
 
   /* Full Product Modal & SelectPicker styles */
@@ -4906,24 +4995,20 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 620,
     height: Platform.OS === 'web' ? '92%' : '100%',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: Platform.OS === 'web' ? 24 : 0,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     flexDirection: 'column',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    ...(renewxShadows.floating as object),
   },
   fullModalHeader: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: renewxColors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -4938,19 +5023,20 @@ const styles = StyleSheet.create({
   },
   fullModalTitle: {
     fontSize: 17,
-    fontWeight: '800',
-    color: '#0f172a',
+    color: renewxColors.black,
     letterSpacing: -0.2,
+    ...renewxTextStyle('extraBold'),
   },
   fullModalSubtitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   fullCloseBtn: {
     padding: 6,
     borderRadius: 20,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
   },
   fullModalScroll: {
     padding: 16,
@@ -4970,55 +5056,53 @@ const styles = StyleSheet.create({
   },
   fullErrorText: {
     fontSize: 12,
-    color: '#dc2626',
-    fontWeight: '600',
+    color: renewxColors.error,
     flex: 1,
+    ...renewxTextStyle('semibold'),
   },
   fullCardSection: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
+    ...(renewxShadows.card as object),
   },
   fullSectionHeader: {
     fontSize: 11,
-    fontWeight: '900',
     color: '#334155',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 14,
+    ...renewxTextStyle('black'),
   },
   formGroup: {
     marginBottom: 14,
   },
   formFieldLabel: {
     fontSize: 12,
-    fontWeight: '700',
     color: '#334155',
     marginBottom: 6,
+    ...renewxTextStyle('bold'),
   },
   formHelperText: {
     fontSize: 11,
     color: '#94a3b8',
     marginBottom: 6,
+    ...renewxTextStyle('regular'),
   },
   formTextInput: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 13,
-    color: '#0f172a',
-    fontWeight: '500',
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   formRowTwo: {
     flexDirection: 'row',
@@ -5031,24 +5115,25 @@ const styles = StyleSheet.create({
   currencyInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 12,
   },
   currencyPrefix: {
     fontSize: 14,
-    fontWeight: '700',
     color: '#94a3b8',
     marginRight: 6,
+    ...renewxTextStyle('bold'),
   },
   currencyFieldInput: {
     flex: 1,
     paddingVertical: 10,
     fontSize: 13,
-    color: '#0f172a',
-    fontWeight: '600',
+    color: renewxColors.black,
+    ...renewxTextStyle('semibold'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   specHeaderRow: {
     flexDirection: 'row',
@@ -5061,8 +5146,8 @@ const styles = StyleSheet.create({
   },
   addSpecBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   specInputRow: {
     flexDirection: 'row',
@@ -5072,25 +5157,27 @@ const styles = StyleSheet.create({
   },
   specKeyInput: {
     width: '35%',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 12,
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
   },
   specValInput: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 12,
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
   },
   specTrashBtn: {
     padding: 6,
@@ -5105,21 +5192,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
   presetsBtnText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('bold'),
   },
   photoTabsRow: {
     flexDirection: 'row',
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
     paddingBottom: 10,
     marginBottom: 12,
   },
@@ -5132,15 +5219,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   photoTabPillActive: {
-    backgroundColor: '#000000',
+    backgroundColor: renewxColors.black,
   },
   photoTabText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#64748b',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('bold'),
   },
   photoTabTextActive: {
-    color: '#ffc400',
+    color: renewxColors.yellow,
   },
   photoUrlBar: {
     flexDirection: 'row',
@@ -5151,9 +5238,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 10,
   },
@@ -5161,21 +5248,22 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     fontSize: 12,
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
   },
   photoAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: renewxColors.black,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 12,
   },
   photoAddBtnText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#ffc400',
+    color: renewxColors.yellow,
+    ...renewxTextStyle('extraBold'),
   },
   photoPasteBtn: {
     flexDirection: 'row',
@@ -5188,15 +5276,15 @@ const styles = StyleSheet.create({
   },
   photoPasteBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
+    color: renewxColors.white,
+    ...renewxTextStyle('bold'),
   },
   livePhotoPreviewCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     borderRadius: 12,
     padding: 8,
     marginTop: 8,
@@ -5206,36 +5294,39 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#cbd5e1',
+    backgroundColor: renewxColors.borderStrong,
   },
   livePhotoPreviewTitle: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   livePhotoPreviewUrl: {
     fontSize: 11,
-    color: '#64748b',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   livePhotoAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 8,
   },
   livePhotoAddBtnText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#000000',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   uploadBoxWrap: {
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     borderStyle: 'dashed',
     alignItems: 'center',
     gap: 6,
@@ -5244,6 +5335,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94a3b8',
     textAlign: 'center',
+    ...renewxTextStyle('regular'),
   },
   thumbStrip: {
     flexDirection: 'row',
@@ -5257,8 +5349,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.background,
     position: 'relative',
   },
   thumbImage: {
@@ -5277,9 +5369,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   fullModalFooter: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: renewxColors.border,
     paddingHorizontal: 20,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -5288,10 +5380,10 @@ const styles = StyleSheet.create({
   },
   footerNoticeText: {
     fontSize: 11,
-    color: '#64748b',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
     flex: 1,
     paddingRight: 8,
+    ...renewxTextStyle('medium'),
   },
   footerActionsRight: {
     flexDirection: 'row',
@@ -5299,47 +5391,47 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cancelModalBtn: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
   },
   cancelModalBtnText: {
     fontSize: 12,
-    fontWeight: '700',
     color: '#334155',
+    ...renewxTextStyle('bold'),
   },
   publishModalBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: renewxColors.black,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 12,
   },
   publishModalBtnText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#ffc400',
+    color: renewxColors.yellow,
+    ...renewxTextStyle('extraBold'),
   },
   nativeSelectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   nativeSelectText: {
     fontSize: 13,
-    color: '#0f172a',
-    fontWeight: '500',
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
   },
   pickerOverlay: {
     flex: 1,
@@ -5347,7 +5439,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerModal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -5359,13 +5451,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
     marginBottom: 8,
   },
   pickerModalTitle: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   pickerItem: {
     flexDirection: 'row',
@@ -5373,20 +5465,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f8fafc',
+    borderBottomColor: renewxColors.background,
   },
   pickerItemActive: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: 8,
   },
   pickerItemText: {
     fontSize: 14,
     color: '#334155',
+    ...renewxTextStyle('regular'),
   },
   pickerItemTextActive: {
-    color: '#0f172a',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
 
   /* Mockup Header Elements */
@@ -5397,25 +5490,30 @@ const styles = StyleSheet.create({
   },
   headerBrandMain: {
     fontSize: 20,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
     fontStyle: 'italic',
     letterSpacing: -0.5,
-    textShadowColor: '#EA580C',
-    textShadowOffset: { width: -1.5, height: 0 },
-    textShadowRadius: 1,
+    ...renewxTextStyle('black'),
+    ...Platform.select({
+      web: { textShadow: '-1.5px 0 1px #EA580C' },
+      default: {
+        textShadowColor: '#EA580C',
+        textShadowOffset: { width: -1.5, height: 0 },
+        textShadowRadius: 1,
+      },
+    }),
   },
   headerBrandYellow: {
     fontSize: 20,
-    fontWeight: '900',
-    color: '#EAB308',
+    color: renewxColors.yellow,
     fontStyle: 'italic',
+    ...renewxTextStyle('black'),
   },
   headerSubtitleTagline: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#476E8E',
-    fontWeight: '700',
     marginTop: -2,
+    ...renewxTextStyle('bold'),
   },
   headerRightActions: {
     flexDirection: 'row',
@@ -5423,19 +5521,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   headerIconBtnActive: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
   },
   headerIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   notificationDot: {
     position: 'absolute',
@@ -5444,35 +5542,32 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: renewxColors.surface,
   },
   headerAvatarPill: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1.5,
-    borderColor: '#86EFAC',
+    borderColor: renewxColors.mintBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerAvatarText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#166534',
+    color: renewxColors.greenDark,
+    ...renewxTextStyle('extraBold'),
   },
   exitMiniBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-
-
-
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -5487,31 +5582,31 @@ const styles = StyleSheet.create({
   },
   viewTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     letterSpacing: -0.3,
+    ...renewxTextStyle('extraBold'),
   },
   viewSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 2,
-    fontWeight: '500',
+    ...renewxTextStyle('medium'),
   },
   periodDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
   },
   periodDropdownText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('semibold'),
   },
 
   /* 4 Metric KPI Cards (2x2 Grid) */
@@ -5523,16 +5618,12 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     width: '48.5%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   kpiTopRow: {
     flexDirection: 'row',
@@ -5551,27 +5642,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 12,
   },
   kpiBadgeText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#16A34A',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('bold'),
   },
   kpiValueText: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 2,
     letterSpacing: -0.3,
+    ...renewxTextStyle('extraBold'),
   },
   kpiLabelText: {
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
   },
 
   /* Card Header & Link */
@@ -5583,9 +5674,9 @@ const styles = StyleSheet.create({
   },
   cardSectionTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     letterSpacing: -0.2,
+    ...renewxTextStyle('extraBold'),
   },
   cardLinkRow: {
     flexDirection: 'row',
@@ -5594,8 +5685,8 @@ const styles = StyleSheet.create({
   },
   cardLinkText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#168A4A',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('bold'),
   },
 
   /* Chart Card */
@@ -5615,13 +5706,13 @@ const styles = StyleSheet.create({
     width: 26,
     fontSize: 10,
     color: '#94A3B8',
-    fontWeight: '600',
     textAlign: 'right',
+    ...renewxTextStyle('semibold'),
   },
   chartGridLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
   },
   chartCurveContainer: {
     position: 'absolute',
@@ -5636,7 +5727,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     top: 28,
-    backgroundColor: 'rgba(22, 138, 74, 0.08)',
+    backgroundColor: 'rgba(12, 122, 67, 0.08)',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
   },
@@ -5646,7 +5737,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 26,
     height: 3,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     borderRadius: 2,
   },
   chartPeakTooltip: {
@@ -5656,21 +5747,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chartTooltipBubble: {
-    backgroundColor: '#111111',
+    backgroundColor: renewxColors.black,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     alignItems: 'center',
   },
   chartTooltipValue: {
-    color: '#FFFFFF',
+    color: renewxColors.white,
     fontSize: 10,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
   chartTooltipDate: {
     color: '#94A3B8',
-    fontSize: 8,
-    fontWeight: '600',
+    fontSize: 9.5,
+    ...renewxTextStyle('semibold'),
   },
   chartTooltipArrow: {
     width: 0,
@@ -5680,24 +5771,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 4,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: '#111111',
+    borderTopColor: renewxColors.black,
   },
   chartPeakDot: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: renewxColors.white,
   },
   chartPeakInnerDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.white,
   },
   chartXDatesRow: {
     flexDirection: 'row',
@@ -5709,7 +5800,7 @@ const styles = StyleSheet.create({
   chartXDateText: {
     fontSize: 10,
     color: '#94A3B8',
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
   },
 
   /* Recent Orders Mock Row */
@@ -5719,37 +5810,38 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: renewxColors.background,
   },
   recentOrderAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   recentOrderAvatarText: {
     fontSize: 12,
-    fontWeight: '800',
     color: '#334155',
+    ...renewxTextStyle('extraBold'),
   },
   recentOrderId: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   recentOrderItem: {
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 1,
+    ...renewxTextStyle('regular'),
   },
   recentOrderPrice: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   statusMiniBadge: {
     flexDirection: 'row',
@@ -5765,8 +5857,8 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
   },
   statusMiniBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    ...renewxTextStyle('bold'),
   },
   threeDotsBtn: {
     padding: 6,
@@ -5777,64 +5869,85 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
-    shadowColor: '#168A4A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   blackAddBtnText: {
-    color: '#FFFFFF',
+    color: renewxColors.white,
     fontSize: 12,
-    fontWeight: '800',
     letterSpacing: 0.2,
+    ...renewxTextStyle('extraBold'),
   },
   filterChipM2: {
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   filterChipM2Active: {
-    backgroundColor: '#168A4A',
-    borderColor: '#168A4A',
-    shadowColor: '#168A4A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: renewxColors.emerald,
+    borderColor: renewxColors.emerald,
+    ...(renewxShadows.card as object),
   },
   filterChipM2Text: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   filterChipM2TextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+    color: renewxColors.white,
+    ...renewxTextStyle('extraBold'),
+  },
+  adminViewModeCapsule: {
+    flexDirection: 'row',
+    backgroundColor: renewxColors.border,
+    borderRadius: 16,
+    padding: 2,
+  },
+  adminViewModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 4,
+  },
+  adminViewModeBtnActive: {
+    backgroundColor: renewxColors.surface,
+    ...(renewxShadows.card as object),
+  },
+  adminViewModeBtnText: {
+    fontSize: 11,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
+  },
+  adminViewModeBtnTextActive: {
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   searchBarWrapM2: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 14,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     height: 44,
     gap: 8,
   },
   searchInputM2: {
     flex: 1,
     fontSize: 13,
-    color: '#0F172A',
+    color: renewxColors.black,
     paddingVertical: 8,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   filterSliderBtn: {
     padding: 6,
@@ -5848,8 +5961,8 @@ const styles = StyleSheet.create({
   },
   countText: {
     fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
   },
   sortDropdownBtn: {
     flexDirection: 'row',
@@ -5858,21 +5971,22 @@ const styles = StyleSheet.create({
   },
   sortDropdownText: {
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   /* Header Product Count Badge */
   countBadgePill: {
-    backgroundColor: '#E8F7ED',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D4EBDC',
+    borderColor: renewxColors.mintBorder,
   },
   countBadgePillText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#0B6B3A',
+    color: renewxColors.greenDark,
+    ...renewxTextStyle('extraBold'),
   },
 
   /* Empty State Polish */
@@ -5880,42 +5994,38 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   emptyTitleText: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 4,
+    ...renewxTextStyle('extraBold'),
   },
   clearFilterBtn: {
     marginTop: 14,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 12,
   },
   clearFilterBtnText: {
-    color: '#FFFFFF',
+    color: renewxColors.white,
     fontSize: 12,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
 
   /* Production-Ready Clean Product Cards */
   productCardClean: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 13,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   productCardTopRow: {
     flexDirection: 'row',
@@ -5926,9 +6036,9 @@ const styles = StyleSheet.create({
     width: 74,
     height: 74,
     borderRadius: 12,
-    backgroundColor: '#F7F8F6',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -5953,9 +6063,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   productThumbConditionText: {
-    fontSize: 8.5,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: 9.5,
+    color: renewxColors.white,
+    ...renewxTextStyle('extraBold'),
   },
   productDetailsCol: {
     flex: 1,
@@ -5969,23 +6079,23 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   productBrandPill: {
-    backgroundColor: '#F1F4F1',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 5,
   },
   productBrandPillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
+    fontSize: 10,
     color: '#334155',
     letterSpacing: 0.3,
+    ...renewxTextStyle('extraBold'),
   },
   productTitleClean: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     lineHeight: 18,
     marginBottom: 5,
+    ...renewxTextStyle('extraBold'),
   },
   productPriceRowClean: {
     flexDirection: 'row',
@@ -5995,30 +6105,31 @@ const styles = StyleSheet.create({
   },
   productPriceTextClean: {
     fontSize: 14.5,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('black'),
   },
   productMrpStrike: {
     fontSize: 11.5,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
+    ...renewxTextStyle('regular'),
   },
   productDiscountPill: {
-    backgroundColor: '#E8F7ED',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 5,
     borderWidth: 0.5,
-    borderColor: '#D4EBDC',
+    borderColor: renewxColors.mintBorder,
   },
   productDiscountPillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#0B6B3A',
+    fontSize: 10,
+    color: renewxColors.greenDark,
+    ...renewxTextStyle('extraBold'),
   },
   productCardDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     marginTop: 10,
     marginBottom: 10,
   },
@@ -6044,7 +6155,7 @@ const styles = StyleSheet.create({
   },
   stockPillCleanText: {
     fontSize: 10,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
   productActionButtonsWrap: {
     flexDirection: 'row',
@@ -6055,17 +6166,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 8,
   },
   cardActionBtnEditText: {
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   cardActionBtnDelete: {
     flexDirection: 'row',
@@ -6080,8 +6191,8 @@ const styles = StyleSheet.create({
   },
   cardActionBtnDeleteText: {
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#DC2626',
+    color: renewxColors.error,
+    ...renewxTextStyle('bold'),
   },
 
   /* Product Delete Confirmation Modal */
@@ -6095,14 +6206,10 @@ const styles = StyleSheet.create({
   deleteModalCard: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 20,
     padding: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+    ...(renewxShadows.floating as object),
   },
   deleteModalIconWrap: {
     alignItems: 'center',
@@ -6118,25 +6225,26 @@ const styles = StyleSheet.create({
   },
   deleteModalTitle: {
     fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     textAlign: 'center',
     marginBottom: 6,
+    ...renewxTextStyle('extraBold'),
   },
   deleteModalDesc: {
     fontSize: 12.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 16,
+    ...renewxTextStyle('regular'),
   },
   deleteModalPreviewCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     padding: 10,
     gap: 12,
     marginBottom: 18,
@@ -6145,31 +6253,32 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
   },
   deleteModalPreviewPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteModalPreviewTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   deleteModalPreviewMeta: {
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   deleteModalPreviewPrice: {
     fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 2,
+    ...renewxTextStyle('extraBold'),
   },
   deleteModalBtnRow: {
     flexDirection: 'row',
@@ -6181,14 +6290,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 11,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   deleteModalCancelText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('bold'),
   },
   deleteModalConfirmBtn: {
     flex: 1.2,
@@ -6197,102 +6306,97 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 11,
     borderRadius: 12,
-    backgroundColor: '#DC2626',
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: renewxColors.error,
+    ...(renewxShadows.elevated as object),
   },
   deleteModalConfirmText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    color: renewxColors.white,
+    ...renewxTextStyle('extraBold'),
   },
 
   /* Orders Screen Rows */
   orderCardRowM2: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 12,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   orderThumbM2Wrap: {
     width: 48,
     height: 48,
     borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     overflow: 'hidden',
   },
   orderCardPriceText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   orderRowBullet: {
     fontSize: 10,
     color: '#94A3B8',
+    ...renewxTextStyle('regular'),
   },
   orderQuickUpdatePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
   orderQuickUpdateText: {
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   orderThumbM2: {
     width: 58,
     height: 58,
     borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
   },
   orderThumbPlaceholderM2: {
     width: 58,
     height: 58,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   orderRowIdM2: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   orderRowDateM2: {
     fontSize: 10,
     color: '#94A3B8',
     marginTop: 1,
+    ...renewxTextStyle('regular'),
   },
   orderRowCustomerM2: {
     fontSize: 12,
-    fontWeight: '600',
     color: '#334155',
     marginTop: 2,
+    ...renewxTextStyle('semibold'),
   },
   orderRowItemsM2: {
     fontSize: 10,
     color: '#94A3B8',
+    ...renewxTextStyle('regular'),
   },
   orderStatusPillM2: {
     flexDirection: 'row',
@@ -6304,7 +6408,7 @@ const styles = StyleSheet.create({
   },
   orderStatusPillTextM2: {
     fontSize: 10,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
 
   /* Order Modal */
@@ -6318,7 +6422,7 @@ const styles = StyleSheet.create({
   orderModalCard: {
     width: '100%',
     maxWidth: 440,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 20,
     padding: 18,
   },
@@ -6328,63 +6432,66 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
     marginBottom: 12,
   },
   orderModalTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   orderModalSub: {
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   orderModalClose: {
     padding: 4,
   },
   modalFieldLabel: {
     fontSize: 10,
-    fontWeight: '800',
     color: '#94A3B8',
     letterSpacing: 0.5,
     marginBottom: 6,
+    ...renewxTextStyle('extraBold'),
   },
   statusSelectPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   statusSelectText: {
     fontSize: 11,
-    color: '#475569',
-    fontWeight: '600',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
   },
   modalInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 12,
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   saveShippingBtn: {
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     borderRadius: 10,
     paddingVertical: 9,
     alignItems: 'center',
     marginTop: 2,
   },
   saveShippingBtnText: {
-    color: '#FFFFFF',
+    color: renewxColors.white,
     fontSize: 11,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
   invoiceDownloadBtn: {
     flex: 1,
@@ -6392,14 +6499,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#FDE047',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 10,
     paddingVertical: 10,
   },
   invoiceDownloadBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   orderDeleteBtn: {
     width: 42,
@@ -6414,17 +6523,13 @@ const styles = StyleSheet.create({
   userCardRowM2: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 12,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   userAvatarM2: {
     width: 44,
@@ -6435,22 +6540,24 @@ const styles = StyleSheet.create({
   },
   userAvatarM2Text: {
     fontSize: 14,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
   userNameM2: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   userEmailM2: {
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 1,
+    ...renewxTextStyle('regular'),
   },
   userOrdersCountM2: {
     fontSize: 10,
     color: '#94A3B8',
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   rolePillM2: {
     paddingHorizontal: 8,
@@ -6459,7 +6566,7 @@ const styles = StyleSheet.create({
   },
   rolePillM2Text: {
     fontSize: 10,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
 
   /* Donut Chart Elements */
@@ -6476,7 +6583,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
   },
   donutRingSegment: {
     position: 'absolute',
@@ -6521,20 +6628,20 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   donutCenterValue: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   donutCenterLabel: {
-    fontSize: 9,
-    color: '#64748B',
-    fontWeight: '600',
+    fontSize: 10,
+    color: renewxColors.textMuted,
     marginTop: 1,
+    ...renewxTextStyle('semibold'),
   },
   donutLegendWrap: {
     flex: 1,
@@ -6555,12 +6662,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     color: '#334155',
-    fontWeight: '500',
+    ...renewxTextStyle('medium'),
   },
   donutLegendPct: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
 
   /* Top Categories Progress Bars */
@@ -6576,13 +6683,13 @@ const styles = StyleSheet.create({
   catProgressLabel: {
     width: 90,
     fontSize: 12,
-    fontWeight: '600',
     color: '#334155',
+    ...renewxTextStyle('semibold'),
   },
   catProgressBarTrack: {
     flex: 1,
     height: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -6593,9 +6700,9 @@ const styles = StyleSheet.create({
   catProgressPct: {
     width: 32,
     fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
     textAlign: 'right',
+    ...renewxTextStyle('bold'),
   },
 
   /* Admin Settings Screen Items */
@@ -6606,27 +6713,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: renewxColors.background,
   },
   settingsRowIconBox: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   settingsRowTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   settingsRowDesc: {
     fontSize: 11,
     color: '#94A3B8',
     marginTop: 1,
+    ...renewxTextStyle('regular'),
   },
 
   /* Admin Bottom Navigation Bar */
@@ -6634,16 +6742,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: renewxColors.border,
     paddingHorizontal: 8,
     paddingTop: 8,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 10,
+    ...Platform.select({
+      web: { boxShadow: '0 -3px 12px rgba(15, 23, 42, 0.06)' },
+      default: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 10,
+      },
+    }),
   },
   adminBottomNavItem: {
     flex: 1,
@@ -6654,60 +6767,58 @@ const styles = StyleSheet.create({
   },
   adminBottomNavLabel: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('semibold'),
   },
   adminTabActivePill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: '#E8F7ED',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#D4EBDC',
+    borderColor: renewxColors.mintBorder,
   },
   adminTabActiveText: {
     fontSize: 11.5,
-    fontWeight: '800',
-    color: '#0B6B3A',
+    color: renewxColors.greenDark,
     letterSpacing: -0.2,
+    ...renewxTextStyle('extraBold'),
   },
   adminProfileActivePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 18,
   },
   adminProfileActiveText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   adminSellButton: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1.5,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 4,
+    ...(renewxShadows.elevated as object),
   },
   adminSellButtonText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: -1,
+    ...renewxTextStyle('extraBold'),
   },
 
   /* ========================================================================================
@@ -6720,9 +6831,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: renewxColors.background,
   },
   headerLeftColM3: {
     justifyContent: 'center',
@@ -6733,22 +6844,22 @@ const styles = StyleSheet.create({
   },
   headerBrandRenewM3: {
     fontSize: 24,
-    fontWeight: '900',
-    color: '#111111',
+    color: renewxColors.black,
     letterSpacing: -0.6,
+    ...renewxTextStyle('black'),
   },
   headerBrandXM3: {
     fontSize: 24,
-    fontWeight: '900',
-    color: '#168A4A',
+    color: renewxColors.emerald,
     letterSpacing: -0.6,
+    ...renewxTextStyle('black'),
   },
   headerSubtitleAdminPanelM3: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
+    color: renewxColors.textMuted,
     marginTop: 1,
     letterSpacing: 0.1,
+    ...renewxTextStyle('semibold'),
   },
   headerRightActionsM3: {
     flexDirection: 'row',
@@ -6759,61 +6870,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: renewxColors.border,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     height: 36,
   },
   topBarSellReqBtnActive: {
-    backgroundColor: '#E8F7ED',
-    borderColor: '#D4EBDC',
+    backgroundColor: renewxColors.mint,
+    borderColor: renewxColors.mintBorder,
   },
   topBarYellowDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FFC400',
+    backgroundColor: renewxColors.yellow,
   },
   topBarSellReqText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#111111',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   topBarCircleBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   topBarCircleBtnActive: {
-    backgroundColor: '#E8F7ED',
-    borderColor: '#D4EBDC',
+    backgroundColor: renewxColors.mint,
+    borderColor: renewxColors.mintBorder,
   },
   topBarBadge: {
     position: 'absolute',
     top: -3,
     right: -3,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     width: 17,
     height: 17,
     borderRadius: 8.5,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: renewxColors.surface,
   },
   topBarBadgeText: {
-    fontSize: 9.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontSize: 10,
+    color: renewxColors.white,
+    ...renewxTextStyle('black'),
   },
   topBarExitBtn: {
     flexDirection: 'row',
@@ -6829,8 +6940,8 @@ const styles = StyleSheet.create({
   },
   topBarExitText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#DC2626',
+    color: renewxColors.error,
+    ...renewxTextStyle('extraBold'),
   },
 
   /* Secondary View Header Breadcrumb */
@@ -6840,9 +6951,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#F7F8F6',
+    backgroundColor: renewxColors.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: renewxColors.border,
   },
   secondaryBackBtn: {
     flexDirection: 'row',
@@ -6851,21 +6962,21 @@ const styles = StyleSheet.create({
   },
   secondaryBackText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#111111',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   secondaryActiveBadge: {
-    backgroundColor: '#E8F7ED',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1,
-    borderColor: '#D4EBDC',
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
   },
   secondaryActiveBadgeText: {
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#0B6B3A',
+    color: renewxColors.greenDark,
+    ...renewxTextStyle('bold'),
   },
 
   /* Mockup Bottom Navigation Bar */
@@ -6873,16 +6984,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: renewxColors.border,
     paddingHorizontal: 8,
     paddingTop: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 8,
+    ...Platform.select({
+      web: { boxShadow: '0 -2px 10px rgba(15, 23, 42, 0.05)' },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 8,
+      },
+    }),
   },
   adminBottomNavItemM3: {
     flex: 1,
@@ -6890,9 +7006,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   adminTabActivePillM3: {
-    backgroundColor: '#E8F7ED',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1,
-    borderColor: '#D4EBDC',
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 22,
@@ -6902,9 +7018,9 @@ const styles = StyleSheet.create({
   },
   adminTabActiveTextM3: {
     fontSize: 10.5,
-    fontWeight: '800',
-    color: '#0B6B3A',
+    color: renewxColors.greenDark,
     marginTop: 2,
+    ...renewxTextStyle('extraBold'),
   },
   adminTabInactiveWrapM3: {
     paddingHorizontal: 10,
@@ -6915,8 +7031,8 @@ const styles = StyleSheet.create({
   },
   adminTabInactiveTextM3: {
     fontSize: 10.5,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('semibold'),
   },
 });

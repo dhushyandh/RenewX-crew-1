@@ -12,7 +12,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
-import { colors, radius, fontSize, fontWeight } from '@/theme';
+import { radius, fontSize } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 interface ImagePickerButtonProps {
   onImageUploaded: (url: string) => void;
@@ -169,12 +170,12 @@ export default function ImagePickerButton({
       >
         {uploading ? (
           <View style={styles.contentRow}>
-            <ActivityIndicator size="small" color="#000000" />
+            <ActivityIndicator size="small" color={renewxColors.black} />
             <Text style={styles.uploadText}>Uploading...</Text>
           </View>
         ) : (
           <View style={styles.contentRow}>
-            <Ionicons name="cloud-upload" size={16} color="#000000" />
+            <Ionicons name="cloud-upload" size={16} color={renewxColors.black} />
             <Text style={styles.uploadText}>{label}</Text>
           </View>
         )}
@@ -188,17 +189,15 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   uploadButton: {
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#ffc400',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   contentRow: {
     flexDirection: 'row',
@@ -207,7 +206,7 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: '#000000',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 });

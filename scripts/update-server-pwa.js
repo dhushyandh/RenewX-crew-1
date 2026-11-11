@@ -71,3 +71,4 @@ if (content.includes(targetCRLF)) {
 
 fs.writeFileSync('server/index.ts', content, 'utf8');
 console.log('Successfully updated server/index.ts');
+

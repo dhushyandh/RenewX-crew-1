@@ -23,6 +23,7 @@ interface AuthContextValue {
   loading: boolean;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  loginWithToken: (token: string, user: AppUser) => void;
   signOut: () => Promise<void>;
 }
 
@@ -139,7 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signOut = useCallback(async () => {
+    const loginWithToken = useCallback((receivedToken: string, receivedUser: AppUser) => {
+    setToken(receivedToken);
+    setUser(receivedUser);
+    localStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
+  }, []);
+
+const signOut = useCallback(async () => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
     setToken(null);
@@ -164,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signUp,
         signIn,
+        loginWithToken,
         signOut,
       }}
     >

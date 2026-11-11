@@ -26,9 +26,19 @@ import {
   renewxColors,
   renewxFontFamily,
   renewxRadius,
+  renewxShadows,
   renewxSpacing,
+  renewxTextStyle,
 } from '@/design-system';
 import { getCategoryThirdPartyImage } from '@/data/categories';
+import ShippingOrderCard from '@/components/shipping/ShippingOrderCard';
+import {
+  SHOWCASE_ORDERS,
+  getLocalizedShowcaseOrders,
+  normalizeOrderToShipping,
+  type ShowcaseOrder,
+} from '@/data/showcaseOrders';
+import { useAuth } from '@/context/AuthContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -107,11 +117,11 @@ export interface SellRequestItem {
 }
 
 const ORDER_FILTER_TABS = [
-  { id: 'all', label: 'All Orders' },
-  { id: 'processing', label: 'Processing' },
-  { id: 'shipped', label: 'Shipped' },
-  { id: 'out_for_delivery', label: 'Out for Delivery' },
+  { id: 'all', label: 'All' },
+  { id: 'transit', label: 'Transit' },
+  { id: 'process', label: 'On Process' },
   { id: 'delivered', label: 'Delivered' },
+  { id: 'cancelled', label: 'Cancelled' },
 ];
 
 const SELL_FILTER_TABS = [
@@ -480,6 +490,7 @@ export default function TrackScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<any>();
   const toast = useToast();
+  const { user } = useAuth();
   const filterScrollRef = useRef<ScrollView>(null);
 
   // Switch between 'orders' and 'sell_requests'
@@ -768,7 +779,48 @@ export default function TrackScreen() {
     }
   };
 
-  // Filtered orders list
+  // Rich Shipping Parcels (Matching Reference Mockup)
+  const shippingOrders = useMemo<ShowcaseOrder[]>(() => {
+    const localizedShowcase = getLocalizedShowcaseOrders(user);
+    if (orders.length > 0) {
+      const mappedReal = orders.map((o, idx) =>
+        normalizeOrderToShipping(o.raw_order || o, idx, user)
+      );
+      return [...mappedReal, ...localizedShowcase];
+    }
+    return localizedShowcase;
+  }, [orders, user]);
+
+  // Filtered orders list (Showcase + Real Orders)
+  const filteredShippingOrders = useMemo(() => {
+    return shippingOrders.filter((ord) => {
+      if (activeTab !== 'all' && ord.status !== activeTab) {
+        return false;
+      }
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        ord.trackingId.toLowerCase().includes(q) ||
+        ord.productName.toLowerCase().includes(q) ||
+        ord.productSubtitle?.toLowerCase().includes(q) ||
+        ord.toDestination.recipientOrCity.toLowerCase().includes(q) ||
+        ord.courier.name.toLowerCase().includes(q)
+      );
+    });
+  }, [shippingOrders, activeTab, searchQuery]);
+
+  // Status counts for pill badges
+  const shippingCounts = useMemo(() => {
+    return {
+      all: shippingOrders.length,
+      transit: shippingOrders.filter((o) => o.status === 'transit').length,
+      process: shippingOrders.filter((o) => o.status === 'process').length,
+      delivered: shippingOrders.filter((o) => o.status === 'delivered').length,
+      cancelled: shippingOrders.filter((o) => o.status === 'cancelled').length,
+    };
+  }, [shippingOrders]);
+
+  // Legacy Filtered orders list
   const filteredOrders = useMemo(() => {
     let result = orders;
 
@@ -825,10 +877,45 @@ export default function TrackScreen() {
   }, [sellRequests, activeSellTab, searchQuery]);
 
   // Currently tracked order or sell request
-  const currentTrackOrder = useMemo(
-    () => orders.find((o) => o.id === selectedOrderId),
-    [orders, selectedOrderId]
-  );
+  const currentTrackOrder = useMemo(() => {
+    const found = orders.find((o) => o.id === selectedOrderId);
+    if (found) return found;
+    const localizedShowcase = getLocalizedShowcaseOrders(user);
+    const sc = localizedShowcase.find((o) => o.id === selectedOrderId || o.trackingId === selectedOrderId);
+    if (sc) {
+      return {
+        id: sc.id,
+        display_id: sc.trackingId,
+        product_name: sc.productName,
+        specs: sc.productSubtitle,
+        price: sc.price,
+        qty: sc.quantity,
+        placed_date: sc.fromHub.date,
+        status: sc.statusRaw,
+        status_label: sc.statusLabel,
+        status_color: sc.status === 'transit' ? '#EA580C' : sc.status === 'delivered' ? '#16A34A' : '#475569',
+        status_bg: sc.status === 'transit' ? '#FFF7ED' : sc.status === 'delivered' ? '#F0FDF4' : '#F1F5F9',
+        image: sc.productImage,
+        tracking_id: sc.trackingId,
+        delivery_partner: {
+          name: sc.courier.name,
+          role: 'Express Delivery Partner',
+          phone: sc.courier.phone || '+91 98450 88888',
+        },
+        delivery_address: sc.toDestination.fullAddress,
+        estimated_delivery_date: sc.toDestination.dateText,
+        estimated_delivery_time: sc.etaText,
+        steps: [
+          { label: 'Order Confirmed', description: 'Certified device allocated', date: sc.fromHub.date, status: 'completed' },
+          { label: 'Quality Inspected & Packed', description: 'Passed 48-point diagnostic testing', date: sc.fromHub.date, status: sc.activeStepIndex >= 1 ? 'completed' : 'pending' },
+          { label: 'Dispatched in Transit', description: `In transit via ${sc.courier.name}`, date: 'In Progress', status: sc.activeStepIndex >= 2 ? 'completed' : 'pending' },
+          { label: 'Doorstep Delivery', description: 'Certified delivery to recipient', date: sc.toDestination.dateText, status: sc.activeStepIndex >= 3 ? 'completed' : 'pending' },
+        ],
+        raw_order: sc,
+      } as OrderItem;
+    }
+    return undefined;
+  }, [orders, selectedOrderId, user]);
   const currentTrackSell = useMemo(
     () => sellRequests.find((s) => s.id === selectedSellId),
     [sellRequests, selectedSellId]
@@ -936,38 +1023,6 @@ export default function TrackScreen() {
               </ScrollView>
             </View>
           )}
-
-          {/* Live Delivery Status Banner */}
-          <View style={styles.liveBannerCard}>
-            <View style={styles.liveBannerLeft}>
-              <View style={styles.livePill}>
-                <View style={styles.pulsingDot} />
-                <Text style={styles.livePillText}>LIVE TRACKING</Text>
-              </View>
-              <Text style={styles.liveStatusTitle}>
-                {isDelivered
-                  ? 'Delivered to your address'
-                  : isOutForDelivery
-                  ? 'Out for Delivery Today'
-                  : isShipped
-                  ? 'Package In Transit'
-                  : 'Preparing Your Order'}
-              </Text>
-              <Text style={styles.liveStatusSubtitle}>
-                {isDelivered
-                  ? `Delivered on ${currentTrackOrder.estimated_delivery_date}`
-                  : `Estimated delivery by ${currentTrackOrder.estimated_delivery_date}, ${currentTrackOrder.estimated_delivery_time}`}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.mapActionBtn}
-              onPress={() => setShowMapModal(true)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="navigate-circle" size={24} color="#0F172A" />
-              <Text style={styles.mapActionBtnText}>Live Map</Text>
-            </TouchableOpacity>
-          </View>
 
           {/* Clean Vertical Stepper Timeline (Zero horizontal collision!) */}
           <View style={styles.timelineSection}>
@@ -1683,10 +1738,10 @@ export default function TrackScreen() {
   // -------------------------------------------------------------
   return (
     <View style={styles.container}>
-      {/* 1. TOP BAR (Image 5: ← My Orders | Filter funnel on right) */}
+      {/* 1. TOP BAR (Image 5: ← My Shipping | Filter funnel on right) */}
       <HomeHeader
         mode="orders"
-        title={trackType === 'orders' ? 'My Orders' : 'My Sell Requests'}
+        title={trackType === 'orders' ? 'My Shipping' : 'My Sell Requests'}
         onBack={handleBack}
         onFilterPress={() => {
           filterScrollRef.current?.scrollTo({ x: 0, animated: true });
@@ -1732,7 +1787,7 @@ export default function TrackScreen() {
                 trackType === 'orders' && styles.segmentedTabTextActive,
               ]}
             >
-              Orders ({orders.length})
+              Orders ({shippingOrders.length})
             </Text>
           </TouchableOpacity>
 
@@ -1816,24 +1871,6 @@ export default function TrackScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* UNIVERSAL TRACKING STATUS / HINT NOTICE */}
-        {searchError ? (
-          <View style={styles.searchErrorBox}>
-            <Ionicons name="alert-circle" size={16} color="#DC2626" />
-            <Text style={styles.searchErrorText}>{searchError}</Text>
-            <TouchableOpacity onPress={() => setSearchError(null)} style={{ marginLeft: 'auto' }}>
-              <Ionicons name="close" size={14} color="#DC2626" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.universalHintRow}>
-            <Ionicons name="globe-outline" size={14} color="#0284C7" />
-            <Text style={styles.universalHintText}>
-              Universal Tracking: Enter Your Order or Sell ID to view live status, buyer/seller & address.
-            </Text>
-          </View>
-        )}
-
         {/* 4. HORIZONTAL STATUS FILTER CHIPS */}
         <View style={styles.filterWrapper}>
           <ScrollView
@@ -1844,33 +1881,61 @@ export default function TrackScreen() {
           >
             {(trackType === 'orders' ? ORDER_FILTER_TABS : SELL_FILTER_TABS).map((tab) => {
               const isActive = (trackType === 'orders' ? activeTab : activeSellTab) === tab.id;
+              const count = trackType === 'orders' ? (shippingCounts as any)[tab.id] : undefined;
               return (
                 <TouchableOpacity
                   key={tab.id}
-                  style={[styles.filterChip, isActive && styles.filterChipActive]}
+                  style={[
+                    styles.filterChip,
+                    isActive && styles.filterChipActive,
+                    trackType === 'orders' && isActive && styles.shippingChipActive,
+                  ]}
                   onPress={() => (trackType === 'orders' ? setActiveTab(tab.id) : setActiveSellTab(tab.id))}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      isActive && styles.filterChipTextActive,
+                      trackType === 'orders' && isActive && styles.shippingChipTextActive,
+                    ]}
+                  >
                     {tab.label}
                   </Text>
+                  {typeof count === 'number' && (
+                    <View
+                      style={[
+                        styles.pillBadge,
+                        isActive ? styles.pillBadgeActive : styles.pillBadgeInactive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.pillBadgeText,
+                          isActive ? styles.pillBadgeTextActive : styles.pillBadgeTextInactive,
+                        ]}
+                      >
+                        {count}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
         </View>
 
-        {/* 5. CARDS LISTING (ELEGANT, NON-COLLIDING CARDS) */}
+        {/* 5. CARDS LISTING (ELEGANT 3D PARCEL CARDS MATCHING REFERENCE MOCKUP) */}
         {trackType === 'orders' ? (
-          filteredOrders.length === 0 ? (
+          filteredShippingOrders.length === 0 ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
                 <Ionicons name="cube-outline" size={36} color="#94A3B8" />
               </View>
-              <Text style={styles.emptyTitle}>No Orders Found</Text>
+              <Text style={styles.emptyTitle}>No Shipping Parcels Found</Text>
               <Text style={styles.emptySubtitle}>
                 {searchQuery
-                  ? `No orders matching "${searchQuery}".`
+                  ? `No parcels matching "${searchQuery}".`
                   : 'You have not placed any orders matching this filter.'}
               </Text>
               <TouchableOpacity
@@ -1880,78 +1945,30 @@ export default function TrackScreen() {
                   setSearchQuery('');
                 }}
               >
-                <Text style={styles.emptyBtnText}>View All Orders</Text>
+                <Text style={styles.emptyBtnText}>View All Parcels</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            filteredOrders.map((order) => {
+            filteredShippingOrders.map((order) => {
               return (
-                <View key={order.id} style={styles.orderCard}>
-                  {/* Card Header Row: Short ID, Date & Status Badge */}
-                  <View style={styles.orderCardHeader}>
-                    <View style={styles.orderCardIdGroup}>
-                      <Text style={styles.orderCardId}>{order.display_id}</Text>
-                      <TouchableOpacity
-                        onPress={() => handleCopyId(order.display_id || order.id, 'Order ID')}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Ionicons name="copy-outline" size={13} color="#94A3B8" />
-                      </TouchableOpacity>
-                      <Text style={styles.orderCardDot}>•</Text>
-                      <Text style={styles.orderCardDate}>{order.placed_date}</Text>
-                    </View>
-
-                    <View style={[styles.statusBadge, { backgroundColor: order.status_bg }]}>
-                      <Text style={[styles.statusBadgeText, { color: order.status_color }]}>
-                        {order.status_label}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Card Body: Thumbnail, Name, Specs, Price */}
-                  <View style={styles.orderCardBody}>
-                    <View style={styles.orderThumbnailBox}>
-                      <Image source={order.image} style={styles.orderThumbnailImg} resizeMode="contain" />
-                    </View>
-                    <View style={styles.orderCardInfo}>
-                      <Text style={styles.orderCardTitle} numberOfLines={1}>
-                        {order.product_name}
-                      </Text>
-                      <Text style={styles.orderCardSpecs} numberOfLines={1}>
-                        {order.specs}
-                      </Text>
-                      <Text style={styles.orderCardPrice}>
-                        ₹{order.price.toLocaleString('en-IN')}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Card Actions: Primary Track Button + Secondary Details Button */}
-                  <View style={styles.orderCardActions}>
-                    <TouchableOpacity
-                      style={styles.trackOrderBtn}
-                      onPress={() => setSelectedOrderId(order.id)}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="car-outline" size={16} color="#0F172A" style={{ marginRight: 6 }} />
-                      <Text style={styles.trackOrderBtnText}>Track Order</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.detailsBtn}
-                      onPress={() =>
-                        navigation.navigate('OrderDetail', {
-                          id: order.id,
-                          order: order.raw_order || order,
-                        })
-                      }
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="document-text-outline" size={15} color="#0F172A" style={{ marginRight: 4 }} />
-                      <Text style={styles.detailsBtnText}>Details</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <ShippingOrderCard
+                  key={order.id}
+                  order={order}
+                  onTrack={(target) => setSelectedOrderId(target.id)}
+                  onDetails={(target) => {
+                    if (target.id.startsWith('ord_demo_')) {
+                      toast.info(
+                        `Waybill: ${target.trackingId}\nCourier: ${target.courier.name}\nStatus: ${target.statusLabel} (${target.etaText})`,
+                        'Certified Telemetry'
+                      );
+                    } else {
+                      navigation.navigate('OrderDetail', {
+                        id: target.id,
+                        order: target,
+                      });
+                    }
+                  }}
+                />
               );
             })
           )
@@ -2076,7 +2093,7 @@ const styles = StyleSheet.create({
   // Segmented Capsule Switcher
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EDF2F7',
+    backgroundColor: '#F1F5F9',
     borderRadius: 24,
     padding: 3,
     marginBottom: 12,
@@ -2091,21 +2108,16 @@ const styles = StyleSheet.create({
   },
   segmentedTabActive: {
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   segmentedTabText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   segmentedTabTextActive: {
-    color: '#0F172A',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
 
   // Search Bar
@@ -2131,32 +2143,27 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.regular,
+    fontSize: 13.5,
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
     paddingVertical: 0,
   },
   trackGoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDE047',
+    backgroundColor: renewxColors.yellow,
     borderWidth: 1,
-    borderColor: '#FACC15',
+    borderColor: renewxColors.yellowDark,
     borderRadius: 14,
     height: 44,
     paddingHorizontal: 16,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   trackGoBtnText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   universalHintRow: {
     flexDirection: 'row',
@@ -2172,10 +2179,10 @@ const styles = StyleSheet.create({
   },
   universalHintText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#0369A1',
-    fontFamily: renewxFontFamily.regular,
-    lineHeight: 15,
+    ...renewxTextStyle('medium'),
+    lineHeight: 16,
   },
   searchErrorBox: {
     flexDirection: 'row',
@@ -2191,10 +2198,10 @@ const styles = StyleSheet.create({
   },
   searchErrorText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#DC2626',
-    fontFamily: renewxFontFamily.regular,
-    lineHeight: 15,
+    ...renewxTextStyle('medium'),
+    lineHeight: 16,
   },
 
   // Filter Chips
@@ -2211,35 +2218,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   filterChipActive: {
-    backgroundColor: '#FDE047',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderColor: renewxColors.yellowDark,
+  },
+  shippingChipActive: {
+    backgroundColor: renewxColors.black,
+    borderColor: renewxColors.black,
+  },
+  shippingChipTextActive: {
+    color: '#FFFFFF',
+    ...renewxTextStyle('extraBold'),
+  },
+  pillBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  pillBadgeActive: {
+    backgroundColor: '#334155',
+  },
+  pillBadgeInactive: {
+    backgroundColor: '#F1F5F9',
+  },
+  pillBadgeText: {
+    fontSize: 10.5,
+    ...renewxTextStyle('bold'),
+  },
+  pillBadgeTextActive: {
+    color: '#FFFFFF',
+  },
+  pillBadgeTextInactive: {
+    color: renewxColors.textSecondary,
   },
   filterChipText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   filterChipTextActive: {
-    color: '#0F172A',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
 
   // Order Card (Clean, modern card)
   orderCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     padding: 14,
     marginBottom: 12,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    ...(renewxShadows.card as object),
   },
   orderCardHeader: {
     flexDirection: 'row',
@@ -2256,19 +2290,18 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   orderCardId: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 12.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   orderCardDot: {
     fontSize: 12,
     color: '#CBD5E1',
   },
   orderCardDate: {
-    fontSize: 11,
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    fontSize: 11.5,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
   statusBadge: {
     paddingHorizontal: 9,
@@ -2277,8 +2310,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('bold'),
   },
   orderCardBody: {
     flexDirection: 'row',
@@ -2304,23 +2336,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   orderCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 14.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 2,
   },
   orderCardSpecs: {
     fontSize: 12,
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('regular'),
     marginBottom: 4,
   },
   orderCardPrice: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 15,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   orderCardActions: {
     flexDirection: 'row',
@@ -2332,17 +2362,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDE047',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#FACC15',
+    borderColor: renewxColors.yellowDark,
   },
   trackOrderBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   detailsBtn: {
     flexDirection: 'row',
@@ -2357,9 +2386,8 @@ const styles = StyleSheet.create({
   },
   detailsBtnText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
   },
 
   // Empty State
@@ -2367,7 +2395,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     padding: 32,
@@ -2383,33 +2411,33 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 16.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 6,
-    fontFamily: renewxFontFamily.bold,
   },
   emptySubtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: 13.5,
+    color: renewxColors.textSecondary,
     textAlign: 'center',
     marginBottom: 18,
-    lineHeight: 18,
-    fontFamily: renewxFontFamily.regular,
+    lineHeight: 19,
+    ...renewxTextStyle('regular'),
   },
   emptyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FDE047',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 12,
   },
   emptyBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 
   // -------------------------------------------------------------
@@ -2451,21 +2479,19 @@ const styles = StyleSheet.create({
   },
   summaryOrderId: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   summaryProductName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 15.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 2,
   },
   summarySpecs: {
     fontSize: 12,
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('regular'),
     marginBottom: 6,
   },
   summaryPriceRow: {
@@ -2474,10 +2500,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   summaryPrice: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 15.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 
   // Live Banner
@@ -2485,10 +2510,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FEF9C3',
+    backgroundColor: renewxColors.yellowSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#FEF08A',
+    borderColor: renewxColors.yellowLight,
     padding: 14,
     marginBottom: 16,
   },
@@ -2500,9 +2525,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#FACC15',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    backgroundColor: renewxColors.yellow,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
     borderRadius: 8,
     marginBottom: 6,
   },
@@ -2515,22 +2540,21 @@ const styles = StyleSheet.create({
   },
   livePillText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     letterSpacing: 0.5,
   },
   liveStatusTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 15.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     marginBottom: 2,
   },
   liveStatusSubtitle: {
     fontSize: 12,
-    color: '#713F12',
-    lineHeight: 16,
-    fontFamily: renewxFontFamily.regular,
+    color: '#78350F',
+    lineHeight: 17,
+    ...renewxTextStyle('medium'),
   },
   mapActionBtn: {
     alignItems: 'center',
@@ -2540,12 +2564,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowDark,
   },
   mapActionBtnText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginTop: 2,
   },
 
@@ -2554,10 +2578,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 14.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 10,
   },
   verticalTimelineCard: {
@@ -2584,12 +2607,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   timelineCircleCompleted: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
   timelineCircleActive: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     borderWidth: 2,
-    borderColor: '#0F172A',
+    borderColor: renewxColors.black,
   },
   timelineCircleHollow: {
     width: 8,
@@ -2603,7 +2626,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   timelineLineDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
   timelineLinePending: {
     backgroundColor: '#E2E8F0',
@@ -2618,25 +2641,24 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   timelineStepTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   timelineStepTitleActive: {
-    color: '#0F172A',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   timelineStepDate: {
     fontSize: 11,
-    color: '#94A3B8',
-    fontFamily: renewxFontFamily.regular,
+    color: '#64748B',
+    ...renewxTextStyle('medium'),
   },
   timelineStepDesc: {
     fontSize: 12,
-    color: '#64748B',
-    lineHeight: 16,
-    fontFamily: renewxFontFamily.regular,
+    color: renewxColors.textSecondary,
+    lineHeight: 17,
+    ...renewxTextStyle('regular'),
   },
 
   // Courier Card
@@ -2660,21 +2682,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   courierName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   courierRole: {
-    fontSize: 11,
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    fontSize: 11.5,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('regular'),
   },
   courierTrackingCode: {
-    fontSize: 10,
-    color: '#94A3B8',
+    fontSize: 10.5,
+    color: '#64748B',
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('medium'),
   },
   courierActionsRow: {
     flexDirection: 'row',
@@ -2685,7 +2706,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FDE047',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2706,16 +2729,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   addressCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   addressText: {
-    fontSize: 12,
-    color: '#475569',
-    lineHeight: 17,
-    fontFamily: renewxFontFamily.regular,
+    fontSize: 12.5,
+    color: renewxColors.textSecondary,
+    lineHeight: 18,
+    ...renewxTextStyle('regular'),
   },
 
   // Rich Detail Card (Comprehensive Buyer, Seller, Delivery & Financial Information)
@@ -2726,11 +2748,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    ...(renewxShadows.card as object),
   },
   richDetailCardHeader: {
     flexDirection: 'row',
@@ -2742,22 +2760,21 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FEF9C3',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   richDetailCardTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 14.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   richDetailCardSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    fontSize: 11.5,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('regular'),
     marginTop: 1,
   },
   richDetailCardDivider: {
@@ -2783,38 +2800,38 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   richDetailLabel: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#64748B',
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('medium'),
     marginBottom: 2,
   },
   richDetailValue: {
-    fontSize: 13,
+    fontSize: 13.5,
     color: '#1E293B',
-    fontFamily: renewxFontFamily.regular,
-    lineHeight: 18,
+    ...renewxTextStyle('regular'),
+    lineHeight: 19,
   },
   richDetailValueBold: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   richDetailActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FDE047',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     alignSelf: 'center',
   },
   richDetailActionBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 
   // Bottom Buttons in Tracking Detail View
@@ -2826,17 +2843,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDE047',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 14,
     paddingVertical: 13,
     borderWidth: 1,
-    borderColor: '#FACC15',
+    borderColor: renewxColors.yellowDark,
   },
   primaryActionButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 14.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   secondaryActionButton: {
     alignItems: 'center',
@@ -2848,10 +2864,9 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
   },
   secondaryActionButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-    fontFamily: renewxFontFamily.regular,
+    fontSize: 13.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
 
   // Modal Styles
@@ -2881,16 +2896,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   mapModalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 16.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   mapModalSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: 12.5,
+    color: renewxColors.textSecondary,
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('regular'),
   },
   modalCloseBtn: {
     width: 32,
@@ -2945,11 +2959,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    ...(renewxShadows.elevated as object),
   },
   mapDestinationPin: {
     position: 'absolute',
@@ -2958,7 +2968,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2973,36 +2983,34 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 10,
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   mapEtaTime: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 12.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   mapEtaDist: {
     fontSize: 11,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
   },
   closeMapFullBtn: {
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
   },
   closeMapFullBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
     color: '#FFFFFF',
   },
   helpModalDesc: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 18,
+    fontSize: 13.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+    lineHeight: 19,
     marginBottom: 16,
   },
   helpOptionBtn: {
@@ -3015,13 +3023,14 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   helpOptionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   helpOptionSub: {
-    fontSize: 11,
-    color: '#64748B',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginTop: 2,
   },
 
@@ -3041,15 +3050,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   devicePhotosTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   devicePhotosSub: {
     marginLeft: 'auto',
     fontSize: 11,
-    color: '#94A3B8',
+    ...renewxTextStyle('medium'),
+    color: '#64748B',
   },
   devicePhotosScroll: {
     gap: 10,
@@ -3072,14 +3081,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 4,
   },
   photoCountBadgeText: {
     fontSize: 9,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
     color: '#FFFFFF',
   },
 
@@ -3108,14 +3117,15 @@ const styles = StyleSheet.create({
   },
   multiItemName: {
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     textAlign: 'center',
     marginBottom: 2,
   },
   multiItemQtyPrice: {
-    fontSize: 10.5,
-    color: '#64748B',
+    fontSize: 11,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
   },
 
@@ -3130,7 +3140,7 @@ const styles = StyleSheet.create({
   previewCard: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     borderRadius: 18,
     padding: 14,
     overflow: 'hidden',
@@ -3142,8 +3152,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   previewTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 14.5,
+    ...renewxTextStyle('bold'),
     color: '#FFFFFF',
   },
   previewCloseBtn: {

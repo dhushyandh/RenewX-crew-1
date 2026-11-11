@@ -2,7 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { clientObservability } from '@/services/observability';
-import { colors } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 interface Props {
   children: ReactNode;
@@ -81,7 +81,7 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
   },
   content: {
     flex: 1,
@@ -94,23 +94,24 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#fffbeb',
+    backgroundColor: renewxColors.yellowSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
     borderWidth: 1.5,
-    borderColor: '#fef3c7',
+    borderColor: renewxColors.yellowLight,
   },
   title: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748b',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     textAlign: 'center',
     lineHeight: 21,
     marginBottom: 28,
@@ -121,46 +122,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.primary || '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   primaryButtonText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   devCard: {
     marginTop: 28,
     maxHeight: 200,
     width: '100%',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   devTitle: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#b91c1c',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.error,
     marginBottom: 4,
   },
   devError: {
     fontSize: 12,
-    color: '#b91c1c',
-    fontWeight: '600',
+    color: renewxColors.error,
+    ...renewxTextStyle('semibold'),
     marginBottom: 6,
   },
   devStack: {
-    fontSize: 10,
-    color: '#64748b',
+    fontSize: 11,
+    color: renewxColors.textMuted,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 });

@@ -13,6 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
@@ -144,7 +145,7 @@ export default function ForgotPasswordScreen({ onBack, initialEmail = '' }: Forg
             /* Form View: Enter Email */
             <View style={styles.innerCard}>
               <View style={styles.iconCircle}>
-                <Ionicons name="key-outline" size={32} color="#0f172a" />
+                <Ionicons name="key-outline" size={32} color={renewxColors.black} />
               </View>
 
               <Text style={styles.title}>Forgot Password?</Text>
@@ -158,13 +159,13 @@ export default function ForgotPasswordScreen({ onBack, initialEmail = '' }: Forg
                   <Ionicons
                     name="mail-outline"
                     size={18}
-                    color="#64748b"
+                    color={renewxColors.textMuted}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.textInput}
                     placeholder="name@example.com"
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor="#94A3B8"
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -194,12 +195,12 @@ export default function ForgotPasswordScreen({ onBack, initialEmail = '' }: Forg
               >
                 {submitting ? (
                   <View style={styles.buttonLoadingRow}>
-                    <ActivityIndicator size="small" color="#0a0a0a" />
+                    <ActivityIndicator size="small" color={renewxColors.black} />
                     <Text style={styles.primaryButtonText}>Sending Reset Link...</Text>
                   </View>
                 ) : (
                   <View style={styles.buttonRow}>
-                    <Ionicons name="paper-plane-outline" size={18} color="#0a0a0a" />
+                    <Ionicons name="paper-plane-outline" size={18} color={renewxColors.black} />
                     <Text style={styles.primaryButtonText}>Send Reset Link</Text>
                   </View>
                 )}
@@ -216,7 +217,7 @@ export default function ForgotPasswordScreen({ onBack, initialEmail = '' }: Forg
             /* Success View: Email Sent Confirmation */
             <View style={styles.innerCard}>
               <View style={styles.successIconCircle}>
-                <Ionicons name="mail-unread" size={36} color="#10b981" />
+                <Ionicons name="mail-unread" size={36} color={renewxColors.emerald} />
               </View>
 
               <Text style={styles.title}>Check Your Email</Text>
@@ -225,21 +226,21 @@ export default function ForgotPasswordScreen({ onBack, initialEmail = '' }: Forg
               </Text>
 
               <View style={styles.emailPill}>
-                <Ionicons name="at" size={16} color="#0f172a" />
+                <Ionicons name="at" size={16} color={renewxColors.black} />
                 <Text style={styles.emailPillText}>{submittedEmail}</Text>
               </View>
 
               <View style={styles.instructionsBox}>
                 <View style={styles.instructionItem}>
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#10b981" />
+                  <Ionicons name="checkmark-circle-outline" size={18} color={renewxColors.emerald} />
                   <Text style={styles.instructionText}>
                     Click the link in the email to set a new password.
                   </Text>
                 </View>
                 <View style={styles.instructionItem}>
-                  <Ionicons name="time-outline" size={18} color="#f59e0b" />
+                  <Ionicons name="time-outline" size={18} color={renewxColors.warning} />
                   <Text style={styles.instructionText}>
-                    The reset link will expire in <Text style={{ fontWeight: '700' }}>30 minutes</Text>.
+                    The reset link will expire in <Text style={styles.instructionHighlight}>30 minutes</Text>.
                   </Text>
                 </View>
                 <View style={styles.instructionItem}>
@@ -288,7 +289,7 @@ export default function ForgotPasswordScreen({ onBack, initialEmail = '' }: Forg
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: '#f8f7f2',
+    backgroundColor: renewxColors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -314,58 +315,46 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   backButtonText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#0f172a',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
     marginLeft: 6,
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
   },
   brandBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
     borderRadius: radius.full,
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
   },
   brandBadgeText: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: -0.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.white,
+    letterSpacing: -0.4,
   },
   brandAccent: {
-    color: '#ffc400',
+    color: renewxColors.yellow,
   },
   innerCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 24,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: '#e6e2d8',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03)',
-      } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        elevation: 4,
-      },
-    }),
+    borderColor: renewxColors.border,
+    ...(renewxShadows.elevated as object),
   },
   iconCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff8d8',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1.5,
-    borderColor: '#ffc400',
+    borderColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -375,9 +364,9 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1.5,
-    borderColor: '#a7f3d0',
+    borderColor: renewxColors.mintBorder,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -385,17 +374,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#0f172a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     textAlign: 'center',
     marginBottom: 8,
     letterSpacing: -0.4,
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#64748b',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
     marginBottom: 26,
     paddingHorizontal: 8,
@@ -404,9 +393,9 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1e293b',
+    fontSize: 12,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -414,10 +403,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 14,
     height: 52,
   },
@@ -428,30 +417,22 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     fontSize: 15,
-    color: '#0f172a',
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   clearIconBtn: {
     padding: 4,
   },
   primaryButton: {
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 14,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 4px 12px rgba(255, 196, 0, 0.35)',
-      } as any,
-      default: {
-        shadowColor: '#ffc400',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
-        shadowRadius: 8,
-        elevation: 3,
-      },
-    }),
+    ...(renewxShadows.card as object),
   },
   disabledButton: {
     opacity: 0.65,
@@ -468,10 +449,9 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0a0a0a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     letterSpacing: 0.2,
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
   },
   footerNoteRow: {
     flexDirection: 'row',
@@ -481,34 +461,34 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   footerNoteText: {
-    fontSize: 11,
-    color: '#64748b',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
   },
   emailPill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   emailPillText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   instructionsBox: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     marginBottom: 24,
     gap: 12,
   },
@@ -520,8 +500,13 @@ const styles = StyleSheet.create({
   instructionText: {
     flex: 1,
     fontSize: 13,
-    lineHeight: 18,
-    color: '#334155',
+    lineHeight: 19,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+  },
+  instructionHighlight: {
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   resendSection: {
     alignItems: 'center',
@@ -529,17 +514,18 @@ const styles = StyleSheet.create({
   },
   resendPrompt: {
     fontSize: 13,
-    color: '#64748b',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginBottom: 4,
   },
   resendLink: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
     textDecorationLine: 'underline',
   },
   resendLinkDisabled: {
-    color: '#94a3b8',
+    color: '#94A3B8',
     textDecorationLine: 'none',
   },
 });

@@ -27,7 +27,7 @@ import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { mapProductRow } from '@/lib/productMapper';
 import HomeHeader from '@/components/HomeHeader';
-import { renewxFontFamily } from '@/design-system';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { ProductRowSkeleton, ShimmerText, ProductImage } from '@/components/ui';
 import { CATEGORY_THIRD_PARTY_IMAGES, getCategoryThirdPartyImage } from '@/data/categories';
 
@@ -74,8 +74,8 @@ const SHOP_BY_CATEGORIES = [
     id: 'Smartphones',
     label: 'Smartphones',
     image: CATEGORY_THIRD_PARTY_IMAGES.Smartphones,
-    bg: '#FEFCE8',
-    borderColor: '#FDE047',
+    bg: renewxColors.yellowSoft,
+    borderColor: renewxColors.yellowDark,
   },
   {
     id: 'Laptops',
@@ -507,7 +507,7 @@ export default function HomeScreen() {
             }}
           >
             {/* Slide 1: Shop Devices */}
-            <View style={[styles.heroSlideCard, { width: bannerCardWidth, backgroundColor: '#FEF9C3' }]}>
+            <View style={[styles.heroSlideCard, { width: bannerCardWidth, backgroundColor: renewxColors.yellowSoft }]}>
               {/* Twinkling Rotating Gold Sparkles */}
               <Animated.View
                 style={[
@@ -815,7 +815,7 @@ export default function HomeScreen() {
             activeOpacity={0.7}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <Ionicons name="arrow-forward" size={14} color="#0F172A" />
+            <Ionicons name="arrow-forward" size={14} color={renewxColors.emerald} />
           </TouchableOpacity>
         </View>
 
@@ -908,13 +908,13 @@ export default function HomeScreen() {
                   <View style={styles.priceRow}>
                     {isSoldOut ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#94A3B8' }}>Restocking</Text>
+                        <Text style={styles.soldOutStatusText}>Sold Out</Text>
+                        <Text style={styles.restockingStatusText}>Restocking</Text>
                       </View>
                     ) : item.is_best_price || item.isBestPrice || price === 0 ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
-                        <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>COD Only</Text>
+                        <Text style={styles.bestPriceStatusText}>Best Price</Text>
+                        <Text style={styles.codOnlyPill}>COD Only</Text>
                       </View>
                     ) : (
                       <>
@@ -970,7 +970,7 @@ export default function HomeScreen() {
             activeOpacity={0.7}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <Ionicons name="arrow-forward" size={14} color="#0F172A" />
+            <Ionicons name="arrow-forward" size={14} color={renewxColors.emerald} />
           </TouchableOpacity>
         </View>
 
@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 16,
-    backgroundColor: '#FEF9C3', // Soft warm yellow/cream
+    backgroundColor: renewxColors.yellowLight,
     borderRadius: 22,
     paddingTop: 18,
     paddingHorizontal: 18,
@@ -1057,9 +1057,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     ...Platform.select({
-      web: { boxShadow: '0 4px 20px rgba(250, 204, 21, 0.12)' },
+      web: { boxShadow: '0 4px 20px rgba(217, 166, 0, 0.14)' },
       default: {
-        shadowColor: '#FACC15',
+        shadowColor: renewxColors.yellowDark,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.12,
         shadowRadius: 10,
@@ -1079,26 +1079,26 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     lineHeight: 27,
+    letterSpacing: -0.4,
   },
   heroSubtitle: {
     fontSize: 12.5,
-    fontFamily: renewxFontFamily.regular,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     marginTop: 6,
-    lineHeight: 17,
+    lineHeight: 18,
   },
   heroPreOwnedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
     borderWidth: 1,
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 8,
-    paddingVertical: 2.5,
+    paddingVertical: 3,
     borderRadius: 8,
     alignSelf: 'flex-start',
     marginBottom: 6,
@@ -1106,8 +1106,8 @@ const styles = StyleSheet.create({
   },
   heroPreOwnedPillText: {
     fontSize: 9.5,
-    fontWeight: '800',
-    color: '#854D0E',
+    ...renewxTextStyle('extraBold'),
+    color: '#92400E',
     letterSpacing: 0.4,
   },
   heroSparkleOne: {
@@ -1126,17 +1126,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginTop: 14,
     ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(250, 204, 21, 0.35)' },
+      web: { boxShadow: '0 2px 8px rgba(217, 166, 0, 0.25)' },
       default: {
-        shadowColor: '#FACC15',
+        shadowColor: renewxColors.yellowDark,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.35,
+        shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 2,
       },
@@ -1144,9 +1146,8 @@ const styles = StyleSheet.create({
   },
   heroShopNowText: {
     fontSize: 13,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#000000',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   heroRightCol: {
     flex: 1.25,
@@ -1162,8 +1163,8 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: '#FDE047',
-    opacity: 0.55,
+    backgroundColor: renewxColors.yellowLight,
+    opacity: 0.65,
   },
   heroCollageImg: {
     width: '100%',
@@ -1188,7 +1189,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 5.5,
     borderRadius: 3,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
   },
   heroDotInactive: {
     width: 5.5,
@@ -1200,17 +1201,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginTop: 14,
     ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(5, 150, 105, 0.35)' },
+      web: { boxShadow: '0 2px 8px rgba(12, 122, 67, 0.30)' },
       default: {
-        shadowColor: '#059669',
+        shadowColor: renewxColors.emerald,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.35,
+        shadowOpacity: 0.30,
         shadowRadius: 4,
         elevation: 2,
       },
@@ -1218,32 +1219,27 @@ const styles = StyleSheet.create({
   },
   heroSellNowText: {
     fontSize: 13,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     color: '#FFFFFF',
   },
   heroSellFloatingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#D1FAE5',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
     position: 'absolute',
     bottom: 8,
     gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   heroSellBadgeText: {
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#065F46',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.mintDark,
   },
   heroWhatsAppBtn: {
     flexDirection: 'row',
@@ -1267,8 +1263,7 @@ const styles = StyleSheet.create({
   },
   heroWhatsAppBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     color: '#FFFFFF',
   },
   heroWhatsAppImg: {
@@ -1293,35 +1288,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#25D366',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#25D366',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 5,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)' },
+      default: {
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 5,
+      },
+    }),
     zIndex: 2,
   },
   heroCommunityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
     position: 'absolute',
     bottom: 8,
     gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   heroCommunityBadgeText: {
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#15803D',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
 
   /* QUICK CATEGORIES */
@@ -1336,14 +1332,14 @@ const styles = StyleSheet.create({
     width: 66,
     height: 84,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,
     ...Platform.select({
-      web: { boxShadow: '0 2px 6px rgba(0, 0, 0, 0.03)' },
+      web: { boxShadow: '0 2px 6px rgba(15, 23, 42, 0.03)' },
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
@@ -1354,8 +1350,8 @@ const styles = StyleSheet.create({
     }),
   },
   quickCategoryCardActive: {
-    backgroundColor: '#FFFDF0',
-    borderColor: '#FDE047',
+    backgroundColor: renewxColors.yellowSoft,
+    borderColor: renewxColors.yellowDark,
     borderWidth: 1.5,
   },
   quickCategoryImgBox: {
@@ -1373,14 +1369,13 @@ const styles = StyleSheet.create({
   },
   quickCategoryLabel: {
     fontSize: 10.5,
-    fontFamily: renewxFontFamily.semibold,
-    fontWeight: '600',
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
     marginTop: 4,
     textAlign: 'center',
   },
   quickCategoryLabelActive: {
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
 
   /* SECTION HEADER */
@@ -1394,20 +1389,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 19,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
+    letterSpacing: -0.3,
   },
   viewAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   viewAllText: {
     fontSize: 13,
-    fontWeight: '600',
-    fontFamily: renewxFontFamily.semibold,
-    color: '#475569',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
 
   /* FEATURED DEVICES PRODUCT CARDS */
@@ -1417,14 +1411,14 @@ const styles = StyleSheet.create({
   },
   productCard: {
     width: 174,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
     padding: 12,
     position: 'relative',
     ...Platform.select({
-      web: { boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)' },
+      web: { boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)' },
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -1454,14 +1448,14 @@ const styles = StyleSheet.create({
   },
   productTitle: {
     fontSize: 14,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
+    lineHeight: 19,
   },
   productSpecs: {
-    fontSize: 11,
-    fontFamily: renewxFontFamily.regular,
-    color: '#94A3B8',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginTop: 2,
   },
   priceRow: {
@@ -1471,31 +1465,56 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   priceText: {
-    fontSize: 15,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    fontSize: 15.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   origPriceText: {
     fontSize: 11.5,
-    fontFamily: renewxFontFamily.regular,
-    color: '#94A3B8',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     textDecorationLine: 'line-through',
+  },
+  soldOutStatusText: {
+    fontSize: 13,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.error,
+  },
+  restockingStatusText: {
+    fontSize: 10,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textMuted,
+  },
+  bestPriceStatusText: {
+    fontSize: 13,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.emerald,
+  },
+  codOnlyPill: {
+    fontSize: 9.5,
+    ...renewxTextStyle('bold'),
+    color: '#92400E',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
   },
   addToCartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 12,
     height: 36,
     marginTop: 10,
     ...Platform.select({
-      web: { boxShadow: '0 2px 6px rgba(250, 204, 21, 0.25)' },
+      web: { boxShadow: '0 2px 6px rgba(217, 166, 0, 0.22)' },
       default: {
-        shadowColor: '#FACC15',
+        shadowColor: renewxColors.yellowDark,
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.25,
+        shadowOpacity: 0.22,
         shadowRadius: 3,
         elevation: 1,
       },
@@ -1503,9 +1522,8 @@ const styles = StyleSheet.create({
   },
   addToCartText: {
     fontSize: 12.5,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#000000',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   addToCartBtnDisabled: {
     backgroundColor: '#F1F5F9',
@@ -1529,14 +1547,14 @@ const styles = StyleSheet.create({
   soldOutBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC2626',
+    backgroundColor: renewxColors.error,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
   },
   soldOutBadgeText: {
     color: '#FFFFFF',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
     fontSize: 9.5,
     letterSpacing: 0.5,
   },
@@ -1570,9 +1588,8 @@ const styles = StyleSheet.create({
   },
   shopByCatLabel: {
     fontSize: 10.5,
-    fontFamily: renewxFontFamily.semibold,
-    fontWeight: '600',
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
     marginTop: 4,
     textAlign: 'center',
   },

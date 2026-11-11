@@ -21,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { colors, spacing, radius, fontSize, fontWeight } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
 
@@ -385,8 +386,8 @@ export default function EditProfileScreen() {
                     onPress={handleRemovePhoto}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="trash-outline" size={13} color="#EF4444" />
-                    <Text style={[styles.photoBtnText, { color: '#EF4444' }]}>Remove</Text>
+                    <Ionicons name="trash-outline" size={13} color={renewxColors.error} />
+                    <Text style={[styles.photoBtnText, styles.photoBtnRemoveText]}>Remove</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -724,7 +725,7 @@ export default function EditProfileScreen() {
                       <Text style={styles.stepBadgeText}>STEP 2 OF 2</Text>
                     </View>
                     <Text style={styles.sentToText} numberOfLines={1}>
-                      Code sent to: <Text style={{ fontWeight: '700' }}>{codeSentTo}</Text>
+                      Code sent to: <Text style={styles.sentToTextBold}>{codeSentTo}</Text>
                     </Text>
                   </View>
 
@@ -813,7 +814,7 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
   },
   scrollContent: {
     padding: spacing.md,
@@ -823,7 +824,7 @@ const styles = StyleSheet.create({
   headerSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: radius.full,
@@ -831,8 +832,8 @@ const styles = StyleSheet.create({
   },
   headerSaveBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   btnDisabled: {
     opacity: 0.65,
@@ -840,17 +841,13 @@ const styles = StyleSheet.create({
 
   // Hero Card
   heroCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.xxl,
     padding: spacing.lg,
     marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   avatarSection: {
     flexDirection: 'row',
@@ -862,12 +859,12 @@ const styles = StyleSheet.create({
     height: 84,
     borderRadius: 42,
     borderWidth: 3,
-    borderColor: '#10B981',
+    borderColor: renewxColors.emerald,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
     position: 'relative',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
   },
   avatarImage: {
     width: 76,
@@ -878,14 +875,14 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarFallbackLetter: {
     fontSize: 30,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   cameraIconBadge: {
     position: 'absolute',
@@ -894,9 +891,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: renewxColors.white,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -905,13 +902,14 @@ const styles = StyleSheet.create({
   },
   heroName: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 2,
   },
   heroEmail: {
     fontSize: fontSize.xs,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginBottom: 8,
   },
   photoActionsRow: {
@@ -923,7 +921,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 5,
     paddingHorizontal: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderRadius: radius.full,
     gap: 4,
   },
@@ -932,17 +930,20 @@ const styles = StyleSheet.create({
   },
   photoBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
+  },
+  photoBtnRemoveText: {
+    color: renewxColors.error,
   },
 
   // Progress Bar
   progressContainer: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderRadius: radius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   progressHeaderRow: {
     flexDirection: 'row',
@@ -952,34 +953,35 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#334155',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   progressPercent: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#059669',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   progressBarTrack: {
     height: 6,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 6,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 3,
   },
   progressBarFillHigh: {
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
   },
   progressTip: {
     fontSize: fontSize.xs,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     lineHeight: 16,
   },
 
@@ -995,7 +997,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
@@ -1003,8 +1005,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     flex: 1,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: '#334155',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -1015,23 +1017,19 @@ const styles = StyleSheet.create({
   },
   sectionLinkBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#059669',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
 
   // Card Containers
   cardContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.xl,
     padding: spacing.md,
     marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   fieldGroup: {
     marginVertical: 4,
@@ -1044,23 +1042,24 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: '#475569',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
     marginBottom: 6,
   },
   asterisk: {
-    color: '#EF4444',
+    color: renewxColors.error,
   },
   charCount: {
-    fontSize: 10,
+    fontSize: 10.5,
+    ...renewxTextStyle('medium'),
     color: '#94A3B8',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: radius.md,
     paddingHorizontal: 12,
     height: 44,
@@ -1069,8 +1068,10 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: fontSize.sm,
-    color: '#0F172A',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.black,
     paddingVertical: 0,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
   bioInputContainer: {
     height: 'auto',
@@ -1087,7 +1088,7 @@ const styles = StyleSheet.create({
   },
   fieldDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     marginVertical: spacing.sm,
   },
 
@@ -1095,7 +1096,7 @@ const styles = StyleSheet.create({
   roleBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderRadius: radius.md,
     padding: spacing.sm,
     gap: 10,
@@ -1110,12 +1111,13 @@ const styles = StyleSheet.create({
   },
   roleTitle: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   roleSub: {
-    fontSize: 10,
-    color: '#64748B',
+    fontSize: 10.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     lineHeight: 14,
     marginTop: 1,
   },
@@ -1124,7 +1126,9 @@ const styles = StyleSheet.create({
   addressTipRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mintLight,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     borderRadius: radius.md,
     padding: spacing.sm,
     gap: 8,
@@ -1132,7 +1136,8 @@ const styles = StyleSheet.create({
   addressTipText: {
     flex: 1,
     fontSize: fontSize.xs,
-    color: '#065F46',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.mintDark,
     lineHeight: 16,
   },
 
@@ -1140,7 +1145,7 @@ const styles = StyleSheet.create({
   activeEmailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderRadius: radius.md,
     padding: spacing.md,
     gap: 10,
@@ -1150,37 +1155,37 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mint,
     justifyContent: 'center',
     alignItems: 'center',
   },
   activeEmailLabel: {
-    fontSize: 10,
-    color: '#64748B',
+    fontSize: 10.5,
+    color: renewxColors.textMuted,
     textTransform: 'uppercase',
-    fontWeight: fontWeight.semibold,
+    ...renewxTextStyle('semibold'),
   },
   activeEmailValue: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginTop: 1,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mint,
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: renewxColors.mintBorder,
     gap: 4,
   },
   verifiedBadgeText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    color: '#059669',
+    fontSize: 9.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
     letterSpacing: 0.5,
   },
 
@@ -1189,22 +1194,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderRadius: radius.md,
     gap: 6,
   },
   changeEmailToggleText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 
   changeEmailContainer: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderRadius: radius.md,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   securityAlert: {
     flexDirection: 'row',
@@ -1217,7 +1222,8 @@ const styles = StyleSheet.create({
   },
   securityAlertText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
     color: '#0369A1',
     lineHeight: 15,
   },
@@ -1231,27 +1237,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     paddingVertical: 10,
     borderRadius: radius.md,
   },
   sendCodeBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   cancelEmailBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingVertical: 10,
     borderRadius: radius.md,
   },
   cancelEmailBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: '#475569',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   stepHeaderRow: {
     flexDirection: 'row',
@@ -1260,58 +1266,64 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   stepBadge: {
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: radius.sm,
   },
   stepBadgeText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    fontSize: 9.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   sentToText: {
     fontSize: fontSize.xs,
-    color: '#475569',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+  },
+  sentToTextBold: {
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   otpInput: {
     height: 48,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1.5,
-    borderColor: '#059669',
+    borderColor: renewxColors.emerald,
     borderRadius: radius.md,
     textAlign: 'center',
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    ...renewxTextStyle('bold'),
     letterSpacing: 8,
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
   verifyBtn: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     paddingVertical: 10,
     borderRadius: radius.md,
   },
   verifyBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   resendBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingVertical: 10,
     borderRadius: radius.md,
   },
   resendBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: '#475569',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
 
   // Security Nav Row
@@ -1325,18 +1337,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   securityNavTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   securityNavSub: {
-    fontSize: 11,
-    color: '#64748B',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 1,
   },
 
@@ -1345,20 +1358,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     paddingVertical: 14,
     borderRadius: radius.xl,
     marginTop: spacing.sm,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    ...(renewxShadows.elevated as object),
   },
   bigSaveBtnText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
     letterSpacing: 0.3,
   },
 });

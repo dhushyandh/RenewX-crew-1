@@ -22,6 +22,7 @@ import { useNotifications } from '@/context/NotificationContext';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import RenewXLogo from '@/components/RenewXLogo';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,10 +45,10 @@ const CATEGORIES: CategoryCardItem[] = [
     deviceCount: '250+ devices',
     image: { uri: 'https://pngimg.com/uploads/iphone_14/iphone_14_PNG21.png' },
     isLocal: false,
-    arrowBg: '#FEF08A',
-    arrowColor: '#0F172A',
+    arrowBg: renewxColors.yellowLight,
+    arrowColor: renewxColors.black,
     accentBorder: true,
-    bgTint: '#FFFEF5',
+    bgTint: renewxColors.yellowSoft,
   },
   {
     id: 'Laptops',
@@ -56,7 +57,7 @@ const CATEGORIES: CategoryCardItem[] = [
     image: { uri: 'https://pngimg.com/uploads/macbook/macbook_PNG65.png' },
     isLocal: false,
     arrowBg: '#E0F2FE',
-    arrowColor: '#0284C7',
+    arrowColor: '#0369A1',
   },
   {
     id: 'Tablets',
@@ -65,7 +66,7 @@ const CATEGORIES: CategoryCardItem[] = [
     image: { uri: 'https://pngimg.com/uploads/tablet/tablet_PNG8578.png' },
     isLocal: false,
     arrowBg: '#E0F2FE',
-    arrowColor: '#0284C7',
+    arrowColor: '#0369A1',
   },
   {
     id: 'Smartwatches',
@@ -74,7 +75,7 @@ const CATEGORIES: CategoryCardItem[] = [
     image: { uri: 'https://pngimg.com/uploads/apple_watch/apple_watch_PNG18.png' },
     isLocal: false,
     arrowBg: '#FFE4E6',
-    arrowColor: '#E11D48',
+    arrowColor: '#BE123C',
   },
   {
     id: 'Earbuds',
@@ -82,8 +83,8 @@ const CATEGORIES: CategoryCardItem[] = [
     deviceCount: '100+ devices',
     image: { uri: 'https://pngimg.com/uploads/airPods/airPods_PNG11.png' },
     isLocal: false,
-    arrowBg: '#DCFCE7',
-    arrowColor: '#16A34A',
+    arrowBg: renewxColors.mint,
+    arrowColor: renewxColors.emerald,
   },
   {
     id: 'Accessories',
@@ -92,7 +93,7 @@ const CATEGORIES: CategoryCardItem[] = [
     image: { uri: 'https://pngimg.com/uploads/usb_cable/usb_cable_PNG64.png' },
     isLocal: false,
     arrowBg: '#EDE9FE',
-    arrowColor: '#7C3AED',
+    arrowColor: '#6D28D9',
   },
   {
     id: 'Gaming',
@@ -101,7 +102,7 @@ const CATEGORIES: CategoryCardItem[] = [
     image: { uri: 'https://pngimg.com/uploads/gamepad/small/gamepad_PNG79.png' },
     isLocal: false,
     arrowBg: '#FFE4E6',
-    arrowColor: '#E11D48',
+    arrowColor: '#BE123C',
   },
   {
     id: 'Cameras',
@@ -110,7 +111,7 @@ const CATEGORIES: CategoryCardItem[] = [
     image: { uri: 'https://pngimg.com/uploads/photo_camera/photo_camera_PNG101644.png' },
     isLocal: false,
     arrowBg: '#FEF3C7',
-    arrowColor: '#D97706',
+    arrowColor: '#B45309',
   },
 ];
 
@@ -228,20 +229,22 @@ export default function CategoriesScreen() {
               onPress={() => toast.info('Certified Pre-Owned Platform', 'RenewX Verified')}
               accessibilityLabel="RenewX Verified Shield"
             >
-              <Ionicons name="shield-checkmark" size={17} color="#16A34A" />
+              <Ionicons name="shield-checkmark" size={17} color={renewxColors.emerald} />
             </TouchableOpacity>
 
-            {/* Notification Bell with Badge 24 */}
+            {/* Notification Bell with Unread Badge */}
             <TouchableOpacity
               style={styles.circleIconBtn}
               activeOpacity={0.8}
               onPress={() => navigation.navigate('Notifications')}
               accessibilityLabel="Notifications"
             >
-              <Ionicons name="notifications-outline" size={19} color="#0F172A" />
-              <View style={styles.redBadge}>
-                <Text style={styles.redBadgeText}>24</Text>
-              </View>
+              <Ionicons name="notifications-outline" size={19} color={renewxColors.black} />
+              {unreadCount > 0 && (
+                <View style={styles.redBadge}>
+                  <Text style={styles.redBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             {/* Wishlist Heart */}
@@ -251,7 +254,7 @@ export default function CategoriesScreen() {
               onPress={() => navigation.navigate('Wishlist')}
               accessibilityLabel="Wishlist"
             >
-              <Ionicons name="heart-outline" size={19} color="#0F172A" />
+              <Ionicons name="heart-outline" size={19} color={renewxColors.black} />
               {totalWishlistItems > 0 && (
                 <View style={styles.yellowCountBadge}>
                   <Text style={styles.yellowCountBadgeText}>{totalWishlistItems}</Text>
@@ -266,7 +269,7 @@ export default function CategoriesScreen() {
               onPress={() => navigation.navigate('MainTabs', { screen: 'Account' })}
               accessibilityLabel="Profile"
             >
-              <Ionicons name="person-outline" size={18} color="#0F172A" />
+              <Ionicons name="person-outline" size={18} color={renewxColors.black} />
             </TouchableOpacity>
           </View>
         </View>
@@ -279,11 +282,11 @@ export default function CategoriesScreen() {
             activeOpacity={0.8}
             accessibilityLabel="Change delivery location"
           >
-            <Ionicons name="location-sharp" size={15} color="#16A34A" style={{ marginRight: 5 }} />
+            <Ionicons name="location-sharp" size={15} color={renewxColors.emerald} style={{ marginRight: 5 }} />
             <Text style={styles.locationText} numberOfLines={1}>
               {displayLocation}
             </Text>
-            <Ionicons name="chevron-down" size={13} color="#0F172A" style={{ marginLeft: 3 }} />
+            <Ionicons name="chevron-down" size={13} color={renewxColors.black} style={{ marginLeft: 3 }} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -460,7 +463,14 @@ export default function CategoriesScreen() {
                   pincodeInput.trim().length === 6 && styles.applyPincodeBtnActive,
                 ]}
               >
-                <Text style={styles.applyPincodeBtnText}>Apply</Text>
+                <Text
+                  style={[
+                    styles.applyPincodeBtnText,
+                    pincodeInput.trim().length === 6 && styles.applyPincodeBtnTextActive,
+                  ]}
+                >
+                  Apply
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -497,31 +507,6 @@ export default function CategoriesScreen() {
               </View>
             )}
 
-            {/* Popular Cities Quick Select */}
-            <View style={styles.popularCitiesSection}>
-              <Text style={styles.savedAddressQuickTitle}>POPULAR SERVICE HUBS</Text>
-              <View style={styles.popularCitiesGrid}>
-                {[
-                  { name: 'Vellore', pin: '632014' },
-                  { name: 'Chennai', pin: '600001' },
-                  { name: 'Bengaluru', pin: '560001' },
-                  { name: 'Coimbatore', pin: '641001' },
-                  { name: 'Hyderabad', pin: '500001' },
-                  { name: 'Mumbai', pin: '400001' },
-                ].map((item) => (
-                  <TouchableOpacity
-                    key={item.name}
-                    style={styles.cityChip}
-                    onPress={() => handleQuickSelectCity(item.name, item.pin)}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons name="location-outline" size={13} color="#059669" style={{ marginRight: 4 }} />
-                    <Text style={styles.cityChipText}>{item.name}</Text>
-                    <Text style={styles.cityChipPin}>{item.pin}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -532,14 +517,14 @@ export default function CategoriesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: renewxColors.background,
   },
   headerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     paddingHorizontal: 14,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E2E8F0',
     maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
@@ -559,7 +544,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -567,7 +554,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -576,7 +565,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -3,
     right: -3,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -589,26 +578,26 @@ const styles = StyleSheet.create({
   redBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
   yellowCountBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 9,
-    minWidth: 16,
-    height: 16,
+    minWidth: 17,
+    height: 17,
     paddingHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#FACC15',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   yellowCountBadgeText: {
-    color: '#0F172A',
-    fontSize: 9,
-    fontWeight: '800',
+    color: renewxColors.black,
+    fontSize: 9.5,
+    ...renewxTextStyle('extraBold'),
   },
   locationRow: {
     flexDirection: 'row',
@@ -622,9 +611,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
     borderRadius: 20,
     paddingHorizontal: 11,
     paddingVertical: 7,
@@ -633,13 +622,15 @@ const styles = StyleSheet.create({
   locationText: {
     flex: 1,
     fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   useLocationBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -648,15 +639,15 @@ const styles = StyleSheet.create({
   },
   useLocationText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
     borderRadius: 25,
     paddingHorizontal: 14,
     height: 46,
@@ -664,7 +655,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 13.5,
-    color: '#0F172A',
+    ...renewxTextStyle('medium'),
+    color: renewxColors.black,
     paddingVertical: 0,
     outlineStyle: 'none' as any,
   },
@@ -676,18 +668,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: 0,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
     borderRadius: 8,
-    minWidth: 15,
-    height: 15,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
   },
   cartIconBadgeText: {
     color: '#FFFFFF',
     fontSize: 9,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
   scrollContent: {
     paddingHorizontal: 14,
@@ -701,15 +695,16 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 26,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     letterSpacing: -0.5,
   },
   subtitleText: {
     fontSize: 14,
-    fontWeight: '400',
-    color: '#64748B',
-    marginTop: 3,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+    marginTop: 4,
+    lineHeight: 20,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -719,24 +714,20 @@ const styles = StyleSheet.create({
   categoryCard: {
     width: '48.5%',
     height: 142,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    padding: 12,
+    borderColor: '#E2E8F0',
+    padding: 13,
     marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
+    ...(renewxShadows.card as object),
   },
   cardAccentBorder: {
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowDark,
     borderWidth: 1.5,
   },
   cardLeftCol: {
@@ -746,14 +737,15 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     lineHeight: 20,
+    letterSpacing: -0.2,
   },
   cardCount: {
     fontSize: 12,
-    fontWeight: '400',
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     marginTop: 3,
   },
   arrowCircle: {
@@ -779,7 +771,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -788,14 +780,10 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 440,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: renewxColors.surface,
+    borderRadius: 22,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+    ...(renewxShadows.floating as object),
   },
   modalHeader: {
     flexDirection: 'row',
@@ -805,14 +793,15 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   modalSubtitle: {
     fontSize: 12.5,
-    color: '#64748B',
-    marginTop: 2,
-    lineHeight: 17,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+    marginTop: 3,
+    lineHeight: 18,
   },
   modalCloseBtn: {
     width: 32,
@@ -826,9 +815,9 @@ const styles = StyleSheet.create({
   detectLocationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1.5,
-    borderColor: '#A7F3D0',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 14,
     padding: 12,
     marginBottom: 14,
@@ -837,27 +826,30 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   detectTitle: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#065F46',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.mintDark,
   },
   detectSub: {
     fontSize: 11.5,
-    color: '#047857',
-    marginTop: 1,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.emerald,
+    marginTop: 2,
   },
   pincodeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 48,
@@ -866,8 +858,8 @@ const styles = StyleSheet.create({
   pincodeInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '600',
+    color: renewxColors.black,
+    ...renewxTextStyle('semibold'),
   },
   applyPincodeBtn: {
     backgroundColor: '#E2E8F0',
@@ -876,27 +868,32 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   applyPincodeBtnActive: {
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
   },
   applyPincodeBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
+  },
+  applyPincodeBtnTextActive: {
+    color: renewxColors.black,
   },
   savedAddressQuickSection: {
     marginBottom: 14,
   },
   savedAddressQuickTitle: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#94A3B8',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.textMuted,
     letterSpacing: 0.8,
     marginBottom: 8,
   },
   savedAddressCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
@@ -913,13 +910,14 @@ const styles = StyleSheet.create({
   },
   savedAddressText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   savedAddressPin: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
+    fontSize: 11.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
+    marginTop: 2,
   },
   popularCitiesSection: {
     marginTop: 2,
@@ -941,13 +939,13 @@ const styles = StyleSheet.create({
   },
   cityChipText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginRight: 4,
   },
   cityChipPin: {
     fontSize: 10.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
 });

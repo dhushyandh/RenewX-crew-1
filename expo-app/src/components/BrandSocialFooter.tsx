@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 interface BrandSocialFooterProps {
   showLegalLinks?: boolean;
@@ -78,7 +79,7 @@ export default function BrandSocialFooter({
 
   const shimmerColor = shimmerValue.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: ['#475569', '#059669', '#475569'],
+    outputRange: [renewxColors.textSecondary, renewxColors.emerald, renewxColors.textSecondary],
   });
 
   const shimmerOpacity = shimmerValue.interpolate({
@@ -129,7 +130,7 @@ export default function BrandSocialFooter({
           activeOpacity={0.75}
         >
           <Text style={styles.logoutText}>Log Out</Text>
-          <Ionicons name="exit-outline" size={18} color="#059669" style={{ marginLeft: 6 }} />
+          <Ionicons name="exit-outline" size={18} color={renewxColors.emerald} style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       )}
 
@@ -240,8 +241,8 @@ const styles = StyleSheet.create({
   },
   legalText: {
     fontSize: 15,
-    fontWeight: '500',
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textMuted,
   },
 
   /* Log Out Link */
@@ -254,8 +255,8 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#059669',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
 
   /* Social Icons */
@@ -272,11 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   whatsappCircle: {
     backgroundColor: '#25D366',
@@ -285,7 +282,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E1306C',
   },
   xCircle: {
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
   },
   xText: {
     color: '#FFFFFF',
@@ -303,18 +300,14 @@ const styles = StyleSheet.create({
   poweredByRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 24,
     gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    ...(renewxShadows.card as object),
   },
   poweredByLogo: {
     width: 28,
@@ -329,13 +322,13 @@ const styles = StyleSheet.create({
   },
   poweredByTitle: {
     fontSize: 11,
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   brandName: {
     fontSize: 14,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
     letterSpacing: 0.3,
   },
   shineTrack: {
@@ -358,7 +351,7 @@ const styles = StyleSheet.create({
   /* Version */
   versionText: {
     fontSize: 13,
-    fontWeight: '500',
+    ...renewxTextStyle('medium'),
     color: '#94A3B8',
     letterSpacing: 0.3,
   },

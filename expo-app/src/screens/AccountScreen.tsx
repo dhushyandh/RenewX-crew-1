@@ -25,9 +25,9 @@ import BrandSocialFooter from '@/components/BrandSocialFooter';
 import { Ionicons } from '@expo/vector-icons';
 import {
   renewxColors,
-  renewxFontFamily,
   renewxRadius,
   renewxSpacing,
+  renewxTextStyle,
 } from '@/design-system';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -162,8 +162,8 @@ export default function AccountScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#FFC400"
-            colors={['#FFC400', '#10B981']}
+            tintColor={renewxColors.yellow}
+            colors={[renewxColors.yellow, renewxColors.emerald]}
             progressBackgroundColor="#FFFFFF"
           />
         }
@@ -289,7 +289,7 @@ export default function AccountScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.viewAllText}>View All</Text>
-              <Ionicons name="arrow-forward" size={13} color="#0F172A" />
+              <Ionicons name="arrow-forward" size={13} color={renewxColors.emerald} />
             </TouchableOpacity>
           </View>
 
@@ -477,8 +477,8 @@ export default function AccountScreen() {
             <View style={styles.menuItemTextCol}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={styles.menuItemTitle}>Join Our Community</Text>
-                <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 6 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#15803D' }}>WhatsApp</Text>
+                <View style={styles.whatsappBadge}>
+                  <Text style={styles.whatsappBadgeText}>WhatsApp</Text>
                 </View>
               </View>
               <Text style={styles.menuItemSub}>Exclusive deals, device updates & offers</Text>
@@ -611,13 +611,13 @@ const styles = StyleSheet.create({
 
   /* 2. PROFILE HERO CARD */
   profileCard: {
-    backgroundColor: '#E8FBE8',
+    backgroundColor: renewxColors.mintLight,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: renewxColors.mintBorder,
     padding: 14,
     ...Platform.select({
-      web: { boxShadow: '0 4px 16px rgba(16, 185, 129, 0.08)' },
+      web: { boxShadow: '0 4px 16px rgba(12, 122, 67, 0.08)' },
       default: { elevation: 2 },
     }),
   },
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     borderWidth: 2,
     borderColor: '#FFFFFF',
     alignItems: 'center',
@@ -645,10 +645,9 @@ const styles = StyleSheet.create({
     borderRadius: 32,
   },
   avatarInitialsText: {
-    fontFamily: renewxFontFamily.extraBold,
+    ...renewxTextStyle('black'),
     fontSize: 22,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   cameraBadge: {
     position: 'absolute',
@@ -657,7 +656,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
     alignItems: 'center',
@@ -668,39 +667,39 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   userNameText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   userEmailText: {
+    ...renewxTextStyle('regular'),
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
     fontSize: 11,
-    color: '#475569',
+    color: renewxColors.textSecondary,
   },
   userPhoneText: {
+    ...renewxTextStyle('regular'),
     marginTop: 1,
-    fontFamily: renewxFontFamily.regular,
     fontSize: 11,
-    color: '#475569',
+    color: renewxColors.textSecondary,
   },
   verifiedBadge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
     marginTop: 5,
   },
   verifiedText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 9.5,
-    color: '#059669',
-    fontWeight: '700',
+    color: renewxColors.emerald,
   },
   editProfileBtn: {
     flexDirection: 'row',
@@ -715,10 +714,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   editProfileBtnText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   profileBioContainer: {
     flexDirection: 'row',
@@ -727,14 +725,14 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 9,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(16, 185, 129, 0.18)',
+    borderTopColor: 'rgba(12, 122, 67, 0.16)',
     paddingHorizontal: 2,
   },
   profileBioText: {
+    ...renewxTextStyle('regular'),
     flex: 1,
-    fontFamily: renewxFontFamily.regular,
     fontSize: 11.5,
-    color: '#065F46',
+    color: renewxColors.mintDark,
     fontStyle: 'italic',
     lineHeight: 16,
   },
@@ -745,7 +743,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D1FAE5',
+    borderColor: renewxColors.mintBorder,
     paddingVertical: 7,
     paddingHorizontal: 10,
     marginTop: 10,
@@ -758,16 +756,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   profileAddressText: {
+    ...renewxTextStyle('medium'),
     flex: 1,
-    fontFamily: renewxFontFamily.medium,
     fontSize: 11,
     color: '#334155',
   },
   profileAddressActionText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
+    color: renewxColors.emerald,
   },
 
   /* 3. ADMIN BANNER */
@@ -775,7 +772,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#1E293B',
@@ -795,7 +792,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -808,43 +805,41 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   adminTitle: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 14,
-    fontWeight: '800',
     color: '#FFFFFF',
   },
   adminStatusTag: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 6,
   },
   adminStatusTagText: {
+    ...renewxTextStyle('black'),
     fontSize: 9,
-    fontWeight: '900',
-    color: '#000000',
+    color: renewxColors.black,
     letterSpacing: 0.5,
   },
   adminSubtitle: {
+    ...renewxTextStyle('regular'),
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
     fontSize: 10.5,
-    color: '#94A3B8',
+    color: '#CBD5E1',
   },
   adminManageBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 12,
   },
   adminManageText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   /* 4. ORDERS SECTION */
@@ -858,10 +853,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionMainTitle: {
-    fontFamily: renewxFontFamily.extraBold,
+    ...renewxTextStyle('black'),
     fontSize: 16,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   viewAllRow: {
     flexDirection: 'row',
@@ -869,10 +863,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   viewAllText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.emerald,
   },
   statsRow: {
     flexDirection: 'row',
@@ -900,25 +893,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statCountText: {
-    fontFamily: renewxFontFamily.extraBold,
+    ...renewxTextStyle('black'),
     fontSize: 15,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   statLabelText: {
-    fontFamily: renewxFontFamily.medium,
-    fontSize: 9,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    fontSize: 9.5,
+    color: renewxColors.textMuted,
     textAlign: 'center',
   },
   sellTrackingCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: renewxColors.mintLight,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: renewxColors.mintBorder,
     padding: 12,
     marginTop: 10,
   },
@@ -926,32 +918,30 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sellTrackingTitle: {
-    fontFamily: renewxFontFamily.extraBold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 13,
-    fontWeight: '800',
-    color: '#065F46',
+    color: renewxColors.mintDark,
   },
   sellCountBadge: {
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 8,
   },
   sellCountBadgeText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 9,
-    fontWeight: '800',
     color: '#FFFFFF',
   },
   sellTrackingSubtitle: {
-    fontFamily: renewxFontFamily.medium,
-    fontSize: 10,
-    color: '#047857',
+    ...renewxTextStyle('medium'),
+    fontSize: 10.5,
+    color: renewxColors.emerald,
     marginTop: 2,
   },
 
@@ -984,15 +974,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   tileTitle: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   tileSub: {
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 9.5,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 10,
+    color: renewxColors.textMuted,
   },
 
   /* 6. ACCOUNT MENU LIST */
@@ -1023,15 +1012,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuItemTitle: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   menuItemSub: {
+    ...renewxTextStyle('regular'),
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 9.5,
-    color: '#64748B',
+    fontSize: 10,
+    color: renewxColors.textMuted,
+  },
+  whatsappBadge: {
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  whatsappBadgeText: {
+    ...renewxTextStyle('bold'),
+    fontSize: 10,
+    color: renewxColors.emerald,
   },
 });

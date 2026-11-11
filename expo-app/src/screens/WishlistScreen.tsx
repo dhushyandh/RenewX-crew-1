@@ -23,6 +23,7 @@ import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import RenewXLogo from '@/components/RenewXLogo';
 import ShimmerText from '@/components/ShimmerText';
 import HomeHeader from '@/components/HomeHeader';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -255,9 +256,9 @@ export default function WishlistScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#FFC400"
-            colors={['#FFC400', '#10B981']}
-            progressBackgroundColor="#FFFFFF"
+            tintColor={renewxColors.yellow}
+            colors={[renewxColors.yellow, renewxColors.emerald]}
+            progressBackgroundColor={renewxColors.surface}
           />
         }
         ListHeaderComponent={
@@ -270,19 +271,19 @@ export default function WishlistScreen() {
               </View>
 
               <View style={styles.countPill}>
-                <Ionicons name="heart" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                <Ionicons name="heart" size={14} color={renewxColors.error} style={{ marginRight: 4 }} />
                 <Text style={styles.countPillText}>{totalWishlistItems} Items</Text>
               </View>
             </View>
 
-            {/* Gradient Info Banner */}
+            {/* Brand Info Banner */}
             <View style={styles.bannerCard}>
               <View style={styles.bannerLeftIconBox}>
-                <Ionicons name="heart" size={18} color="#0284C7" />
+                <Ionicons name="heart" size={18} color="#9A6700" />
               </View>
 
               <View style={styles.bannerTextCol}>
-                <ShimmerText variant="blue" style={styles.bannerTitle}>
+                <ShimmerText variant="gold" style={styles.bannerTitle}>
                   Save your favourite devices
                 </ShimmerText>
                 <Text style={styles.bannerSubtitle}>
@@ -292,8 +293,8 @@ export default function WishlistScreen() {
 
               <View style={styles.bannerGraphic}>
                 <View style={styles.graphicHeartPill}>
-                  <Ionicons name="sparkles" size={14} color="#A855F7" />
-                  <Ionicons name="phone-portrait-outline" size={16} color="#7C3AED" style={{ marginLeft: 2 }} />
+                  <Ionicons name="sparkles" size={14} color={renewxColors.yellowDark} />
+                  <Ionicons name="phone-portrait-outline" size={16} color={renewxColors.emerald} style={{ marginLeft: 2 }} />
                 </View>
               </View>
             </View>
@@ -361,7 +362,7 @@ export default function WishlistScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.modalOption, { borderBottomWidth: 0 }]}
+              style={[styles.modalOption, styles.modalOptionLast]}
               onPress={() => {
                 if (selectedProductForMenu) {
                   handleRemove(selectedProductForMenu.id, selectedProductForMenu.name);
@@ -369,8 +370,8 @@ export default function WishlistScreen() {
                 setSelectedProductForMenu(null);
               }}
             >
-              <Ionicons name="trash-outline" size={18} color="#EF4444" />
-              <Text style={[styles.modalOptionText, { color: '#EF4444' }]}>Remove from Wishlist</Text>
+              <Ionicons name="trash-outline" size={18} color={renewxColors.error} />
+              <Text style={[styles.modalOptionText, styles.modalOptionRemoveText]}>Remove from Wishlist</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -382,7 +383,7 @@ export default function WishlistScreen() {
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.background,
   },
 
   /* Top Bar */
@@ -393,8 +394,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
   },
   backButton: {
     width: 36,
@@ -420,18 +421,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 2,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 10,
     minWidth: 18,
     height: 18,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
   },
   cartBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   profileBtn: {
     width: 36,
@@ -455,14 +458,14 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 28,
-    fontWeight: '900',
-    color: '#0F172A',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     letterSpacing: -0.5,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
     marginTop: 2,
   },
   countPill: {
@@ -475,7 +478,7 @@ const styles = StyleSheet.create({
   },
   countPillText: {
     fontSize: 13,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
     color: '#E11D48',
   },
 
@@ -483,9 +486,9 @@ const styles = StyleSheet.create({
   bannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F9FF',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#E0F2FE',
+    borderColor: renewxColors.yellowLight,
     borderRadius: 16,
     padding: 12,
     marginBottom: 16,
@@ -495,7 +498,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#BAE6FD',
+    backgroundColor: renewxColors.yellowLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -503,14 +506,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bannerTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 14,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   bannerSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    fontSize: 11.5,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
     marginTop: 2,
   },
   bannerGraphic: {
@@ -520,10 +523,12 @@ const styles = StyleSheet.create({
   graphicHeartPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3E8FF',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     borderRadius: 12,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
 
   /* List & Cards */
@@ -532,17 +537,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: renewxColors.surface,
+    borderRadius: 18,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 2,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   cardMainRow: {
     flexDirection: 'row',
@@ -552,18 +553,18 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#F8FAFC',
+    borderColor: renewxColors.border,
   },
   discountBadge: {
     position: 'absolute',
     top: 0,
     left: 0,
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
     borderTopLeftRadius: 10,
     borderBottomRightRadius: 8,
     paddingHorizontal: 6,
@@ -572,8 +573,8 @@ const styles = StyleSheet.create({
   },
   discountBadgeText: {
     fontSize: 9.5,
-    fontWeight: '900',
-    color: '#854D0E',
+    ...renewxTextStyle('black'),
+    color: '#8A6500',
   },
   productImg: {
     width: '85%',
@@ -589,9 +590,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   productTitle: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 15,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   actionIconsRow: {
     flexDirection: 'row',
@@ -606,8 +607,8 @@ const styles = StyleSheet.create({
   },
   specsLineText: {
     fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
     marginTop: 2,
   },
   ratingStockRow: {
@@ -623,24 +624,26 @@ const styles = StyleSheet.create({
   },
   ratingScore: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   reviewsCount: {
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
   },
   inStockBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
   inStockText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#16A34A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   priceActionRow: {
     flexDirection: 'row',
@@ -654,28 +657,30 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   currentPrice: {
-    fontSize: 16.5,
-    fontWeight: '900',
-    color: '#0F172A',
+    fontSize: 17,
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
   },
   originalPrice: {
     fontSize: 12,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
-    fontWeight: '500',
+    ...renewxTextStyle('medium'),
   },
   addToCartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,
   },
   addToCartBtnText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   cardFooterRow: {
     flexDirection: 'row',
@@ -684,7 +689,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
+    borderTopColor: renewxColors.surfaceMuted,
   },
   footerBadgeItem: {
     flexDirection: 'row',
@@ -693,8 +698,8 @@ const styles = StyleSheet.create({
   },
   footerBadgeText: {
     fontSize: 10.5,
-    color: '#475569',
-    fontWeight: '500',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
 
   /* Empty State */
@@ -708,24 +713,27 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 19,
     maxWidth: 280,
   },
   exploreBtn: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 12,
@@ -733,14 +741,14 @@ const styles = StyleSheet.create({
   },
   exploreBtnText: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 
   /* Modal */
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -748,18 +756,19 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     padding: 16,
+    ...(renewxShadows.elevated as object),
   },
   modalTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 15.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   modalOption: {
     flexDirection: 'row',
@@ -767,11 +776,17 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: renewxColors.surfaceMuted,
+  },
+  modalOptionLast: {
+    borderBottomWidth: 0,
   },
   modalOptionText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
+  },
+  modalOptionRemoveText: {
+    color: renewxColors.error,
   },
 });

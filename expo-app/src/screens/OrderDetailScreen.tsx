@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api, getApiBaseUrl } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { renewxColors, renewxFontFamily, renewxRadius, renewxSpacing } from '@/design-system';
+import { renewxColors, renewxRadius, renewxSpacing, renewxTextStyle } from '@/design-system';
 import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 
 type RootParamList = {
@@ -249,8 +249,8 @@ export default function OrderDetailScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={refresh}
-            tintColor={renewxColors.green}
-            colors={['#10B981', '#FFC400']}
+            tintColor={renewxColors.yellow}
+            colors={[renewxColors.yellow, renewxColors.emerald]}
             progressBackgroundColor="#FFFFFF"
           />
         }
@@ -344,10 +344,10 @@ export default function OrderDetailScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Delivery address</Text>
-          <InfoRow icon="person-outline" label="Name" value={order?.customer_info?.name || '—'} />
-          <InfoRow icon="call-outline" label="Phone" value={order?.customer_info?.phone || '—'} />
-          <InfoRow icon="location-outline" label="Address" value={order?.customer_info?.address || '—'} />
-          <InfoRow icon="pin-outline" label="PIN" value={order?.customer_info?.pincode || '—'} />
+          <InfoRow icon="person-outline" label="Name" value={order?.customer_info?.name || order?.customerInfo?.name || order?.buyer_name || '—'} />
+          <InfoRow icon="call-outline" label="Phone" value={order?.customer_info?.phone || order?.customerInfo?.phone || order?.buyer_phone || '—'} />
+          <InfoRow icon="location-outline" label="Address" value={order?.customer_info?.address || order?.customerInfo?.address || order?.delivery_address || '—'} />
+          <InfoRow icon="pin-outline" label="PIN" value={order?.customer_info?.pincode || order?.customerInfo?.pincode || '—'} />
         </View>
 
         <View style={styles.actions}>
@@ -381,67 +381,67 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: renewxColors.background },
   content: { padding: renewxSpacing.md, paddingBottom: 40 },
   center: { flex: 1, backgroundColor: renewxColors.black, alignItems: 'center', justifyContent: 'center', padding: 28 },
-  centerText: { color: '#fff', marginTop: 12, fontFamily: renewxFontFamily.medium },
+  centerText: { ...renewxTextStyle('medium'), color: '#FFFFFF', marginTop: 12 },
   errorIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: renewxColors.yellow, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  errorTitle: { color: '#fff', fontSize: 22, fontFamily: renewxFontFamily.bold, marginBottom: 8 },
-  errorText: { color: '#cbd5e1', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  errorTitle: { ...renewxTextStyle('bold'), color: '#FFFFFF', fontSize: 22, marginBottom: 8 },
+  errorText: { ...renewxTextStyle('regular'), color: '#CBD5E1', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   headerCopy: { flex: 1 },
-  eyebrow: { fontSize: 10, letterSpacing: 1.4, color: renewxColors.green, fontFamily: renewxFontFamily.bold },
-  title: { fontSize: 23, color: renewxColors.black, fontFamily: renewxFontFamily.extraBold, marginTop: 2 },
-  iconButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e2e8f0' },
-  liveCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: renewxRadius.lg, padding: 14, marginBottom: 12 },
-  liveCardActive: { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' },
-  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#94a3b8' },
-  liveDotActive: { backgroundColor: renewxColors.green },
-  liveTitle: { fontFamily: renewxFontFamily.bold, color: renewxColors.black, fontSize: 13 },
-  liveText: { color: '#64748b', fontSize: 11, marginTop: 2 },
+  eyebrow: { ...renewxTextStyle('bold'), fontSize: 10, letterSpacing: 1.4, color: renewxColors.emerald },
+  title: { ...renewxTextStyle('extraBold'), fontSize: 23, color: renewxColors.black, marginTop: 2 },
+  iconButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  liveCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: renewxRadius.lg, padding: 14, marginBottom: 12 },
+  liveCardActive: { borderColor: renewxColors.mintBorder, backgroundColor: renewxColors.mintLight },
+  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#94A3B8' },
+  liveDotActive: { backgroundColor: renewxColors.emerald },
+  liveTitle: { ...renewxTextStyle('bold'), color: renewxColors.black, fontSize: 13 },
+  liveText: { ...renewxTextStyle('regular'), color: renewxColors.textMuted, fontSize: 11, marginTop: 2 },
   statusCard: { backgroundColor: renewxColors.black, borderRadius: renewxRadius.xl, padding: 18, marginBottom: 12 },
   statusTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  statusEyebrow: { color: '#94a3b8', fontSize: 9, letterSpacing: 1.2, fontFamily: renewxFontFamily.bold },
-  statusTitle: { color: renewxColors.yellow, fontSize: 22, fontFamily: renewxFontFamily.extraBold, marginTop: 4 },
+  statusEyebrow: { ...renewxTextStyle('bold'), color: '#94A3B8', fontSize: 10, letterSpacing: 1.2 },
+  statusTitle: { ...renewxTextStyle('extraBold'), color: renewxColors.yellow, fontSize: 22, marginTop: 4 },
   statusBadge: { backgroundColor: renewxColors.yellow, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 99 },
-  statusBadgeText: { color: renewxColors.black, fontSize: 9, fontFamily: renewxFontFamily.bold },
+  statusBadgeText: { ...renewxTextStyle('extraBold'), color: renewxColors.black, fontSize: 10 },
   timelineRow: { flexDirection: 'row', minHeight: 62 },
   timelineRail: { width: 38, alignItems: 'center' },
-  timelineIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center' },
+  timelineIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center' },
   timelineIconComplete: { backgroundColor: renewxColors.yellow },
   timelineIconActive: { transform: [{ scale: 1.08 }] },
   timelineLine: { width: 2, flex: 1, backgroundColor: '#334155', marginVertical: 3 },
-  timelineLineComplete: { backgroundColor: renewxColors.green },
+  timelineLineComplete: { backgroundColor: renewxColors.emerald },
   timelineCopy: { flex: 1, paddingHorizontal: 10, paddingBottom: 14 },
-  timelineTitle: { color: '#cbd5e1', fontFamily: renewxFontFamily.semibold, fontSize: 13 },
-  timelineTitleActive: { color: '#fff', fontFamily: renewxFontFamily.bold },
-  timelineText: { color: '#94a3b8', fontSize: 11, marginTop: 3 },
-  alertCard: { flexDirection: 'row', gap: 12, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: renewxRadius.lg, padding: 16, marginBottom: 12 },
+  timelineTitle: { ...renewxTextStyle('semibold'), color: '#CBD5E1', fontSize: 13 },
+  timelineTitleActive: { ...renewxTextStyle('bold'), color: '#FFFFFF' },
+  timelineText: { ...renewxTextStyle('regular'), color: '#94A3B8', fontSize: 11, marginTop: 3 },
+  alertCard: { flexDirection: 'row', gap: 12, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: renewxRadius.lg, padding: 16, marginBottom: 12 },
   alertCopy: { flex: 1 },
-  alertTitle: { color: '#991b1b', fontFamily: renewxFontFamily.bold, fontSize: 15 },
-  alertText: { color: '#b91c1c', fontSize: 12, marginTop: 4 },
-  card: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: renewxRadius.lg, padding: 16, marginBottom: 12 },
+  alertTitle: { ...renewxTextStyle('bold'), color: '#991B1B', fontSize: 15 },
+  alertText: { ...renewxTextStyle('regular'), color: '#B91C1C', fontSize: 12, marginTop: 4 },
+  card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: renewxRadius.lg, padding: 16, marginBottom: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { color: renewxColors.black, fontFamily: renewxFontFamily.bold, fontSize: 15, marginBottom: 12 },
-  date: { color: '#64748b', fontSize: 10 },
+  sectionTitle: { ...renewxTextStyle('bold'), color: renewxColors.black, fontSize: 15, marginBottom: 12 },
+  date: { ...renewxTextStyle('regular'), color: renewxColors.textMuted, fontSize: 10.5 },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingVertical: 8 },
-  infoLabel: { width: 92, color: '#64748b', fontSize: 12 },
-  infoValue: { flex: 1, color: renewxColors.black, fontFamily: renewxFontFamily.semibold, fontSize: 12, textAlign: 'right' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
-  itemImage: { width: 58, height: 58, borderRadius: 10, backgroundColor: '#f8fafc' },
-  itemImageFallback: { width: 58, height: 58, borderRadius: 10, backgroundColor: '#f8fafc', alignItems: 'center', justifyContent: 'center' },
+  infoLabel: { ...renewxTextStyle('medium'), width: 92, color: renewxColors.textMuted, fontSize: 12 },
+  infoValue: { ...renewxTextStyle('semibold'), flex: 1, color: renewxColors.black, fontSize: 12, textAlign: 'right' },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  itemImage: { width: 58, height: 58, borderRadius: 10, backgroundColor: '#F8FAFC' },
+  itemImageFallback: { width: 58, height: 58, borderRadius: 10, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
   itemCopy: { flex: 1 },
-  itemName: { color: renewxColors.black, fontFamily: renewxFontFamily.semibold, fontSize: 13 },
-  itemMeta: { color: '#64748b', fontSize: 11, marginTop: 4 },
-  itemTotal: { color: renewxColors.black, fontFamily: renewxFontFamily.bold, fontSize: 12 },
-  muted: { color: '#64748b', fontSize: 12 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e2e8f0', marginTop: 8, paddingTop: 13 },
-  totalLabel: { color: '#475569', fontFamily: renewxFontFamily.semibold },
-  total: { color: renewxColors.black, fontFamily: renewxFontFamily.extraBold, fontSize: 20 },
-  savings: { color: renewxColors.green, fontSize: 11, marginTop: 5, textAlign: 'right', fontFamily: renewxFontFamily.semibold },
-  refundBanner: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 9, padding: 10, marginTop: 10 },
-  refundText: { color: '#991b1b', fontSize: 11, fontFamily: renewxFontFamily.semibold },
+  itemName: { ...renewxTextStyle('semibold'), color: renewxColors.black, fontSize: 13 },
+  itemMeta: { ...renewxTextStyle('regular'), color: renewxColors.textMuted, fontSize: 11, marginTop: 4 },
+  itemTotal: { ...renewxTextStyle('bold'), color: renewxColors.black, fontSize: 12 },
+  muted: { ...renewxTextStyle('regular'), color: renewxColors.textMuted, fontSize: 12 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#E2E8F0', marginTop: 8, paddingTop: 13 },
+  totalLabel: { ...renewxTextStyle('semibold'), color: renewxColors.textSecondary },
+  total: { ...renewxTextStyle('extraBold'), color: renewxColors.black, fontSize: 20 },
+  savings: { ...renewxTextStyle('semibold'), color: renewxColors.emerald, fontSize: 11.5, marginTop: 5, textAlign: 'right' },
+  refundBanner: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#FEF2F2', borderRadius: 9, padding: 10, marginTop: 10 },
+  refundText: { ...renewxTextStyle('semibold'), color: '#991B1B', fontSize: 11.5 },
   actions: { gap: 10, marginTop: 2 },
-  primaryButton: { minHeight: 50, borderRadius: renewxRadius.md, backgroundColor: renewxColors.yellow, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  primaryButtonText: { color: renewxColors.black, fontFamily: renewxFontFamily.bold, fontSize: 13 },
-  secondaryButton: { minHeight: 50, borderRadius: renewxRadius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  secondaryButtonText: { color: renewxColors.black, fontFamily: renewxFontFamily.bold, fontSize: 13 },
-  securityNote: { textAlign: 'center', color: '#64748b', fontSize: 10, marginTop: 16 },
+  primaryButton: { minHeight: 50, borderRadius: renewxRadius.md, backgroundColor: renewxColors.yellow, borderWidth: 1, borderColor: renewxColors.yellowDark, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  primaryButtonText: { ...renewxTextStyle('extraBold'), color: renewxColors.black, fontSize: 13.5 },
+  secondaryButton: { minHeight: 50, borderRadius: renewxRadius.md, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  secondaryButtonText: { ...renewxTextStyle('bold'), color: renewxColors.black, fontSize: 13.5 },
+  securityNote: { ...renewxTextStyle('regular'), textAlign: 'center', color: renewxColors.textMuted, fontSize: 10.5, marginTop: 16 },
 });

@@ -19,6 +19,7 @@ import { downloadOrderInvoicePdf } from '@/services/invoiceService';
 import HomeHeader from '@/components/HomeHeader';
 import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 import { getCategoryDeviceImage } from '@/lib/imageUtils';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 function formatMoney(value: number) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -241,7 +242,7 @@ export default function OrderConfirmScreen() {
                   <Ionicons
                     name={copied ? 'checkmark-circle' : 'copy-outline'}
                     size={15}
-                    color={copied ? '#16A34A' : '#64748B'}
+                    color={copied ? renewxColors.emerald : renewxColors.textMuted}
                   />
                 </TouchableOpacity>
               </View>
@@ -269,7 +270,7 @@ export default function OrderConfirmScreen() {
                 <Text style={styles.summaryValueRight} numberOfLines={1}>
                   {displayPaymentMethod}
                 </Text>
-                <Ionicons name="flash" size={13} color="#F59E0B" style={{ marginLeft: 4 }} />
+                <Ionicons name="flash" size={13} color={renewxColors.yellowDark} style={{ marginLeft: 4 }} />
               </View>
             </View>
           </View>
@@ -416,7 +417,7 @@ export default function OrderConfirmScreen() {
             <Text style={styles.cardTitle}>Items in this order ({displayItems.length})</Text>
             <TouchableOpacity onPress={handleTrackOrder} style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.viewAllText}>View All</Text>
-              <Ionicons name="arrow-forward" size={13} color="#475569" style={{ marginLeft: 2 }} />
+              <Ionicons name="arrow-forward" size={13} color={renewxColors.emerald} style={{ marginLeft: 3 }} />
             </TouchableOpacity>
           </View>
 
@@ -448,7 +449,7 @@ export default function OrderConfirmScreen() {
         {/* 7. Green Planet Savings Banner */}
         <View style={styles.greenPlanetBanner}>
           <View style={styles.greenLeafCircle}>
-            <Ionicons name="leaf" size={20} color="#16A34A" />
+            <Ionicons name="leaf" size={20} color={renewxColors.emerald} />
           </View>
 
           <View style={styles.greenPlanetTextCol}>
@@ -458,7 +459,7 @@ export default function OrderConfirmScreen() {
             </Text>
           </View>
 
-          <Ionicons name="chevron-forward" size={18} color="#16A34A" />
+          <Ionicons name="chevron-forward" size={18} color={renewxColors.emerald} />
         </View>
 
         <View style={{ height: 100 }} />
@@ -519,7 +520,7 @@ export default function OrderConfirmScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
   },
   topHeader: {
     flexDirection: 'row',
@@ -527,33 +528,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.border,
   },
   brandTitleRow: {
     alignItems: 'flex-start',
   },
   brandName: {
+    ...renewxTextStyle('black'),
     fontSize: 20,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    color: '#0A1128',
+    color: renewxColors.black,
     letterSpacing: -0.5,
-    textShadowColor: '#EA580C',
-    textShadowOffset: { width: -1.5, height: 0 },
-    textShadowRadius: 1,
   },
   brandNameYellow: {
+    ...renewxTextStyle('black'),
     fontSize: 20,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    color: '#F59E0B',
+    color: renewxColors.yellowDark,
   },
   brandTagline: {
+    ...renewxTextStyle('semibold'),
     fontSize: 8.5,
-    color: '#476E8E',
-    fontWeight: '700',
+    color: renewxColors.textSecondary,
     letterSpacing: 0.2,
     marginTop: -2,
   },
@@ -566,7 +562,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -578,20 +574,20 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
   },
   avatarCircle: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13,
-    fontWeight: '800',
-    color: '#166534',
+    color: renewxColors.mintDark,
   },
 
   scrollView: {
@@ -619,31 +615,32 @@ const styles = StyleSheet.create({
     width: 82,
     height: 82,
     borderRadius: 41,
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
-    shadowColor: '#16A34A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
+    ...Platform.select({
+      ios: { shadowColor: renewxColors.emerald, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 12 },
+      android: { elevation: 6 },
+      web: { boxShadow: '0 8px 20px rgba(12, 122, 67, 0.24)' },
+    }),
   },
   successTitle: {
+    ...renewxTextStyle('black'),
     fontSize: 24,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 4,
   },
   successSubtitle: {
+    ...renewxTextStyle('semibold'),
     fontSize: 14.5,
-    fontWeight: '600',
-    color: '#475569',
+    color: renewxColors.textSecondary,
     marginBottom: 6,
   },
   successDescription: {
+    ...renewxTextStyle('regular'),
     fontSize: 12.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textAlign: 'center',
     maxWidth: 320,
     lineHeight: 18,
@@ -651,12 +648,13 @@ const styles = StyleSheet.create({
 
   // Summary Card
   orderSummaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     marginBottom: 14,
+    ...renewxShadows.card,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -674,18 +672,18 @@ const styles = StyleSheet.create({
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     marginVertical: 12,
   },
   summaryLabel: {
+    ...renewxTextStyle('medium'),
     fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
   },
   summaryLabelRight: {
+    ...renewxTextStyle('medium'),
     fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
     textAlign: 'right',
   },
   orderIdRow: {
@@ -695,9 +693,9 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   orderIdText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     flexShrink: 1,
   },
   copyBtn: {
@@ -705,21 +703,21 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   summaryValue: {
+    ...renewxTextStyle('bold'),
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 2,
   },
   summaryValueRight: {
+    ...renewxTextStyle('bold'),
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
     textAlign: 'right',
   },
   totalAmountValue: {
+    ...renewxTextStyle('black'),
     fontSize: 18,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 2,
     textAlign: 'right',
   },
@@ -732,21 +730,22 @@ const styles = StyleSheet.create({
 
   // Card Container
   cardContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 15.5,
+    color: renewxColors.black,
   },
   cardSubtitle: {
-    fontSize: 11.5,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 12,
+    color: renewxColors.textMuted,
     marginTop: 2,
     marginBottom: 14,
   },
@@ -757,9 +756,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   viewAllText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    color: '#475569',
-    fontWeight: '600',
+    color: renewxColors.emerald,
   },
 
   // Stepper
@@ -779,26 +778,28 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   trackerCircleDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
   trackerNodeTitle: {
+    ...renewxTextStyle('bold'),
     fontSize: 8.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
     textAlign: 'center',
   },
   trackerNodeDate: {
+    ...renewxTextStyle('regular'),
     fontSize: 7.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textAlign: 'center',
   },
   trackerNodePending: {
+    ...renewxTextStyle('regular'),
     fontSize: 7.5,
     color: '#94A3B8',
     textAlign: 'center',
@@ -806,21 +807,21 @@ const styles = StyleSheet.create({
   trackerLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     marginTop: 10,
     marginHorizontal: -2,
   },
   trackerLineDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
 
   // Estimated Delivery Box
   deliveryBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 12,
     padding: 12,
   },
@@ -828,7 +829,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -837,34 +838,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deliveryBoxLabel: {
+    ...renewxTextStyle('regular'),
     fontSize: 10.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   deliveryBoxDate: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 1,
   },
   deliveryBoxDays: {
+    ...renewxTextStyle('semibold'),
     fontSize: 11,
-    color: '#16A34A',
-    fontWeight: '600',
+    color: renewxColors.emerald,
   },
   trackOrderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   trackOrderBtnText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   // 2x2 Action Grid
@@ -876,22 +878,23 @@ const styles = StyleSheet.create({
   },
   actionGridCard: {
     width: '48.5%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueShoppingCard: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FDE047',
+    backgroundColor: renewxColors.yellowSoft,
+    borderColor: renewxColors.yellowDark,
+    borderWidth: 1.5,
   },
   actionGridTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    fontSize: 12.5,
+    color: renewxColors.black,
     marginTop: 6,
   },
 
@@ -901,13 +904,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   itemImage: {
     width: 50,
     height: 50,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     marginRight: 10,
   },
   itemInfoCol: {
@@ -915,42 +918,45 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   itemName: {
+    ...renewxTextStyle('bold'),
     fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   itemSpecs: {
+    ...renewxTextStyle('regular'),
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 1,
   },
   refurbishedPill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: renewxColors.yellowLight,
     paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingVertical: 1.5,
     borderRadius: 4,
     marginTop: 3,
   },
   refurbishedPillText: {
+    ...renewxTextStyle('bold'),
     fontSize: 9.5,
-    fontWeight: '700',
-    color: '#B45309',
+    color: '#9A6700',
   },
   itemPriceCol: {
     alignItems: 'flex-end',
   },
   itemQty: {
+    ...renewxTextStyle('regular'),
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginBottom: 1,
   },
   itemPrice: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   itemOriginalPrice: {
+    ...renewxTextStyle('regular'),
     fontSize: 10.5,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
@@ -960,9 +966,9 @@ const styles = StyleSheet.create({
   greenPlanetBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 14,
     padding: 12,
     marginBottom: 14,
@@ -971,7 +977,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -981,14 +987,16 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   greenPlanetTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13.5,
-    fontWeight: '800',
-    color: '#15803D',
+    color: renewxColors.mintDark,
   },
   greenPlanetDesc: {
-    fontSize: 10.5,
-    color: '#166534',
+    ...renewxTextStyle('regular'),
+    fontSize: 11,
+    color: renewxColors.emerald,
     marginTop: 2,
+    lineHeight: 15,
   },
 
   // Bottom Navigation Bar
@@ -997,20 +1005,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: renewxColors.border,
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 20 : 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 8,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 6 },
+      android: { elevation: 8 },
+      web: { boxShadow: '0 -3px 10px rgba(15, 23, 42, 0.06)' },
+    }),
   },
   bottomNavItem: {
     alignItems: 'center',
@@ -1019,28 +1027,30 @@ const styles = StyleSheet.create({
     minWidth: 50,
   },
   bottomNavLabel: {
+    ...renewxTextStyle('medium'),
     fontSize: 10.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 3,
-    fontWeight: '500',
   },
   floatingSellBtn: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1.5,
+    borderColor: renewxColors.yellowDark,
     width: 48,
     height: 48,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 5,
+    ...Platform.select({
+      ios: { shadowColor: renewxColors.yellowDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 6 },
+      android: { elevation: 5 },
+      web: { boxShadow: '0 4px 12px rgba(217, 166, 0, 0.32)' },
+    }),
   },
   floatingSellText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 9.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 1,
   },
 });

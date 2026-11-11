@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { renewxRadius, renewxFontFamily } from '@/design-system';
+import { renewxColors, renewxRadius, renewxTextStyle } from '@/design-system';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import RenewXLogo from '@/components/RenewXLogo';
 import { useLocation } from '@/context/LocationContext';
@@ -204,7 +204,7 @@ export default function HomeHeader({
                 activeOpacity={0.75}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="shield-checkmark" size={17} color="#059669" />
+                <Ionicons name="shield-checkmark" size={17} color={renewxColors.emerald} />
               </TouchableOpacity>
             )}
 
@@ -504,7 +504,7 @@ export default function HomeHeader({
           </View>
 
           <View style={styles.secureBadgePill}>
-            <Ionicons name="lock-closed" size={13} color="#0F172A" />
+            <Ionicons name="lock-closed" size={13} color={renewxColors.emerald} />
             <Text style={styles.secureBadgeText}>Secure</Text>
           </View>
         </View>
@@ -526,7 +526,7 @@ export default function HomeHeader({
 
           <View style={styles.orderConfirmedGroup}>
             <View style={styles.orderConfirmedCheckCircle}>
-              <Ionicons name="checkmark" size={14} color="#000000" />
+              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
             </View>
             <Text style={styles.orderConfirmedText}>Order Confirmed</Text>
           </View>
@@ -778,49 +778,49 @@ export default function HomeHeader({
       {/* ============================================================== */}
       {isDiscoveryMode && (
         <View style={styles.locationBarRow}>
-          {isDetecting ? (
-            <View style={styles.detectingRow}>
-              <ActivityIndicator size="small" color="#059669" style={{ marginRight: 6 }} />
-              <Text style={styles.detectingText}>Detecting your location...</Text>
-            </View>
-          ) : !displayLocation || locationError ? (
-            <>
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => setModalVisible(true)}
-                style={styles.locationSelector}
-              >
-                <Ionicons name="location-outline" size={15} color="#EF4444" />
-                <Text style={[styles.locationLabel, { color: '#64748B' }]} numberOfLines={1}>
-                  Location unavailable
-                </Text>
-              </TouchableOpacity>
+            {isDetecting ? (
+              <View style={styles.detectingRow}>
+                <ActivityIndicator size="small" color={renewxColors.emerald} style={{ marginRight: 6 }} />
+                <Text style={styles.detectingText}>Detecting your location...</Text>
+              </View>
+            ) : !displayLocation || locationError ? (
+              <>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => setModalVisible(true)}
+                  style={styles.locationSelector}
+                >
+                  <Ionicons name="location-outline" size={15} color={renewxColors.error} />
+                  <Text style={[styles.locationLabel, { color: renewxColors.textSecondary }]} numberOfLines={1}>
+                    Location unavailable
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={handleUseMyLocation}
-                style={styles.tryAgainBtn}
-                accessibilityLabel="Try Again"
-                disabled={isDetecting}
-              >
-                <Ionicons name="refresh" size={12} color="#059669" style={{ marginRight: 4 }} />
-                <Text style={styles.tryAgainText}>Try Again</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              {/* Left: 📍 Vellore - 632001 ⌵ */}
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => setModalVisible(true)}
-                style={styles.locationSelector}
-              >
-                <Ionicons name="location-sharp" size={15} color="#059669" />
-                <Text style={styles.locationLabel} numberOfLines={1}>
-                  {displayLocation}
-                </Text>
-                <Ionicons name="chevron-down" size={13} color="#0F172A" />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handleUseMyLocation}
+                  style={styles.tryAgainBtn}
+                  accessibilityLabel="Try Again"
+                  disabled={isDetecting}
+                >
+                  <Ionicons name="refresh" size={12} color={renewxColors.emerald} style={{ marginRight: 4 }} />
+                  <Text style={styles.tryAgainText}>Try Again</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {/* Left: 📍 Vellore - 632001 ⌵ */}
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => setModalVisible(true)}
+                  style={styles.locationSelector}
+                >
+                  <Ionicons name="location-sharp" size={15} color={renewxColors.emerald} />
+                  <Text style={styles.locationLabel} numberOfLines={1}>
+                    {displayLocation}
+                  </Text>
+                  <Ionicons name="chevron-down" size={13} color={renewxColors.black} />
+                </TouchableOpacity>
 
               {/* Right: 🎯 Use my location */}
               <TouchableOpacity
@@ -969,7 +969,14 @@ export default function HomeHeader({
                   pincodeInput.trim().length === 6 && styles.applyPincodeBtnActive,
                 ]}
               >
-                <Text style={styles.applyPincodeBtnText}>Apply</Text>
+                <Text
+                  style={[
+                    styles.applyPincodeBtnText,
+                    pincodeInput.trim().length === 6 && styles.applyPincodeBtnTextActive,
+                  ]}
+                >
+                  Apply
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -1022,16 +1029,16 @@ export default function HomeHeader({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     paddingHorizontal: 16,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: '#E2E8F0',
   },
   subpageContainer: {
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E2E8F0',
   },
 
   /* Top Row */
@@ -1061,22 +1068,22 @@ const styles = StyleSheet.create({
   },
   accountHeaderTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
+    letterSpacing: -0.2,
   },
   headerCategoryTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
+    letterSpacing: -0.3,
   },
   headerScreenTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginLeft: 8,
+    letterSpacing: -0.2,
   },
   backCircleBtn: {
     width: 38,
@@ -1089,9 +1096,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   clearAllLinkText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   headerRightIcons: {
     flexDirection: 'row',
@@ -1102,7 +1109,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1134,13 +1143,13 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
   },
   notificationBadge: {
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
     minWidth: 17,
     height: 17,
     borderRadius: 9,
@@ -1153,16 +1162,15 @@ const styles = StyleSheet.create({
   },
   notificationBadgeText: {
     fontSize: 9,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
     color: '#FFFFFF',
     textAlign: 'center',
-    fontFamily: renewxFontFamily.bold,
   },
   cartYellowBadge: {
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -1174,15 +1182,17 @@ const styles = StyleSheet.create({
   },
   cartYellowBadgeText: {
     fontSize: 10,
-    fontWeight: '900',
-    color: '#ffffff',
+    ...renewxTextStyle('extraBold'),
+    color: '#FFFFFF',
   },
 
   /* Secure badge pill (Checkout) */
   secureBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -1190,26 +1200,25 @@ const styles = StyleSheet.create({
   },
   secureBadgeText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
 
   /* Step pill badge (Sell) */
   stepPillBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowSoft,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowDark,
   },
   stepPillText: {
     fontSize: 12,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 
   /* Order confirmed group (Order Confirmation) */
@@ -1221,18 +1230,18 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   orderConfirmedCheckCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FACC15',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: renewxColors.emerald,
     alignItems: 'center',
     justifyContent: 'center',
   },
   orderConfirmedText: {
     fontSize: 18,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
+    letterSpacing: -0.2,
   },
 
   /* Search Input Pill (Mode: Search) */
@@ -1246,12 +1255,13 @@ const styles = StyleSheet.create({
     height: 42,
     marginHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
   },
   searchTextInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
+    ...renewxTextStyle('medium'),
+    color: renewxColors.black,
     paddingVertical: 0,
   },
 
@@ -1266,27 +1276,28 @@ const styles = StyleSheet.create({
   locationSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    maxWidth: '65%',
+    gap: 5,
+    maxWidth: '64%',
   },
   locationLabel: {
     fontSize: 13,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   useMyLocationBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF08A',
-    paddingHorizontal: 10,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    paddingHorizontal: 11,
     paddingVertical: 5,
     borderRadius: 16,
   },
   useMyLocationText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   detectingRow: {
     flexDirection: 'row',
@@ -1294,44 +1305,44 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   detectingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#059669',
+    fontSize: 12.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.emerald,
   },
   tryAgainBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 16,
   },
   tryAgainText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
 
   /* Full-width Search Bar */
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
     borderRadius: renewxRadius.pill,
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 10,
     marginTop: 4,
     ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)' },
+      web: { boxShadow: '0 1px 4px rgba(15, 23, 42, 0.04)' },
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.03,
-        shadowRadius: 2,
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
         elevation: 1,
       },
     }),
@@ -1341,9 +1352,9 @@ const styles = StyleSheet.create({
   },
   searchPlaceholderText: {
     flex: 1,
-    fontSize: 13,
-    color: '#94A3B8',
-    fontFamily: renewxFontFamily.regular,
+    fontSize: 13.5,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
   },
   searchBarTrailingIcons: {
     flexDirection: 'row',
@@ -1366,24 +1377,24 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
   },
   categoryChipSelected: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderColor: renewxColors.yellowDark,
   },
   categoryChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
+    fontSize: 12.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   categoryChipTextSelected: {
-    color: '#0F172A',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
 
   /* Modal Styles */
@@ -1393,7 +1404,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -1409,15 +1420,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    fontSize: 18,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   modalSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
+    fontSize: 12.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+    marginTop: 3,
+    lineHeight: 18,
   },
   modalCloseBtn: {
     width: 32,
@@ -1432,44 +1444,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 14,
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FEF08A',
+    backgroundColor: renewxColors.mintLight,
+    borderWidth: 1.5,
+    borderColor: renewxColors.mintBorder,
     gap: 12,
     marginBottom: 14,
   },
   detectIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#FACC15',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
   detectTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.mintDark,
   },
   detectSub: {
-    fontSize: 11,
-    color: '#713F12',
+    fontSize: 11.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.emerald,
     marginTop: 1,
   },
   pincodeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    backgroundColor: renewxColors.background,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 44,
+    height: 46,
     marginBottom: 16,
   },
   pincodeInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
     paddingVertical: 0,
   },
   applyPincodeBtn: {
@@ -1479,28 +1496,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   applyPincodeBtnActive: {
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
   },
   applyPincodeBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 12.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
+  },
+  applyPincodeBtnTextActive: {
+    color: renewxColors.black,
   },
   savedAddressQuickSection: {
     marginBottom: 12,
   },
   savedAddressQuickTitle: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    letterSpacing: 0.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.textMuted,
+    letterSpacing: 0.6,
     marginBottom: 8,
   },
   savedAddressCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
@@ -1518,33 +1540,35 @@ const styles = StyleSheet.create({
   },
   savedAddressText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   savedAddressPin: {
-    fontSize: 11,
-    color: '#64748B',
+    fontSize: 11.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     marginTop: 2,
   },
   allIndiaDeliveryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 12,
     padding: 12,
     marginTop: 4,
   },
   allIndiaDeliveryTitle: {
     fontSize: 12.5,
-    fontWeight: '700',
-    color: '#15803D',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.mintDark,
   },
   allIndiaDeliverySubtitle: {
-    fontSize: 11,
-    color: '#166534',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.emerald,
     marginTop: 1,
   },
 });

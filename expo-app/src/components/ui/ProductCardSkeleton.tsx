@@ -8,7 +8,7 @@ import {
   type ViewStyle,
   type DimensionValue,
 } from 'react-native';
-import { renewxRadius } from '@/design-system';
+import { renewxColors, renewxRadius, renewxShadows } from '@/design-system';
 
 interface SkeletonProps {
   width?: DimensionValue;
@@ -206,17 +206,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: renewxColors.border,
     padding: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
+    ...(renewxShadows.card as object),
   },
   topRow: {
     flexDirection: 'row',

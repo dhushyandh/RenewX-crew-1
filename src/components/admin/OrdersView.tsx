@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Search,
   RefreshCw,
@@ -22,10 +22,19 @@ import {
   ChevronRight,
   ShieldCheck,
   Send,
+  LayoutGrid,
+  List,
+  Package,
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { supabase } from '@/lib/supabase';
 import { getCategoryFallback, handleImageError } from '@/lib/imageFallback';
+import ShippingOrderCard from '@/components/shipping/ShippingOrderCard';
+import {
+  SHOWCASE_ORDERS,
+  normalizeOrderToShipping,
+  type ShowcaseOrder,
+} from '@/data/showcaseOrders';
 
 export interface OrderItem {
   id?: string;
@@ -107,6 +116,7 @@ export default function OrdersView() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'shipping' | 'table'>('shipping');
   const [activeModalOrder, setActiveModalOrder] = useState<AdminOrder | null>(null);
   const [invoiceModalOrder, setInvoiceModalOrder] = useState<AdminOrder | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -177,6 +187,40 @@ export default function OrdersView() {
     );
   });
 
+  // Converted shipping parcel orders for the 3D parcel cards UI
+  const shippingOrders: ShowcaseOrder[] = useMemo(() => {
+    if (orders.length > 0) {
+      const converted = orders.map((o, idx) => normalizeOrderToShipping(o, idx));
+      return [...converted, ...SHOWCASE_ORDERS];
+    }
+    return SHOWCASE_ORDERS;
+  }, [orders]);
+
+  const filteredShippingOrders = useMemo(() => {
+    return shippingOrders.filter((ord) => {
+      if (statusFilter !== 'all') {
+        const target =
+          statusFilter === 'shipped' || statusFilter === 'out_for_delivery'
+            ? 'transit'
+            : statusFilter === 'delivered'
+            ? 'delivered'
+            : statusFilter === 'cancelled'
+            ? 'cancelled'
+            : 'process';
+        if (ord.status !== target) return false;
+      }
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        ord.trackingId.toLowerCase().includes(q) ||
+        ord.productName.toLowerCase().includes(q) ||
+        ord.toDestination.recipientOrCity.toLowerCase().includes(q) ||
+        ord.customerInfo.name.toLowerCase().includes(q) ||
+        ord.customerInfo.phone.includes(q)
+      );
+    });
+  }, [shippingOrders, statusFilter, search]);
+
   const getStatusBadge = (status: string) => {
     const meta = PIPELINE_STATUSES.find((s) => s.id === status);
     if (!meta) {
@@ -236,7 +280,35 @@ export default function OrdersView() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative flex-1 md:w-80">
+          {/* View Toggle */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setViewMode('shipping')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all ${
+                viewMode === 'shipping'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5 text-[#FF6B00]" />
+              <span className="hidden sm:inline">3D Parcel Cards</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all ${
+                viewMode === 'table'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">MNC Table</span>
+            </button>
+          </div>
+
+          <div className="relative flex-1 md:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -320,6 +392,66 @@ export default function OrdersView() {
           <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
           <p className="text-xs font-semibold text-slate-500">Syncing orders telemetry...</p>
         </div>
+      ) : viewMode === 'shipping' ? (
+        filteredShippingOrders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+              <ShoppingBag className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-bold text-slate-700">No shipments found</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm">
+              {search ? `No parcels matching "${search}".` : `No parcels in "${statusFilter}" state.`}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredShippingOrders.map((ord) => (
+              <ShippingOrderCard
+                key={ord.id}
+                order={ord}
+                isAdmin={true}
+                onStatusChange={(id, nextStatus) => {
+                  const found = orders.find((o) => String(o.id || o._id) === id);
+                  if (found) {
+                    setActiveModalOrder(found);
+                  } else {
+                    setActiveModalOrder({
+                      id: ord.id,
+                      customer_info: ord.customerInfo,
+                      status: ord.statusRaw,
+                      subtotal: ord.total,
+                      total: ord.total,
+                      courier: ord.courier.name,
+                      tracking_number: ord.trackingId,
+                    } as any);
+                  }
+                }}
+                onOpenInvoice={(ord) => {
+                  const found = orders.find((o) => String(o.id || o._id) === ord.id);
+                  if (found) {
+                    setInvoiceModalOrder(found);
+                  } else {
+                    setInvoiceModalOrder({
+                      id: ord.id,
+                      tracking_number: ord.trackingId,
+                      subtotal: ord.total,
+                      total: ord.total,
+                      status: ord.statusRaw,
+                      customer_info: ord.customerInfo,
+                      order_items: [
+                        {
+                          product_name: ord.productName,
+                          quantity: ord.quantity,
+                          price: ord.price,
+                        },
+                      ],
+                    } as any);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )
       ) : filteredOrders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 text-center">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">

@@ -4,55 +4,34 @@ import { NativeModules, Platform } from 'react-native';
 const PRODUCTION_API_BASE_URL = 'https://renewx-crew-server.onrender.com/api';
 
 export function getApiBaseUrl(): string {
-  // If running in a web browser
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-    const { hostname, protocol } = window.location;
-    const isLocalHost =
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      /^192\.168\.\d+\.\d+$/.test(hostname) ||
-      /^10\.\d+\.\d+\.\d+$/.test(hostname);
-
-    // If deployed on public web (e.g. *.expo.app, vercel, netlify, custom domain) or accessed over HTTPS,
-    // NEVER use http:// or local IP - browsers strictly block Mixed Content.
-    if (!isLocalHost || protocol === 'https:') {
-      const configured =
-        typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
-      // Allow configured URL only if it's HTTPS and not pointing to a private LAN/localhost
-      if (
-        configured &&
-        configured.startsWith('https://') &&
-        !configured.includes('localhost') &&
-        !configured.includes('127.0.0.1') &&
-        !/192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/.test(configured)
-      ) {
-        return configured;
-      }
-      return PRODUCTION_API_BASE_URL;
-    }
-
-    // Local web development on HTTP (e.g. http://localhost:8081 or http://192.168.1.4:8081)
-    return `http://${hostname}:5000/api`;
-  }
-
-  // On native mobile in dev mode (__DEV__), default to the host machine running Metro
-  if (Platform.OS !== 'web' && typeof __DEV__ !== 'undefined' && __DEV__) {
-    const scriptURL = NativeModules?.SourceCode?.scriptURL;
-    if (scriptURL) {
-      const match = scriptURL.match(/^https?:\/\/([^/:]+)/);
-      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
-        return `http://${match[1]}:5000/api`;
-      }
-    }
-    if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:5000/api';
-    }
-    return 'http://localhost:5000/api';
-  }
-
+  // 1. If configured in .env (e.g. EXPO_PUBLIC_API_URL), prioritize it!
   const configured =
     typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
-  return configured || PRODUCTION_API_BASE_URL;
+
+  if (
+    configured &&
+    configured.startsWith('https://') &&
+    !configured.includes('localhost') &&
+    !configured.includes('127.0.0.1')
+  ) {
+    return configured;
+  }
+
+  // 2. If running on web over HTTPS, always use production URL to prevent mixed content
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+    const { protocol } = window.location;
+    if (protocol === 'https:') {
+      return PRODUCTION_API_BASE_URL;
+    }
+  }
+
+  // 3. If configured with any URL, return it
+  if (configured && configured.startsWith('http')) {
+    return configured;
+  }
+
+  // 4. Default to live cloud backend
+  return PRODUCTION_API_BASE_URL;
 }
 
 const TOKEN_STORAGE_KEY = '@renewx_auth_token';
@@ -75,6 +54,54 @@ export function notifyConnectionState(isOffline: boolean) {
   });
 }
 
+type UnauthorizedListener = (failedToken: string) => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+export function onUnauthorized(listener: UnauthorizedListener) {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
+function notifyUnauthorized(failedToken: string) {
+  unauthorizedListeners.forEach((listener) => {
+    try {
+      listener(failedToken);
+    } catch {}
+  });
+}
+
+async function handleUnauthorizedResponse(sentToken: string | null, endpoint: string): Promise<void> {
+  if (!sentToken) return;
+  const isCredentialEndpoint =
+    endpoint.includes('/auth/login') ||
+    endpoint.includes('/auth/register') ||
+    endpoint.includes('/auth/google') ||
+    endpoint.includes('/auth/verify-otp') ||
+    endpoint.includes('/auth/verify-phone-otp') ||
+    endpoint.includes('/auth/reset-password') ||
+    endpoint.includes('/auth/change-password');
+
+  if (isCredentialEndpoint) return;
+
+  try {
+    const currentStoredToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+    // Only act if the failing token is still the active stored token
+    if (!currentStoredToken || currentStoredToken !== sentToken) {
+      return;
+    }
+
+    if (unauthorizedListeners.size > 0) {
+      notifyUnauthorized(sentToken);
+    } else {
+      await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage read/remove errors
+  }
+}
+
 interface RequestOptions extends RequestInit {
   timeoutMs?: number;
   retries?: number;
@@ -86,17 +113,27 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const method = (options.method || 'GET').toUpperCase();
   const maxRetries = options.retries ?? (method === 'GET' ? 2 : 0);
 
+  let currentBaseUrl = getApiBaseUrl();
+  let hasFallenBackToCloud = currentBaseUrl === PRODUCTION_API_BASE_URL;
+
   let attempt = 0;
   while (true) {
     attempt++;
-    const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+    const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
 
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const explicitAuth = headers['Authorization'] || headers['authorization'];
+    const sentToken = explicitAuth
+      ? explicitAuth.replace(/^Bearer\s+/i, '').trim()
+      : storedToken;
+
+    if (!explicitAuth && storedToken) {
+      headers['Authorization'] = `Bearer ${storedToken}`;
+    }
 
     const timeoutMs = options.timeoutMs ?? 35000;
     const controller = new AbortController();
@@ -104,7 +141,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
     let res: Response;
     try {
-      res = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      res = await fetch(`${currentBaseUrl}${endpoint}`, {
         ...options,
         headers,
         signal: options.signal || controller.signal,
@@ -112,6 +149,16 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       // Successful response received from backend
       notifyConnectionState(false);
     } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+
+      // If connection to a custom/local URL failed and cloud fallback hasn't been tried yet, try live cloud backend!
+      if (!hasFallenBackToCloud) {
+        hasFallenBackToCloud = true;
+        currentBaseUrl = PRODUCTION_API_BASE_URL;
+        attempt = 0;
+        continue;
+      }
+
       if (attempt <= maxRetries) {
         await sleep(Math.min(500 * Math.pow(2, attempt - 1), 2000));
         continue;
@@ -136,12 +183,19 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     const contentType = res.headers.get('content-type') || '';
-    const json = contentType.includes('application/json') ? await res.json() : null;
+    let json: any = null;
+    if (contentType.includes('application/json')) {
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
+    }
 
     if (!res.ok || json?.success === false) {
-      // If token expired / invalid on authenticated requests, prune stale session
-      if (res.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/verify-otp')) {
-        await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+      // Only notify auth layer if an active sent token received 401
+      if (res.status === 401) {
+        await handleUnauthorizedResponse(sentToken, endpoint);
       }
       const errorMsg = json?.error?.message || `HTTP Error ${res.status}`;
       const error = new Error(errorMsg) as Error & { code?: string; status?: number };
@@ -150,7 +204,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       throw error;
     }
 
-    return json.data !== undefined ? json.data : json;
+    return json ? (json.data !== undefined ? json.data : json) : (null as T);
   }
 }
 
@@ -173,6 +227,18 @@ export const api = {
   },
 
   auth: {
+    sendPhoneOtp: async (phone: string) =>
+      request<{ phone: string; expiresInMinutes: number; simulatedCode?: string }>('/auth/send-phone-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone }),
+      }),
+
+    verifyPhoneOtp: async (payload: { phone: string; code: string; firstName?: string; lastName?: string; location?: any }) =>
+      request<{ token: string; user: any }>('/auth/verify-phone-otp', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
     requestPasswordReset: async (email: string, redirectUrl?: string) =>
       request<{ email: string; expiresInMinutes: number; resetUrl?: string; token?: string; simulated?: boolean }>('/auth/forgot-password', {
         method: 'POST',
@@ -327,18 +393,26 @@ export const api = {
   },
 
   users: {
-    updateProfile: async (data: {
-      full_name?: string;
-      avatar_url?: string;
-      phone?: string;
-      address?: string;
-      city?: string;
-      state?: string;
-      pincode?: string;
-      bio?: string;
-      saved_addresses?: any[];
-    }) =>
-      request<any>('/users/me/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    updateProfile: async (
+      data: {
+        full_name?: string;
+        avatar_url?: string;
+        phone?: string;
+        address?: string;
+        city?: string;
+        state?: string;
+        pincode?: string;
+        bio?: string;
+        profile_completed?: boolean;
+        saved_addresses?: any[];
+      },
+      authToken?: string,
+    ) =>
+      request<any>('/users/me/profile', {
+        method: 'PATCH',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+        body: JSON.stringify(data),
+      }),
     getAddresses: async () => request<any>('/users/me/addresses'),
     addAddress: async (data: any) =>
       request<any>('/users/me/addresses', { method: 'POST', body: JSON.stringify(data) }),
@@ -470,7 +544,18 @@ export const api = {
 
       try {
         const res = await fetch(`${getApiBaseUrl()}/upload`, { method: 'POST', body: formData, headers });
-        const json = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        let json: any = null;
+        if (contentType.includes('application/json')) {
+          try {
+            json = await res.json();
+          } catch {
+            json = null;
+          }
+        }
+        if (res.status === 401) {
+          await handleUnauthorizedResponse(token, '/upload');
+        }
         if (!res.ok || !json?.success) {
           const error = new Error(json?.error?.message || `Upload failed (HTTP ${res.status})`) as Error & { status?: number };
           error.status = res.status;
@@ -484,9 +569,10 @@ export const api = {
       }
     },
 
-    base64: async (base64String: string, fileName = 'upload.jpg', contentType = 'image/jpeg') =>
+    base64: async (base64String: string, fileName = 'upload.jpg', contentType = 'image/jpeg', authToken?: string) =>
       request<{ url: string; fileName: string }>('/upload/base64', {
         method: 'POST',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
         body: JSON.stringify({ base64: base64String, fileName, contentType }),
       }),
 

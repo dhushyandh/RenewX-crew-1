@@ -24,7 +24,8 @@ import {
 } from '@/lib/razorpay';
 import RazorpayModal from '@/components/RazorpayModal';
 import CheckoutStepper from '@/components/CheckoutStepper';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
 import { clientObservability } from '@/services/observability';
@@ -317,7 +318,7 @@ export default function PaymentScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Delivery Address Reminder */}
         <View style={styles.deliverSummary}>
-          <Ionicons name="location" size={16} color={colors.primary} />
+          <Ionicons name="location" size={16} color={renewxColors.emerald} />
           <Text style={styles.deliverText} numberOfLines={1}>
             Delivering to <Text style={styles.deliverBold}>{customerInfo.name}</Text> • PIN {customerInfo.pincode}
           </Text>
@@ -337,7 +338,7 @@ export default function PaymentScreen() {
           style={[
             styles.cleanPaymentCard,
             paymentMethod === 'razorpay' && styles.cleanPaymentCardSelectedRazorpay,
-            hasBestPriceItem && { opacity: 0.5, backgroundColor: '#F8FAFC' },
+            hasBestPriceItem && styles.paymentCardDisabled,
           ]}
           onPress={() => {
             if (hasBestPriceItem) {
@@ -370,8 +371,8 @@ export default function PaymentScreen() {
                   resizeMode="contain"
                 />
                 {hasBestPriceItem ? (
-                  <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#DC2626' }}>Unavailable</Text>
+                  <View style={styles.unavailableBadge}>
+                    <Text style={styles.unavailableBadgeText}>Unavailable</Text>
                   </View>
                 ) : (
                   <View style={styles.cleanBadgeBlue}>
@@ -388,7 +389,7 @@ export default function PaymentScreen() {
               </Text>
 
               <View style={styles.cleanFooterRow}>
-                <Ionicons name="shield-checkmark" size={13} color="#059669" />
+                <Ionicons name="shield-checkmark" size={13} color={renewxColors.emerald} />
                 <Text style={styles.cleanFooterText}>100% Encrypted</Text>
                 <Text style={styles.cleanFooterDot}>•</Text>
                 <Text style={styles.cleanFooterText}>50+ Banks & UPI Apps</Text>
@@ -427,7 +428,7 @@ export default function PaymentScreen() {
               <View style={styles.cleanTitleRow}>
                 <View style={styles.codTitleBox}>
                   <View style={styles.codIconBadge}>
-                    <Ionicons name="cash-outline" size={16} color="#059669" />
+                    <Ionicons name="cash-outline" size={16} color={renewxColors.emerald} />
                   </View>
                   <Text style={styles.codMainTitle}>Cash on Delivery</Text>
                 </View>
@@ -441,7 +442,7 @@ export default function PaymentScreen() {
               </Text>
 
               <View style={styles.cleanFooterRow}>
-                <Ionicons name="checkmark-circle-outline" size={13} color="#64748B" />
+                <Ionicons name="checkmark-circle-outline" size={13} color={renewxColors.textMuted} />
                 <Text style={styles.cleanFooterText}>Zero Advance Payment Needed</Text>
               </View>
             </View>
@@ -449,14 +450,14 @@ export default function PaymentScreen() {
             <Ionicons
               name={paymentMethod === 'cod' ? 'checkmark-circle' : 'chevron-forward'}
               size={20}
-              color={paymentMethod === 'cod' ? '#059669' : '#CBD5E1'}
+              color={paymentMethod === 'cod' ? renewxColors.emerald : '#CBD5E1'}
             />
           </View>
         </TouchableOpacity>
 
         {/* Security Notice */}
         <View style={styles.securityBox}>
-          <Ionicons name="lock-closed" size={16} color="#64748b" />
+          <Ionicons name="lock-closed" size={16} color={renewxColors.textMuted} />
           <Text style={styles.securityText}>
             All transactions are 256-bit encrypted. Stock and prices are verified securely by RenewX server.
           </Text>
@@ -477,15 +478,15 @@ export default function PaymentScreen() {
           activeOpacity={0.88}
         >
           {processing ? (
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={renewxColors.white} />
           ) : paymentMethod === 'razorpay' ? (
             <>
-              <Ionicons name="lock-closed" size={16} color="#000" />
+              <Ionicons name="lock-closed" size={16} color={renewxColors.white} />
               <Text style={styles.payButtonText}>Pay Online Securely</Text>
             </>
           ) : (
             <>
-              <Ionicons name="checkmark-done" size={18} color="#000" />
+              <Ionicons name="checkmark-done" size={18} color={renewxColors.white} />
               <Text style={styles.payButtonText}>Place COD Order</Text>
             </>
           )}
@@ -526,7 +527,7 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: renewxColors.background,
   },
   header: {
     flexDirection: 'row',
@@ -534,21 +535,22 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    backgroundColor: '#fff',
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: renewxColors.border,
   },
   backButton: {
     padding: 4,
   },
   title: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   subtitle: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
   content: {
@@ -559,69 +561,78 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#fff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     marginBottom: spacing.md,
   },
   deliverText: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
+    fontSize: 12.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     flex: 1,
   },
   deliverBold: {
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   amountCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
     borderRadius: radius.lg,
     padding: spacing.lg,
     marginBottom: spacing.lg,
     alignItems: 'center',
+    ...(renewxShadows.elevated as object),
   },
   amountCardLabel: {
     fontSize: fontSize.xs,
-    color: '#94a3b8',
+    ...renewxTextStyle('medium'),
+    color: '#CBD5E1',
     marginBottom: 4,
   },
   amountCardValue: {
-    fontSize: 28,
-    fontWeight: fontWeight.black,
-    color: colors.primary,
+    fontSize: 30,
+    ...renewxTextStyle('black'),
+    color: renewxColors.yellow,
     marginBottom: 4,
   },
   amountCardNote: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: '#94A3B8',
   },
   sectionHeading: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.textSecondary,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 12,
     marginLeft: 4,
   },
   cleanPaymentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.lg,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: renewxColors.border,
     padding: 14,
     marginBottom: 12,
+    ...(renewxShadows.card as object),
+  },
+  paymentCardDisabled: {
+    opacity: 0.55,
+    backgroundColor: renewxColors.surfaceMuted,
   },
   cleanPaymentCardSelectedRazorpay: {
     backgroundColor: '#F0F9FF',
     borderColor: '#0284C7',
   },
   cleanPaymentCardSelectedCod: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#059669',
+    backgroundColor: renewxColors.mintLight,
+    borderColor: renewxColors.emerald,
   },
   cleanPaymentTopRow: {
     flexDirection: 'row',
@@ -648,13 +659,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0284C7',
   },
   cleanRadioActiveCod: {
-    borderColor: '#059669',
+    borderColor: renewxColors.emerald,
   },
   cleanRadioDotCod: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
   },
   cleanPaymentBody: {
     flex: 1,
@@ -669,6 +680,17 @@ const styles = StyleSheet.create({
     width: 105,
     height: 22,
   },
+  unavailableBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  unavailableBadgeText: {
+    fontSize: 10.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.error,
+  },
   cleanBadgeBlue: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -680,19 +702,21 @@ const styles = StyleSheet.create({
   },
   cleanBadgeBlueText: {
     fontSize: 10.5,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
     color: '#0284C7',
   },
   cleanBadgeGreen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 6,
   },
   cleanBadgeGreenText: {
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#15803D',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   codTitleBox: {
     flexDirection: 'row',
@@ -703,19 +727,20 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 6,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   codMainTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 14.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   cleanSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 17,
+    fontSize: 12.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+    lineHeight: 18,
     marginBottom: 6,
   },
   cleanFooterRow: {
@@ -724,12 +749,13 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   cleanFooterText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    fontSize: 11.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textMuted,
   },
   cleanFooterDot: {
     fontSize: 10,
+    ...renewxTextStyle('regular'),
     color: '#94A3B8',
   },
   securityBox: {
@@ -741,34 +767,37 @@ const styles = StyleSheet.create({
   },
   securityText: {
     flex: 1,
-    fontSize: 11,
-    color: colors.textMuted,
-    lineHeight: 16,
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
+    lineHeight: 17,
   },
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#fff',
+    backgroundColor: renewxColors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: renewxColors.border,
     padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...(renewxShadows.floating as object),
   },
   footerLabel: {
-    fontSize: 10,
-    color: colors.textMuted,
+    fontSize: 11,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textMuted,
   },
   footerTotal: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.black,
-    color: colors.text,
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
   },
   payButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: renewxColors.emerald,
     borderRadius: radius.md,
     minHeight: 48,
     paddingHorizontal: 22,
@@ -776,13 +805,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    ...(renewxShadows.card as object),
   },
   payButtonDisabled: {
     opacity: 0.6,
   },
   payButtonText: {
-    color: '#000',
+    color: renewxColors.white,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    ...renewxTextStyle('extraBold'),
   },
 });

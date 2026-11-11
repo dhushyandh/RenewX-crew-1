@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -368,28 +369,28 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
                 <View style={styles.formSection}>
                   <View style={styles.tokenStatusBanner}>
                     {validatingToken ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <ActivityIndicator size="small" color="#ffc400" />
-                        <Text style={{ fontSize: 12, color: '#0f172a' }}>Verifying security token...</Text>
+                      <View style={styles.tokenStatusRow}>
+                        <ActivityIndicator size="small" color={renewxColors.yellowDark} />
+                        <Text style={styles.tokenVerifyingText}>Verifying security token...</Text>
                       </View>
                     ) : tokenValid ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#065f46' }}>
+                      <View style={styles.tokenStatusRow}>
+                        <Ionicons name="shield-checkmark" size={16} color={renewxColors.emerald} />
+                        <Text style={styles.tokenVerifiedText}>
                           Token Verified for {verifiedEmail || 'Account'}
                         </Text>
                       </View>
                     ) : tokenValid === false ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name="alert-circle" size={16} color="#ef4444" />
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#991b1b' }}>
+                      <View style={styles.tokenStatusRow}>
+                        <Ionicons name="alert-circle" size={16} color={renewxColors.error} />
+                        <Text style={styles.tokenInvalidText}>
                           Invalid or Expired Token
                         </Text>
                       </View>
                     ) : null}
 
-                    <TouchableOpacity onPress={() => setResetToken('')} style={{ padding: 4 }}>
-                      <Text style={{ fontSize: 11, color: '#64748b', textDecorationLine: 'underline' }}>Change Email</Text>
+                    <TouchableOpacity onPress={() => setResetToken('')} style={styles.changeEmailBtn}>
+                      <Text style={styles.changeEmailBtnText}>Change Email</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -582,43 +583,7 @@ export default function SecurityScreen({ onBack }: SecurityScreenProps = {}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCenter: {
-    alignItems: 'center',
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 1,
+    backgroundColor: renewxColors.background,
   },
   scrollContent: {
     padding: 16,
@@ -626,7 +591,7 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#E2E8F0',
     borderRadius: 12,
     padding: 3,
     marginBottom: 16,
@@ -637,37 +602,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
+    paddingVertical: 9.5,
     borderRadius: 9,
   },
   tabButtonActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: renewxColors.surface,
+    ...(renewxShadows.card as object),
   },
   tabButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
+    fontSize: 12.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textMuted,
   },
   tabButtonTextActive: {
-    color: '#000000',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
     marginBottom: 16,
   },
   cardHeader: {
@@ -676,127 +633,131 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   cardIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
+    fontSize: 15.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   cardDesc: {
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: 12.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   formSection: {
     marginTop: 16,
   },
   inputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
+    fontSize: 12.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 6,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+    backgroundColor: renewxColors.surface,
+    borderWidth: 1.5,
+    borderColor: renewxColors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 46,
+    height: 48,
     marginBottom: 12,
   },
   textInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 12,
-    height: 46,
+    height: 48,
     marginTop: 6,
-    shadowColor: '#ffc400',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   primaryBtnText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#000000',
+    fontSize: 14.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   successNoticeBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 10,
     padding: 12,
     marginTop: 14,
   },
   successNoticeText: {
     flex: 1,
-    fontSize: 12,
-    color: '#166534',
-    lineHeight: 17,
-  },
-  devBox: {
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 14,
-  },
-  devBoxTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#ffc400',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  devBoxUrl: {
-    fontSize: 11,
-    color: '#cbd5e1',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginTop: 4,
-  },
-  devBoxBtn: {
-    marginTop: 8,
-    paddingVertical: 5,
-  },
-  devBoxBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#38bdf8',
+    fontSize: 12.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.mintDark,
+    lineHeight: 18,
   },
   tokenStatusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     borderRadius: 10,
     padding: 10,
     marginBottom: 14,
+  },
+  tokenStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  tokenVerifyingText: {
+    fontSize: 12.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.black,
+  },
+  tokenVerifiedText: {
+    fontSize: 12.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
+  },
+  tokenInvalidText: {
+    fontSize: 12.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.error,
+  },
+  changeEmailBtn: {
+    padding: 4,
+  },
+  changeEmailBtnText: {
+    fontSize: 11.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textMuted,
+    textDecorationLine: 'underline',
   },
   strengthWrap: {
     flexDirection: 'row',
@@ -808,7 +769,7 @@ const styles = StyleSheet.create({
   strengthBarTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#E2E8F0',
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -817,41 +778,17 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   strengthLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  securityChecklistCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  checklistHeader: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  checkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  checkText: {
-    fontSize: 12,
-    color: '#475569',
-    flex: 1,
-    lineHeight: 16,
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
   },
   signOutCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#FECACA',
     borderRadius: 14,
     paddingVertical: 14,
     marginTop: 16,
@@ -859,7 +796,7 @@ const styles = StyleSheet.create({
   },
   signOutCardText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#dc2626',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.error,
   },
 });

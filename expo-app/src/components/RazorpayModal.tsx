@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent, WebViewNavigation } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { fontSize, radius, spacing } from '@/theme';
+import { renewxColors, renewxTextStyle } from '@/design-system';
 import { RazorpayCheckoutOptions, RazorpayCheckoutResult } from '@/lib/razorpay';
 
 interface RazorpayModalProps {
@@ -280,12 +281,12 @@ export default function RazorpayModal({
             onPress={handleRequestClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={24} color={renewxColors.black} />
           </TouchableOpacity>
 
           <View style={styles.titleContainer}>
             <View style={styles.secureBadge}>
-              <Ionicons name="shield-checkmark" size={14} color="#10b981" />
+              <Ionicons name="shield-checkmark" size={14} color={renewxColors.emerald} />
               <Text style={styles.headerTitle}>Secure Payment</Text>
             </View>
             <Text style={styles.headerSubtitle}>Powered by Razorpay</Text>
@@ -302,7 +303,7 @@ export default function RazorpayModal({
 
         {String(options.key || '').startsWith('rzp_test_') && (
           <View style={styles.testModeBanner}>
-            <Ionicons name="information-circle-outline" size={15} color="#b45309" />
+            <Ionicons name="information-circle-outline" size={15} color={renewxColors.warning} />
             <Text style={styles.testModeText}>
               <Text style={styles.testModeHighlight}>Test Mode:</Text> Select UPI (enter <Text style={styles.testModeHighlight}>success@razorpay</Text>) or Netbanking (click Success).
             </Text>
@@ -372,7 +373,7 @@ export default function RazorpayModal({
 
           {loading && (
             <View style={styles.loaderOverlay}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={renewxColors.yellow} />
               <Text style={styles.loaderText}>Connecting to Razorpay...</Text>
             </View>
           )}
@@ -385,7 +386,7 @@ export default function RazorpayModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: renewxColors.surface,
   },
   header: {
     height: 56,
@@ -394,8 +395,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: '#fff',
+    borderBottomColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
   },
   closeButton: {
     padding: 6,
@@ -410,43 +411,47 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   headerSubtitle: {
-    fontSize: 10,
-    color: colors.textMuted,
+    fontSize: 11,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 1,
   },
   amountPill: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.full,
   },
   amountText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.black,
-    color: colors.text,
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
   },
   testModeBanner: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: renewxColors.yellowSoft,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#fde68a',
+    borderBottomColor: renewxColors.yellowLight,
   },
   testModeText: {
-    fontSize: 11,
-    color: '#92400e',
+    fontSize: 12,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.black,
     flex: 1,
-    lineHeight: 16,
+    lineHeight: 17,
   },
   testModeHighlight: {
-    fontWeight: fontWeight.bold,
+    ...renewxTextStyle('bold'),
   },
   webviewContainer: {
     flex: 1,
@@ -454,7 +459,7 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
   },
   loaderOverlay: {
     position: 'absolute',
@@ -462,14 +467,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
   },
   loaderText: {
-    color: '#94a3b8',
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    color: '#CBD5E1',
+    fontSize: 13,
+    ...renewxTextStyle('medium'),
   },
 });

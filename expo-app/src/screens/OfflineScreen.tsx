@@ -16,6 +16,7 @@ import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import BrandSocialFooter from '@/components/BrandSocialFooter';
 import RenewXLogo from '@/components/RenewXLogo';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 interface OfflineScreenProps {
   onRetrySuccess?: () => void;
@@ -163,7 +164,7 @@ export default function OfflineScreen({ onRetrySuccess }: OfflineScreenProps) {
         >
           {checking ? (
             <View style={styles.reloadingRow}>
-              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+              <ActivityIndicator size="small" color={renewxColors.black} style={{ marginRight: 8 }} />
               <Text style={styles.reloadBtnText}>Reloading...</Text>
             </View>
           ) : (
@@ -199,16 +200,12 @@ const styles = StyleSheet.create({
 
   /* Header Container */
   headerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 2,
+    borderBottomColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   headerRow: {
     flexDirection: 'row',
@@ -234,7 +231,7 @@ const styles = StyleSheet.create({
   },
   offlineStatusText: {
     fontSize: 12,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
     color: '#B91C1C',
     letterSpacing: 0.3,
   },
@@ -377,11 +374,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 5, height: 6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 5,
-    elevation: 5,
+    ...Platform.select({
+      web: { boxShadow: '5px 6px 10px rgba(0, 0, 0, 0.16)' },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 5, height: 6 },
+        shadowOpacity: 0.16,
+        shadowRadius: 5,
+        elevation: 5,
+      },
+    }),
   },
   wifiWrapper: {
     width: 32,
@@ -408,16 +410,17 @@ const styles = StyleSheet.create({
 
   /* Typography */
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 21,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     marginTop: 26,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
     lineHeight: 21,
     maxWidth: 300,
@@ -426,18 +429,16 @@ const styles = StyleSheet.create({
 
   /* Reload Button */
   reloadBtn: {
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingVertical: 13,
     paddingHorizontal: 36,
     borderRadius: 12,
     minWidth: 140,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   reloadingRow: {
     flexDirection: 'row',
@@ -445,9 +446,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reloadBtnText: {
-    color: '#FFFFFF',
+    color: renewxColors.black,
     fontSize: 15,
-    fontWeight: '700',
+    ...renewxTextStyle('extraBold'),
     letterSpacing: 0.2,
   },
 });

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 export type ToastType = 'success' | 'detecting' | 'warning' | 'error' | 'info' | 'manual';
 
@@ -53,36 +54,36 @@ const TOAST_THEMES: Record<
   }
 > = {
   success: {
-    accentColor: '#10B981',
-    circleBg: '#ECFDF5',
+    accentColor: renewxColors.emerald,
+    circleBg: renewxColors.mint,
     defaultTitle: 'Success',
-    renderIcon: () => <Ionicons name="checkmark" size={24} color="#10B981" />,
+    renderIcon: () => <Ionicons name="checkmark" size={24} color={renewxColors.emerald} />,
   },
   detecting: {
-    accentColor: '#EAB308',
-    circleBg: '#FEF9C3',
+    accentColor: renewxColors.yellowDark,
+    circleBg: renewxColors.yellowLight,
     defaultTitle: 'Detecting Location...',
     renderIcon: () => (
       <View style={styles.detectingSpinnerContainer}>
-        <ActivityIndicator size="small" color="#EAB308" />
+        <ActivityIndicator size="small" color={renewxColors.yellowDark} />
       </View>
     ),
   },
   warning: {
-    accentColor: '#F59E0B',
-    circleBg: '#FFF7ED',
+    accentColor: renewxColors.warning,
+    circleBg: renewxColors.yellowSoft,
     defaultTitle: 'Warning',
-    renderIcon: () => <Ionicons name="warning-outline" size={22} color="#F59E0B" />,
+    renderIcon: () => <Ionicons name="warning-outline" size={22} color={renewxColors.warning} />,
   },
   error: {
-    accentColor: '#EF4444',
+    accentColor: renewxColors.error,
     circleBg: '#FEF2F2',
     defaultTitle: 'Error',
-    renderIcon: () => <Ionicons name="close" size={22} color="#EF4444" />,
+    renderIcon: () => <Ionicons name="close" size={22} color={renewxColors.error} />,
   },
   manual: {
-    accentColor: '#10B981',
-    circleBg: '#ECFDF5',
+    accentColor: renewxColors.emerald,
+    circleBg: renewxColors.mint,
     defaultTitle: 'Location Saved',
     renderIcon: () => (
       <View style={styles.solidSuccessCircle}>
@@ -91,7 +92,7 @@ const TOAST_THEMES: Record<
     ),
   },
   info: {
-    accentColor: '#3B82F6',
+    accentColor: renewxColors.info,
     circleBg: '#EFF6FF',
     defaultTitle: 'Notice',
     renderIcon: () => (
@@ -497,18 +498,14 @@ const styles = StyleSheet.create({
     maxWidth: Math.min(SCREEN_WIDTH - 24, 460),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: renewxColors.border,
     paddingVertical: 14,
     paddingHorizontal: 16,
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 22,
-    elevation: 10,
+    ...(renewxShadows.floating as object),
   },
   leftAccentBar: {
     position: 'absolute',
@@ -533,7 +530,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#10B981',
+    backgroundColor: renewxColors.emerald,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -541,7 +538,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#3B82F6',
+    backgroundColor: renewxColors.info,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -558,17 +555,16 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: Platform.select({ web: "'Outfit', sans-serif", default: 'Outfit_700Bold' }),
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     letterSpacing: -0.2,
   },
   subtitleText: {
     fontSize: 12.5,
-    color: '#64748B',
+    color: renewxColors.textSecondary,
     lineHeight: 17,
     marginTop: 2,
-    fontFamily: Platform.select({ web: "'Outfit', sans-serif", default: 'Outfit_400Regular' }),
+    ...renewxTextStyle('regular'),
   },
   closeBtn: {
     padding: 6,
@@ -586,7 +582,6 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    fontFamily: Platform.select({ web: "'Outfit', sans-serif", default: 'Outfit_700Bold' }),
+    ...renewxTextStyle('bold'),
   },
 });

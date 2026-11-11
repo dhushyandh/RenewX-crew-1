@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { radius, spacing } from '@/theme';
+import { renewxColors, renewxTextStyle } from '@/design-system';
 
 interface CheckoutStepperProps {
   currentStep: 1 | 2 | 3;
@@ -30,11 +31,11 @@ export default function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
                     styles.circle,
                     isCompleted && styles.circleCompleted,
                     isActive && styles.circleActive,
-                    step.id === 3 && isActive && { backgroundColor: '#10b981', borderColor: '#10b981' },
+                    step.id === 3 && isActive && styles.circleConfirmed,
                   ]}
                 >
                   {isCompleted || (step.id === 3 && isActive) ? (
-                    <Ionicons name="checkmark" size={14} color={step.id === 3 && isActive ? '#fff' : '#000'} />
+                    <Ionicons name="checkmark" size={14} color={renewxColors.white} />
                   ) : (
                     <Text
                       style={[
@@ -76,11 +77,11 @@ export default function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: renewxColors.surface,
     paddingVertical: 12,
     paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: renewxColors.border,
   },
   stepsRow: {
     flexDirection: 'row',
@@ -90,56 +91,61 @@ const styles = StyleSheet.create({
   stepItem: {
     alignItems: 'center',
     gap: 4,
-    minWidth: 60,
+    minWidth: 64,
   },
   circle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#f1f5f9',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: renewxColors.surfaceMuted,
     borderWidth: 1.5,
-    borderColor: '#cbd5e1',
+    borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
   },
   circleActive: {
-    backgroundColor: '#000',
-    borderColor: colors.primary,
+    backgroundColor: renewxColors.yellow,
+    borderColor: renewxColors.yellowDark,
     borderWidth: 2,
   },
   circleCompleted: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: renewxColors.emerald,
+    borderColor: renewxColors.emerald,
+  },
+  circleConfirmed: {
+    backgroundColor: renewxColors.emerald,
+    borderColor: renewxColors.emerald,
   },
   stepNumber: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#64748b',
+    fontSize: 12,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textMuted,
   },
   stepNumberActive: {
-    color: colors.primary,
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   stepTitle: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: fontWeight.medium,
+    fontSize: 11.5,
+    color: '#94A3B8',
+    ...renewxTextStyle('medium'),
   },
   stepTitleActive: {
-    color: colors.text,
-    fontWeight: fontWeight.bold,
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   stepTitleCompleted: {
-    color: colors.text,
-    fontWeight: fontWeight.semibold,
+    color: renewxColors.emerald,
+    ...renewxTextStyle('bold'),
   },
   connector: {
     flex: 1,
     height: 2,
-    backgroundColor: '#e2e8f0',
-    marginBottom: 16,
+    backgroundColor: renewxColors.border,
+    marginBottom: 18,
     marginHorizontal: 8,
   },
   connectorCompleted: {
-    backgroundColor: colors.primary,
+    backgroundColor: renewxColors.emerald,
   },
 });

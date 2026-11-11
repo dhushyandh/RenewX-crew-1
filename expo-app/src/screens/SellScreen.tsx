@@ -26,7 +26,7 @@ import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
-import { renewxColors, renewxFontFamily, renewxRadius, renewxSpacing } from '@/design-system';
+import { renewxColors, renewxRadius, renewxSpacing, renewxTextStyle } from '@/design-system';
 import { CATEGORY_THIRD_PARTY_IMAGES } from '@/data/categories';
 
 // 1. Supported Device Categories
@@ -88,8 +88,8 @@ const getUpcomingDates = (): string[] => {
  */
 function AnimatedTick({
   size = 18,
-  color = '#0F172A',
-  bgColor = '#FBBF24',
+  color = renewxColors.black,
+  bgColor = renewxColors.yellow,
 }: {
   size?: number;
   color?: string;
@@ -691,7 +691,7 @@ export default function SellScreen() {
 
         <ScrollView contentContainerStyle={styles.successScroll}>
           <View style={styles.successIconCircle}>
-            <AnimatedTick size={44} color="#16A34A" bgColor="#DCFCE7" />
+            <AnimatedTick size={44} color={renewxColors.emerald} bgColor={renewxColors.mint} />
           </View>
 
           <Text style={styles.successHeadTitle}>Request Submitted Successfully!</Text>
@@ -833,9 +833,9 @@ export default function SellScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#FFC400"
-              colors={['#FFC400', '#10B981']}
-              progressBackgroundColor="#FFFFFF"
+              tintColor={renewxColors.yellowDark}
+              colors={[renewxColors.yellow, renewxColors.emerald]}
+              progressBackgroundColor={renewxColors.surface}
             />
           }
         >
@@ -903,7 +903,7 @@ export default function SellScreen() {
               {/* Brands 3x3 Grid */}
               {loadingBrands ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color="#F59E0B" />
+                  <ActivityIndicator size="small" color={renewxColors.yellowDark} />
                   <Text style={styles.loadingText}>Fetching brands from database...</Text>
                 </View>
               ) : (
@@ -967,7 +967,7 @@ export default function SellScreen() {
               {/* Models Vertical List */}
               {loadingModels ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color="#F59E0B" />
+                  <ActivityIndicator size="small" color={renewxColors.yellowDark} />
                   <Text style={styles.loadingText}>Fetching models from database...</Text>
                 </View>
               ) : (
@@ -1269,7 +1269,7 @@ export default function SellScreen() {
               {/* Tips for better valuation */}
               <View style={styles.valuationTipsCard}>
                 <View style={styles.tipsHeaderRow}>
-                  <Ionicons name="bulb-outline" size={18} color="#0284C7" style={{ marginRight: 6 }} />
+                  <Ionicons name="bulb-outline" size={18} color={renewxColors.emerald} style={{ marginRight: 6 }} />
                   <Text style={styles.tipsHeaderTitle}>Tips for better valuation</Text>
                 </View>
                 <Text style={styles.tipBullet}>• Upload clear, well-lit photos</Text>
@@ -1304,7 +1304,7 @@ export default function SellScreen() {
                     {selectedStorage || 'Standard'} · {selectedColor || 'Standard'} · {selectedCondition || 'Good'} Condition
                   </Text>
                   <View style={styles.sellerFreedomTag}>
-                    <Ionicons name="sparkles" size={11} color="#059669" />
+                    <Ionicons name="sparkles" size={11} color={renewxColors.emerald} />
                     <Text style={styles.sellerFreedomTagText}>Seller Quotes Value</Text>
                   </View>
                 </View>
@@ -1336,7 +1336,7 @@ export default function SellScreen() {
                 </View>
                 {numericPrice > 0 && (
                   <Text style={styles.quoteFormattedHint}>
-                    Your asking price: <Text style={{ fontWeight: '800', color: '#0F172A' }}>₹{numericPrice.toLocaleString('en-IN')}</Text>
+                    Your asking price: <Text style={styles.quoteFormattedBold}>₹{numericPrice.toLocaleString('en-IN')}</Text>
                   </Text>
                 )}
               </View>
@@ -1369,7 +1369,7 @@ export default function SellScreen() {
               <View style={styles.sellerEmpowerCard}>
                 <View style={styles.sellerEmpowerHeader}>
                   <View style={styles.sellerEmpowerIconCircle}>
-                    <Ionicons name="shield-checkmark" size={18} color="#059669" />
+                    <Ionicons name="shield-checkmark" size={18} color={renewxColors.emerald} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.sellerEmpowerTitle}>Seller-Driven Valuation</Text>
@@ -1382,23 +1382,23 @@ export default function SellScreen() {
                 <View style={styles.sellerEmpowerDivider} />
 
                 <View style={styles.sellerBenefitItem}>
-                  <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginTop: 1 }} />
+                  <Ionicons name="checkmark-circle" size={15} color={renewxColors.emerald} style={{ marginTop: 1 }} />
                   <Text style={styles.sellerBenefitText}>
-                    <Text style={{ fontWeight: '700', color: '#0F172A' }}>You Set the Price:</Text> You have full freedom to quote your device's worth.
+                    <Text style={styles.sellerBenefitBold}>You Set the Price:</Text> You have full freedom to quote your device's worth.
                   </Text>
                 </View>
 
                 <View style={styles.sellerBenefitItem}>
-                  <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginTop: 1 }} />
+                  <Ionicons name="checkmark-circle" size={15} color={renewxColors.emerald} style={{ marginTop: 1 }} />
                   <Text style={styles.sellerBenefitText}>
-                    <Text style={{ fontWeight: '700', color: '#0F172A' }}>Doorstep Verification:</Text> Our certified expert verifies the physical device at your doorstep.
+                    <Text style={styles.sellerBenefitBold}>Doorstep Verification:</Text> Our certified expert verifies the physical device at your doorstep.
                   </Text>
                 </View>
 
                 <View style={styles.sellerBenefitItem}>
-                  <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginTop: 1 }} />
+                  <Ionicons name="checkmark-circle" size={15} color={renewxColors.emerald} style={{ marginTop: 1 }} />
                   <Text style={styles.sellerBenefitText}>
-                    <Text style={{ fontWeight: '700', color: '#0F172A' }}>Instant Payout:</Text> Bank transfer or UPI paid directly to you on the spot.
+                    <Text style={styles.sellerBenefitBold}>Instant Payout:</Text> Bank transfer or UPI paid directly to you on the spot.
                   </Text>
                 </View>
               </View>
@@ -1558,7 +1558,7 @@ export default function SellScreen() {
                     {SELL_CATEGORIES.find((c) => c.id === selectedCategory)?.name || 'Not selected'}
                   </Text>
                   <TouchableOpacity onPress={() => setStep(1)} style={styles.reviewEditBtn}>
-                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Ionicons name="pencil" size={12} color={renewxColors.emerald} style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1571,7 +1571,7 @@ export default function SellScreen() {
                   </View>
                   <Text style={styles.reviewRowValue}>{selectedBrandName || 'Not selected'}</Text>
                   <TouchableOpacity onPress={() => setStep(2)} style={styles.reviewEditBtn}>
-                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Ionicons name="pencil" size={12} color={renewxColors.emerald} style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1584,7 +1584,7 @@ export default function SellScreen() {
                   </View>
                   <Text style={styles.reviewRowValue}>{selectedModel || 'Not selected'}</Text>
                   <TouchableOpacity onPress={() => setStep(3)} style={styles.reviewEditBtn}>
-                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Ionicons name="pencil" size={12} color={renewxColors.emerald} style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1604,7 +1604,7 @@ export default function SellScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity onPress={() => setStep(4)} style={styles.reviewEditBtn}>
-                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Ionicons name="pencil" size={12} color={renewxColors.emerald} style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1617,7 +1617,7 @@ export default function SellScreen() {
                   </View>
                   <Text style={styles.reviewRowValue}>{photos.length} photo{photos.length === 1 ? '' : 's'}</Text>
                   <TouchableOpacity onPress={() => setStep(5)} style={styles.reviewEditBtn}>
-                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Ionicons name="pencil" size={12} color={renewxColors.emerald} style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1625,11 +1625,11 @@ export default function SellScreen() {
                 {/* Seller Quoted Price */}
                 <View style={styles.reviewRow}>
                   <View style={styles.reviewRowLeft}>
-                    <Ionicons name="pricetag-outline" size={16} color="#059669" style={{ marginRight: 6 }} />
+                    <Ionicons name="pricetag-outline" size={16} color={renewxColors.emerald} style={{ marginRight: 6 }} />
                     <Text style={styles.reviewRowLabel}>Seller Quoted Price</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[styles.reviewRowValue, { color: '#059669', fontWeight: '800' }]}>
+                    <Text style={[styles.reviewRowValue, styles.reviewQuotedPriceValue]}>
                       ₹{numericPrice.toLocaleString('en-IN')}
                     </Text>
                     <View style={styles.quotedStatusTag}>
@@ -1637,7 +1637,7 @@ export default function SellScreen() {
                     </View>
                   </View>
                   <TouchableOpacity onPress={() => setStep(6)} style={styles.reviewEditBtn}>
-                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Ionicons name="pencil" size={12} color={renewxColors.emerald} style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1653,12 +1653,12 @@ export default function SellScreen() {
                       {pickupAddress || 'Address not specified'}
                       {pincode ? ` (${pincode})` : ''}
                     </Text>
-                    <Text style={[styles.reviewRowSubMultiline, { marginTop: 3, fontWeight: '700', color: '#0F172A' }]}>
+                    <Text style={[styles.reviewRowSubMultiline, styles.reviewPickupDateText]}>
                       Pickup Date: {pickupDate || 'Not selected'}
                     </Text>
                   </View>
                   <TouchableOpacity onPress={() => setStep(7)} style={styles.reviewEditBtn}>
-                    <Ionicons name="pencil" size={12} color="#D97706" style={{ marginRight: 2 }} />
+                    <Ionicons name="pencil" size={12} color={renewxColors.emerald} style={{ marginRight: 2 }} />
                     <Text style={styles.reviewEditText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -1674,7 +1674,7 @@ export default function SellScreen() {
                   {agreedTerms && <AnimatedTick size={14} />}
                 </View>
                 <Text style={styles.termsText}>
-                  I agree to the <Text style={{ color: '#2563EB', textDecorationLine: 'underline' }}>Terms & Conditions</Text> and confirm that the information provided is correct.
+                  I agree to the <Text style={styles.termsLinkText}>Terms & Conditions</Text> and confirm that the information provided is correct.
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1838,7 +1838,7 @@ export default function SellScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.background,
   },
 
   /* TOP HEADER */
@@ -1848,8 +1848,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 8,
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.border,
   },
   headerBackBtn: {
     width: 40,
@@ -1862,16 +1863,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerMainTitle: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 16.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 17,
+    color: renewxColors.black,
   },
   headerSubTitle: {
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 11.5,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 12,
+    color: renewxColors.textMuted,
   },
 
   /* STEPPER NODES */
@@ -1879,9 +1879,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.border,
   },
   stepInfoRow: {
     flexDirection: 'row',
@@ -1890,27 +1890,25 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   stepTitleActive: {
-    fontSize: 13,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   stepPctText: {
     fontSize: 12,
-    fontWeight: '700',
-    fontFamily: renewxFontFamily.bold,
-    color: '#D97706',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   stepProgressBarWrapper: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     marginBottom: 10,
     overflow: 'hidden',
   },
   stepProgressBarFill: {
     height: '100%',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 2,
   },
   stepperNodesRow: {
@@ -1922,34 +1920,33 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperNodeActive: {
-    backgroundColor: '#FACC15',
-    borderColor: '#EAB308',
+    backgroundColor: renewxColors.yellow,
+    borderColor: renewxColors.yellowDark,
     transform: [{ scale: 1.1 }],
   },
   stepperNodeDone: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellow,
   },
   stepperNodeText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   stepperNodeTextActive: {
-    color: '#0F172A',
-    fontWeight: '900',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
   },
   stepperNodeTextDone: {
-    color: '#0F172A',
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 
   /* SCROLL CONTENT */
@@ -1964,17 +1961,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   stepTitle: {
-    fontFamily: renewxFontFamily.extraBold,
-    fontSize: 19,
-    fontWeight: '900',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 20,
+    letterSpacing: -0.3,
+    color: renewxColors.black,
   },
   stepSubtitle: {
     marginTop: 4,
     marginBottom: 18,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 13,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: renewxColors.textSecondary,
   },
   requiredBadge: {
     backgroundColor: '#FEF2F2',
@@ -1985,17 +1983,16 @@ const styles = StyleSheet.create({
     borderColor: '#FCA5A5',
   },
   requiredBadgeSuccess: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
+    backgroundColor: renewxColors.mint,
+    borderColor: renewxColors.mintBorder,
   },
   requiredBadgeText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 10,
-    color: '#DC2626',
-    fontWeight: '800',
+    color: renewxColors.error,
   },
   requiredBadgeTextSuccess: {
-    color: '#16A34A',
+    color: renewxColors.emerald,
   },
 
   /* SEARCH BAR */
@@ -2003,18 +2000,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 46,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 16,
   },
   searchInput: {
     flex: 1,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 13,
-    color: '#0F172A',
+    ...renewxTextStyle('regular'),
+    fontSize: 13.5,
+    color: renewxColors.black,
     padding: 0,
     ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
@@ -2026,9 +2023,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontFamily: renewxFontFamily.medium,
-    fontSize: 12,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    fontSize: 12.5,
+    color: renewxColors.textMuted,
   },
 
   /* STEP 1: CATEGORY GRID */
@@ -2041,18 +2038,18 @@ const styles = StyleSheet.create({
     width: '31%',
     aspectRatio: 0.9,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     padding: 8,
   },
   categoryCardSelected: {
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowDark,
     borderWidth: 2,
-    backgroundColor: '#FFFDF5',
+    backgroundColor: renewxColors.yellowSoft,
   },
   catImgBox: {
     width: 48,
@@ -2066,14 +2063,13 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   catName: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#334155',
+    color: renewxColors.textSecondary,
   },
   catNameSelected: {
-    color: '#0F172A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   cornerTickBadge: {
     position: 'absolute',
@@ -2092,18 +2088,18 @@ const styles = StyleSheet.create({
     width: '31.3%',
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     padding: 10,
   },
   brandCardSelected: {
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowDark,
     borderWidth: 2,
-    backgroundColor: '#FFFDF5',
+    backgroundColor: renewxColors.yellowSoft,
   },
   brandCardOther: {
     borderStyle: 'dashed',
@@ -2114,9 +2110,9 @@ const styles = StyleSheet.create({
   },
   brandNameText: {
     marginTop: 2,
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 10,
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
 
   /* STEP 3: MODELS LIST */
@@ -2129,14 +2125,14 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
     gap: 12,
   },
   modelRowCardSelected: {
-    borderColor: '#FDE047',
+    borderColor: renewxColors.yellowDark,
     borderWidth: 2,
-    backgroundColor: '#FFFDF5',
+    backgroundColor: renewxColors.yellowSoft,
   },
   modelThumbImg: {
     width: 32,
@@ -2144,14 +2140,13 @@ const styles = StyleSheet.create({
   },
   modelNameText: {
     flex: 1,
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 13.5,
-    fontWeight: '700',
-    color: '#334155',
+    color: renewxColors.textSecondary,
   },
   modelNameTextSelected: {
-    color: '#0F172A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   modelRowCardOther: {
     borderStyle: 'dashed',
@@ -2160,19 +2155,19 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   otherModelTitle: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 13,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   otherModelSub: {
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 10.5,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 11,
+    color: renewxColors.textMuted,
   },
 
   /* STEP 4: SPECS & CONDITION */
@@ -2182,8 +2177,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
     marginBottom: 18,
     gap: 12,
   },
@@ -2192,38 +2187,36 @@ const styles = StyleSheet.create({
     height: 44,
   },
   selectedHeaderModelName: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 15,
+    color: renewxColors.black,
   },
   selectedHeaderBrandName: {
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('regular'),
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   changeModelBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFFFFF',
+    borderColor: renewxColors.borderStrong,
+    backgroundColor: renewxColors.surface,
   },
   changeModelBtnText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 11.5,
-    color: '#0F172A',
+    color: renewxColors.emerald,
   },
 
   specSection: {
     marginBottom: 16,
   },
   specSectionLabel: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13.5,
+    color: renewxColors.black,
     marginBottom: 8,
   },
   chipsRow: {
@@ -2237,22 +2230,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   specChipSelected: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FDE047',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
   },
   specChipText: {
-    fontFamily: renewxFontFamily.semibold,
-    fontSize: 12,
-    color: '#475569',
+    ...renewxTextStyle('semibold'),
+    fontSize: 12.5,
+    color: renewxColors.textSecondary,
   },
   specChipTextSelected: {
-    color: '#0F172A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   yesNoRow: {
     flexDirection: 'row',
@@ -2262,41 +2255,41 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   yesNoBtnSelected: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FDE047',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
   },
   yesNoBtnText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 13,
-    color: '#475569',
+    color: renewxColors.textSecondary,
   },
   yesNoBtnTextSelected: {
-    color: '#0F172A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   dropdownSelector: {
     height: 44,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   dropdownSelectorText: {
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 13,
-    color: '#0F172A',
+    ...renewxTextStyle('regular'),
+    fontSize: 13.5,
+    color: renewxColors.black,
   },
 
   /* STEP 5: PHOTOS GRID */
@@ -2311,8 +2304,8 @@ const styles = StyleSheet.create({
     aspectRatio: 0.9,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
     overflow: 'hidden',
     position: 'relative',
     alignItems: 'center',
@@ -2324,9 +2317,9 @@ const styles = StyleSheet.create({
   },
   photoSlotLabel: {
     marginTop: 4,
-    fontFamily: renewxFontFamily.medium,
-    fontSize: 9.5,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    fontSize: 10,
+    color: renewxColors.textMuted,
     textAlign: 'center',
   },
   photoRemoveBtn: {
@@ -2336,7 +2329,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 3,
@@ -2346,9 +2339,9 @@ const styles = StyleSheet.create({
     aspectRatio: 0.9,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: renewxColors.borderStrong,
     borderStyle: 'dashed',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2356,15 +2349,17 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
   },
   addPhotoText: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 11,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    fontSize: 11.5,
+    color: renewxColors.black,
   },
   photoWarningCard: {
     flexDirection: 'row',
@@ -2377,15 +2372,15 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   photoWarningText: {
-    fontFamily: renewxFontFamily.semibold,
+    ...renewxTextStyle('semibold'),
     fontSize: 12,
-    color: '#DC2626',
+    color: renewxColors.error,
     flex: 1,
   },
   valuationTipsCard: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#BAE6FD',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 14,
     padding: 14,
   },
@@ -2395,16 +2390,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   tipsHeaderTitle: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0369A1',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13.5,
+    color: renewxColors.mintDark,
   },
   tipBullet: {
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 11.5,
-    color: '#475569',
-    lineHeight: 18,
+    ...renewxTextStyle('regular'),
+    fontSize: 12,
+    color: renewxColors.textSecondary,
+    lineHeight: 19,
   },
 
   /* STEP 6: QUOTE YOUR PRICE (SELLER QUOTED PRICE) */
@@ -2413,9 +2407,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 14,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     gap: 14,
     marginBottom: 16,
   },
@@ -2423,7 +2417,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 72,
     borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 4,
@@ -2436,42 +2430,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   quoteDeviceTitle: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 15,
+    color: renewxColors.black,
   },
   quoteDeviceSpecs: {
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 11,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 11.5,
+    color: renewxColors.textMuted,
   },
   sellerFreedomTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 8,
-    paddingVertical: 2.5,
+    paddingVertical: 3,
     borderRadius: 8,
     alignSelf: 'flex-start',
     marginTop: 6,
   },
   sellerFreedomTagText: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 10,
-    color: '#059669',
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
+    fontSize: 10.5,
+    color: renewxColors.emerald,
   },
   expectedPriceSection: {
     marginBottom: 10,
   },
   expectedPriceLabel: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13.5,
+    color: renewxColors.black,
     marginBottom: 6,
   },
   currencyInputBox: {
@@ -2480,31 +2471,33 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFFFFF',
+    borderColor: renewxColors.borderStrong,
+    backgroundColor: renewxColors.surface,
     paddingHorizontal: 14,
   },
   currencyPrefix: {
-    fontFamily: renewxFontFamily.extraBold,
+    ...renewxTextStyle('black'),
     fontSize: 20,
-    color: '#0F172A',
+    color: renewxColors.black,
     marginRight: 8,
-    fontWeight: '900',
   },
   currencyInput: {
     flex: 1,
-    fontFamily: renewxFontFamily.extraBold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     padding: 0,
     ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
   quoteFormattedHint: {
     marginTop: 6,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 11.5,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 12,
+    color: renewxColors.textMuted,
+  },
+  quoteFormattedBold: {
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   quickQuoteRow: {
     flexDirection: 'row',
@@ -2516,29 +2509,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   quickQuoteChipSelected: {
-    backgroundColor: '#FEF08A',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
   },
   quickQuoteChipText: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#475569',
+    ...renewxTextStyle('bold'),
+    fontSize: 12,
+    color: renewxColors.textSecondary,
   },
   quickQuoteChipTextSelected: {
-    color: '#0F172A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   sellerEmpowerCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     padding: 14,
   },
   sellerEmpowerHeader: {
@@ -2550,25 +2542,24 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sellerEmpowerTitle: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13.5,
+    color: renewxColors.black,
   },
   sellerEmpowerSub: {
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 10.5,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 11,
+    color: renewxColors.textMuted,
     marginTop: 1,
   },
   sellerEmpowerDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     marginVertical: 10,
   },
   sellerBenefitItem: {
@@ -2579,21 +2570,25 @@ const styles = StyleSheet.create({
   },
   sellerBenefitText: {
     flex: 1,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 11,
-    color: '#334155',
-    lineHeight: 16,
+    ...renewxTextStyle('regular'),
+    fontSize: 11.5,
+    color: renewxColors.textSecondary,
+    lineHeight: 17,
+  },
+  sellerBenefitBold: {
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   quotedStatusTag: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 6,
   },
   quotedStatusTagText: {
+    ...renewxTextStyle('bold'),
     fontSize: 9.5,
-    fontWeight: '700',
-    color: '#16A34A',
+    color: renewxColors.emerald,
   },
 
   /* STEP 7: PICKUP & CONTACT */
@@ -2606,35 +2601,34 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputFieldLabel: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 5,
   },
   iconInputBox: {
     height: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
   },
   textInputPure: {
     flex: 1,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 12.5,
-    color: '#0F172A',
+    ...renewxTextStyle('regular'),
+    fontSize: 13,
+    color: renewxColors.black,
     padding: 0,
     ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
   pickupAddressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     padding: 12,
   },
   addressRowTop: {
@@ -2644,48 +2638,49 @@ const styles = StyleSheet.create({
   },
   addressCardText: {
     flex: 1,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 17,
+    ...renewxTextStyle('regular'),
+    fontSize: 12.5,
+    color: renewxColors.textSecondary,
+    lineHeight: 18,
   },
   useCurrentLocBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   useCurrentLocText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   dateSelectorBox: {
     height: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
   },
   dateSelectorText: {
-    fontFamily: renewxFontFamily.medium,
-    fontSize: 12.5,
-    color: '#0F172A',
+    ...renewxTextStyle('medium'),
+    fontSize: 13,
+    color: renewxColors.black,
   },
 
   /* STEP 8: REVIEW & SUBMIT */
   reviewCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     padding: 14,
     marginBottom: 14,
   },
@@ -2694,7 +2689,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   reviewRowLeft: {
     flexDirection: 'row',
@@ -2702,26 +2697,35 @@ const styles = StyleSheet.create({
     width: 130,
   },
   reviewRowLabel: {
-    fontFamily: renewxFontFamily.semibold,
+    ...renewxTextStyle('semibold'),
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   reviewRowValue: {
     flex: 1,
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    color: '#0F172A',
+    color: renewxColors.black,
+  },
+  reviewQuotedPriceValue: {
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.emerald,
   },
   reviewRowValueMultiline: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   reviewRowSubMultiline: {
     marginTop: 2,
-    fontFamily: renewxFontFamily.regular,
+    ...renewxTextStyle('regular'),
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
+  },
+  reviewPickupDateText: {
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
+    marginTop: 3,
   },
   reviewEditBtn: {
     flexDirection: 'row',
@@ -2730,9 +2734,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   reviewEditText: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 11,
-    color: '#D97706',
+    ...renewxTextStyle('bold'),
+    fontSize: 11.5,
+    color: renewxColors.emerald,
   },
   termsRow: {
     flexDirection: 'row',
@@ -2745,21 +2749,26 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: renewxColors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   checkboxBoxChecked: {
-    backgroundColor: '#FBBF24',
-    borderColor: '#F59E0B',
+    backgroundColor: renewxColors.yellow,
+    borderColor: renewxColors.yellowDark,
   },
   termsText: {
     flex: 1,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 11.5,
-    color: '#475569',
-    lineHeight: 16,
+    ...renewxTextStyle('regular'),
+    fontSize: 12,
+    color: renewxColors.textSecondary,
+    lineHeight: 17,
+  },
+  termsLinkText: {
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.emerald,
+    textDecorationLine: 'underline',
   },
 
   /* BOTTOM NAVIGATION BAR */
@@ -2774,45 +2783,47 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   backButtonWhiteText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 14,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   nextButtonYellow: {
     flex: 1,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#FBBF24',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   nextButtonYellowText: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 14.5,
+    color: renewxColors.black,
   },
   submitButtonYellow: {
     flex: 1.6,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#FBBF24',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitButtonYellowText: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 14.5,
+    color: renewxColors.black,
   },
 
   /* MODALS */
@@ -2826,15 +2837,14 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     padding: 20,
   },
   modalHeading: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 16.5,
+    color: renewxColors.black,
     marginBottom: 14,
   },
   modalOptionRow: {
@@ -2843,21 +2853,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   modalOptionText: {
-    fontFamily: renewxFontFamily.semibold,
+    ...renewxTextStyle('semibold'),
     fontSize: 13.5,
-    color: '#334155',
+    color: renewxColors.textSecondary,
   },
   modalTextInput: {
     height: 44,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
-    fontSize: 13,
-    color: '#0F172A',
+    ...renewxTextStyle('regular'),
+    fontSize: 13.5,
+    color: renewxColors.black,
     ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
   modalCancelBtn: {
@@ -2865,14 +2876,14 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalCancelBtnText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 13,
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
 
   /* SUCCESS SCREEN */
@@ -2884,34 +2895,33 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
     marginBottom: 16,
   },
   successHeadTitle: {
-    fontFamily: renewxFontFamily.extraBold,
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#0F172A',
+    ...renewxTextStyle('black'),
+    fontSize: 21,
+    color: renewxColors.black,
     textAlign: 'center',
   },
   successBodyText: {
     marginTop: 8,
-    fontFamily: renewxFontFamily.regular,
-    fontSize: 12.5,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 13,
+    color: renewxColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 19,
     marginBottom: 20,
   },
   successSummaryCard: {
     width: '100%',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     padding: 14,
     marginBottom: 20,
     gap: 8,
@@ -2922,49 +2932,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryItemLabel: {
-    fontFamily: renewxFontFamily.medium,
-    fontSize: 12,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    fontSize: 12.5,
+    color: renewxColors.textMuted,
   },
   summaryItemValue: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   summaryItemValueHighlight: {
-    fontFamily: renewxFontFamily.extraBold,
-    fontSize: 14,
-    color: '#16A34A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 14.5,
+    color: renewxColors.emerald,
   },
   primaryYellowBtn: {
     width: '100%',
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#FBBF24',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   primaryYellowBtnText: {
-    fontFamily: renewxFontFamily.bold,
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 14.5,
+    color: renewxColors.black,
   },
   secondaryWhiteBtn: {
     width: '100%',
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryWhiteBtnText: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('bold'),
     fontSize: 13.5,
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 });

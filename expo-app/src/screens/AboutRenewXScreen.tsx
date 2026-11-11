@@ -14,7 +14,8 @@ import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { useToast } from '@/context/ToastContext';
 
 const LOGO_IMG = require('@/assets/logo.png');
@@ -102,15 +103,15 @@ export default function AboutRenewXScreen({ route }: any) {
           {/* Quick Contact Chips */}
           <View style={styles.quickContactRow}>
             <TouchableOpacity style={styles.quickChip} onPress={handleCall}>
-              <Ionicons name="call" size={13} color="#000" />
+              <Ionicons name="call" size={13} color={renewxColors.black} />
               <Text style={styles.quickChipText}>Call Us</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickChipWhatsApp} onPress={handleWhatsApp}>
-              <Ionicons name="logo-whatsapp" size={13} color="#fff" />
+              <Ionicons name="logo-whatsapp" size={13} color={renewxColors.white} />
               <Text style={styles.quickChipWhatsAppText}>WhatsApp</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickChip} onPress={handleEmail}>
-              <Ionicons name="mail" size={13} color="#000" />
+              <Ionicons name="mail" size={13} color={renewxColors.black} />
               <Text style={styles.quickChipText}>Email Us</Text>
             </TouchableOpacity>
           </View>
@@ -134,7 +135,7 @@ export default function AboutRenewXScreen({ route }: any) {
                 <Ionicons
                   name={tab.icon}
                   size={15}
-                  color={isActive ? '#000' : '#64748b'}
+                  color={isActive ? renewxColors.black : renewxColors.textMuted}
                 />
                 <Text style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}>
                   {tab.label}
@@ -153,7 +154,7 @@ export default function AboutRenewXScreen({ route }: any) {
             <View>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.headingIcon}>
-                  <Ionicons name="sync-circle" size={20} color="#ffc400" />
+                  <Ionicons name="sync-circle" size={20} color={renewxColors.black} />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>How RenewX Works</Text>
@@ -236,7 +237,7 @@ export default function AboutRenewXScreen({ route }: any) {
             <View>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.headingIcon}>
-                  <Ionicons name="ribbon" size={20} color="#ffc400" />
+                  <Ionicons name="ribbon" size={20} color={renewxColors.black} />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>About RenewX Crew</Text>
@@ -254,25 +255,25 @@ export default function AboutRenewXScreen({ route }: any) {
 
               <View style={styles.highlightGrid}>
                 <View style={styles.highlightCard}>
-                  <Ionicons name="shield-checkmark" size={22} color="#10b981" />
+                  <Ionicons name="shield-checkmark" size={22} color={renewxColors.emerald} />
                   <Text style={styles.highlightTitle}>100% Genuine</Text>
                   <Text style={styles.highlightDesc}>Authentic pre-owned devices checked for quality & functionality.</Text>
                 </View>
 
                 <View style={styles.highlightCard}>
-                  <Ionicons name="hardware-chip-outline" size={22} color="#3b82f6" />
+                  <Ionicons name="hardware-chip-outline" size={22} color={renewxColors.info} />
                   <Text style={styles.highlightTitle}>45-Point Check</Text>
                   <Text style={styles.highlightDesc}>Hardware, battery health, screens, cameras & sensors.</Text>
                 </View>
 
                 <View style={styles.highlightCard}>
-                  <Ionicons name="leaf-outline" size={22} color="#059669" />
+                  <Ionicons name="leaf-outline" size={22} color={renewxColors.emerald} />
                   <Text style={styles.highlightTitle}>Eco-Conscious</Text>
                   <Text style={styles.highlightDesc}>Over 10,000+ kg of electronic waste saved from landfills.</Text>
                 </View>
 
                 <View style={styles.highlightCard}>
-                  <Ionicons name="flash-outline" size={22} color="#f59e0b" />
+                  <Ionicons name="flash-outline" size={22} color={renewxColors.warning} />
                   <Text style={styles.highlightTitle}>Instant Payouts</Text>
                   <Text style={styles.highlightDesc}>Guaranteed prompt bank and UPI settlement upon pickup.</Text>
                 </View>
@@ -287,7 +288,7 @@ export default function AboutRenewXScreen({ route }: any) {
             <View>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.headingIcon}>
-                  <Ionicons name="chatbubbles" size={20} color="#ffc400" />
+                  <Ionicons name="chatbubbles" size={20} color={renewxColors.black} />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>Get In Touch</Text>
@@ -302,71 +303,71 @@ export default function AboutRenewXScreen({ route }: any) {
               {/* Direct Phone Box */}
               <View style={styles.contactItemBox}>
                 <View style={styles.contactIconCircle}>
-                  <Ionicons name="call" size={18} color="#000" />
+                  <Ionicons name="call" size={18} color={renewxColors.black} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.flexOne}>
                   <Text style={styles.contactBoxLabel}>Official Support Phone</Text>
                   <Text style={styles.contactBoxValue}>{contactPhone}</Text>
                   <Text style={styles.contactBoxSub}>Available Mon – Sat: 9:00 AM – 8:00 PM</Text>
                 </View>
                 <View style={styles.contactActionsCol}>
                   <TouchableOpacity style={styles.contactBtnPill} onPress={handleCall}>
-                    <Ionicons name="call-outline" size={14} color="#000" />
+                    <Ionicons name="call-outline" size={14} color={renewxColors.black} />
                     <Text style={styles.contactBtnPillText}>Call</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.contactBtnPillAlt}
                     onPress={() => handleCopy(contactPhone, 'Phone number')}
                   >
-                    <Ionicons name="copy-outline" size={13} color="#475569" />
+                    <Ionicons name="copy-outline" size={13} color={renewxColors.textSecondary} />
                   </TouchableOpacity>
                 </View>
               </View>
 
               {/* WhatsApp Quick Chat */}
               <View style={styles.contactItemBox}>
-                <View style={[styles.contactIconCircle, { backgroundColor: '#dcfce7' }]}>
-                  <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
+                <View style={[styles.contactIconCircle, styles.contactIconMint]}>
+                  <Ionicons name="logo-whatsapp" size={18} color={renewxColors.emerald} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.flexOne}>
                   <Text style={styles.contactBoxLabel}>WhatsApp Support</Text>
                   <Text style={styles.contactBoxValue}>{contactPhone}</Text>
                   <Text style={styles.contactBoxSub}>Fastest response for tracking & queries</Text>
                 </View>
                 <TouchableOpacity style={styles.whatsAppActionBtn} onPress={handleWhatsApp}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={14} color="#fff" />
+                  <Ionicons name="chatbubble-ellipses-outline" size={14} color={renewxColors.white} />
                   <Text style={styles.whatsAppActionText}>Chat</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Direct Email Box */}
               <View style={styles.contactItemBox}>
-                <View style={[styles.contactIconCircle, { backgroundColor: '#fef3c7' }]}>
-                  <Ionicons name="mail" size={18} color="#d97706" />
+                <View style={[styles.contactIconCircle, styles.contactIconYellowSoft]}>
+                  <Ionicons name="mail" size={18} color={renewxColors.warning} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.flexOne}>
                   <Text style={styles.contactBoxLabel}>Official Support Email</Text>
                   <Text style={styles.contactBoxValue}>{contactEmail}</Text>
                   <Text style={styles.contactBoxSub}>Replies typically within 2–4 hours</Text>
                 </View>
                 <View style={styles.contactActionsCol}>
                   <TouchableOpacity style={styles.contactBtnPill} onPress={handleEmail}>
-                    <Ionicons name="mail-outline" size={14} color="#000" />
+                    <Ionicons name="mail-outline" size={14} color={renewxColors.black} />
                     <Text style={styles.contactBtnPillText}>Email</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.contactBtnPillAlt}
                     onPress={() => handleCopy(contactEmail, 'Email address')}
                   >
-                    <Ionicons name="copy-outline" size={13} color="#475569" />
+                    <Ionicons name="copy-outline" size={13} color={renewxColors.textSecondary} />
                   </TouchableOpacity>
                 </View>
               </View>
 
               {/* Location & Coverage */}
               <View style={styles.supportMetaBox}>
-                <Ionicons name="location-outline" size={18} color="#0f172a" />
-                <View style={{ flex: 1 }}>
+                <Ionicons name="location-outline" size={18} color={renewxColors.black} />
+                <View style={styles.flexOne}>
                   <Text style={styles.supportMetaTitle}>Coverage & Facilities</Text>
                   <Text style={styles.supportMetaSub}>
                     Pan-India express courier delivery across all 28 states. Doorstep pickup currently active in major metros.
@@ -383,7 +384,7 @@ export default function AboutRenewXScreen({ route }: any) {
             <View>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.headingIcon}>
-                  <Ionicons name="shield-checkmark" size={20} color="#ffc400" />
+                  <Ionicons name="shield-checkmark" size={20} color={renewxColors.black} />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>Privacy Policy</Text>
@@ -425,7 +426,7 @@ export default function AboutRenewXScreen({ route }: any) {
             <View>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.headingIcon}>
-                  <Ionicons name="document-text" size={20} color="#ffc400" />
+                  <Ionicons name="document-text" size={20} color={renewxColors.black} />
                 </View>
                 <View>
                   <Text style={styles.sectionTitle}>Terms & Conditions</Text>
@@ -474,79 +475,58 @@ export default function AboutRenewXScreen({ route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f7f2',
+    backgroundColor: renewxColors.background,
   },
-  header: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: spacing.md,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e6df',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#f4f3ed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitleWrap: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
-  },
-  headerSubtitle: {
-    fontSize: fontSize.xs,
-    color: '#64748b',
-    marginTop: 1,
-  },
-  headerPlaceholder: {
-    width: 38,
+  flexOne: {
+    flex: 1,
   },
   scrollContent: {
     padding: spacing.md,
     paddingBottom: 60,
   },
   heroCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.xl,
     padding: 22,
     alignItems: 'center',
     marginBottom: 16,
-    position: 'relative',
-    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   heroLogo: {
     width: 140,
     height: 44,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   heroBadge: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    color: '#111111',
-    letterSpacing: 1.2,
-    marginBottom: 4,
+    fontSize: 10.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   heroTitle: {
     fontSize: 22,
-    fontWeight: fontWeight.black,
-    color: '#111111',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     letterSpacing: 0.2,
   },
   heroTagline: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 12,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
-    lineHeight: 16,
+    lineHeight: 17,
     maxWidth: '92%',
   },
   quickContactRow: {
@@ -559,29 +539,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#ffc400',
-    paddingHorizontal: 12,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    paddingHorizontal: 13,
     paddingVertical: 7,
     borderRadius: radius.full,
   },
   quickChipText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#000',
+    fontSize: 12,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   quickChipWhatsApp: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#16a34a',
-    paddingHorizontal: 12,
+    backgroundColor: renewxColors.emerald,
+    paddingHorizontal: 13,
     paddingVertical: 7,
     borderRadius: radius.full,
   },
   quickChipWhatsAppText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#fff',
+    fontSize: 12,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   tabScroll: {
     gap: 8,
@@ -591,32 +573,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8.5,
     borderRadius: radius.full,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   tabBtnActive: {
-    backgroundColor: '#ffc400',
-    borderColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderColor: renewxColors.yellowDark,
   },
   tabBtnText: {
-    fontSize: 12,
-    fontWeight: fontWeight.semibold,
-    color: '#475569',
+    fontSize: 12.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   tabBtnTextActive: {
-    color: '#000000',
-    fontWeight: fontWeight.bold,
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   contentCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: radius.xl,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   sectionHeadingRow: {
     flexDirection: 'row',
@@ -625,31 +608,34 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   headingIcon: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#fff9dc',
+    backgroundColor: renewxColors.yellowLight,
+    borderWidth: 1,
+    borderColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    fontSize: 16.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   sectionSub: {
-    fontSize: 11,
-    color: '#64748b',
+    fontSize: 12,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
   partLabel: {
-    fontSize: 10,
-    fontWeight: fontWeight.black,
-    color: '#b45309',
-    letterSpacing: 0.8,
+    fontSize: 11.5,
+    ...renewxTextStyle('black'),
+    color: renewxColors.emerald,
+    letterSpacing: 0.7,
     marginBottom: 12,
     marginTop: 6,
   },
@@ -662,58 +648,62 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#111827',
+    backgroundColor: renewxColors.black,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   stepNumText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#ffc400',
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.yellow,
   },
   stepNumAlt: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   stepNumTextAlt: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#000000',
+    fontSize: 11.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   stepBody: {
     flex: 1,
   },
   stepTitle: {
-    fontSize: 13,
-    fontWeight: fontWeight.bold,
-    color: '#1e293b',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   stepDesc: {
-    fontSize: 11,
-    color: '#64748b',
+    fontSize: 12,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginTop: 3,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   divider: {
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: renewxColors.border,
     marginVertical: 14,
   },
   bodyParagraph: {
-    fontSize: 13,
-    color: '#334155',
-    lineHeight: 20,
+    fontSize: 13.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+    lineHeight: 21,
     marginBottom: 12,
   },
   boldText: {
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   highlightGrid: {
     flexDirection: 'row',
@@ -723,31 +713,32 @@ const styles = StyleSheet.create({
   },
   highlightCard: {
     width: '48%',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: radius.lg,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   highlightTitle: {
-    fontSize: 12,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    fontSize: 13,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginTop: 6,
   },
   highlightDesc: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 2,
-    lineHeight: 14,
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
+    marginTop: 3,
+    lineHeight: 16,
   },
   contactItemBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     borderRadius: radius.lg,
     padding: 12,
     marginBottom: 10,
@@ -756,24 +747,31 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  contactIconMint: {
+    backgroundColor: renewxColors.mint,
+  },
+  contactIconYellowSoft: {
+    backgroundColor: renewxColors.yellowLight,
+  },
   contactBoxLabel: {
-    fontSize: 10,
-    color: '#64748b',
-    fontWeight: fontWeight.semibold,
+    fontSize: 11,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   contactBoxValue: {
-    fontSize: 13,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginTop: 1,
   },
   contactBoxSub: {
-    fontSize: 9,
-    color: '#94a3b8',
+    fontSize: 11,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
   contactActionsCol: {
@@ -785,21 +783,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radius.full,
   },
   contactBtnPillText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#000000',
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   contactBtnPillAlt: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e2e8f0',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: renewxColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -807,49 +809,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#16a34a',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: radius.full,
   },
   whatsAppActionText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#ffffff',
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   supportMetaBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#fff9dc',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#ffc400',
+    borderColor: renewxColors.yellow,
     borderRadius: radius.md,
     padding: 12,
     marginTop: 8,
   },
   supportMetaTitle: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    fontSize: 13,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   supportMetaSub: {
-    fontSize: 10,
-    color: '#64748b',
+    fontSize: 12,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginTop: 2,
-    lineHeight: 14,
+    lineHeight: 17,
   },
   policySubHeader: {
-    fontSize: 13,
-    fontWeight: fontWeight.bold,
-    color: '#0f172a',
+    fontSize: 14,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginTop: 14,
     marginBottom: 4,
   },
   policyBody: {
-    fontSize: 11,
-    color: '#475569',
-    lineHeight: 17,
+    fontSize: 12.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
+    lineHeight: 19,
     marginBottom: 6,
   },
   bottomFooter: {
@@ -857,13 +861,14 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerCopyright: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#475569',
+    fontSize: 12,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
   },
   footerNote: {
-    fontSize: 10,
-    color: '#94a3b8',
+    fontSize: 11,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
 });

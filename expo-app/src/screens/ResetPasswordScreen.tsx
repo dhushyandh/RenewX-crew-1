@@ -13,6 +13,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '@/theme';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -243,7 +244,7 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
           {isValidatingToken && (
             <View style={styles.innerCard}>
               <View style={styles.iconCircle}>
-                <ActivityIndicator size="large" color="#ffc400" />
+                <ActivityIndicator size="large" color={renewxColors.yellow} />
               </View>
               <Text style={styles.title}>Verifying Reset Link</Text>
               <Text style={styles.subtitle}>
@@ -256,7 +257,7 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
           {!isValidatingToken && isTokenValid === false && (
             <View style={styles.innerCard}>
               <View style={styles.errorIconCircle}>
-                <Ionicons name="alert-circle" size={38} color="#ef4444" />
+                <Ionicons name="alert-circle" size={38} color={renewxColors.error} />
               </View>
 
               <Text style={styles.title}>Link Expired or Invalid</Text>
@@ -271,7 +272,7 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
                 activeOpacity={0.85}
               >
                 <View style={styles.buttonRow}>
-                  <Ionicons name="refresh" size={18} color="#0a0a0a" />
+                  <Ionicons name="refresh" size={18} color={renewxColors.black} />
                   <Text style={styles.primaryButtonText}>Request New Reset Link</Text>
                 </View>
               </TouchableOpacity>
@@ -290,7 +291,7 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
           {!isValidatingToken && isTokenValid === true && !isSuccess && (
             <View style={styles.innerCard}>
               <View style={styles.iconCircle}>
-                <Ionicons name="lock-closed" size={32} color="#0f172a" />
+                <Ionicons name="lock-closed" size={32} color={renewxColors.black} />
               </View>
 
               <Text style={styles.title}>Create New Password</Text>
@@ -300,7 +301,7 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
 
               {targetEmail ? (
                 <View style={styles.emailPill}>
-                  <Ionicons name="person-circle-outline" size={16} color="#0f172a" />
+                  <Ionicons name="person-circle-outline" size={16} color={renewxColors.black} />
                   <Text style={styles.emailPillText}>{targetEmail}</Text>
                 </View>
               ) : null}
@@ -444,12 +445,12 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
               >
                 {isSubmitting ? (
                   <View style={styles.buttonLoadingRow}>
-                    <ActivityIndicator size="small" color="#0a0a0a" />
+                    <ActivityIndicator size="small" color={renewxColors.black} />
                     <Text style={styles.primaryButtonText}>Updating Password...</Text>
                   </View>
                 ) : (
                   <View style={styles.buttonRow}>
-                    <Ionicons name="checkmark-done" size={18} color="#0a0a0a" />
+                    <Ionicons name="checkmark-done" size={18} color={renewxColors.black} />
                     <Text style={styles.primaryButtonText}>Save New Password</Text>
                   </View>
                 )}
@@ -461,7 +462,7 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
           {!isValidatingToken && isSuccess && (
             <View style={styles.innerCard}>
               <View style={styles.successIconCircle}>
-                <Ionicons name="checkmark-circle" size={42} color="#10b981" />
+                <Ionicons name="checkmark-circle" size={42} color={renewxColors.emerald} />
               </View>
 
               <Text style={styles.title}>Password Updated!</Text>
@@ -487,7 +488,7 @@ export default function ResetPasswordScreen({ onBack }: ResetPasswordScreenProps
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: '#f8f7f2',
+    backgroundColor: renewxColors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -513,58 +514,46 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   backButtonText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#0f172a',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
     marginLeft: 6,
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
   },
   brandBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
     borderRadius: radius.full,
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
   },
   brandBadgeText: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: -0.5,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.white,
+    letterSpacing: -0.4,
   },
   brandAccent: {
-    color: '#ffc400',
+    color: renewxColors.yellow,
   },
   innerCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 24,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: '#e6e2d8',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03)',
-      } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        elevation: 4,
-      },
-    }),
+    borderColor: renewxColors.border,
+    ...(renewxShadows.elevated as object),
   },
   iconCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff8d8',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1.5,
-    borderColor: '#ffc400',
+    borderColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -574,9 +563,9 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: renewxColors.mint,
     borderWidth: 1.5,
-    borderColor: '#a7f3d0',
+    borderColor: renewxColors.mintBorder,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -586,9 +575,9 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#FEF2F2',
     borderWidth: 1.5,
-    borderColor: '#fca5a5',
+    borderColor: '#FCA5A5',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -596,17 +585,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#0f172a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     textAlign: 'center',
     marginBottom: 8,
     letterSpacing: -0.4,
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#64748b',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
     marginBottom: 22,
     paddingHorizontal: 8,
@@ -616,27 +605,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 12,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     alignSelf: 'center',
   },
   emailPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   formGroup: {
     marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1e293b',
+    fontSize: 12,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -644,10 +633,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 14,
     height: 52,
   },
@@ -658,8 +647,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     fontSize: 15,
-    color: '#0f172a',
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   clearIconBtn: {
     padding: 4,
@@ -675,31 +665,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   checkText: {
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: 12.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
   },
   checkTextActive: {
-    color: '#065f46',
-    fontWeight: '600',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('semibold'),
   },
   primaryButton: {
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 14,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 4px 12px rgba(255, 196, 0, 0.35)',
-      } as any,
-      default: {
-        shadowColor: '#ffc400',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
-        shadowRadius: 8,
-        elevation: 3,
-      },
-    }),
+    ...(renewxShadows.card as object),
   },
   secondaryButton: {
     marginTop: 12,
@@ -707,12 +689,14 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
   },
   secondaryButtonText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#334155',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
   },
   disabledButton: {
     opacity: 0.5,
@@ -729,9 +713,8 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0a0a0a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     letterSpacing: 0.2,
-    fontFamily: Platform.select({ web: 'Outfit, sans-serif' }),
   },
 });

@@ -27,7 +27,7 @@ import { useNotifications } from '@/context/NotificationContext';
 import { useToast } from '@/context/ToastContext';
 import { mapProductRow } from '@/lib/productMapper';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
-import { renewxFontFamily, renewxColors } from '@/design-system';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import { CATEGORY_THIRD_PARTY_IMAGES } from '@/data/categories';
 import { ProductImage } from '@/components/ui';
 
@@ -296,7 +296,7 @@ export default function AllProductsScreen() {
             activeOpacity={0.8}
             accessibilityLabel="RenewX Certification Guarantee"
           >
-            <Ionicons name="shield-checkmark" size={17} color="#168A4A" />
+            <Ionicons name="shield-checkmark" size={17} color={renewxColors.emerald} />
           </TouchableOpacity>
 
           {/* Notifications Bell with Badge */}
@@ -306,10 +306,12 @@ export default function AllProductsScreen() {
             activeOpacity={0.8}
             accessibilityLabel="Notifications"
           >
-            <Ionicons name="notifications-outline" size={20} color="#0F172A" />
-            <View style={styles.redBadgeWrap}>
-              <Text style={styles.redBadgeText}>{unreadCount > 0 ? unreadCount : '24'}</Text>
-            </View>
+            <Ionicons name="notifications-outline" size={20} color={renewxColors.black} />
+            {unreadCount > 0 && (
+              <View style={styles.redBadgeWrap}>
+                <Text style={styles.redBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* Wishlist Heart Button */}
@@ -346,9 +348,9 @@ export default function AllProductsScreen() {
           onPress={() => setShowLocationModal(true)}
           activeOpacity={0.8}
         >
-          <Ionicons name="location" size={16} color="#168A4A" />
+          <Ionicons name="location" size={16} color={renewxColors.emerald} />
           <Text style={styles.locationPinText} numberOfLines={1}>{locationLabel}</Text>
-          <Ionicons name="chevron-down" size={14} color="#0F172A" />
+          <Ionicons name="chevron-down" size={14} color={renewxColors.black} />
         </TouchableOpacity>
 
         {/* Right: "Use my location" button */}
@@ -362,9 +364,9 @@ export default function AllProductsScreen() {
           disabled={isDetecting}
         >
           {isDetecting ? (
-            <ActivityIndicator size="small" color="#B45309" />
+            <ActivityIndicator size="small" color={renewxColors.yellowDark} />
           ) : (
-            <Ionicons name="locate-outline" size={15} color="#0F172A" />
+            <Ionicons name="locate-outline" size={15} color={renewxColors.black} />
           )}
           <Text style={styles.useLocationText}>Use my location</Text>
         </TouchableOpacity>
@@ -378,8 +380,8 @@ export default function AllProductsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[renewxColors.green]}
-            tintColor={renewxColors.green}
+            colors={[renewxColors.emerald]}
+            tintColor={renewxColors.emerald}
           />
         }
       >
@@ -569,7 +571,7 @@ export default function AllProductsScreen() {
         {/* 7. PRODUCTS GRID / LIST */}
         {loading && !refreshing ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={renewxColors.green} />
+            <ActivityIndicator size="large" color={renewxColors.emerald} />
             <Text style={styles.loadingText}>Loading verified inventory...</Text>
           </View>
         ) : filteredProducts.length === 0 ? (
@@ -696,13 +698,13 @@ export default function AllProductsScreen() {
                     <View style={styles.priceCol}>
                       {isSoldOut ? (
                         <View style={{ flexDirection: 'column', gap: 2 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
-                          <Text style={{ fontSize: 9.5, fontWeight: '600', color: '#94A3B8' }}>Restocking soon</Text>
+                          <Text style={styles.soldOutLabel}>Sold Out</Text>
+                          <Text style={styles.restockingLabel}>Restocking soon</Text>
                         </View>
                       ) : p.is_best_price || (p as any).isBestPrice || p.price === 0 ? (
                         <View style={{ flexDirection: 'column', gap: 2 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#047857' }}>Best Price</Text>
-                          <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#92400E', backgroundColor: '#FEF3C7', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, alignSelf: 'flex-start' }}>COD Only</Text>
+                          <Text style={styles.bestPriceLabel}>Best Price</Text>
+                          <Text style={styles.codOnlyBadgeText}>COD Only</Text>
                         </View>
                       ) : (
                         <>
@@ -716,7 +718,7 @@ export default function AllProductsScreen() {
 
                     {/* Circular Cart Button */}
                     <TouchableOpacity
-                      style={[styles.yellowCartBtn, isSoldOut && { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', elevation: 0 }]}
+                      style={[styles.yellowCartBtn, isSoldOut && styles.yellowCartBtnDisabled]}
                       onPress={(e) => {
                         if (isSoldOut) {
                           toast.info('Item is sold out', p.name);
@@ -790,7 +792,7 @@ export default function AllProductsScreen() {
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                       {isSoldOut ? (
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>Sold Out</Text>
+                        <Text style={styles.soldOutLabel}>Sold Out</Text>
                       ) : (
                         <>
                           <Text style={styles.priceCurrent}>₹{Number(p.price).toLocaleString('en-IN')}</Text>
@@ -811,12 +813,12 @@ export default function AllProductsScreen() {
                       <Ionicons
                         name={isWish ? 'heart' : 'heart-outline'}
                         size={18}
-                        color={isWish ? '#EF4444' : '#0F172A'}
+                        color={isWish ? '#EF4444' : renewxColors.black}
                       />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.yellowCartBtn, isSoldOut && { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', elevation: 0 }]}
+                      style={[styles.yellowCartBtn, isSoldOut && styles.yellowCartBtnDisabled]}
                       onPress={(e) => {
                         if (isSoldOut) {
                           toast.info('Item is sold out', p.name);
@@ -925,7 +927,7 @@ export default function AllProductsScreen() {
                 <Text style={[styles.modalOptionText, selectedSort === opt.id && styles.modalOptionTextSelected]}>
                   {opt.label}
                 </Text>
-                {selectedSort === opt.id && <Ionicons name="checkmark" size={18} color="#168A4A" />}
+                {selectedSort === opt.id && <Ionicons name="checkmark" size={18} color={renewxColors.emerald} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -939,7 +941,7 @@ export default function AllProductsScreen() {
             <View style={styles.modalSheetHeader}>
               <Text style={styles.modalSheetTitle}>Filter by Condition</Text>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <Ionicons name="close" size={20} color="#0F172A" />
+                <Ionicons name="close" size={20} color={renewxColors.black} />
               </TouchableOpacity>
             </View>
             {[
@@ -960,7 +962,7 @@ export default function AllProductsScreen() {
                 <Text style={[styles.modalOptionText, selectedCondition === opt.id && styles.modalOptionTextSelected]}>
                   {opt.label}
                 </Text>
-                {selectedCondition === opt.id && <Ionicons name="checkmark" size={18} color="#168A4A" />}
+                {selectedCondition === opt.id && <Ionicons name="checkmark" size={18} color={renewxColors.emerald} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -974,7 +976,7 @@ export default function AllProductsScreen() {
             <View style={styles.modalSheetHeader}>
               <Text style={styles.modalSheetTitle}>Price Range</Text>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <Ionicons name="close" size={20} color="#0F172A" />
+                <Ionicons name="close" size={20} color={renewxColors.black} />
               </TouchableOpacity>
             </View>
             {[
@@ -995,7 +997,7 @@ export default function AllProductsScreen() {
                 <Text style={[styles.modalOptionText, selectedPriceRange === opt.id && styles.modalOptionTextSelected]}>
                   {opt.label}
                 </Text>
-                {selectedPriceRange === opt.id && <Ionicons name="checkmark" size={18} color="#168A4A" />}
+                {selectedPriceRange === opt.id && <Ionicons name="checkmark" size={18} color={renewxColors.emerald} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -1009,7 +1011,7 @@ export default function AllProductsScreen() {
             <View style={styles.modalSheetHeader}>
               <Text style={styles.modalSheetTitle}>Filter by Brand</Text>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <Ionicons name="close" size={20} color="#0F172A" />
+                <Ionicons name="close" size={20} color={renewxColors.black} />
               </TouchableOpacity>
             </View>
             {['all', 'Apple', 'Samsung', 'Noise', 'Sony', 'Microsoft', 'Ather Energy'].map((brandName) => (
@@ -1024,7 +1026,7 @@ export default function AllProductsScreen() {
                 <Text style={[styles.modalOptionText, selectedBrand.toLowerCase() === brandName.toLowerCase() && styles.modalOptionTextSelected]}>
                   {brandName === 'all' ? 'All Brands' : brandName}
                 </Text>
-                {selectedBrand.toLowerCase() === brandName.toLowerCase() && <Ionicons name="checkmark" size={18} color="#168A4A" />}
+                {selectedBrand.toLowerCase() === brandName.toLowerCase() && <Ionicons name="checkmark" size={18} color={renewxColors.emerald} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -1036,33 +1038,33 @@ export default function AllProductsScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setActiveModal(null)}>
           <View style={styles.modalSheetCard}>
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                <Ionicons name="shield-checkmark" size={26} color="#168A4A" />
+              <View style={styles.trustModalIconWrap}>
+                <Ionicons name="shield-checkmark" size={26} color={renewxColors.emerald} />
               </View>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A' }}>RenewX 32-Point Quality Certified</Text>
-              <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginTop: 4 }}>
+              <Text style={styles.trustModalTitle}>RenewX 32-Point Quality Certified</Text>
+              <Text style={styles.trustModalSub}>
                 Every device in our inventory is rigorously tested and covered under comprehensive warranty.
               </Text>
             </View>
             <View style={{ gap: 8, marginVertical: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="checkmark-circle" size={18} color="#168A4A" />
-                <Text style={{ fontSize: 13, color: '#0F172A', fontWeight: '600' }}>100% Functional & Genuine Components</Text>
+              <View style={styles.trustModalRow}>
+                <Ionicons name="checkmark-circle" size={18} color={renewxColors.emerald} />
+                <Text style={styles.trustModalBullet}>100% Functional & Genuine Components</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="checkmark-circle" size={18} color="#168A4A" />
-                <Text style={{ fontSize: 13, color: '#0F172A', fontWeight: '600' }}>Up to 12 Months Replacement Warranty</Text>
+              <View style={styles.trustModalRow}>
+                <Ionicons name="checkmark-circle" size={18} color={renewxColors.emerald} />
+                <Text style={styles.trustModalBullet}>Up to 12 Months Replacement Warranty</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="checkmark-circle" size={18} color="#168A4A" />
-                <Text style={{ fontSize: 13, color: '#0F172A', fontWeight: '600' }}>7-Day Easy Return / Replacement Policy</Text>
+              <View style={styles.trustModalRow}>
+                <Ionicons name="checkmark-circle" size={18} color={renewxColors.emerald} />
+                <Text style={styles.trustModalBullet}>7-Day Easy Return / Replacement Policy</Text>
               </View>
             </View>
             <TouchableOpacity
-              style={{ backgroundColor: '#168A4A', paddingVertical: 11, borderRadius: 12, alignItems: 'center', marginTop: 12 }}
+              style={styles.trustModalBtn}
               onPress={() => setActiveModal(null)}
             >
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>Got it</Text>
+              <Text style={styles.trustModalBtnText}>Got it</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -1074,7 +1076,7 @@ export default function AllProductsScreen() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.background,
   },
 
   /* 1. TOP HEADER */
@@ -1085,32 +1087,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
   },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   renewText: {
+    ...renewxTextStyle('black'),
     fontSize: 22,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    color: '#0A1128',
+    color: renewxColors.black,
     letterSpacing: -0.5,
   },
   xText: {
+    ...renewxTextStyle('black'),
     fontSize: 22,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    color: '#F59E0B',
+    color: renewxColors.yellowDark,
     marginLeft: 1,
   },
   taglineText: {
-    fontSize: 8.5,
-    fontWeight: '700',
-    color: '#476E8E',
+    ...renewxTextStyle('semibold'),
+    fontSize: 9,
+    color: renewxColors.textSecondary,
     marginTop: -2,
-    letterSpacing: 0.1,
+    letterSpacing: 0.15,
   },
   topRightActions: {
     flexDirection: 'row',
@@ -1121,7 +1121,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1129,7 +1129,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1138,19 +1138,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -3,
     right: -3,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
     paddingHorizontal: 4,
     height: 16,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: renewxColors.surface,
   },
   redBadgeText: {
-    color: '#FFFFFF',
+    ...renewxTextStyle('black'),
+    color: renewxColors.white,
     fontSize: 9,
-    fontWeight: '900',
   },
 
   /* 2. LOCATION ROW */
@@ -1160,38 +1160,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: renewxColors.border,
   },
   locationPinPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 18,
     maxWidth: '56%',
   },
   locationPinText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   useLocationBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 18,
   },
   useLocationText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 11.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   /* SCROLL CONTENT */
@@ -1202,19 +1206,19 @@ const styles = StyleSheet.create({
   /* 3. TITLE SECTION */
   titleSection: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 8,
   },
   screenTitle: {
+    ...renewxTextStyle('black'),
     fontSize: 26,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
     letterSpacing: -0.5,
   },
   devicesCountSubtitle: {
+    ...renewxTextStyle('medium'),
     fontSize: 12.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
 
@@ -1225,19 +1229,21 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 4,
     marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 12,
     height: 46,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
+    ...renewxTextStyle('regular'),
+    fontSize: 13.5,
+    color: renewxColors.black,
     paddingVertical: 6,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
   searchVoiceBtn: {
     padding: 4,
@@ -1250,7 +1256,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     width: 15,
     height: 15,
     borderRadius: 7.5,
@@ -1258,9 +1264,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchCartBadgeText: {
+    ...renewxTextStyle('black'),
     fontSize: 9,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   /* 5. CATEGORY STRIP */
@@ -1274,17 +1280,17 @@ const styles = StyleSheet.create({
   categoryCard: {
     width: 80,
     height: 94,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,
   },
   categoryCardSelected: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowSoft,
+    borderColor: renewxColors.yellowDark,
     borderWidth: 1.5,
   },
   categoryImageWrap: {
@@ -1299,14 +1305,14 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   categoryLabelText: {
+    ...renewxTextStyle('semibold'),
     fontSize: 10.5,
-    fontWeight: '600',
-    color: '#334155',
+    color: renewxColors.textSecondary,
     textAlign: 'center',
   },
   categoryLabelSelected: {
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 
   /* 6. FILTER & VIEW TOGGLE */
@@ -1325,33 +1331,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
   },
   filterDropdownPillActive: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FACC15',
+    backgroundColor: renewxColors.yellowLight,
+    borderColor: renewxColors.yellowDark,
   },
   filterDropdownText: {
+    ...renewxTextStyle('bold'),
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   filterDropdownTextActive: {
-    color: '#0F172A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   viewModeToggleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     overflow: 'hidden',
   },
   viewModeBtn: {
@@ -1359,7 +1365,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   viewModeBtnActive: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
   },
 
   /* 7. PRODUCTS GRID */
@@ -1372,17 +1378,13 @@ const styles = StyleSheet.create({
   },
   productCard: {
     width: (SCREEN_WIDTH - 44) / 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: renewxColors.border,
     padding: 10,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
     marginBottom: 4,
+    ...renewxShadows.card,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -1396,23 +1398,23 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   badgePillDiscount: {
-    backgroundColor: '#FEF9C3',
+    backgroundColor: renewxColors.yellowLight,
   },
   badgePillNew: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: renewxColors.mint,
   },
   badgePillPopular: {
     backgroundColor: '#FFEDD5',
   },
   badgeText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 9.5,
-    fontWeight: '800',
   },
   badgeTextDiscount: {
-    color: '#854D0E',
+    color: '#9A6700',
   },
   badgeTextNew: {
-    color: '#B45309',
+    color: renewxColors.emerald,
   },
   badgeTextPopular: {
     color: '#C2410C',
@@ -1431,15 +1433,15 @@ const styles = StyleSheet.create({
     height: '92%',
   },
   productTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 2,
   },
   productSpecs: {
+    ...renewxTextStyle('medium'),
     fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
     marginBottom: 8,
   },
   priceCartRow: {
@@ -1452,28 +1454,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   priceCurrent: {
+    ...renewxTextStyle('black'),
     fontSize: 15.5,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   priceMrp: {
+    ...renewxTextStyle('regular'),
     fontSize: 11.5,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
     marginTop: 0.5,
   },
+  soldOutLabel: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13,
+    color: renewxColors.error,
+  },
+  restockingLabel: {
+    ...renewxTextStyle('semibold'),
+    fontSize: 9.5,
+    color: '#94A3B8',
+  },
+  bestPriceLabel: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13,
+    color: renewxColors.emerald,
+  },
+  codOnlyBadgeText: {
+    ...renewxTextStyle('bold'),
+    fontSize: 9.5,
+    color: '#9A6700',
+    backgroundColor: renewxColors.yellowLight,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
   yellowCartBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#CA8A04',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Platform.select({
+      ios: { shadowColor: '#D9A600', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+      android: { elevation: 2 },
+      web: { boxShadow: '0 2px 6px rgba(217, 166, 0, 0.22)' },
+    }),
+  },
+  yellowCartBtnDisabled: {
+    backgroundColor: renewxColors.surfaceMuted,
+    borderColor: renewxColors.border,
+    ...Platform.select({
+      ios: { shadowOpacity: 0 },
+      android: { elevation: 0 },
+      web: { boxShadow: 'none' },
+    }),
   },
 
   /* LIST VIEW STYLES */
@@ -1484,10 +1523,10 @@ const styles = StyleSheet.create({
   productCardList: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: renewxColors.border,
     padding: 10,
     gap: 12,
   },
@@ -1495,7 +1534,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1507,15 +1546,15 @@ const styles = StyleSheet.create({
   listBadgePill: {
     position: 'absolute',
     bottom: 2,
-    backgroundColor: '#FEF9C3',
+    backgroundColor: renewxColors.yellowLight,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
   },
   listBadgeText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 8.5,
-    fontWeight: '800',
-    color: '#854D0E',
+    color: '#9A6700',
   },
   soldOutCutoutOverlay: {
     position: 'absolute',
@@ -1531,14 +1570,14 @@ const styles = StyleSheet.create({
   soldOutCutoutBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC2626',
+    backgroundColor: renewxColors.error,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
   },
   soldOutCutoutBadgeText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.white,
     fontSize: 9.5,
     letterSpacing: 0.5,
   },
@@ -1563,16 +1602,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: renewxColors.border,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 10,
+    ...Platform.select({
+      ios: { shadowColor: '#000000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.05, shadowRadius: 10 },
+      android: { elevation: 10 },
+      web: { boxShadow: '0 -3px 12px rgba(15, 23, 42, 0.06)' },
+    }),
   },
   bottomNavItem: {
     flex: 1,
@@ -1580,13 +1619,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bottomNavLabel: {
+    ...renewxTextStyle('semibold'),
     fontSize: 10,
-    fontWeight: '600',
-    color: '#334155',
+    color: renewxColors.textSecondary,
     marginTop: 2,
   },
   homeActivePill: {
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
@@ -1594,9 +1635,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   homeActiveText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 10.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 1,
   },
   centerSellBtnWrap: {
@@ -1609,19 +1650,21 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 2,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
+    ...Platform.select({
+      ios: { shadowColor: '#000000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 5 },
+      android: { elevation: 4 },
+      web: { boxShadow: '0 4px 10px rgba(15, 23, 42, 0.16)' },
+    }),
   },
   sellNavLabel: {
+    ...renewxTextStyle('bold'),
     fontSize: 10,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 2,
   },
 
@@ -1632,9 +1675,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
+    ...renewxTextStyle('medium'),
+    fontSize: 12.5,
+    color: renewxColors.textMuted,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -1643,27 +1686,28 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 16.5,
+    color: renewxColors.black,
     marginTop: 4,
   },
   emptySubtitle: {
-    fontSize: 12,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 12.5,
+    color: renewxColors.textMuted,
     textAlign: 'center',
   },
   resetFiltersBtn: {
     marginTop: 12,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 12,
   },
   resetFiltersBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
+    fontSize: 12.5,
   },
 
   /* MODAL SHEETS */
@@ -1673,7 +1717,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalSheetCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingHorizontal: 20,
@@ -1687,13 +1731,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
     marginBottom: 6,
   },
   modalSheetTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 16.5,
+    color: renewxColors.black,
   },
   modalOptionRow: {
     flexDirection: 'row',
@@ -1701,20 +1745,65 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 13,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: renewxColors.background,
   },
   modalOptionRowSelected: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: renewxColors.mintLight,
     paddingHorizontal: 8,
     borderRadius: 8,
   },
   modalOptionText: {
+    ...renewxTextStyle('semibold'),
     fontSize: 13.5,
-    fontWeight: '600',
-    color: '#334155',
+    color: renewxColors.textSecondary,
   },
   modalOptionTextSelected: {
-    color: '#168A4A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.emerald,
+  },
+  trustModalIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: renewxColors.mint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  trustModalTitle: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 18,
+    color: renewxColors.black,
+    textAlign: 'center',
+  },
+  trustModalSub: {
+    ...renewxTextStyle('regular'),
+    fontSize: 12.5,
+    color: renewxColors.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  trustModalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trustModalBullet: {
+    ...renewxTextStyle('semibold'),
+    fontSize: 13,
+    color: renewxColors.black,
+  },
+  trustModalBtn: {
+    backgroundColor: renewxColors.emerald,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  trustModalBtnText: {
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.white,
+    fontSize: 13.5,
   },
 });

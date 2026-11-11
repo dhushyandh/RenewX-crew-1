@@ -25,6 +25,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import RenewXLogo from '@/components/RenewXLogo';
 import HomeHeader from '@/components/HomeHeader';
 import { api } from '@/services/api';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -282,8 +283,8 @@ export default function SettingsScreen() {
               <Switch
                 value={notificationsEnabled}
                 onValueChange={handleToggleNotifications}
-                trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: renewxColors.border, true: renewxColors.yellow }}
+                thumbColor={renewxColors.surface}
               />
             </View>
 
@@ -292,7 +293,7 @@ export default function SettingsScreen() {
             {/* WhatsApp Notifications */}
             <View style={styles.menuRow}>
               <View style={styles.menuIconBox}>
-                <Ionicons name="logo-whatsapp" size={20} color="#16A34A" />
+                <Ionicons name="logo-whatsapp" size={20} color={renewxColors.emerald} />
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={styles.menuItemTitle}>{t('settings_whatsapp', 'WhatsApp Updates')}</Text>
@@ -301,8 +302,8 @@ export default function SettingsScreen() {
               <Switch
                 value={whatsappNotifications}
                 onValueChange={handleToggleWhatsApp}
-                trackColor={{ false: '#E2E8F0', true: '#16A34A' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: renewxColors.border, true: renewxColors.emerald }}
+                thumbColor={renewxColors.surface}
               />
             </View>
 
@@ -323,8 +324,8 @@ export default function SettingsScreen() {
                   setDarkModeEnabled(val);
                   toast.show(val ? 'Dark mode enabled' : 'Light mode enabled');
                 }}
-                trackColor={{ false: '#E2E8F0', true: '#FACC15' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: renewxColors.border, true: renewxColors.yellow }}
+                thumbColor={renewxColors.surface}
               />
             </View>
 
@@ -504,7 +505,7 @@ export default function SettingsScreen() {
                       key={lang.code}
                       style={[
                         styles.modalOption,
-                        isSelected && { backgroundColor: '#FEF9C3', borderRadius: 12 },
+                        isSelected && styles.modalOptionSelected,
                       ]}
                       onPress={async () => {
                         await setLanguage(lang.name);
@@ -519,14 +520,14 @@ export default function SettingsScreen() {
                         <Text
                           style={[
                             styles.modalOptionText,
-                            isSelected && { fontWeight: '800', color: '#854D0E' },
+                            isSelected && styles.modalOptionTextSelected,
                           ]}
                         >
                           {lang.label}
                         </Text>
                       </View>
                       {isSelected && (
-                        <Ionicons name="checkmark-circle" size={20} color="#EAB308" />
+                        <Ionicons name="checkmark-circle" size={20} color={renewxColors.emerald} />
                       )}
                     </TouchableOpacity>
                   );
@@ -557,7 +558,7 @@ export default function SettingsScreen() {
                   }}
                   disabled={isDetecting}
                 >
-                  <Ionicons name="navigate" size={18} color="#0F172A" />
+                  <Ionicons name="navigate" size={18} color={renewxColors.black} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.detectLocationTitle}>
                       {isDetecting ? 'Detecting GPS location...' : 'Use Current Location'}
@@ -596,14 +597,21 @@ export default function SettingsScreen() {
                       setActiveModal(null);
                     }}
                   >
-                    <Text style={styles.settingsPincodeBtnText}>Apply</Text>
+                    <Text
+                      style={[
+                        styles.settingsPincodeBtnText,
+                        settingsPincode.trim().length === 6 && styles.settingsPincodeBtnTextActive,
+                      ]}
+                    >
+                      Apply
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Current Active Location */}
                 {Boolean(location) && (
                   <View style={styles.currentLocCard}>
-                    <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+                    <Ionicons name="checkmark-circle" size={18} color={renewxColors.emerald} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.currentLocLabel}>Current Location</Text>
                       <Text style={styles.currentLocValue}>{location}</Text>
@@ -624,7 +632,7 @@ export default function SettingsScreen() {
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modalOptionText}>Use Profile Address</Text>
-                      <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }} numberOfLines={1}>
+                      <Text style={styles.modalOptionSubText} numberOfLines={1}>
                         {user?.address}{user?.pincode ? ` (${user.pincode})` : ''}
                       </Text>
                     </View>
@@ -730,7 +738,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.background,
   },
 
   /* Top Bar */
@@ -741,8 +749,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
   },
   backButton: {
     width: 36,
@@ -760,9 +768,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -774,13 +782,15 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
   },
   cartBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 9,
     minWidth: 18,
     height: 18,
@@ -790,8 +800,8 @@ const styles = StyleSheet.create({
   },
   cartBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 
   /* Content */
@@ -805,14 +815,14 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 28,
-    fontWeight: '900',
-    color: '#0F172A',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     letterSpacing: -0.5,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
     marginTop: 2,
   },
 
@@ -820,19 +830,22 @@ const styles = StyleSheet.create({
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 18,
     padding: 14,
     marginBottom: 20,
     gap: 12,
+    ...(renewxShadows.card as object),
   },
   avatarCircle: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -841,30 +854,30 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   profileEmail: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
+    fontSize: 12.5,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
     marginTop: 2,
   },
   editProfileBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   editProfileBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 
   /* Section Blocks */
@@ -873,16 +886,17 @@ const styles = StyleSheet.create({
   },
   sectionHeaderTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 10,
   },
   cardContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     overflow: 'hidden',
+    ...(renewxShadows.card as object),
   },
   menuRow: {
     flexDirection: 'row',
@@ -899,18 +913,18 @@ const styles = StyleSheet.create({
   },
   menuItemTitle: {
     fontSize: 14.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   menuItemSubtitle: {
-    fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
+    fontSize: 12,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     marginLeft: 46,
   },
   menuRightInfoRow: {
@@ -919,9 +933,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   menuRightInfoText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '600',
+    fontSize: 12.5,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
 
   /* Logout Card */
@@ -944,14 +958,14 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#EF4444',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.error,
   },
 
   /* Modals */
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -959,19 +973,21 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     padding: 18,
+    ...(renewxShadows.elevated as object),
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 16.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginBottom: 12,
   },
   modalBodyText: {
-    fontSize: 13,
-    color: '#475569',
+    fontSize: 13.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     lineHeight: 19,
     marginBottom: 16,
   },
@@ -980,100 +996,123 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: renewxColors.surfaceMuted,
+  },
+  modalOptionSelected: {
+    backgroundColor: renewxColors.yellowSoft,
+    borderRadius: 12,
+    borderBottomColor: 'transparent',
   },
   modalOptionText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
+  },
+  modalOptionTextSelected: {
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
+  },
+  modalOptionSubText: {
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
+    marginTop: 2,
   },
   modalPrimaryBtn: {
-    backgroundColor: '#FACC15',
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    paddingVertical: 11,
+    borderRadius: 12,
     alignItems: 'center',
   },
   modalPrimaryBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   detectLocationBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FFFDF5',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1.5,
-    borderColor: '#FACC15',
+    borderColor: renewxColors.yellow,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
   },
   detectLocationTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   detectLocationSub: {
-    fontSize: 11,
-    color: '#64748B',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     marginTop: 1,
   },
   settingsPincodeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
-    height: 42,
+    height: 44,
     marginBottom: 10,
     gap: 8,
   },
   settingsPincodeInput: {
     flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
+    fontSize: 13.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.black,
     padding: 0,
     ...Platform.select({ web: { outlineStyle: 'none' } as any }),
   },
   settingsPincodeBtn: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
   },
   settingsPincodeBtnActive: {
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
   },
   settingsPincodeBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 11.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textMuted,
+  },
+  settingsPincodeBtnTextActive: {
+    color: renewxColors.white,
   },
   currentLocCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 10,
     padding: 10,
     marginBottom: 8,
   },
   currentLocLabel: {
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#166534',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.mintDark,
     textTransform: 'uppercase',
   },
   currentLocValue: {
     fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginTop: 1,
   },
 });

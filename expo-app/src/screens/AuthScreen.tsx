@@ -23,6 +23,7 @@ import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { renewxColors, renewxTextStyle } from '@/design-system';
 import RenewXLogo from '@/components/RenewXLogo';
 import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 
@@ -438,7 +439,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
           ? asset.base64
           : `data:${mime};base64,${asset.base64}`;
         try {
-          const res = await api.upload.base64(dataUri, 'avatar.jpg');
+          const res = await api.upload.base64(dataUri, 'avatar.jpg', mime, verifiedSession?.token);
           if (res?.url) {
             setAvatarUrl(res.url);
             toast.success('Profile photo uploaded!');
@@ -489,7 +490,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
           ? asset.base64
           : `data:${mime};base64,${asset.base64}`;
         try {
-          const res = await api.upload.base64(dataUri, 'avatar.jpg');
+          const res = await api.upload.base64(dataUri, 'avatar.jpg', mime, verifiedSession?.token);
           if (res?.url) {
             setAvatarUrl(res.url);
             toast.success('Profile photo uploaded!');
@@ -532,9 +533,21 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
 
     try {
       if (verifiedSession.token) {
-        await api.users.updateProfile(updates).catch((err) => {
-          console.warn('[AuthScreen] updateProfile non-blocking error:', err);
-        });
+        const savedProfile = await api.users.updateProfile(updates, verifiedSession.token);
+        if (savedProfile && typeof savedProfile === 'object') {
+          setVerifiedSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  user: {
+                    ...prev.user,
+                    ...savedProfile,
+                    profile_completed: true,
+                  },
+                }
+              : prev
+          );
+        }
       }
     } catch (err) {
       console.warn('[AuthScreen] profile sync error:', err);
@@ -549,13 +562,17 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
     if (!verifiedSession?.token) return;
     const finalUser = {
       ...verifiedSession.user,
-      full_name: fullName.trim(),
-      phone: phone.replace(/\D/g, ''),
-      address: [address.trim(), city.trim(), stateName.trim(), pincode.trim()].filter(Boolean).join(', ') || address.trim(),
-      city: city.trim(),
-      state: stateName.trim(),
-      pincode: pincode.trim(),
-      avatar_url: avatarUrl.trim() || '',
+      full_name: fullName.trim() || verifiedSession.user?.full_name || '',
+      phone: phone.replace(/\D/g, '') || verifiedSession.user?.phone || '',
+      address:
+        [address.trim(), city.trim(), stateName.trim(), pincode.trim()].filter(Boolean).join(', ') ||
+        address.trim() ||
+        verifiedSession.user?.address ||
+        '',
+      city: city.trim() || verifiedSession.user?.city || '',
+      state: stateName.trim() || verifiedSession.user?.state || '',
+      pincode: pincode.trim() || verifiedSession.user?.pincode || '',
+      avatar_url: avatarUrl.trim() || verifiedSession.user?.avatar_url || '',
       profile_completed: true,
     };
     await loginWithToken(verifiedSession.token, finalUser);
@@ -773,7 +790,10 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
             activeOpacity={0.7}
           >
             <Text style={styles.sheetSubtitle}>
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Create one"}
+              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+              <Text style={{ ...renewxTextStyle('bold'), color: renewxColors.emerald }}>
+                {isSignUp ? 'Sign in' : 'Create one'}
+              </Text>
             </Text>
           </TouchableOpacity>
 
@@ -1572,7 +1592,7 @@ export default function AuthScreen({ onForgotPassword }: AuthScreenProps = {}) {
 
           <Text style={styles.successHeading}>Account Created Successfully!</Text>
           <Text style={styles.successSubtext}>
-            Welcome to <Text style={{ fontWeight: '800', color: '#0F172A' }}>RenewX</Text>, {fullName || 'Valued Member'}!{'\n'}
+            Welcome to <Text style={{ ...renewxTextStyle('extraBold'), color: renewxColors.black }}>RenewX</Text>, {fullName || 'Valued Member'}!{'\n'}
             Your verified account is ready.
           </Text>
 
@@ -1736,12 +1756,12 @@ const styles = StyleSheet.create({
   },
   topBrandName: {
     fontSize: 15,
-    fontWeight: '900',
-    color: '#0f172a',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     letterSpacing: -0.2,
   },
   topBrandAccent: {
-    color: '#ffc400',
+    color: renewxColors.gold,
   },
 
   gadgetField: {
@@ -1813,21 +1833,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   bottomHeroTitle: {
-    fontSize: 23,
-    fontWeight: '900',
-    color: '#0f172a',
+    fontSize: 24,
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     textAlign: 'center',
-    lineHeight: 29,
+    lineHeight: 30,
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   bottomHeroSubtitle: {
-    fontSize: 13,
-    color: '#64748b',
+    fontSize: 13.5,
+    color: renewxColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
-    fontWeight: '600',
-    maxWidth: 300,
+    lineHeight: 19,
+    ...renewxTextStyle('medium'),
+    maxWidth: 310,
   },
 
   bottomSection: {
@@ -1836,7 +1856,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryBigBtn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
     height: 54,
     borderRadius: 9999,
     alignItems: 'center',
@@ -1847,7 +1867,7 @@ const styles = StyleSheet.create({
   primaryBigBtnText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
     letterSpacing: 0.2,
   },
   secondaryBigBtn: {
@@ -1860,9 +1880,9 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   secondaryBigBtnText: {
-    color: '#0f172a',
+    color: renewxColors.black,
     fontSize: 16,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
     letterSpacing: 0.2,
   },
   googlePillBtn: {
@@ -1878,18 +1898,20 @@ const styles = StyleSheet.create({
   },
   googlePillText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
   },
   termsNotice: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     textAlign: 'center',
     lineHeight: 16,
     marginTop: 4,
   },
   termsLink: {
-    color: '#64748b',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
     textDecorationLine: 'underline',
   },
 
@@ -1917,8 +1939,8 @@ const styles = StyleSheet.create({
   },
   modalHostText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
 
   logoStage: {
@@ -1941,16 +1963,16 @@ const styles = StyleSheet.create({
 
   sheetTitle: {
     fontSize: 26,
-    fontWeight: '900',
-    color: '#0f172a',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     textAlign: 'center',
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   sheetSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    fontWeight: '600',
+    fontSize: 14.5,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -1961,9 +1983,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
+    fontSize: 13.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
     marginBottom: 6,
     marginLeft: 4,
   },
@@ -1976,10 +1998,10 @@ const styles = StyleSheet.create({
   },
   inlineStatusText: {
     fontSize: 12,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
   matchText: {
-    color: '#16a34a',
+    color: renewxColors.emerald,
   },
   mismatchText: {
     color: '#dc2626',
@@ -1988,7 +2010,9 @@ const styles = StyleSheet.create({
     borderColor: '#ef4444',
   },
   forgotPasswordWrap: {
-    alignSelf: 'flex-end',
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'flex-end',
     marginTop: -4,
     marginBottom: 12,
     paddingVertical: 4,
@@ -1996,8 +2020,8 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#64748b',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   pillInput: {
     backgroundColor: '#f8fafc',
@@ -2005,10 +2029,10 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 16,
     paddingHorizontal: 18,
-    height: 56,
-    fontSize: 16,
-    color: '#0f172a',
-    fontWeight: '600',
+    height: 54,
+    fontSize: 15.5,
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
   },
   passwordRow: {
     flexDirection: 'row',
@@ -2017,7 +2041,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
     borderRadius: 16,
-    height: 56,
+    height: 54,
     paddingRight: 14,
   },
   eyeBtn: {
@@ -2029,17 +2053,19 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     height: 54,
     borderRadius: 9999,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 6px 18px rgba(255, 196, 0, 0.45)',
+    boxShadow: '0 6px 18px rgba(255, 196, 0, 0.36)',
     elevation: 6,
     marginTop: 6,
   },
   continueBtnText: {
-    color: '#0f172a',
+    color: renewxColors.black,
     fontSize: 16,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
   btnDisabled: {
     opacity: 0.6,
@@ -2051,20 +2077,22 @@ const styles = StyleSheet.create({
   },
   textOptionBtnText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
 
   sheetTerms: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     textAlign: 'center',
     lineHeight: 16,
     marginTop: 20,
     maxWidth: 340,
   },
   sheetTermsLink: {
-    color: '#64748b',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
     textDecorationLine: 'underline',
   },
 
@@ -2085,7 +2113,7 @@ const styles = StyleSheet.create({
   errorBannerText: {
     color: '#b91c1c',
     fontSize: 13,
-    fontWeight: '600',
+    ...renewxTextStyle('medium'),
   },
   switchModeBannerBtn: {
     marginTop: 6,
@@ -2100,7 +2128,7 @@ const styles = StyleSheet.create({
   switchModeBannerBtnText: {
     color: '#b91c1c',
     fontSize: 12,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
 
   // 3. OTP SCREEN
@@ -2133,7 +2161,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -2141,15 +2169,16 @@ const styles = StyleSheet.create({
   },
 
   otpSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 14.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
     marginBottom: 28,
   },
   otpEmailHighlight: {
-    color: '#0f172a',
-    fontWeight: '800',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
 
   otpInputContainer: {
@@ -2188,13 +2217,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   otpBoxActive: {
-    borderColor: '#ffc400',
+    borderColor: renewxColors.yellow,
     backgroundColor: '#ffffff',
     boxShadow: '0 0 0 3px rgba(255, 196, 0, 0.25)',
     elevation: 3,
   },
   otpBoxFilled: {
-    borderColor: '#0f172a',
+    borderColor: renewxColors.black,
     backgroundColor: '#ffffff',
   },
   otpBoxError: {
@@ -2202,13 +2231,13 @@ const styles = StyleSheet.create({
   },
   otpBoxChar: {
     fontSize: 24,
-    fontWeight: '900',
-    color: '#0f172a',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
   },
   otpCursor: {
     width: 2,
     height: 24,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 1,
   },
 
@@ -2217,20 +2246,20 @@ const styles = StyleSheet.create({
   },
   changeEmailBtnText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   resendArea: {
     marginTop: 8,
   },
   resendText: {
-    fontSize: 13,
-    color: '#94a3b8',
-    fontWeight: '600',
+    fontSize: 13.5,
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   resendTextActive: {
-    color: '#f59e0b',
-    fontWeight: '800',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('bold'),
   },
 
   // 4. SIGNING YOU IN
@@ -2259,15 +2288,15 @@ const styles = StyleSheet.create({
   },
   signingInTitle: {
     fontSize: 26,
-    fontWeight: '900',
-    color: '#0f172a',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   signingInEmail: {
     fontSize: 14,
-    color: '#64748b',
-    fontWeight: '600',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
     marginBottom: 24,
   },
   signingInLoaderBox: {
@@ -2306,8 +2335,8 @@ const styles = StyleSheet.create({
   },
   legalModalTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   legalModalCloseBtn: {
     width: 32,
@@ -2322,19 +2351,20 @@ const styles = StyleSheet.create({
   },
   legalSectionTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0f172a',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     marginTop: 12,
     marginBottom: 4,
   },
   legalParagraph: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#475569',
+    fontSize: 13.5,
+    lineHeight: 20,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginBottom: 8,
   },
   legalModalActionBtn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
     height: 48,
     borderRadius: 9999,
     alignItems: 'center',
@@ -2344,7 +2374,7 @@ const styles = StyleSheet.create({
   legalModalActionBtnText: {
     color: '#ffffff',
     fontSize: 15,
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
   },
   splashScreenContainer: {
     flex: 1,
@@ -2379,30 +2409,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 28,
     height: 48,
     paddingHorizontal: 20,
     marginBottom: 8,
     ...Platform.select({
       ios: {
-        shadowColor: '#FACC15',
+        shadowColor: renewxColors.yellow,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
+        shadowOpacity: 0.32,
         shadowRadius: 8,
       },
       android: {
         elevation: 3,
       },
       web: {
-        boxShadow: '0 4px 14px rgba(250, 204, 21, 0.38)',
+        boxShadow: '0 4px 14px rgba(255, 196, 0, 0.34)',
       },
     }),
   },
   signInPillText: {
     fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     flex: 1,
     marginLeft: 14,
     letterSpacing: -0.2,
@@ -2421,8 +2453,8 @@ const styles = StyleSheet.create({
   },
   createAccountPillText: {
     fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     flex: 1,
     marginLeft: 14,
     letterSpacing: -0.2,
@@ -2446,8 +2478,8 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: 12,
     fontSize: 11,
-    fontWeight: '700',
-    color: '#94A3B8',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textMuted,
     letterSpacing: 1.5,
   },
   googlePillWhiteBtn: {
@@ -2482,13 +2514,15 @@ const styles = StyleSheet.create({
   },
   googleBtnLabel: {
     fontSize: 15.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     letterSpacing: -0.1,
   },
   stepBadgePill: {
     alignSelf: 'center',
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 9999,
@@ -2496,19 +2530,19 @@ const styles = StyleSheet.create({
   },
   stepBadgeText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#854D0E',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.emerald,
     letterSpacing: 0.6,
   },
   requiredAsterisk: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#EF4444',
+    ...renewxTextStyle('semibold'),
+    color: '#DC2626',
   },
   fieldContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
     borderRadius: 24,
@@ -2521,19 +2555,19 @@ const styles = StyleSheet.create({
   fieldInput: {
     flex: 1,
     fontSize: 15,
-    color: '#0F172A',
-    fontWeight: '500',
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
     height: '100%',
   },
   fieldErrorText: {
     fontSize: 12,
-    color: '#EF4444',
+    color: '#DC2626',
     marginTop: 4,
     marginLeft: 6,
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
   },
   phoneCountryBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#E2E8F0',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -2541,13 +2575,13 @@ const styles = StyleSheet.create({
   },
   phoneCountryText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   verifiedGreenBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 9999,
@@ -2555,23 +2589,24 @@ const styles = StyleSheet.create({
   },
   verifiedGreenBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#16A34A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   lockedFieldContainer: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F1F5F9',
     borderColor: '#CBD5E1',
   },
   lockedFieldInput: {
-    color: '#64748B',
-    fontWeight: '600',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
   },
   lockedPillIcon: {
     marginLeft: 8,
   },
   fieldHelperText: {
     fontSize: 12,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginTop: 5,
     marginLeft: 4,
   },
@@ -2584,16 +2619,17 @@ const styles = StyleSheet.create({
   addressSectionHeading: {
     marginHorizontal: 10,
     fontSize: 11.5,
-    fontWeight: '800',
-    color: '#64748B',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.textSecondary,
     letterSpacing: 0.8,
   },
   addressSectionSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: 13.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
     marginBottom: 16,
-    lineHeight: 18,
+    lineHeight: 19,
   },
   twoColRow: {
     flexDirection: 'row',
@@ -2609,7 +2645,7 @@ const styles = StyleSheet.create({
     height: 124,
     borderRadius: 62,
     borderWidth: 3,
-    borderColor: '#FACC15',
+    borderColor: renewxColors.yellow,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2657,7 +2693,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     width: 34,
     height: 34,
     borderRadius: 17,
@@ -2676,8 +2712,8 @@ const styles = StyleSheet.create({
   },
   removePhotoText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#EF4444',
+    ...renewxTextStyle('semibold'),
+    color: '#DC2626',
   },
   photoActionsRow: {
     flexDirection: 'row',
@@ -2700,8 +2736,8 @@ const styles = StyleSheet.create({
   },
   photoChoiceBtnText: {
     fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   skipStepBtn: {
     marginTop: 14,
@@ -2710,8 +2746,8 @@ const styles = StyleSheet.create({
   },
   skipStepBtnText: {
     fontSize: 14.5,
-    fontWeight: '600',
-    color: '#64748B',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
   },
   successContentCenter: {
     alignItems: 'center',
@@ -2725,16 +2761,17 @@ const styles = StyleSheet.create({
     height: 130,
   },
   successHeading: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#0F172A',
+    fontSize: 25,
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     textAlign: 'center',
     letterSpacing: -0.4,
     marginBottom: 8,
   },
   successSubtext: {
     fontSize: 14.5,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 20,
@@ -2760,8 +2797,8 @@ const styles = StyleSheet.create({
   },
   verifiedCardHeaderText: {
     fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   verifiedDetailRow: {
     flexDirection: 'row',
@@ -2773,13 +2810,13 @@ const styles = StyleSheet.create({
   },
   verifiedDetailLabel: {
     fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
   verifiedDetailValue: {
     fontSize: 13.5,
-    color: '#0F172A',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   verifiedEmailInline: {
     flexDirection: 'row',

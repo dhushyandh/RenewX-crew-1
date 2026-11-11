@@ -19,6 +19,7 @@ import Svg, {
 } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 export type ChartPeriod = 'today' | '7d' | '30d' | 'year';
 
@@ -660,16 +661,12 @@ export const SalesOverviewChart: React.FC<SalesOverviewChartProps> = ({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
     marginBottom: 14,
   },
   cardHeaderRow: {
@@ -682,19 +679,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
   },
   cardSectionTitle: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
     letterSpacing: -0.3,
   },
   lastSyncText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#168A4A',
-    backgroundColor: '#E8F7ED',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('semibold'),
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 10,
@@ -706,12 +703,12 @@ const styles = StyleSheet.create({
   },
   cardLinkText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#168A4A',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('bold'),
   },
   periodTabsRow: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderRadius: 12,
     padding: 3,
     marginBottom: 12,
@@ -725,21 +722,17 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   periodTabChipActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 1,
+    backgroundColor: renewxColors.surface,
+    ...(renewxShadows.card as object),
   },
   periodTabChipText: {
     fontSize: 11.5,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   periodTabChipTextActive: {
-    color: '#0F172A',
-    fontWeight: '800',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   metricsSummaryRow: {
     flexDirection: 'row',
@@ -747,20 +740,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: renewxColors.surfaceMuted,
     marginBottom: 6,
   },
   metricsRevLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   metricsRevValue: {
     fontSize: 22,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('black'),
     letterSpacing: -0.5,
   },
   growthBadge: {
@@ -773,36 +766,36 @@ const styles = StyleSheet.create({
   },
   growthBadgeText: {
     fontSize: 11,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
   metricStatsRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   statMiniCol: {
     alignItems: 'center',
   },
   statMiniVal: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   statMiniLbl: {
     fontSize: 9.5,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   statDivider: {
     width: 1,
     height: 18,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: renewxColors.borderStrong,
   },
   chartCanvasContainer: {
     height: 175,
@@ -820,14 +813,14 @@ const styles = StyleSheet.create({
   yGuideText: {
     width: 30,
     fontSize: 9.5,
-    fontWeight: '600',
     color: '#94A3B8',
+    ...renewxTextStyle('semibold'),
     textAlign: 'right',
   },
   yGuideLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
   },
   touchColumnsWrap: {
     position: 'absolute',
@@ -851,13 +844,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   xAxisText: {
-    fontSize: 9,
+    fontSize: 9.5,
     color: '#94A3B8',
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
   },
   xAxisTextActive: {
-    color: '#168A4A',
-    fontWeight: '800',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('extraBold'),
   },
   chartPeakTooltip: {
     position: 'absolute',
@@ -866,39 +859,35 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   chartTooltipBubble: {
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.black,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    ...(renewxShadows.elevated as object),
     minWidth: 90,
   },
   chartTooltipValue: {
-    color: '#FFFFFF',
+    color: renewxColors.white,
     fontSize: 11,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
   tooltipPeakChip: {
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
   },
   tooltipPeakChipText: {
-    color: '#FFFFFF',
-    fontSize: 7.5,
-    fontWeight: '800',
+    color: renewxColors.white,
+    fontSize: 9.5,
+    ...renewxTextStyle('extraBold'),
     textTransform: 'uppercase',
   },
   chartTooltipDate: {
     color: '#94A3B8',
-    fontSize: 8.5,
-    fontWeight: '500',
+    fontSize: 9.5,
+    ...renewxTextStyle('medium'),
     marginTop: 1,
   },
   chartTooltipArrow: {
@@ -909,13 +898,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 5,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: '#0F172A',
+    borderTopColor: renewxColors.black,
   },
   zeroDataNotice: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -923,7 +912,8 @@ const styles = StyleSheet.create({
   },
   zeroDataText: {
     fontSize: 10.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
     flex: 1,
   },
 });

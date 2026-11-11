@@ -1,11 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { exchangeCodeAsync } from 'expo-auth-session';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { getApiBaseUrl } from '@/services/api';
+import { getApiBaseUrl, onUnauthorized } from '@/services/api';
 import { getStoredPushTokenAsync, registerPushTokenInBackground, unregisterPushTokenAsync } from '@/services/pushNotifications';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -57,11 +57,127 @@ function isProfileComplete(u: AppUser | null): boolean {
   return Boolean(u.full_name && u.full_name.trim().length > 0 && u.phone && u.phone.trim().length > 0);
 }
 
+function sanitizeUserForStorage(u: AppUser, maxAvatarLength = 100000): AppUser {
+  if (
+    typeof u?.avatar_url === 'string' &&
+    u.avatar_url.startsWith('data:') &&
+    u.avatar_url.length > maxAvatarLength
+  ) {
+    return { ...u, avatar_url: '' };
+  }
+  return u;
+}
+
+async function persistUserRecord(u: AppUser): Promise<void> {
+  const safeUser = sanitizeUserForStorage(u);
+  try {
+    await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(safeUser));
+  } catch {
+    try {
+      const minimalUser: AppUser = { ...safeUser, avatar_url: '' };
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(minimalUser));
+    } catch (innerErr) {
+      console.warn('[Auth] Failed to persist user record:', innerErr);
+    }
+  }
+}
+
+async function persistAuthSession(newToken: string, newUser: AppUser): Promise<void> {
+  await AsyncStorage.setItem(TOKEN_STORAGE_KEY, newToken);
+  await persistUserRecord(newUser);
+}
+
+async function safeParseJson(res: Response): Promise<any | null> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return null;
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+type MeVerifyOutcome =
+  | { status: 'valid'; user: AppUser }
+  | { status: 'invalid' }
+  | { status: 'transient_error' };
+
+async function fetchMeWithTimeout(authToken: string, timeoutMs = 12000): Promise<MeVerifyOutcome> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/auth/me`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      signal: controller.signal,
+    });
+    const json = await safeParseJson(res);
+    if (res.ok && json?.success && json?.data) {
+      return { status: 'valid', user: json.data };
+    }
+    if (res.status === 401 || (res.status === 404 && json?.error?.code === 'NOT_FOUND')) {
+      return { status: 'invalid' };
+    }
+    return { status: 'transient_error' };
+  } catch {
+    return { status: 'transient_error' };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
+
+  const tokenRef = useRef<string | null>(null);
+  const userRef = useRef<AppUser | null>(null);
+  const verifyingTokenRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const clearSessionStorageAndState = useCallback(async () => {
+    tokenRef.current = null;
+    userRef.current = null;
+    try {
+      await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+        window.localStorage.removeItem(USER_STORAGE_KEY);
+      }
+    } catch (storageErr) {
+      console.warn('[Auth] Storage clear error:', storageErr);
+    } finally {
+      if (isMountedRef.current) {
+        setToken(null);
+        setUser(null);
+        setNeedsProfileSetup(false);
+      }
+    }
+  }, []);
+
+  const applySession = useCallback(async (receivedToken: string, receivedUser: AppUser, forceProfileSetup?: boolean) => {
+    await persistAuthSession(receivedToken, receivedUser);
+    tokenRef.current = receivedToken;
+    userRef.current = receivedUser;
+    if (isMountedRef.current) {
+      setToken(receivedToken);
+      setUser(receivedUser);
+      setNeedsProfileSetup(
+        typeof forceProfileSetup === 'boolean'
+          ? forceProfileSetup
+          : !isProfileComplete(receivedUser)
+      );
+    }
+    registerPushTokenInBackground();
+  }, []);
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || 'disabled';
   const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || 'disabled';
@@ -102,51 +218,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
+    async function verifyInBackground(storedToken: string, cachedUser: AppUser) {
+      const outcome = await fetchMeWithTimeout(storedToken, 12000);
+      if (!isMounted || !isMountedRef.current || tokenRef.current !== storedToken) return;
+
+      if (outcome.status === 'valid') {
+        const freshUser = outcome.user;
+        const mergedUser: AppUser =
+          cachedUser.id === freshUser.id &&
+          cachedUser.profile_completed === true &&
+          !freshUser.profile_completed
+            ? { ...freshUser, profile_completed: true }
+            : freshUser;
+
+        userRef.current = mergedUser;
+        setUser(mergedUser);
+        setNeedsProfileSetup(!isProfileComplete(mergedUser));
+        await persistUserRecord(mergedUser);
+      } else if (outcome.status === 'invalid') {
+        await clearSessionStorageAndState();
+      }
+    }
+
     async function restoreSession() {
       try {
         const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
         const storedUserJson = await AsyncStorage.getItem(USER_STORAGE_KEY);
 
-        if (storedToken) {
-          if (isMounted) setToken(storedToken);
-          let resolvedUser: AppUser | null = null;
+        if (!storedToken) {
           if (storedUserJson) {
-            try {
-              resolvedUser = JSON.parse(storedUserJson);
-              if (isMounted) setUser(resolvedUser);
-            } catch {
-              // Ignore JSON parse error
-            }
+            await AsyncStorage.removeItem(USER_STORAGE_KEY).catch(() => {});
           }
+          return;
+        }
 
-          // Verify token with backend
+        let resolvedUser: AppUser | null = null;
+        if (storedUserJson) {
           try {
-            const res = await fetch(`${getApiBaseUrl()}/auth/me`, {
-              headers: { Authorization: `Bearer ${storedToken}` },
-            });
-            const json = await res.json();
-            if (json.success && json.data && isMounted) {
-              resolvedUser = json.data;
-              setUser(json.data);
-              await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(json.data));
-            } else if (res.status === 401) {
-              // Token expired
-              await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
-              if (isMounted) {
-                setToken(null);
-                setUser(null);
-                setNeedsProfileSetup(false);
-              }
+            const parsed = JSON.parse(storedUserJson);
+            if (parsed && typeof parsed === 'object' && (parsed.id || parsed.email)) {
+              resolvedUser = parsed as AppUser;
             }
-          } catch (fetchErr) {
-            console.warn('[Auth] Could not verify session with server, keeping cached user:', fetchErr);
+          } catch {
+            // Ignore malformed JSON cache
           }
+        }
 
-          if (isMounted && resolvedUser && !isProfileComplete(resolvedUser)) {
-            setNeedsProfileSetup(true);
+        tokenRef.current = storedToken;
+        if (isMounted) setToken(storedToken);
+
+        if (resolvedUser) {
+          // Restore cached session immediately so page reloads stay logged in without
+          // blocking on cold starts, then validate the token with /auth/me in the background.
+          userRef.current = resolvedUser;
+          if (isMounted) {
+            setUser(resolvedUser);
+            setNeedsProfileSetup(!isProfileComplete(resolvedUser));
+            setLoading(false);
           }
-
           registerPushTokenInBackground();
+          void verifyInBackground(storedToken, resolvedUser);
+          return;
+        }
+
+        // Token exists without a cached user record: verify with backend before unlocking navigation.
+        const outcome = await fetchMeWithTimeout(storedToken, 12000);
+        if (!isMounted || tokenRef.current !== storedToken) return;
+
+        if (outcome.status === 'valid') {
+          userRef.current = outcome.user;
+          setUser(outcome.user);
+          setNeedsProfileSetup(!isProfileComplete(outcome.user));
+          await persistUserRecord(outcome.user);
+          registerPushTokenInBackground();
+        } else if (outcome.status === 'invalid') {
+          await clearSessionStorageAndState();
+        } else {
+          // Transient error without cached user: keep token in storage for retry on next load.
+          tokenRef.current = null;
+          setToken(null);
         }
       } catch (err) {
         console.error('[Auth] Failed to restore session:', err);
@@ -160,7 +310,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [clearSessionStorageAndState]);
+
+  // Verify any 401 reported by api.ts with /auth/me before signing the user out,
+  // keeping AsyncStorage and React state strictly synchronized.
+  useEffect(() => {
+    return onUnauthorized(async (failedToken) => {
+      if (!failedToken || tokenRef.current !== failedToken) return;
+      if (verifyingTokenRef.current === failedToken) return;
+
+      verifyingTokenRef.current = failedToken;
+      try {
+        const outcome = await fetchMeWithTimeout(failedToken, 8000);
+        if (!isMountedRef.current || tokenRef.current !== failedToken) return;
+
+        if (outcome.status === 'invalid') {
+          if (Platform.OS !== 'web') {
+            try {
+              await GoogleSignin.signOut();
+            } catch {
+              // Ignore
+            }
+          }
+          await clearSessionStorageAndState();
+        } else if (outcome.status === 'valid') {
+          const prev = userRef.current;
+          const freshUser = outcome.user;
+          const mergedUser: AppUser =
+            prev &&
+            prev.id === freshUser.id &&
+            prev.profile_completed === true &&
+            !freshUser.profile_completed
+              ? { ...freshUser, profile_completed: true }
+              : freshUser;
+          userRef.current = mergedUser;
+          setUser(mergedUser);
+          await persistUserRecord(mergedUser);
+        }
+      } finally {
+        if (verifyingTokenRef.current === failedToken) {
+          verifyingTokenRef.current = null;
+        }
+      }
+    });
+  }, [clearSessionStorageAndState]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
@@ -170,27 +363,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        return { error: json.error?.message || 'Login failed' };
+      const json = await safeParseJson(res);
+      if (!res.ok || !json?.success) {
+        return { error: json?.error?.message || `Login failed (HTTP ${res.status})` };
       }
 
       const receivedToken = json.data.token;
       const receivedUser = json.data.user;
-
-      setToken(receivedToken);
-      setUser(receivedUser);
-      setNeedsProfileSetup(!isProfileComplete(receivedUser));
-
-      await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
-      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
-      registerPushTokenInBackground();
+      await applySession(receivedToken, receivedUser);
 
       return { error: null };
     } catch (err: any) {
       return { error: err.message || 'Network connection failed' };
     }
-  }, []);
+  }, [applySession]);
 
   const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
     try {
@@ -204,37 +390,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       });
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        return { error: json.error?.message || 'Registration failed' };
+      const json = await safeParseJson(res);
+      if (!res.ok || !json?.success) {
+        return { error: json?.error?.message || `Registration failed (HTTP ${res.status})` };
       }
 
       const receivedToken = json.data.token;
       const receivedUser = json.data.user;
-
-      setToken(receivedToken);
-      setUser(receivedUser);
       // New user registration always triggers profile setup flow
-      setNeedsProfileSetup(true);
-
-      await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
-      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
-      registerPushTokenInBackground();
+      await applySession(receivedToken, receivedUser, true);
 
       return { error: null };
     } catch (err: any) {
       return { error: err.message || 'Network connection failed' };
     }
-  }, []);
+  }, [applySession]);
 
   const loginWithToken = useCallback(async (receivedToken: string, receivedUser: AppUser) => {
-    setToken(receivedToken);
-    setUser(receivedUser);
-    setNeedsProfileSetup(!isProfileComplete(receivedUser));
-    await AsyncStorage.setItem(TOKEN_STORAGE_KEY, receivedToken);
-    await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(receivedUser));
-    registerPushTokenInBackground();
-  }, []);
+    await applySession(receivedToken, receivedUser);
+  }, [applySession]);
 
   const loginWithGoogleTokens = useCallback(async (idToken?: string, accessToken?: string) => {
     const apiUrl = getApiBaseUrl();
@@ -244,9 +418,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ idToken, accessToken }),
     });
 
-    const json = await response.json();
-    if (!response.ok || !json.success) {
-      throw new Error(json.error?.message || 'Google sign-in could not be completed.');
+    const json = await safeParseJson(response);
+    if (!response.ok || !json?.success) {
+      throw new Error(json?.error?.message || 'Google sign-in could not be completed.');
     }
 
     await loginWithToken(json.data.token, json.data.user);
@@ -414,22 +588,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ]);
 
   const updateUser = useCallback(async (updates: Partial<AppUser>) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      const next = { ...prev, ...updates };
-      AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
+    const prev = userRef.current;
+    if (!prev) return;
+    const next = { ...prev, ...updates };
+    userRef.current = next;
+    if (isMountedRef.current) {
+      setUser(next);
+    }
+    await persistUserRecord(next);
   }, []);
 
   const completeProfileSetup = useCallback(async (updates: Partial<AppUser>) => {
-    setUser((prev) => {
-      if (!prev) return null;
+    const prev = userRef.current;
+    if (prev) {
       const next: AppUser = { ...prev, ...updates, profile_completed: true };
-      AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
-    setNeedsProfileSetup(false);
+      userRef.current = next;
+      if (isMountedRef.current) {
+        setUser(next);
+      }
+      await persistUserRecord(next);
+    }
+    if (isMountedRef.current) {
+      setNeedsProfileSetup(false);
+    }
   }, []);
 
   const dismissProfileSetup = useCallback(() => {
@@ -438,22 +619,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async (): Promise<AppUser | null> => {
     try {
-      const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      const storedToken = tokenRef.current || (await AsyncStorage.getItem(TOKEN_STORAGE_KEY));
       if (!storedToken) return null;
-      const res = await fetch(`${getApiBaseUrl()}/auth/me`, {
-        headers: { Authorization: `Bearer ${storedToken}` },
-      });
-      const json = await res.json();
-      if (res.ok && json.success && json.data) {
-        setUser(json.data);
-        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(json.data));
-        return json.data;
+
+      const outcome = await fetchMeWithTimeout(storedToken, 10000);
+      if (tokenRef.current && tokenRef.current !== storedToken) return null;
+
+      if (outcome.status === 'valid') {
+        const prev = userRef.current;
+        const freshUser = outcome.user;
+        const mergedUser: AppUser =
+          prev &&
+          prev.id === freshUser.id &&
+          prev.profile_completed === true &&
+          !freshUser.profile_completed
+            ? { ...freshUser, profile_completed: true }
+            : freshUser;
+
+        userRef.current = mergedUser;
+        if (isMountedRef.current) {
+          setUser(mergedUser);
+          setNeedsProfileSetup(!isProfileComplete(mergedUser));
+        }
+        await persistUserRecord(mergedUser);
+        return mergedUser;
+      }
+
+      if (outcome.status === 'invalid') {
+        await clearSessionStorageAndState();
       }
     } catch (err) {
       console.warn('[Auth] refreshUser failed:', err);
     }
     return null;
-  }, []);
+  }, [clearSessionStorageAndState]);
 
   const signOut = useCallback(async () => {
     try {
@@ -471,20 +670,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    try {
-      await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-        window.localStorage.removeItem(USER_STORAGE_KEY);
-      }
-    } catch (storageErr) {
-      console.warn('[Auth] Storage clear error:', storageErr);
-    } finally {
-      setToken(null);
-      setUser(null);
-      setNeedsProfileSetup(false);
-    }
-  }, []);
+    await clearSessionStorageAndState();
+  }, [clearSessionStorageAndState]);
 
   // Admin access is determined exclusively by the role returned by the backend.
   // Never grant admin privileges from a client-side email check.

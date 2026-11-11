@@ -24,6 +24,7 @@ import { useAuth, type AppUser } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import RenewXLogo from '@/components/RenewXLogo';
 import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 
@@ -546,7 +547,7 @@ export default function OnboardingProfileScreen() {
         {/* ========================================================================= */}
         {stage === 'welcome' && (
           <View style={styles.welcomeScreen}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 14, width: '100%' }}>
+            <View style={styles.welcomeBrandHeader}>
               <RenewXLogo size="md" showTagline={true} />
             </View>
 
@@ -554,11 +555,18 @@ export default function OnboardingProfileScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.welcomeScrollContent}
             >
+              <View style={styles.welcomeTrustPill}>
+                <Ionicons name="shield-checkmark" size={13} color={renewxColors.emerald} />
+                <Text style={styles.welcomeTrustPillText}>24-Point Certified Devices</Text>
+              </View>
+
               <View style={styles.welcomeTitleBlock}>
                 <Text style={styles.welcomeTitleLine1}>Welcome to</Text>
-                <Text style={styles.welcomeTitleLine2}>RenewX</Text>
+                <Text style={styles.welcomeTitleLine2}>
+                  Renew<Text style={{ color: renewxColors.gold }}>X</Text>
+                </Text>
                 <Text style={styles.welcomeSubtitle}>
-                  Buy certified pre-owned devices,{'\n'}sell your old ones, and upgrade{'\n'}to what you love.
+                  Buy certified pre-owned devices, sell your old tech, and upgrade to what you love.
                 </Text>
               </View>
 
@@ -568,47 +576,9 @@ export default function OnboardingProfileScreen() {
               </View>
 
               <View style={styles.welcomeActionsWrap}>
-                {/* 1. Login */}
+                {/* 1. Primary Action: Get Started */}
                 <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#FACC15',
-                    borderRadius: 14,
-                    paddingVertical: 15,
-                    marginBottom: 12,
-                    shadowColor: '#FACC15',
-                    shadowOffset: { width: 0, height: 3 },
-                    shadowOpacity: 0.28,
-                    shadowRadius: 6,
-                    elevation: 3,
-                  }}
-                  onPress={() => setLoginModalVisible(true)}
-                  activeOpacity={0.88}
-                  accessibilityRole="button"
-                  accessibilityLabel="Login to your account"
-                >
-                  <Ionicons name="log-in-outline" size={20} color="#0F172A" style={{ marginRight: 8 }} />
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.2 }}>Login</Text>
-                </TouchableOpacity>
-
-                {/* 2. Get started */}
-                <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#0F172A',
-                    borderRadius: 14,
-                    paddingVertical: 15,
-                    marginBottom: 16,
-                    shadowColor: '#000000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 5,
-                    elevation: 2,
-                  }}
+                  style={styles.welcomePrimaryCta}
                   onPress={() => {
                     setAuthError(null);
                     transitionTo('email_entry', 'forward');
@@ -617,40 +587,43 @@ export default function OnboardingProfileScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Get started and create account"
                 >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 }}>Get started</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FACC15" style={{ marginLeft: 8 }} />
+                  <Text style={styles.welcomePrimaryCtaText}>Get Started</Text>
+                  <Ionicons name="arrow-forward" size={18} color={renewxColors.black} style={{ marginLeft: 8 }} />
                 </TouchableOpacity>
 
                 {/* Divider */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                  <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
-                  <Text style={{ marginHorizontal: 12, fontSize: 12, color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>or</Text>
-                  <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>OR</Text>
+                  <View style={styles.dividerLine} />
                 </View>
 
-                {/* 3. Continue with Google */}
+                {/* 2. Secondary Action: Continue with Google */}
                 <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: 14,
-                    borderWidth: 1.5,
-                    borderColor: '#E2E8F0',
-                    paddingVertical: 14,
-                    marginBottom: 10,
-                  }}
+                  style={styles.welcomeGoogleBtn}
                   onPress={handleGoogleAuth}
                   activeOpacity={0.88}
                   accessibilityRole="button"
                   accessibilityLabel="Continue with Google"
                 >
-                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                  <View style={styles.socialIconWrap}>
                     <Ionicons name="logo-google" size={17} color="#EA4335" />
                   </View>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>Continue with Google</Text>
+                  <Text style={styles.welcomeGoogleBtnText}>Continue with Google</Text>
                 </TouchableOpacity>
+
+                {/* 3. Sign In Footer Link */}
+                <View style={styles.loginFooterRow}>
+                  <Text style={styles.loginFooterText}>Already have an account? </Text>
+                  <TouchableOpacity
+                    onPress={() => setLoginModalVisible(true)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sign in to existing account"
+                  >
+                    <Text style={styles.loginFooterLink}>Sign In</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </ScrollView>
           </View>
@@ -764,7 +737,7 @@ export default function OnboardingProfileScreen() {
                 <Text style={styles.stepTitle}>Verify your email</Text>
                 <Text style={styles.stepSubtitle}>
                   Enter the 6-digit verification code sent to{'\n'}
-                  <Text style={{ fontWeight: '800', color: '#0F172A' }}>{signupEmail}</Text>
+                  <Text style={{ ...renewxTextStyle('bold'), color: renewxColors.black }}>{signupEmail}</Text>
                 </Text>
               </View>
 
@@ -832,7 +805,7 @@ export default function OnboardingProfileScreen() {
                   </TouchableOpacity>
                 ) : (
                   <Text style={styles.resendCountdownText}>
-                    Resend code in <Text style={{ fontWeight: '700' }}>{resendTimer}s</Text>
+                    Resend code in <Text style={{ ...renewxTextStyle('bold'), color: renewxColors.black }}>{resendTimer}s</Text>
                   </Text>
                 )}
               </View>
@@ -1188,7 +1161,7 @@ export default function OnboardingProfileScreen() {
                   { opacity: confettiOpacity },
                 ]}
               >
-                <View style={[styles.confettiDot, { top: -20, left: -40, backgroundColor: '#FACC15', width: 10, height: 10 }]} />
+                <View style={[styles.confettiDot, { top: -20, left: -40, backgroundColor: renewxColors.yellow, width: 10, height: 10 }]} />
                 <View style={[styles.confettiDot, { top: -35, right: -30, backgroundColor: '#10B981', width: 8, height: 14, transform: [{ rotate: '25deg' }] }]} />
                 <View style={[styles.confettiDot, { top: 30, left: -60, backgroundColor: '#3B82F6', width: 12, height: 8, transform: [{ rotate: '-15deg' }] }]} />
                 <View style={[styles.confettiDot, { top: 40, right: -55, backgroundColor: '#F97316', width: 10, height: 10, borderRadius: 5 }]} />
@@ -1204,8 +1177,8 @@ export default function OnboardingProfileScreen() {
               {/* Success Typography */}
               <Text style={styles.successTitle}>Account Created{'\n'}Successfully!</Text>
               <Text style={styles.successSubtitle}>
-                Welcome to <Text style={{ fontWeight: '800', color: '#0F172A' }}>RenewX</Text>, {fullName || 'there'}!{'\n'}
-                Start exploring premium pre-owned{'\n'}devices at the best prices.
+                Welcome to <Text style={{ ...renewxTextStyle('extraBold'), color: renewxColors.black }}>RenewX</Text>, {fullName || 'there'}!{'\n'}
+                Start exploring certified pre-owned{'\n'}devices at the best prices.
               </Text>
             </View>
 
@@ -1331,8 +1304,8 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: '#FEF08A',
-    opacity: 0.5,
+    backgroundColor: renewxColors.yellowLight,
+    opacity: 0.75,
   },
   heroImage: {
     width: '100%',
@@ -1354,14 +1327,14 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 2,
   },
   splashSubtitle: {
-    fontSize: 13.5,
-    color: '#64748B',
-    fontWeight: '500',
-    letterSpacing: -0.2,
+    fontSize: 14,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
+    letterSpacing: -0.1,
   },
 
   /* ========================================================================= */
@@ -1370,6 +1343,15 @@ const styles = StyleSheet.create({
   welcomeScreen: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  welcomeBrandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 8,
+    width: '100%',
   },
   welcomeTopBar: {
     flexDirection: 'row',
@@ -1384,55 +1366,76 @@ const styles = StyleSheet.create({
   },
   skipBtnText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
   },
   welcomeScrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 40,
     alignItems: 'center',
   },
+  welcomeTrustPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  welcomeTrustPillText: {
+    fontSize: 11.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.emerald,
+    letterSpacing: 0.2,
+  },
   welcomeTitleBlock: {
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 16,
+    marginTop: 4,
+    marginBottom: 14,
+    maxWidth: 340,
   },
   welcomeTitleLine1: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    fontSize: 24,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.textSecondary,
+    letterSpacing: -0.4,
   },
   welcomeTitleLine2: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#0F172A',
-    letterSpacing: -0.6,
+    fontSize: 34,
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
+    letterSpacing: -0.8,
+    marginTop: -2,
   },
   welcomeSubtitle: {
-    fontSize: 13.5,
-    color: '#64748B',
+    fontSize: 14.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 8,
-    fontWeight: '500',
+    lineHeight: 21,
+    marginTop: 10,
   },
   welcomeHeroWrap: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    width: SCREEN_WIDTH * 0.76,
-    height: SCREEN_WIDTH * 0.62,
-    maxHeight: 230,
-    marginVertical: 12,
+    width: SCREEN_WIDTH * 0.74,
+    height: SCREEN_WIDTH * 0.56,
+    maxHeight: 220,
+    marginVertical: 10,
   },
   welcomeHeroGlow: {
     position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: '#FEF08A',
-    opacity: 0.55,
+    width: 196,
+    height: 196,
+    borderRadius: 98,
+    backgroundColor: renewxColors.yellowLight,
+    opacity: 0.75,
   },
   welcomeHeroImage: {
     width: '100%',
@@ -1442,35 +1445,74 @@ const styles = StyleSheet.create({
   welcomeActionsWrap: {
     width: '100%',
     maxWidth: 380,
-    marginTop: 8,
+    marginTop: 10,
+  },
+  welcomePrimaryCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginBottom: 16,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 14px rgba(255, 196, 0, 0.30)' },
+      default: {
+        shadowColor: renewxColors.yellow,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.28,
+        shadowRadius: 6,
+        elevation: 3,
+      },
+    }),
+  },
+  welcomePrimaryCtaText: {
+    fontSize: 16,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
+    letterSpacing: -0.2,
+  },
+  welcomeGoogleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    paddingVertical: 14,
+    marginBottom: 18,
+  },
+  welcomeGoogleBtnText: {
+    fontSize: 15,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     borderRadius: 14,
     paddingVertical: 14,
     marginBottom: 12,
-    shadowColor: '#FACC15',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   socialIconWrap: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   googleBtnText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   appleBtn: {
     flexDirection: 'row',
@@ -1485,14 +1527,14 @@ const styles = StyleSheet.create({
   },
   appleBtnText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
-    marginBottom: 14,
+    marginVertical: 2,
+    marginBottom: 16,
   },
   dividerLine: {
     flex: 1,
@@ -1501,9 +1543,10 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 12,
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '500',
+    fontSize: 11.5,
+    color: '#64748B',
+    ...renewxTextStyle('semibold'),
+    letterSpacing: 0.8,
   },
   emailSignUpBtn: {
     alignItems: 'center',
@@ -1515,8 +1558,8 @@ const styles = StyleSheet.create({
   },
   emailSignUpBtnText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   loginFooterRow: {
     flexDirection: 'row',
@@ -1525,14 +1568,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   loginFooterText: {
-    fontSize: 13.5,
-    color: '#64748B',
-    fontWeight: '500',
+    fontSize: 14,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
   loginFooterLink: {
-    fontSize: 13.5,
-    color: '#EAB308',
-    fontWeight: '800',
+    fontSize: 14,
+    color: renewxColors.emerald,
+    ...renewxTextStyle('bold'),
   },
 
   /* ========================================================================= */
@@ -1547,7 +1590,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    borderBottomColor: '#F1F5F9',
   },
   stepTopBarHeaderRow: {
     flexDirection: 'row',
@@ -1559,6 +1602,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1579,31 +1625,31 @@ const styles = StyleSheet.create({
     maxWidth: 60,
   },
   stepDashActive: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
   },
   stepDashInactive: {
     backgroundColor: '#E2E8F0',
   },
   stepScrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingBottom: 110,
   },
   stepHeader: {
     marginBottom: 20,
   },
   stepTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 25,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
     letterSpacing: -0.5,
   },
   stepSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 4,
-    fontWeight: '500',
-    lineHeight: 20,
+    fontSize: 14.5,
+    color: renewxColors.textSecondary,
+    marginTop: 5,
+    ...renewxTextStyle('medium'),
+    lineHeight: 21,
   },
 
   /* ========================================================================= */
@@ -1633,48 +1679,50 @@ const styles = StyleSheet.create({
   otpBox: {
     width: 48,
     height: 56,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   otpBoxActive: {
-    borderColor: '#FACC15',
-    backgroundColor: '#FEF9C3',
+    borderColor: renewxColors.yellow,
+    backgroundColor: '#FFFDF5',
   },
   otpBoxFilled: {
-    borderColor: '#0F172A',
-    backgroundColor: '#F8FAFC',
+    borderColor: renewxColors.black,
+    backgroundColor: '#FFFFFF',
   },
   otpBoxError: {
     borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
   },
   otpBoxChar: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
   },
   otpCursor: {
     position: 'absolute',
     width: 2,
     height: 22,
-    backgroundColor: '#0F172A',
+    backgroundColor: renewxColors.yellow,
   },
   resendCodeRow: {
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 16,
   },
   resendCodeLink: {
-    fontSize: 13.5,
-    color: '#EAB308',
-    fontWeight: '800',
+    fontSize: 14,
+    color: renewxColors.emerald,
+    ...renewxTextStyle('bold'),
   },
   resendCountdownText: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: 13.5,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textSecondary,
   },
   errorBannerRow: {
     flexDirection: 'row',
@@ -1682,16 +1730,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
     borderColor: '#FCA5A5',
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 12,
+    padding: 11,
     marginTop: 10,
     gap: 8,
   },
   errorBannerText: {
-    fontSize: 12.5,
+    fontSize: 13,
     color: '#B91C1C',
     flex: 1,
-    fontWeight: '500',
+    ...renewxTextStyle('medium'),
   },
 
   /* ========================================================================= */
@@ -1701,53 +1749,55 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 13.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
     marginTop: 10,
     marginBottom: 6,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 52,
   },
   inputLocked: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F1F5F9',
     borderColor: '#E2E8F0',
   },
   inputError: {
     borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
   },
   inputLeftIcon: {
     marginRight: 10,
   },
   countryCodeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 14.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
     marginRight: 8,
   },
   textInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '500',
+    fontSize: 14.5,
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
   },
   textInputLocked: {
-    color: '#64748B',
+    color: '#475569',
   },
   inputRightIcon: {
     marginLeft: 10,
   },
   errorMsgText: {
-    fontSize: 12,
-    color: '#EF4444',
+    fontSize: 12.5,
+    ...renewxTextStyle('medium'),
+    color: '#DC2626',
     marginTop: 2,
     marginLeft: 4,
   },
@@ -1763,24 +1813,31 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 20,
     borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
+    borderTopColor: '#F1F5F9',
   },
   primaryYellowCta: {
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FACC15',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 14px rgba(255, 196, 0, 0.28)' },
+      default: {
+        shadowColor: renewxColors.yellow,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.28,
+        shadowRadius: 6,
+        elevation: 3,
+      },
+    }),
   },
   primaryYellowCtaText: {
     fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 
   /* ========================================================================= */
@@ -1795,7 +1852,7 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 70,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1824,23 +1881,19 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   choosePhotoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
     borderRadius: 14,
     paddingHorizontal: 24,
@@ -1849,13 +1902,13 @@ const styles = StyleSheet.create({
   },
   choosePhotoBtnText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   photoOptionalNote: {
-    fontSize: 12.5,
-    color: '#94A3B8',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#64748B',
+    ...renewxTextStyle('medium'),
   },
 
   /* Bottom Two-Button Bar (Skip + Next) */
@@ -1869,13 +1922,15 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 20,
     borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
+    borderTopColor: '#F1F5F9',
     flexDirection: 'row',
     gap: 12,
   },
   secondarySoftBtn: {
     flex: 1,
-    backgroundColor: '#FEF9C3',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
@@ -1883,21 +1938,19 @@ const styles = StyleSheet.create({
   },
   secondarySoftBtnText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.black,
   },
   primaryYellowBtnFlex: {
     flex: 1,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FACC15',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
 
   /* ========================================================================= */
@@ -1907,10 +1960,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   reviewHeaderSub: {
-    fontSize: 13.5,
-    color: '#64748B',
+    fontSize: 14,
+    color: renewxColors.textSecondary,
     marginTop: 4,
-    fontWeight: '500',
+    ...renewxTextStyle('medium'),
   },
   summaryCard: {
     backgroundColor: '#FFFFFF',
@@ -1928,32 +1981,32 @@ const styles = StyleSheet.create({
   summaryLeftCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 120,
+    width: 125,
   },
   summaryIcon: {
     marginRight: 8,
   },
   summaryLabel: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '600',
+    fontSize: 13.5,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
   },
   summaryValue: {
     flex: 1,
     fontSize: 13.5,
-    color: '#0F172A',
-    fontWeight: '700',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
     textAlign: 'right',
     marginRight: 14,
   },
   summaryValueMuted: {
-    color: '#94A3B8',
-    fontWeight: '500',
+    color: '#64748B',
+    ...renewxTextStyle('medium'),
   },
   summaryActionYellow: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#EAB308',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   summaryDivider: {
     height: 1,
@@ -1990,8 +2043,8 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: '#FEF08A',
-    opacity: 0.35,
+    backgroundColor: renewxColors.yellowLight,
+    opacity: 0.45,
   },
   confettiDot: {
     position: 'absolute',
@@ -2001,31 +2054,27 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#22C55E',
+    backgroundColor: renewxColors.emerald,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: '#22C55E',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    ...(renewxShadows.elevated as object),
   },
   successTitle: {
-    fontSize: 25,
-    fontWeight: '900',
-    color: '#0F172A',
+    fontSize: 26,
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     textAlign: 'center',
-    lineHeight: 32,
+    lineHeight: 33,
     letterSpacing: -0.5,
     marginBottom: 10,
   },
   successSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
+    fontSize: 14.5,
+    color: renewxColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 21,
-    fontWeight: '500',
+    lineHeight: 22,
+    ...renewxTextStyle('medium'),
   },
 
   /* Quick Login Modal */
@@ -2040,13 +2089,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 380,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    borderRadius: 22,
+    padding: 22,
+    ...(renewxShadows.floating as object),
   },
   modalHeaderRow: {
     flexDirection: 'row',
@@ -2055,8 +2100,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 19,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
 });

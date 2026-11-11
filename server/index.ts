@@ -121,7 +121,9 @@ app.get('/', (req: Request, res: Response) => {
   const acceptsHtml = req.accepts('html');
   const clientIndex = path.resolve(process.cwd(), 'dist', 'index.html');
   const expoIndex = path.resolve(process.cwd(), 'expo-app', 'dist', 'index.html');
-  const targetHtml = [clientIndex, expoIndex].find((p) => fs.existsSync(p));
+  const expoPublicIndex = path.resolve(process.cwd(), 'expo-app', 'public', 'index.html');
+  const rootIndex = path.resolve(process.cwd(), 'index.html');
+  const targetHtml = [clientIndex, expoIndex, expoPublicIndex, rootIndex].find((p) => fs.existsSync(p));
 
   if (acceptsHtml && targetHtml) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -170,6 +172,8 @@ app.get('/apple-touch-icon.png', (_req: Request, res: Response) => {
 
 app.use('/icons', express.static(path.resolve(process.cwd(), 'public', 'icons')));
 app.use('/icons', express.static(path.resolve(process.cwd(), 'expo-app', 'public', 'icons')));
+app.use('/images', express.static(path.resolve(process.cwd(), 'public', 'images')));
+app.use('/images', express.static(path.resolve(process.cwd(), 'expo-app', 'public', 'images')));
 app.use(express.static(path.resolve(process.cwd(), 'dist'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('sw.js')) {

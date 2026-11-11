@@ -109,6 +109,17 @@
           "project": "react-native"
         }
       ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enablePngCrunchInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.razorpay.** { *; }\n-dontwarn com.razorpay.**\n-keep class com.google.android.gms.auth.api.signin.** { *; }\n-keep class com.renewx.mobile.** { *; }"
+          }
+        }
+      ],
       "./plugins/withRenewXRichNotifications.js"
     ],
     "owner": "dhushyandhs-workspace",

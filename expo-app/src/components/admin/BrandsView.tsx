@@ -24,6 +24,7 @@ import {
 import { api } from '@/services/api';
 import { confirmAction } from '@/lib/confirmAction';
 import ImagePickerButton from '@/components/ImagePickerButton';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 interface BrandsViewProps {
   initialAction?: 'addBrand' | 'addModel';
@@ -770,14 +771,14 @@ function BrandFormModal({
             activeOpacity={0.8}
             style={[formStyles.input, { justifyContent: 'center' }]}
           >
-            <Text style={{ color: '#0f172a', fontSize: 14, fontWeight: '500' }}>{category}</Text>
+            <Text style={{ color: renewxColors.black, fontSize: 14, ...renewxTextStyle('medium') }}>{category}</Text>
           </TouchableOpacity>
 
           <Modal visible={categoryPickerOpen} transparent animationType="fade" onRequestClose={() => setCategoryPickerOpen(false)}>
             <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.35)', justifyContent: 'center', padding: 24 }} activeOpacity={1} onPress={() => setCategoryPickerOpen(false)}>
               <View style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' }}>
                 <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>Select Category</Text>
+                  <Text style={{ fontSize: 14, ...renewxTextStyle('bold'), color: renewxColors.black }}>Select Category</Text>
                 </View>
                 {BRAND_CATEGORY_OPTIONS.map((option) => (
                   <TouchableOpacity
@@ -796,8 +797,8 @@ function BrandFormModal({
                       justifyContent: 'space-between',
                     }}
                   >
-                    <Text style={{ fontSize: 14, color: '#0f172a', fontWeight: category === option ? '700' : '500' }}>{option}</Text>
-                    {category === option && <Ionicons name="checkmark" size={16} color="#168A4A" />}
+                    <Text style={{ fontSize: 14, color: renewxColors.black, ...(category === option ? renewxTextStyle('bold') : renewxTextStyle('medium')) }}>{option}</Text>
+                    {category === option && <Ionicons name="checkmark" size={16} color={renewxColors.emerald} />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -827,7 +828,7 @@ function BrandFormModal({
                 source={logo ? { uri: logo } : null}
                 style={{ width: 32, height: 32, borderRadius: 6, backgroundColor: '#f1f5f9' }}
               />
-              <Text style={{ fontSize: 11, color: '#10b981', fontWeight: '600' }}>✓ Logo linked</Text>
+              <Text style={{ fontSize: 11, color: renewxColors.emerald, ...renewxTextStyle('semibold') }}>✓ Logo linked</Text>
             </View>
           ) : null}
 
@@ -1044,11 +1045,11 @@ function ModelFormModal({
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#0f172a', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                  <Text style={{ color: renewxColors.black, fontSize: 13, ...renewxTextStyle('bold') }} numberOfLines={1}>
                     {selectedBrand?.name || 'Select Brand'}
                   </Text>
                   {Boolean(selectedBrand?.category) && (
-                    <Text style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>
+                    <Text style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', ...renewxTextStyle('medium') }}>
                       {selectedBrand.category}
                     </Text>
                   )}
@@ -1068,7 +1069,7 @@ function ModelFormModal({
                   borderColor: '#e2e8f0',
                 }}
               >
-                <Text style={{ fontSize: 11, color: '#475569', fontWeight: '600' }}>Choose</Text>
+                <Text style={{ fontSize: 11, color: '#475569', ...renewxTextStyle('semibold') }}>Choose</Text>
                 <Ionicons name="chevron-down" size={14} color="#64748b" />
               </View>
             </TouchableOpacity>
@@ -1099,19 +1100,15 @@ function ModelFormModal({
               >
                 <View
                   style={{
-                    backgroundColor: '#ffffff',
+                    backgroundColor: renewxColors.surface,
                     borderRadius: 18,
                     overflow: 'hidden',
                     borderWidth: 1,
-                    borderColor: '#e2e8f0',
+                    borderColor: renewxColors.border,
                     width: '100%',
                     maxWidth: 380,
                     maxHeight: '80%',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 20,
-                    elevation: 10,
+                    ...(renewxShadows.elevated as object),
                   }}
                   onStartShouldSetResponder={() => true}
                 >
@@ -1128,10 +1125,10 @@ function ModelFormModal({
                     }}
                   >
                     <View>
-                      <Text style={{ fontSize: 15, fontWeight: '800', color: '#0f172a' }}>
+                      <Text style={{ fontSize: 15, ...renewxTextStyle('extraBold'), color: renewxColors.black }}>
                         Select Brand
                       </Text>
-                      <Text style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
+                      <Text style={{ fontSize: 11, color: '#64748b', marginTop: 1, ...renewxTextStyle('regular') }}>
                         Attach this model to the right brand
                       </Text>
                     </View>
@@ -1168,8 +1165,10 @@ function ModelFormModal({
                           flex: 1,
                           marginLeft: 6,
                           fontSize: 12,
-                          color: '#0f172a',
+                          color: renewxColors.black,
                           paddingVertical: 2,
+                          ...renewxTextStyle('regular'),
+                          ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
                         }}
                       />
                       {brandSearch.length > 0 && (
@@ -1243,15 +1242,15 @@ function ModelFormModal({
                                 <Text
                                   style={{
                                     fontSize: 13,
-                                    fontWeight: isSelected ? '800' : '600',
-                                    color: isSelected ? '#1d4ed8' : '#0f172a',
+                                    ...(isSelected ? renewxTextStyle('extraBold') : renewxTextStyle('semibold')),
+                                    color: isSelected ? '#1d4ed8' : renewxColors.black,
                                   }}
                                   numberOfLines={1}
                                 >
                                   {b.name}
                                 </Text>
                                 {Boolean(b.category) && (
-                                  <Text style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>
+                                  <Text style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', ...renewxTextStyle('medium') }}>
                                     {b.category}
                                   </Text>
                                 )}
@@ -1296,14 +1295,14 @@ function ModelFormModal({
               activeOpacity={0.8}
               style={[formStyles.input, { justifyContent: 'center' }]}
             >
-              <Text style={{ color: '#0f172a', fontSize: 14, fontWeight: '500' }}>{category}</Text>
+              <Text style={{ color: renewxColors.black, fontSize: 14, ...renewxTextStyle('medium') }}>{category}</Text>
             </TouchableOpacity>
 
             <Modal visible={categoryPickerOpen} transparent animationType="fade" onRequestClose={() => setCategoryPickerOpen(false)}>
               <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.35)', justifyContent: 'center', padding: 24 }} activeOpacity={1} onPress={() => setCategoryPickerOpen(false)}>
                 <View style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' }}>
                   <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>Select Category</Text>
+                    <Text style={{ fontSize: 14, ...renewxTextStyle('bold'), color: renewxColors.black }}>Select Category</Text>
                   </View>
                   {MODEL_CATEGORY_OPTIONS.map((option) => (
                     <TouchableOpacity
@@ -1322,8 +1321,8 @@ function ModelFormModal({
                         justifyContent: 'space-between',
                       }}
                     >
-                      <Text style={{ fontSize: 14, color: '#0f172a', fontWeight: category === option ? '700' : '500' }}>{option}</Text>
-                      {category === option && <Ionicons name="checkmark" size={16} color="#168A4A" />}
+                      <Text style={{ fontSize: 14, color: renewxColors.black, ...(category === option ? renewxTextStyle('bold') : renewxTextStyle('medium')) }}>{option}</Text>
+                      {category === option && <Ionicons name="checkmark" size={16} color={renewxColors.emerald} />}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -1397,7 +1396,7 @@ function ModelFormModal({
                   resizeMode="contain"
                 />
                 <TouchableOpacity onPress={() => setImageUrl('')} style={{ padding: 4 }}>
-                  <Text style={{ fontSize: 12, color: '#ef4444', fontWeight: '600' }}>Remove Image</Text>
+                  <Text style={{ fontSize: 12, color: '#ef4444', ...renewxTextStyle('semibold') }}>Remove Image</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1461,24 +1460,20 @@ function BrandLogoAvatar({ logo, name }: { logo?: string; name: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 110,
   },
   headerCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     marginBottom: 14,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   headerTop: {
     flexDirection: 'column',
@@ -1493,23 +1488,24 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#fffbeb',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#fef3c7',
+    borderColor: renewxColors.yellowLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#0f172a',
+    color: renewxColors.black,
     letterSpacing: -0.3,
+    ...renewxTextStyle('black'),
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 2,
     lineHeight: 17,
+    ...renewxTextStyle('regular'),
   },
   headerButtonsRow: {
     flexDirection: 'row',
@@ -1520,47 +1516,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    shadowColor: '#ffc400',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   addBrandBtnText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#000000',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   addModelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   addModelBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   metricsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: 14,
     paddingVertical: 12,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: renewxColors.surfaceMuted,
   },
   metricItem: {
     alignItems: 'center',
@@ -1568,21 +1562,21 @@ const styles = StyleSheet.create({
   },
   metricVal: {
     fontSize: 17,
-    fontWeight: '900',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('black'),
   },
   metricLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
+    ...renewxTextStyle('bold'),
   },
   metricDivider: {
     width: 1,
     height: 24,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: renewxColors.border,
   },
   filterSection: {
     marginBottom: 12,
@@ -1591,42 +1585,44 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 42,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   categoryScroll: {
     gap: 6,
     paddingVertical: 2,
   },
   categoryFilterChip: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   categoryFilterChipActive: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: renewxColors.black,
+    borderColor: renewxColors.black,
   },
   categoryFilterChipText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#64748b',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('bold'),
   },
   categoryFilterChipTextActive: {
-    color: '#ffffff',
+    color: renewxColors.white,
   },
   counterRow: {
     paddingHorizontal: 4,
@@ -1634,8 +1630,8 @@ const styles = StyleSheet.create({
   },
   counterText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#64748b',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('bold'),
   },
   brandList: {
     flexDirection: 'row',
@@ -1643,16 +1639,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   brandCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
     boxSizing: 'border-box' as any,
   },
   brandCardTop: {
@@ -1664,9 +1656,9 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1678,14 +1670,14 @@ const styles = StyleSheet.create({
   brandInitialBox: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#fffbeb',
+    backgroundColor: renewxColors.yellowSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   brandInitial: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#d97706',
+    color: renewxColors.warning,
+    ...renewxTextStyle('black'),
   },
   brandInfo: {
     flex: 1,
@@ -1693,9 +1685,9 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
+    color: renewxColors.black,
     letterSpacing: -0.2,
+    ...renewxTextStyle('extraBold'),
   },
   badgesRow: {
     flexDirection: 'row',
@@ -1705,30 +1697,30 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   categoryBadge: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
   categoryBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#475569',
+    fontSize: 10,
+    color: renewxColors.textSecondary,
     letterSpacing: 0.4,
+    ...renewxTextStyle('extraBold'),
   },
   modelsCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3.5,
-    backgroundColor: '#E8F7ED',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
   modelsCountBadgeText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#0B6B3A',
+    color: renewxColors.greenDark,
+    ...renewxTextStyle('bold'),
   },
   topActionIcons: {
     flexDirection: 'row',
@@ -1739,11 +1731,11 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   actionIconBtnDanger: {
     backgroundColor: '#fef2f2',
@@ -1751,9 +1743,10 @@ const styles = StyleSheet.create({
   },
   brandDesc: {
     fontSize: 12,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 10,
     lineHeight: 17,
+    ...renewxTextStyle('regular'),
   },
   brandCardBottom: {
     flexDirection: 'row',
@@ -1762,7 +1755,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: renewxColors.surfaceMuted,
   },
   manageModelsBtn: {
     flex: 1,
@@ -1770,15 +1763,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#0f172a',
+    backgroundColor: renewxColors.black,
     paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 12,
   },
   manageModelsBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
+    color: renewxColors.white,
+    ...renewxTextStyle('bold'),
   },
   modelsNumberPill: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -1788,24 +1781,24 @@ const styles = StyleSheet.create({
   },
   modelsNumberPillText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#ffffff',
+    color: renewxColors.white,
+    ...renewxTextStyle('extraBold'),
   },
   addModelMiniBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: renewxColors.borderStrong,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
   },
   addModelMiniBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   loadingBox: {
     alignItems: 'center',
@@ -1815,39 +1808,40 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: '#64748b',
-    fontWeight: '600',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('semibold'),
   },
   emptyStateBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 18,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     marginVertical: 12,
   },
   emptyIconCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   emptySubtitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     textAlign: 'center',
     marginTop: 4,
     maxWidth: 280,
     lineHeight: 18,
+    ...renewxTextStyle('regular'),
   },
   emptyActionsRow: {
     flexDirection: 'row',
@@ -1860,13 +1854,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#ffffff',
+    borderColor: renewxColors.borderStrong,
+    backgroundColor: renewxColors.surface,
   },
   emptyResetBtnText: {
     fontSize: 12,
-    fontWeight: '700',
     color: '#334155',
+    ...renewxTextStyle('bold'),
   },
   emptyAddBtn: {
     flexDirection: 'row',
@@ -1875,12 +1869,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 10,
-    backgroundColor: '#ffc400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
   },
   emptyAddBtnText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#000000',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
 });
 
@@ -1891,7 +1887,7 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '88%',
@@ -1904,17 +1900,18 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   sheetTitle: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('black'),
   },
   sheetSubtitle: {
     fontSize: 11,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   sheetHeaderActions: {
     flexDirection: 'row',
@@ -1925,15 +1922,15 @@ const modalStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
   },
   addBtnText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#ffffff',
+    color: renewxColors.white,
+    ...renewxTextStyle('bold'),
   },
   closeBtn: {
     padding: 6,
@@ -1942,23 +1939,25 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   searchInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: 10,
     paddingHorizontal: 10,
     height: 38,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     gap: 6,
   },
   searchInput: {
     flex: 1,
     fontSize: 12,
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   modelsScroll: {
     paddingHorizontal: 20,
@@ -1970,25 +1969,26 @@ const modalStyles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#475569',
+    color: renewxColors.textSecondary,
     marginTop: 8,
+    ...renewxTextStyle('extraBold'),
   },
   emptySub: {
     fontSize: 11,
     color: '#94a3b8',
     textAlign: 'center',
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   modelCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e8e4da',
+    borderColor: renewxColors.border,
     marginBottom: 10,
   },
   modelCardLeft: {
@@ -2001,9 +2001,9 @@ const modalStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2015,31 +2015,33 @@ const modalStyles = StyleSheet.create({
   },
   modelName: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   featuredBadge: {
-    backgroundColor: '#fffbeb',
+    backgroundColor: renewxColors.yellowSoft,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: renewxColors.yellowLight,
   },
   featuredBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#b45309',
+    fontSize: 10,
+    color: '#92400e',
+    ...renewxTextStyle('extraBold'),
   },
   modelDetails: {
     fontSize: 11,
-    color: '#64748b',
+    color: renewxColors.textMuted,
     marginTop: 2,
+    ...renewxTextStyle('regular'),
   },
   modelStorage: {
     fontSize: 10,
     color: '#94a3b8',
     marginTop: 1,
+    ...renewxTextStyle('regular'),
   },
   modelCardActions: {
     flexDirection: 'row',
@@ -2055,13 +2057,13 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+    borderColor: renewxColors.border,
+    backgroundColor: renewxColors.surface,
   },
   editBtnText: {
     fontSize: 11,
-    fontWeight: '700',
     color: '#374151',
+    ...renewxTextStyle('bold'),
   },
   trashBtn: {
     padding: 7,
@@ -2081,7 +2083,7 @@ const formStyles = StyleSheet.create({
     padding: 20,
   },
   dialog: {
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 20,
     padding: 20,
     width: '100%',
@@ -2095,25 +2097,27 @@ const formStyles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   label: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.textSecondary,
     marginTop: 8,
     marginBottom: 4,
+    ...renewxTextStyle('bold'),
   },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 12,
-    color: '#0f172a',
+    color: renewxColors.black,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -2123,8 +2127,8 @@ const formStyles = StyleSheet.create({
   },
   checkboxLabel: {
     fontSize: 11,
-    fontWeight: '600',
     color: '#334155',
+    ...renewxTextStyle('semibold'),
   },
   btnRow: {
     flexDirection: 'row',
@@ -2136,24 +2140,24 @@ const formStyles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
     alignItems: 'center',
   },
   cancelBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('bold'),
   },
   saveBtn: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#168A4A',
+    backgroundColor: renewxColors.emerald,
     alignItems: 'center',
   },
   saveBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
+    color: renewxColors.white,
+    ...renewxTextStyle('bold'),
   },
 });

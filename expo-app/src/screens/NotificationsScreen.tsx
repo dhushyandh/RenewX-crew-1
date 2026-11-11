@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   Alert,
   Image,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,14 +15,13 @@ import {
 import type { RootStackParamList } from '@/App';
 import { api } from '@/services/api';
 import { getNotificationPermissionStatus, requestNotificationPermission } from '@/services/pushNotifications';
-import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import HomeHeader from '@/components/HomeHeader';
 import { useNotifications, NotificationItem } from '@/context/NotificationContext';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function NotificationsScreen() {
-  const safeTop = useSafeHeaderTop();
   const navigation = useNavigation<NavigationProp>();
   const {
     notifications: items,
@@ -118,23 +116,23 @@ export default function NotificationsScreen() {
     }
     // 🛍️ Admin: New Order Received
     if (title.includes('new order received') || type === 'admin_order') {
-      return { icon: 'bag-check-outline', color: '#f59e0b', bg: '#fef3c7' };
+      return { icon: 'bag-check-outline', color: renewxColors.yellowDark, bg: renewxColors.yellowLight };
     }
     // 📱 Admin: New Sell Request Received
     if (title.includes('new sell request') || type === 'admin_trade_in') {
-      return { icon: 'phone-portrait-outline', color: '#8b5cf6', bg: '#f5f3ff' };
+      return { icon: 'phone-portrait-outline', color: '#7c3aed', bg: '#f5f3ff' };
     }
     // ✨ New Arrival / New Product Added
     if (title.includes('new arrival') || title.includes('new product') || type === 'product') {
-      return { icon: 'sparkles-outline', color: '#8b5cf6', bg: '#f5f3ff' };
+      return { icon: 'sparkles-outline', color: '#7c3aed', bg: '#f5f3ff' };
     }
     // 1. 🛒 Order placed -> Order placed successfully
     if (title.includes('order placed') || title.includes('placed successfully')) {
-      return { icon: 'cart-outline', color: '#2563eb', bg: '#eff6ff' };
+      return { icon: 'cart-outline', color: renewxColors.info, bg: '#eff6ff' };
     }
     // 2. 💳 Payment successful -> Payment confirmed
     if (title.includes('payment confirmed') || title.includes('payment successful')) {
-      return { icon: 'card-outline', color: '#059669', bg: '#ecfdf5' };
+      return { icon: 'card-outline', color: renewxColors.emerald, bg: renewxColors.mint };
     }
     // 4. 🚚 Order shipped -> Shipment update
     if (title.includes('shipment update') || title.includes('shipped')) {
@@ -142,15 +140,15 @@ export default function NotificationsScreen() {
     }
     // 5. 🏠 Out for delivery -> Delivery update
     if (title.includes('delivery update') || title.includes('out for delivery')) {
-      return { icon: 'home-outline', color: '#d97706', bg: '#fffbeb' };
+      return { icon: 'home-outline', color: renewxColors.warning, bg: renewxColors.yellowSoft };
     }
     // 6. ✅ Order delivered -> Order delivered
     if (title.includes('order delivered') || title.includes('delivered')) {
-      return { icon: 'checkmark-done-circle-outline', color: '#16a34a', bg: '#f0fdf4' };
+      return { icon: 'checkmark-done-circle-outline', color: renewxColors.emerald, bg: renewxColors.mintLight };
     }
     // 7. ❌ Order cancelled -> Order cancelled
     if (title.includes('order cancelled') || title.includes('cancelled')) {
-      return { icon: 'close-circle-outline', color: '#dc2626', bg: '#fef2f2' };
+      return { icon: 'close-circle-outline', color: renewxColors.error, bg: '#fef2f2' };
     }
     // 8. 💰 Refund initiated/completed -> Refund update
     if (title.includes('refund update') || title.includes('refund')) {
@@ -158,7 +156,7 @@ export default function NotificationsScreen() {
     }
     // 3. 📦 Order status changed -> Order status updated
     if (title.includes('order status') || type === 'order') {
-      return { icon: 'cube-outline', color: '#4b5563', bg: '#f3f4f6' };
+      return { icon: 'cube-outline', color: renewxColors.textSecondary, bg: renewxColors.surfaceMuted };
     }
     // 9. 📱 Trade-in submitted -> Sell request submitted
     if (title.includes('sell request submitted') || title.includes('trade-in submitted')) {
@@ -166,7 +164,7 @@ export default function NotificationsScreen() {
     }
     // 11. 💰 Trade-in valuation/amount changed -> Valuation updated
     if (title.includes('valuation updated') || title.includes('valuation')) {
-      return { icon: 'pricetag-outline', color: '#059669', bg: '#ecfdf5' };
+      return { icon: 'pricetag-outline', color: renewxColors.emerald, bg: renewxColors.mint };
     }
     // 12. 📅 Pickup scheduled -> Pickup scheduled
     if (title.includes('pickup scheduled')) {
@@ -174,7 +172,7 @@ export default function NotificationsScreen() {
     }
     // 13. 📦 Pickup completed -> Device picked up
     if (title.includes('device picked up') || title.includes('pickup completed')) {
-      return { icon: 'checkmark-circle-outline', color: '#10b981', bg: '#ecfdf5' };
+      return { icon: 'checkmark-circle-outline', color: renewxColors.emerald, bg: renewxColors.mint };
     }
     // 10. 🔄 Trade-in status changed -> Sell request updated
     if (title.includes('sell request') || type === 'trade_in') {
@@ -185,7 +183,7 @@ export default function NotificationsScreen() {
       return { icon: 'shield-checkmark-outline', color: '#7c3aed', bg: '#f5f3ff' };
     }
 
-    return { icon: 'notifications-outline', color: '#4b5563', bg: '#f3f4f6', useCustomIcon: true };
+    return { icon: 'notifications-outline', color: renewxColors.textSecondary, bg: renewxColors.surfaceMuted, useCustomIcon: true };
   };
 
   const handleNotificationPress = async (item: NotificationItem) => {
@@ -241,7 +239,7 @@ export default function NotificationsScreen() {
         rightComponent={
           <View style={styles.headerActions}>
             <TouchableOpacity onPress={handleTestPress} disabled={testing} style={styles.testBtn}>
-              <Ionicons name="paper-plane-outline" size={13} color="#047857" />
+              <Ionicons name="paper-plane-outline" size={13} color={renewxColors.emerald} />
               <Text style={styles.testBtnText}>{testing ? '...' : 'Test'}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={markAllAsRead} disabled={!unreadCount} style={styles.readAll}>
@@ -249,7 +247,7 @@ export default function NotificationsScreen() {
             </TouchableOpacity>
             {items.length > 0 && (
               <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn} accessibilityLabel="Clear all">
-                <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                <Ionicons name="trash-outline" size={16} color={renewxColors.error} />
               </TouchableOpacity>
             )}
           </View>
@@ -262,18 +260,18 @@ export default function NotificationsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={refresh}
-            tintColor="#FFC400"
-            colors={['#FFC400', '#10B981']}
-            progressBackgroundColor="#FFFFFF"
+            tintColor={renewxColors.yellow}
+            colors={[renewxColors.yellow, renewxColors.emerald]}
+            progressBackgroundColor={renewxColors.white}
           />
         }
       >
         {!permissionGranted && (
           <View style={styles.permissionWarning}>
             <View style={styles.permissionWarningIcon}>
-              <Ionicons name="notifications-off" size={16} color="#b45309" />
+              <Ionicons name="notifications-off" size={16} color={renewxColors.warning} />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={styles.permissionWarningCopy}>
               <Text style={styles.permissionWarningTitle}>Notifications are turned off</Text>
               <Text style={styles.permissionWarningText}>
                 Enable notifications so you never miss live updates.
@@ -322,7 +320,7 @@ export default function NotificationsScreen() {
                     {visual.useCustomIcon ? (
                       <Image
                         source={require('@/assets/notification-icon.png')}
-                        style={{ width: 22, height: 22 }}
+                        style={styles.customNotifIcon}
                         resizeMode="contain"
                       />
                     ) : (
@@ -346,7 +344,7 @@ export default function NotificationsScreen() {
                   activeOpacity={0.6}
                   accessibilityLabel="Delete notification"
                 >
-                  <Ionicons name="close" size={17} color="#94a3b8" />
+                  <Ionicons name="close" size={17} color={renewxColors.textMuted} />
                 </TouchableOpacity>
               </View>
             );
@@ -365,52 +363,43 @@ function formatDate(value: string) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f7f2' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16,
-    paddingTop: 8, paddingBottom: 14, backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#ebe7dd',
-  },
-  headerLogo: { width: 32, height: 32, borderRadius: 8 },
-  back: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '900', color: '#0f172a' },
-  subtitle: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  container: { flex: 1, backgroundColor: renewxColors.background },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   testBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
+    backgroundColor: renewxColors.mint,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: renewxColors.mintBorder,
   },
-  testBtnText: { fontSize: 11, fontWeight: '800', color: '#047857' },
+  testBtnText: { fontSize: 11.5, ...renewxTextStyle('extraBold'), color: renewxColors.emerald },
   readAll: { paddingHorizontal: 6, paddingVertical: 4 },
-  readAllText: { fontSize: 11, fontWeight: '800', color: '#b45309' },
+  readAllText: { fontSize: 12, ...renewxTextStyle('bold'), color: renewxColors.black },
   clearBtn: {
     padding: 6,
     borderRadius: 6,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 2,
   },
-  disabledText: { color: '#cbd5e1' },
+  disabledText: { color: '#CBD5E1' },
   content: { padding: 16, paddingBottom: 120 },
   permissionWarning: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#fffbeb',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: renewxColors.yellow,
     borderRadius: 14,
     padding: 12,
     marginBottom: 14,
@@ -419,42 +408,47 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#fef3c7',
+    backgroundColor: renewxColors.yellowLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  permissionWarningCopy: { flex: 1 },
   permissionWarningTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#92400e',
+    fontSize: 13.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
   },
   permissionWarningText: {
-    fontSize: 11,
-    color: '#b45309',
+    fontSize: 12,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textSecondary,
     marginTop: 2,
-    lineHeight: 15,
+    lineHeight: 17,
   },
   permissionEnableBtn: {
-    backgroundColor: '#d97706',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
   },
   permissionEnableText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800',
+    color: renewxColors.black,
+    fontSize: 12,
+    ...renewxTextStyle('extraBold'),
   },
   emptyLogo: { width: 64, height: 64, marginBottom: 10 },
   notificationCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fff',
+    backgroundColor: renewxColors.surface,
     padding: 14,
     borderRadius: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e8e4da',
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
   },
   cardMainContent: {
     flex: 1,
@@ -462,18 +456,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
-  unreadCard: { borderColor: '#fcd34d', backgroundColor: '#fffbeb' },
-  iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ffc400', alignItems: 'center', justifyContent: 'center' },
+  unreadCard: { borderColor: renewxColors.yellow, backgroundColor: renewxColors.yellowSoft },
+  iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: renewxColors.yellow, alignItems: 'center', justifyContent: 'center' },
+  customNotifIcon: { width: 22, height: 22 },
   textWrap: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  itemTitle: { flex: 1, fontSize: 13, fontWeight: '900', color: '#111827' },
-  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#f59e0b' },
+  itemTitle: { flex: 1, fontSize: 13.5, ...renewxTextStyle('bold'), color: renewxColors.black },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: renewxColors.yellowDark },
   deleteBtn: { padding: 4, marginLeft: 8, marginTop: -2 },
-  body: { fontSize: 11, lineHeight: 16, color: '#4b5563', marginTop: 4 },
-  time: { fontSize: 9, color: '#9ca3af', marginTop: 7 },
-  stateCard: { backgroundColor: '#fff', borderRadius: 18, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#e8e4da' },
-  stateTitle: { fontSize: 14, fontWeight: '900', color: '#111827', marginTop: 10 },
-  stateText: { fontSize: 11, color: '#6b7280', textAlign: 'center', lineHeight: 16, marginTop: 5 },
-  retryButton: { backgroundColor: '#0f172a', paddingHorizontal: 18, paddingVertical: 9, borderRadius: 10, marginTop: 14 },
-  retryText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  body: { fontSize: 12, lineHeight: 18, color: renewxColors.textSecondary, ...renewxTextStyle('regular'), marginTop: 4 },
+  time: { fontSize: 11, color: renewxColors.textMuted, ...renewxTextStyle('medium'), marginTop: 7 },
+  stateCard: {
+    backgroundColor: renewxColors.surface,
+    borderRadius: 18,
+    padding: 28,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
+  },
+  stateTitle: { fontSize: 15, ...renewxTextStyle('extraBold'), color: renewxColors.black, marginTop: 10 },
+  stateText: { fontSize: 12.5, ...renewxTextStyle('regular'), color: renewxColors.textMuted, textAlign: 'center', lineHeight: 18, marginTop: 5 },
 });

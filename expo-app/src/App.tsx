@@ -31,37 +31,25 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
       padding: 0;
       height: 100%;
       overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
     }
     html, body, #root, input, textarea, select, button {
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    [dir="auto"]:not([style*="Ionicons"]):not([style*="Material"]):not([style*="FontAwesome"]):not([style*="Feather"]):not([style*="AntDesign"]):not([style*="Entypo"]):not([style*="EvilIcons"]):not([style*="Octicons"]):not([style*="SimpleLineIcons"]):not([style*="Zocial"]):not([style*="Fontisto"]):not([style*="Foundation"]) {
+    [dir="auto"]:not([style*="Ionicons"]):not([style*="Material"]):not([style*="FontAwesome"]):not([style*="Feather"]):not([style*="AntDesign"]):not([style*="Entypo"]):not([style*="EvilIcons"]):not([style*="Octicons"]):not([style*="SimpleLineIcons"]):not([style*="Zocial"]):not([style*="Fontisto"]):not([style*="Foundation"]),
+    [class*="css-text-"]:not([style*="Ionicons"]):not([style*="Material"]):not([style*="FontAwesome"]):not([style*="Feather"]):not([style*="AntDesign"]):not([style*="Entypo"]):not([style*="EvilIcons"]):not([style*="Octicons"]):not([style*="SimpleLineIcons"]):not([style*="Zocial"]):not([style*="Fontisto"]):not([style*="Foundation"]) {
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
   `;
 }
 
-// Global font default for React Native Native only
-if (Platform.OS !== 'web') {
-  if ((Text as any).defaultProps == null) {
-    (Text as any).defaultProps = {};
-  }
-  (Text as any).defaultProps.style = [
-    { fontFamily: renewxFontFamily.regular },
-    (Text as any).defaultProps.style,
-  ];
-
-  if ((TextInput as any).defaultProps == null) {
-    (TextInput as any).defaultProps = {};
-  }
-  (TextInput as any).defaultProps.style = [
-    { fontFamily: 'Outfit_400Regular' },
-    (TextInput as any).defaultProps.style,
-  ];
-}
 import type { Product } from '@/types';
 import { colors } from '@/theme';
-import { renewxColors, renewxFontFamily, renewxRadius } from '@/design-system';
+import { renewxColors, renewxFontFamily, renewxRadius, renewxTextStyle } from '@/design-system';
 import { CartProvider, useCart } from '@/context/CartContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ToastProvider } from '@/context/ToastContext';
@@ -71,11 +59,13 @@ import { LocationProvider } from '@/context/LocationContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import {
   useFonts,
+  Outfit_300Light,
   Outfit_400Regular,
   Outfit_500Medium,
   Outfit_600SemiBold,
   Outfit_700Bold,
   Outfit_800ExtraBold,
+  Outfit_900Black,
 } from '@expo-google-fonts/outfit';
 
 import HomeScreen from '@/screens/HomeScreen';
@@ -839,7 +829,7 @@ function RootNavigationWrapper({ fontsLoaded }: { fontsLoaded: boolean }) {
         <MainAppNavigation />
       ) : (
         <View style={{ flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#EAB308" />
+          <ActivityIndicator size="large" color={renewxColors.yellow} />
         </View>
       )}
       {!splashFinished && (
@@ -854,11 +844,13 @@ function RootNavigationWrapper({ fontsLoaded }: { fontsLoaded: boolean }) {
 
 function App() {
   const [fontsLoaded] = useFonts({
+    Outfit_300Light,
     Outfit_400Regular,
     Outfit_500Medium,
     Outfit_600SemiBold,
     Outfit_700Bold,
     Outfit_800ExtraBold,
+    Outfit_900Black,
   });
 
   return (
@@ -930,10 +922,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   floatingCartText: {
-    fontFamily: renewxFontFamily.semibold,
+    ...renewxTextStyle('bold'),
     fontSize: 12,
     color: '#064E2E',
-    fontWeight: '700',
   },
   floatingCartRightBtn: {
     flexDirection: 'row',
@@ -945,9 +936,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   floatingCartCount: {
-    fontFamily: renewxFontFamily.bold,
+    ...renewxTextStyle('extraBold'),
     fontSize: 12.5,
-    fontWeight: '800',
     color: '#FFFFFF',
   },
   floatingNavRow: {
@@ -999,7 +989,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   floatingTabItemActive: {
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
     borderRadius: 20,
     paddingHorizontal: 6,
   },
@@ -1010,14 +1000,13 @@ const styles = StyleSheet.create({
   },
   floatingTabLabel: {
     fontSize: 10,
-    fontWeight: '600',
-    fontFamily: renewxFontFamily.semibold,
-    color: '#64748B',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
   floatingTabLabelActive: {
-    color: '#000000',
-    fontWeight: '800',
+    color: renewxColors.text,
+    ...renewxTextStyle('extraBold'),
   },
   floatingSellSeparateBtn: {
     alignItems: 'center',
@@ -1030,35 +1019,34 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
     ...Platform.select({
-      web: { boxShadow: '0px 6px 18px rgba(250, 204, 21, 0.45)' },
+      web: { boxShadow: '0px 6px 18px rgba(255, 196, 0, 0.42)' },
       default: {
-        shadowColor: '#FACC15',
+        shadowColor: renewxColors.yellow,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.45,
+        shadowOpacity: 0.42,
         shadowRadius: 8,
         elevation: 8,
       },
     }),
   },
   floatingSellCircleActive: {
-    backgroundColor: '#EAB308',
+    backgroundColor: renewxColors.yellowDark,
   },
   floatingSellLabel: {
     fontSize: 10.5,
-    fontWeight: '800',
-    fontFamily: renewxFontFamily.bold,
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.text,
     marginTop: 2,
   },
   floatingSellLabelActive: {
-    color: '#000000',
-    fontWeight: '900',
+    color: renewxColors.blackPure,
+    ...renewxTextStyle('black'),
   },
   sellSparkleTopRight: {
     position: 'absolute',

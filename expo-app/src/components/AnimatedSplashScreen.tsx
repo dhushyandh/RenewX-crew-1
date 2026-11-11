@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Animated, ActivityIndicator, StyleSheet } from 'react-native';
+import { renewxColors } from '@/design-system';
 
 interface AnimatedSplashScreenProps {
   onFinish?: () => void;
@@ -35,7 +36,7 @@ export default function AnimatedSplashScreen({
         },
       ]}
     >
-      <ActivityIndicator size="large" color="#EAB308" />
+      <ActivityIndicator size="large" color={renewxColors.yellow} />
     </Animated.View>
   );
 }

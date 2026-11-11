@@ -24,6 +24,7 @@ import HomeHeader from '@/components/HomeHeader';
 import RazorpayModal from '@/components/RazorpayModal';
 import AnimatedOrderSuccessTick from '@/components/AnimatedOrderSuccessTick';
 import { getCategoryDeviceImage } from '@/lib/imageUtils';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import {
   openRazorpay,
   isNativeRazorpayAvailable,
@@ -433,24 +434,18 @@ export default function CheckoutScreen() {
       />
 
       {displayItems.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 }}>
+        <View style={styles.emptyWrap}>
           <Ionicons name="cart-outline" size={54} color="#CBD5E1" />
-          <Text style={{ fontSize: 17, fontWeight: '800', color: '#0F172A' }}>No items to checkout</Text>
-          <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', maxWidth: 280 }}>
+          <Text style={styles.emptyTitle}>No items to checkout</Text>
+          <Text style={styles.emptySubtitle}>
             Your cart is currently empty. Please select devices from the shop before checking out.
           </Text>
           <TouchableOpacity
-            style={{
-              marginTop: 14,
-              backgroundColor: '#FBBF24',
-              paddingHorizontal: 24,
-              paddingVertical: 12,
-              borderRadius: 12,
-            }}
+            style={styles.browseBtn}
             onPress={() => navigation.navigate('MainTabs', { screen: 'Shop' })}
             activeOpacity={0.85}
           >
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A' }}>Browse Products</Text>
+            <Text style={styles.browseBtnText}>Browse Products</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -599,7 +594,7 @@ export default function CheckoutScreen() {
                 <View style={styles.orderItemPriceCol}>
                   <Text style={styles.orderItemQty}>Qty: {item.quantity}</Text>
                   {item.isBestPrice ? (
-                    <Text style={[styles.orderItemPrice, { color: '#047857' }]}>Best Price</Text>
+                    <Text style={styles.orderItemBestPrice}>Best Price</Text>
                   ) : (
                     <>
                       <Text style={styles.orderItemPrice}>{formatMoney(item.price)}</Text>
@@ -683,8 +678,8 @@ export default function CheckoutScreen() {
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>4. Payment Method</Text>
               <View style={styles.secureBadgeRow}>
-                <Ionicons name="lock-closed" size={12} color="#059669" style={{ marginRight: 4 }} />
-                <Text style={[styles.secureBadgeText, { color: '#059669', fontWeight: '700' }]}>
+                <Ionicons name="lock-closed" size={12} color={renewxColors.emerald} style={{ marginRight: 4 }} />
+                <Text style={[styles.secureBadgeText, styles.secureBadgeTextHighlight]}>
                   100% Secure & Verified
                 </Text>
               </View>
@@ -727,8 +722,8 @@ export default function CheckoutScreen() {
                       resizeMode="contain"
                     />
                     {hasBestPriceItem ? (
-                      <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#DC2626' }}>Unavailable</Text>
+                      <View style={styles.unavailableBadge}>
+                        <Text style={styles.unavailableBadgeText}>Unavailable</Text>
                       </View>
                     ) : (
                       <View style={styles.cleanBadgeBlue}>
@@ -745,7 +740,7 @@ export default function CheckoutScreen() {
                   </Text>
 
                   <View style={styles.cleanFooterRow}>
-                    <Ionicons name="shield-checkmark" size={13} color="#059669" />
+                    <Ionicons name="shield-checkmark" size={13} color={renewxColors.emerald} />
                     <Text style={styles.cleanFooterText}>100% Encrypted</Text>
                     <Text style={styles.cleanFooterDot}>•</Text>
                     <Text style={styles.cleanFooterText}>50+ Banks & UPI Apps</Text>
@@ -783,7 +778,7 @@ export default function CheckoutScreen() {
                   <View style={styles.cleanTitleRow}>
                     <View style={styles.codTitleBox}>
                       <View style={styles.codIconBadge}>
-                        <Ionicons name="cash-outline" size={16} color="#059669" />
+                        <Ionicons name="cash-outline" size={16} color={renewxColors.emerald} />
                       </View>
                       <Text style={styles.codMainTitle}>Cash on Delivery</Text>
                     </View>
@@ -797,7 +792,7 @@ export default function CheckoutScreen() {
                   </Text>
 
                   <View style={styles.cleanFooterRow}>
-                    <Ionicons name="checkmark-circle-outline" size={13} color="#64748B" />
+                    <Ionicons name="checkmark-circle-outline" size={13} color={renewxColors.textMuted} />
                     <Text style={styles.cleanFooterText}>Zero Advance Payment Needed</Text>
                   </View>
                 </View>
@@ -805,7 +800,7 @@ export default function CheckoutScreen() {
                 <Ionicons
                   name={paymentMethod === 'cod' ? 'checkmark-circle' : 'chevron-forward'}
                   size={20}
-                  color={paymentMethod === 'cod' ? '#059669' : '#CBD5E1'}
+                  color={paymentMethod === 'cod' ? renewxColors.emerald : '#CBD5E1'}
                 />
               </View>
             </TouchableOpacity>
@@ -815,7 +810,7 @@ export default function CheckoutScreen() {
           <View style={styles.whatsappConsentCard}>
             <View style={styles.whatsappConsentLeft}>
               <View style={styles.whatsappIconCircle}>
-                <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
+                <Ionicons name="logo-whatsapp" size={18} color={renewxColors.emerald} />
               </View>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={styles.whatsappConsentTitle}>WhatsApp Order Updates</Text>
@@ -827,8 +822,8 @@ export default function CheckoutScreen() {
             <Switch
               value={whatsappConsent}
               onValueChange={setWhatsappConsent}
-              trackColor={{ false: '#E2E8F0', true: '#BBF7D0' }}
-              thumbColor={whatsappConsent ? '#16A34A' : '#94A3B8'}
+              trackColor={{ false: renewxColors.border, true: renewxColors.mintBorder }}
+              thumbColor={whatsappConsent ? renewxColors.emerald : '#94A3B8'}
             />
           </View>
 
@@ -864,11 +859,11 @@ export default function CheckoutScreen() {
 
             {/* Green saving pill */}
             <View style={styles.savingPill}>
-              <Ionicons name="leaf-outline" size={15} color="#059669" style={{ marginRight: 6 }} />
+              <Ionicons name="leaf-outline" size={15} color={renewxColors.emerald} style={{ marginRight: 6 }} />
               <Text style={styles.savingPillText}>
                 You are saving {formatMoney(discountProducts)} on this order
               </Text>
-              <Ionicons name="chevron-forward" size={14} color="#059669" style={{ marginLeft: 'auto' }} />
+              <Ionicons name="chevron-forward" size={14} color={renewxColors.emerald} style={{ marginLeft: 'auto' }} />
             </View>
           </View>
 
@@ -888,7 +883,7 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={[
               styles.placeOrderBtn,
-              orderSuccessOverlay && { backgroundColor: '#16A34A' },
+              orderSuccessOverlay && styles.placeOrderBtnSuccess,
             ]}
             onPress={handlePlaceOrder}
             disabled={processing || orderSuccessOverlay}
@@ -1014,7 +1009,7 @@ export default function CheckoutScreen() {
               Thank you for shopping with RenewX
             </Text>
             <View style={styles.successModalPill}>
-              <Ionicons name="checkmark-done" size={14} color="#15803D" />
+              <Ionicons name="checkmark-done" size={14} color={renewxColors.emerald} />
               <Text style={styles.successModalPillText}>Order Placed Successfully</Text>
             </View>
           </View>
@@ -1027,7 +1022,41 @@ export default function CheckoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
+  },
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 10,
+  },
+  emptyTitle: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 18,
+    color: renewxColors.black,
+  },
+  emptySubtitle: {
+    ...renewxTextStyle('regular'),
+    fontSize: 13.5,
+    color: renewxColors.textMuted,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 19,
+  },
+  browseBtn: {
+    marginTop: 14,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  browseBtnText: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 14,
+    color: renewxColors.black,
   },
   topHeader: {
     flexDirection: 'row',
@@ -1035,9 +1064,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.border,
   },
   backBtn: {
     width: 36,
@@ -1049,25 +1078,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandName: {
+    ...renewxTextStyle('black'),
     fontSize: 20,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    color: '#0A1128',
+    color: renewxColors.black,
     letterSpacing: -0.5,
-    textShadowColor: '#EA580C',
-    textShadowOffset: { width: -1.5, height: 0 },
-    textShadowRadius: 1,
   },
   brandNameYellow: {
+    ...renewxTextStyle('black'),
     fontSize: 20,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    color: '#F59E0B',
+    color: renewxColors.yellowDark,
   },
   brandTagline: {
+    ...renewxTextStyle('semibold'),
     fontSize: 8.5,
-    color: '#476E8E',
-    fontWeight: '700',
+    color: renewxColors.textSecondary,
     letterSpacing: 0.2,
     marginTop: -2,
   },
@@ -1080,7 +1104,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1092,20 +1116,20 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EF4444',
+    backgroundColor: renewxColors.error,
   },
   avatarCircle: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13,
-    fontWeight: '800',
-    color: '#166534',
+    color: renewxColors.mintDark,
   },
 
   scrollView: {
@@ -1118,13 +1142,13 @@ const styles = StyleSheet.create({
 
   // Stepper
   stepperSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   stepperRow: {
     flexDirection: 'row',
@@ -1138,59 +1162,59 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   stepCircleActive: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
   stepCircleDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
   stepNumber: {
+    ...renewxTextStyle('bold'),
     fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   stepNumberActive: {
+    ...renewxTextStyle('bold'),
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    color: renewxColors.white,
   },
   stepLabel: {
+    ...renewxTextStyle('medium'),
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
   },
   stepLabelActive: {
-    color: '#16A34A',
-    fontWeight: '700',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   stepLabelDone: {
-    color: '#16A34A',
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.emerald,
   },
   stepLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     marginHorizontal: 4,
     marginTop: -16,
   },
   stepLineActive: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
 
   // Section Cards
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -1199,14 +1223,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 15.5,
+    color: renewxColors.black,
   },
   actionBlueLink: {
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    color: '#2563EB',
-    fontWeight: '700',
+    color: renewxColors.emerald,
   },
 
   // Radio button
@@ -1221,35 +1245,35 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   radioOuterSelected: {
-    borderColor: '#16A34A',
+    borderColor: renewxColors.emerald,
   },
   radioInner: {
     width: 9,
     height: 9,
     borderRadius: 4.5,
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
 
   // Address
   addressItemCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
   },
   addressItemCardSelected: {
-    borderColor: '#86EFAC',
-    backgroundColor: '#F0FDF4',
+    borderColor: renewxColors.mintBorder,
+    backgroundColor: renewxColors.mintLight,
   },
   addressIconBox: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -1259,53 +1283,54 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   addressTypeTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 13.5,
+    color: renewxColors.black,
     marginRight: 6,
   },
   defaultPill: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
   },
   defaultPillText: {
+    ...renewxTextStyle('bold'),
     fontSize: 10,
-    fontWeight: '700',
-    color: '#16A34A',
+    color: renewxColors.emerald,
   },
   recipientName: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    ...renewxTextStyle('bold'),
+    fontSize: 13,
+    color: renewxColors.black,
     marginTop: 2,
   },
   addressText: {
-    fontSize: 11.5,
-    color: '#64748B',
-    lineHeight: 16,
+    ...renewxTextStyle('regular'),
+    fontSize: 12,
+    color: renewxColors.textMuted,
+    lineHeight: 17,
   },
   addressPhoneText: {
-    fontSize: 11.5,
-    color: '#64748B',
+    ...renewxTextStyle('medium'),
+    fontSize: 12,
+    color: renewxColors.textMuted,
     marginTop: 2,
-    fontWeight: '500',
   },
   editAddressBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 8,
     paddingVertical: 4,
     paddingHorizontal: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
   },
   editAddressText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   // Order Items
@@ -1314,13 +1339,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
   },
   orderItemImage: {
     width: 52,
     height: 52,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     marginRight: 10,
   },
   orderItemInfo: {
@@ -1328,42 +1353,50 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   orderItemName: {
+    ...renewxTextStyle('bold'),
     fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   orderItemSpecs: {
+    ...renewxTextStyle('regular'),
     fontSize: 11.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
   refurbishedBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: renewxColors.yellowLight,
     paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingVertical: 1.5,
     borderRadius: 4,
     marginTop: 3,
   },
   refurbishedBadgeText: {
+    ...renewxTextStyle('bold'),
     fontSize: 9.5,
-    fontWeight: '700',
-    color: '#B45309',
+    color: '#9A6700',
   },
   orderItemPriceCol: {
     alignItems: 'flex-end',
   },
   orderItemQty: {
+    ...renewxTextStyle('regular'),
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginBottom: 2,
   },
   orderItemPrice: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+  },
+  orderItemBestPrice: {
+    ...renewxTextStyle('extraBold'),
+    fontSize: 14,
+    color: renewxColors.emerald,
   },
   orderItemOriginalPrice: {
+    ...renewxTextStyle('regular'),
     fontSize: 11,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
@@ -1373,51 +1406,52 @@ const styles = StyleSheet.create({
   deliveryOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
   },
   deliveryOptionCardSelected: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#86EFAC',
+    backgroundColor: renewxColors.mintLight,
+    borderColor: renewxColors.mintBorder,
   },
   deliveryIconBox: {
     width: 34,
     height: 34,
     borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   deliveryTitle: {
+    ...renewxTextStyle('bold'),
     fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   deliveryTimeText: {
+    ...renewxTextStyle('semibold'),
     fontSize: 11.5,
-    color: '#16A34A',
-    fontWeight: '600',
+    color: renewxColors.emerald,
     marginTop: 1,
   },
   deliveryTimeSub: {
+    ...renewxTextStyle('regular'),
     fontSize: 11.5,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     marginTop: 1,
   },
   deliveryFreeText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13.5,
-    fontWeight: '800',
-    color: '#16A34A',
+    color: renewxColors.emerald,
   },
   deliveryPriceText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   // Payment methods
@@ -1426,15 +1460,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secureBadgeText: {
+    ...renewxTextStyle('medium'),
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+  },
+  secureBadgeTextHighlight: {
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
   },
   cleanPaymentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     padding: 14,
     marginBottom: 10,
   },
@@ -1443,8 +1481,8 @@ const styles = StyleSheet.create({
     borderColor: '#0284C7',
   },
   cleanPaymentCardSelectedCod: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#059669',
+    backgroundColor: renewxColors.mintLight,
+    borderColor: renewxColors.emerald,
   },
   cleanPaymentTopRow: {
     flexDirection: 'row',
@@ -1456,7 +1494,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: renewxColors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -1471,13 +1509,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0284C7',
   },
   cleanRadioActiveCod: {
-    borderColor: '#059669',
+    borderColor: renewxColors.emerald,
   },
   cleanRadioDotCod: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
   },
   cleanPaymentBody: {
     flex: 1,
@@ -1492,6 +1530,17 @@ const styles = StyleSheet.create({
     width: 105,
     height: 22,
   },
+  unavailableBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  unavailableBadgeText: {
+    ...renewxTextStyle('bold'),
+    fontSize: 10,
+    color: renewxColors.error,
+  },
   cleanBadgeBlue: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1502,20 +1551,20 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   cleanBadgeBlueText: {
+    ...renewxTextStyle('bold'),
     fontSize: 10.5,
-    fontWeight: '700',
     color: '#0284C7',
   },
   cleanBadgeGreen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 6,
   },
   cleanBadgeGreenText: {
+    ...renewxTextStyle('bold'),
     fontSize: 10.5,
-    fontWeight: '700',
-    color: '#15803D',
+    color: renewxColors.emerald,
   },
   codTitleBox: {
     flexDirection: 'row',
@@ -1526,18 +1575,19 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 6,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   codMainTitle: {
+    ...renewxTextStyle('bold'),
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   cleanSubtitle: {
+    ...renewxTextStyle('regular'),
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     lineHeight: 17,
     marginBottom: 6,
   },
@@ -1547,11 +1597,12 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   cleanFooterText: {
+    ...renewxTextStyle('medium'),
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
   },
   cleanFooterDot: {
+    ...renewxTextStyle('regular'),
     fontSize: 10,
     color: '#94A3B8',
   },
@@ -1564,27 +1615,28 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priceLabel: {
+    ...renewxTextStyle('regular'),
     fontSize: 13,
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   priceValue: {
+    ...renewxTextStyle('semibold'),
     fontSize: 13.5,
-    fontWeight: '600',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   discountValue: {
+    ...renewxTextStyle('bold'),
     fontSize: 13.5,
-    fontWeight: '700',
-    color: '#16A34A',
+    color: renewxColors.emerald,
   },
   freeDeliveryText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 13,
-    fontWeight: '800',
-    color: '#16A34A',
+    color: renewxColors.emerald,
   },
   priceDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     marginVertical: 10,
   },
   totalRow: {
@@ -1594,29 +1646,29 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   totalLabel: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 15.5,
+    color: renewxColors.black,
   },
   totalValue: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 17.5,
+    color: renewxColors.black,
   },
   savingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: renewxColors.mintBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
   savingPillText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
+    color: renewxColors.emerald,
   },
 
   // Bottom action bar
@@ -1625,40 +1677,41 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: renewxColors.border,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.05, shadowRadius: 8 },
+      android: { elevation: 8 },
+      web: { boxShadow: '0 -3px 10px rgba(15, 23, 42, 0.06)' },
+    }),
   },
   bottomPriceCol: {
     flex: 1,
     marginRight: 12,
   },
   bottomTotalText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 18.5,
+    color: renewxColors.black,
   },
   bottomSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 11.5,
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
   bottomButtonCol: {
     alignItems: 'center',
   },
   placeOrderBtn: {
-    backgroundColor: '#14532D',
+    backgroundColor: renewxColors.mintDark,
     borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 30,
@@ -1666,10 +1719,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 170,
   },
+  placeOrderBtnSuccess: {
+    backgroundColor: renewxColors.emerald,
+  },
   placeOrderText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.white,
+    fontSize: 14.5,
   },
   secureBottomNote: {
     flexDirection: 'row',
@@ -1677,14 +1733,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   secureBottomNoteText: {
+    ...renewxTextStyle('regular'),
     fontSize: 10,
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
 
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -1693,7 +1750,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     maxHeight: '85%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 20,
     padding: 20,
   },
@@ -1704,55 +1761,57 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
+    ...renewxTextStyle('extraBold'),
+    fontSize: 16.5,
+    color: renewxColors.black,
   },
   inputLabel: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.textSecondary,
     marginBottom: 4,
     marginTop: 8,
   },
   inputField: {
+    ...renewxTextStyle('regular'),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    fontSize: 13,
-    color: '#0F172A',
+    fontSize: 13.5,
+    color: renewxColors.black,
   },
   tagPill: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: 'center',
   },
   tagPillActive: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
   tagPillText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   tagPillTextActive: {
-    color: '#FFFFFF',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
   },
   saveAddressBtn: {
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 10,
   },
   saveAddressBtnText: {
-    color: '#FFFFFF',
+    ...renewxTextStyle('bold'),
+    color: renewxColors.white,
     fontSize: 14,
-    fontWeight: '700',
   },
   successModalBackdrop: {
     flex: 1,
@@ -1764,36 +1823,24 @@ const styles = StyleSheet.create({
   successModalCard: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 24,
     paddingVertical: 30,
     paddingHorizontal: 20,
     alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 14 },
-        shadowOpacity: 0.28,
-        shadowRadius: 28,
-      },
-      android: {
-        elevation: 14,
-      },
-      web: {
-        boxShadow: '0 16px 36px rgba(0, 0, 0, 0.24)',
-      },
-    }),
+    ...renewxShadows.floating,
   },
   successModalTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 14,
     marginBottom: 4,
   },
   successModalSubtitle: {
+    ...renewxTextStyle('regular'),
     fontSize: 13,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textAlign: 'center',
     marginBottom: 14,
   },
@@ -1801,23 +1848,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 12,
   },
   successModalPillText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#15803D',
+    color: renewxColors.emerald,
   },
   whatsappConsentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1832,18 +1879,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   whatsappConsentTitle: {
+    ...renewxTextStyle('bold'),
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   whatsappConsentSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
+    ...renewxTextStyle('regular'),
+    fontSize: 11.5,
+    color: renewxColors.textMuted,
     marginTop: 2,
   },
 });

@@ -25,6 +25,7 @@ import HomeHeader from '@/components/HomeHeader';
 import { api } from '@/services/api';
 import { ProductDetailSkeleton, ProductImage } from '@/components/ui';
 import { getCategoryDeviceImage, resolveImageSource } from '@/lib/imageUtils';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 function formatMoney(value: number) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -66,8 +67,8 @@ function getConditionMeta(condition?: string) {
   if (c.includes('pristine') || c.includes('new')) {
     return {
       label: 'Like New (Pristine)',
-      badgeBg: '#DCFCE7',
-      badgeColor: '#15803D',
+      badgeBg: renewxColors.mint,
+      badgeColor: renewxColors.emerald,
       summary: 'Flawless condition with zero scratches. Looks and performs like brand new.',
       bullets: [
         'Screen & body in 100% flawless cosmetic condition',
@@ -94,8 +95,8 @@ function getConditionMeta(condition?: string) {
   if (c.includes('good')) {
     return {
       label: 'Good Condition',
-      badgeBg: '#FEF3C7',
-      badgeColor: '#B45309',
+      badgeBg: renewxColors.yellowLight,
+      badgeColor: '#9A6700',
       summary: 'Light cosmetic frame wear. Screen is clean and all hardware works 100%.',
       bullets: [
         'Clear display with full touch sensitivity',
@@ -466,8 +467,8 @@ export default function ProductDetailScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#FFC400"
-            colors={['#FFC400', '#10B981']}
+            tintColor={renewxColors.yellow}
+            colors={[renewxColors.yellow, renewxColors.emerald]}
             progressBackgroundColor="#FFFFFF"
           />
         }
@@ -732,7 +733,7 @@ export default function ProductDetailScreen() {
                   {parsedSpecs.map((item, idx) => (
                     <View key={`spec_${idx}`} style={styles.specGridItem}>
                       <View style={styles.specIconBadge}>
-                        <Ionicons name={item.icon} size={14} color="#0284C7" />
+                        <Ionicons name={item.icon} size={14} color={renewxColors.emerald} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.specGridLabel}>{item.label}</Text>
@@ -758,7 +759,7 @@ export default function ProductDetailScreen() {
                   </Text>
                 </View>
                 <View style={styles.diagnosticsPassBadge}>
-                  <Ionicons name="checkmark-done" size={12} color="#059669" />
+                  <Ionicons name="checkmark-done" size={12} color={renewxColors.emerald} />
                   <Text style={styles.diagnosticsPassText}>32-Point Diagnostic Pass</Text>
                 </View>
               </View>
@@ -768,7 +769,7 @@ export default function ProductDetailScreen() {
               <View style={styles.checklistGrid}>
                 {conditionMeta.bullets.map((bullet, i) => (
                   <View key={`cond_b_${i}`} style={styles.checklistItem}>
-                    <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+                    <Ionicons name="checkmark-circle" size={15} color={renewxColors.emerald} />
                     <Text style={styles.checklistItemText}>{bullet}</Text>
                   </View>
                 ))}
@@ -793,7 +794,7 @@ export default function ProductDetailScreen() {
                   <Text style={styles.descToggleText}>
                     {showFullDescription ? 'Show Less' : 'Read Full Description'}
                   </Text>
-                  <Ionicons name={showFullDescription ? 'chevron-up' : 'chevron-down'} size={13} color="#0284C7" />
+                  <Ionicons name={showFullDescription ? 'chevron-up' : 'chevron-down'} size={13} color={renewxColors.emerald} />
                 </TouchableOpacity>
               )}
 
@@ -808,7 +809,7 @@ export default function ProductDetailScreen() {
                   <Text style={styles.boxChipText}>Charging Adapter & Cable</Text>
                 </View>
                 <View style={styles.boxChip}>
-                  <Ionicons name="shield-checkmark-outline" size={14} color="#16A34A" />
+                  <Ionicons name="shield-checkmark-outline" size={14} color={renewxColors.emerald} />
                   <Text style={styles.boxChipText}>RenewX Quality Certificate</Text>
                 </View>
                 <View style={styles.boxChip}>
@@ -823,17 +824,17 @@ export default function ProductDetailScreen() {
         {/* 4. Streamlined Trust & Assurances Strip */}
         <View style={styles.trustBar}>
           <View style={styles.trustItem}>
-            <Ionicons name="airplane-outline" size={15} color="#0284C7" />
+            <Ionicons name="airplane-outline" size={15} color={renewxColors.emerald} />
             <Text style={styles.trustTitle}>Free Express Delivery</Text>
           </View>
           <View style={styles.trustDivider} />
           <View style={styles.trustItem}>
-            <Ionicons name="shield-checkmark-outline" size={15} color="#16A34A" />
+            <Ionicons name="shield-checkmark-outline" size={15} color={renewxColors.emerald} />
             <Text style={styles.trustTitle}>32-Pt Quality Tested</Text>
           </View>
           <View style={styles.trustDivider} />
           <View style={styles.trustItem}>
-            <Ionicons name="card-outline" size={15} color="#D97706" />
+            <Ionicons name="card-outline" size={15} color={renewxColors.yellowDark} />
             <Text style={styles.trustTitle}>Secure UPI & COD</Text>
           </View>
         </View>
@@ -849,7 +850,7 @@ export default function ProductDetailScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={styles.similarViewAllText}>View All</Text>
-                <Ionicons name="arrow-forward" size={13} color="#475569" />
+                <Ionicons name="arrow-forward" size={13} color={renewxColors.emerald} />
               </TouchableOpacity>
             </View>
 
@@ -896,13 +897,13 @@ export default function ProductDetailScreen() {
         <View style={styles.bottomPriceCol}>
           {isSoldOut ? (
             <>
-              <Text style={[styles.bottomPriceText, { color: '#DC2626' }]}>Sold Out</Text>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8' }}>Unavailable</Text>
+              <Text style={[styles.bottomPriceText, { color: renewxColors.error }]}>Sold Out</Text>
+              <Text style={styles.bottomSubStatusText}>Unavailable</Text>
             </>
           ) : isBestPrice ? (
             <>
-              <Text style={styles.bottomPriceText}>Best Price</Text>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#B45309' }}>COD Only</Text>
+              <Text style={[styles.bottomPriceText, { color: renewxColors.emerald }]}>Best Price</Text>
+              <Text style={styles.bottomCodText}>COD Only</Text>
             </>
           ) : (
             <>
@@ -922,7 +923,7 @@ export default function ProductDetailScreen() {
           <Ionicons
             name={isWishlisted ? 'heart' : 'heart-outline'}
             size={20}
-            color={isWishlisted ? '#EF4444' : '#0F172A'}
+            color={isWishlisted ? '#EF4444' : renewxColors.black}
           />
         </TouchableOpacity>
 
@@ -935,7 +936,7 @@ export default function ProductDetailScreen() {
           <Ionicons
             name={isOutOfStock ? 'close-circle' : 'cart'}
             size={18}
-            color={isOutOfStock ? '#94A3B8' : '#000000'}
+            color={isOutOfStock ? '#94A3B8' : renewxColors.black}
             style={{ marginRight: 8 }}
           />
           <Text style={[styles.addToCartBtnText, isOutOfStock && styles.addToCartBtnTextDisabled]}>
@@ -976,27 +977,30 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   notFoundTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   notFoundSubtitle: {
+    ...renewxTextStyle('regular'),
     fontSize: 13,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
   },
   exploreBtn: {
-    backgroundColor: '#FBBF24',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 10,
   },
   exploreBtnText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
 
   scrollView: {
@@ -1038,8 +1042,8 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   conditionFloatingText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 11,
-    fontWeight: '800',
     letterSpacing: 0.3,
   },
   mainDeviceImage: {
@@ -1050,15 +1054,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     right: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 12,
   },
   counterBadgeText: {
+    ...renewxTextStyle('bold'),
     color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '700',
   },
   arrowLeft: {
     position: 'absolute',
@@ -1068,17 +1072,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
+    ...(renewxShadows.card as object),
   },
   arrowRight: {
     position: 'absolute',
@@ -1088,17 +1088,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
+    ...(renewxShadows.card as object),
   },
   thumbnailsRow: {
     flexDirection: 'row',
@@ -1119,8 +1115,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   thumbnailItemActive: {
-    borderColor: '#0284C7',
-    backgroundColor: '#F0F9FF',
+    borderColor: renewxColors.yellowDark,
+    backgroundColor: renewxColors.yellowSoft,
   },
   thumbnailImg: {
     width: '100%',
@@ -1150,8 +1146,8 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   trustTitle: {
+    ...renewxTextStyle('semibold'),
     fontSize: 10.5,
-    fontWeight: '700',
     color: '#334155',
   },
   trustDivider: {
@@ -1174,16 +1170,16 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   breadcrumbText: {
+    ...renewxTextStyle('bold'),
     fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   productTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     lineHeight: 26,
     marginBottom: 8,
   },
@@ -1197,23 +1193,24 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: renewxColors.yellowLight,
     paddingHorizontal: 6,
     paddingVertical: 2.5,
     borderRadius: 6,
     gap: 3,
   },
   ratingNumber: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 11.5,
-    fontWeight: '800',
-    color: '#92400E',
+    color: '#9A6700',
   },
   ratingCount: {
+    ...renewxTextStyle('medium'),
     fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
   },
   dotDivider: {
+    ...renewxTextStyle('regular'),
     fontSize: 12,
     color: '#CBD5E1',
     marginHorizontal: 2,
@@ -1224,8 +1221,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   inlineConditionText: {
+    ...renewxTextStyle('bold'),
     fontSize: 11,
-    fontWeight: '700',
   },
   priceRow: {
     flexDirection: 'row',
@@ -1234,31 +1231,33 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   currentPriceText: {
+    ...renewxTextStyle('black'),
     fontSize: 26,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   originalPriceText: {
+    ...renewxTextStyle('medium'),
     fontSize: 14,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
-    fontWeight: '600',
   },
   discountBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
   discountBadgeText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 11,
-    fontWeight: '800',
-    color: '#15803D',
+    color: renewxColors.emerald,
   },
   savingsText: {
+    ...renewxTextStyle('semibold'),
     fontSize: 12,
-    color: '#059669',
-    fontWeight: '600',
+    color: renewxColors.emerald,
     marginBottom: 12,
   },
   // Best Price
@@ -1271,32 +1270,32 @@ const styles = StyleSheet.create({
   bestPriceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
   bestPriceBadgeText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 16,
-    fontWeight: '800',
-    color: '#047857',
+    color: renewxColors.emerald,
   },
   codPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: renewxColors.yellowDark,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
   },
   codPillText: {
+    ...renewxTextStyle('bold'),
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#92400E',
+    color: '#9A6700',
   },
 
   stockContainer: {
@@ -1311,9 +1310,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   inStockText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#16A34A',
+    color: renewxColors.emerald,
   },
   lowStockBadge: {
     flexDirection: 'row',
@@ -1321,8 +1320,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   lowStockText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
     color: '#D97706',
   },
   outOfStockBadge: {
@@ -1331,9 +1330,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   outOfStockText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#DC2626',
+    color: renewxColors.error,
   },
 
   // Quick Spec Chips
@@ -1355,8 +1354,8 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   quickSpecChipText: {
+    ...renewxTextStyle('semibold'),
     fontSize: 11,
-    fontWeight: '700',
     color: '#334155',
   },
 
@@ -1385,20 +1384,16 @@ const styles = StyleSheet.create({
   },
   tabItemActive: {
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    ...(renewxShadows.card as object),
   },
   tabItemText: {
+    ...renewxTextStyle('medium'),
     fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
   },
   tabItemTextActive: {
-    color: '#0F172A',
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
   },
   tabContentCard: {
     backgroundColor: '#FFFFFF',
@@ -1427,25 +1422,26 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 7,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: renewxColors.mintLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   specGridLabel: {
+    ...renewxTextStyle('semibold'),
     fontSize: 10.5,
-    fontWeight: '600',
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textTransform: 'uppercase',
   },
   specGridValue: {
+    ...renewxTextStyle('bold'),
     fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginTop: 1,
   },
   emptyTabText: {
+    ...renewxTextStyle('regular'),
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textMuted,
     textAlign: 'center',
     paddingVertical: 12,
   },
@@ -1466,26 +1462,29 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   conditionPillText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 11,
-    fontWeight: '800',
   },
   diagnosticsPassBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: renewxColors.mintLight,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     gap: 4,
   },
   diagnosticsPassText: {
+    ...renewxTextStyle('bold'),
     fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
+    color: renewxColors.emerald,
   },
   conditionSummaryText: {
+    ...renewxTextStyle('regular'),
     fontSize: 12,
-    color: '#475569',
+    color: renewxColors.textSecondary,
     lineHeight: 17,
     marginBottom: 10,
   },
@@ -1502,16 +1501,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   checklistItemText: {
+    ...renewxTextStyle('medium'),
     flex: 1,
     fontSize: 11.5,
     color: '#334155',
-    fontWeight: '600',
   },
 
   // Tab 3: Overview & In Box
   descriptionText: {
+    ...renewxTextStyle('regular'),
     fontSize: 12.5,
-    color: '#475569',
+    color: renewxColors.textSecondary,
     lineHeight: 18,
   },
   descToggle: {
@@ -1522,14 +1522,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   descToggleText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0284C7',
+    color: renewxColors.emerald,
   },
   inBoxHeading: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: 10,
@@ -1552,8 +1552,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   boxChipText: {
+    ...renewxTextStyle('medium'),
     fontSize: 11,
-    fontWeight: '600',
     color: '#334155',
   },
 
@@ -1570,9 +1570,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   similarTitle: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
   },
   similarViewAll: {
     flexDirection: 'row',
@@ -1580,9 +1580,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   similarViewAllText: {
+    ...renewxTextStyle('bold'),
     fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.emerald,
   },
   similarScroll: {
     gap: 10,
@@ -1600,16 +1600,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 5,
+    backgroundColor: renewxColors.yellowLight,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     zIndex: 2,
   },
   similarDiscountText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 9,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    color: renewxColors.black,
   },
   similarImage: {
     width: '100%',
@@ -1617,15 +1619,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   similarName: {
+    ...renewxTextStyle('bold'),
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
     marginBottom: 3,
   },
   similarPrice: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0284C7',
+    color: renewxColors.black,
   },
 
   // 5. Bottom Sticky Bar
@@ -1654,11 +1656,22 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   bottomPriceText: {
+    ...renewxTextStyle('black'),
     fontSize: 19,
-    fontWeight: '900',
-    color: '#0F172A',
+    color: renewxColors.black,
+  },
+  bottomSubStatusText: {
+    ...renewxTextStyle('bold'),
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  bottomCodText: {
+    ...renewxTextStyle('bold'),
+    fontSize: 11,
+    color: '#9A6700',
   },
   bottomMrpText: {
+    ...renewxTextStyle('regular'),
     fontSize: 11,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
@@ -1678,24 +1691,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FACC15',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 22,
     paddingVertical: 12,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   addToCartBtnDisabled: {
     backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
     shadowOpacity: 0,
     elevation: 0,
   },
   addToCartBtnText: {
+    ...renewxTextStyle('extraBold'),
     fontSize: 14,
-    fontWeight: '800',
-    color: '#000000',
+    color: renewxColors.black,
   },
   addToCartBtnTextDisabled: {
     color: '#94A3B8',
@@ -1719,21 +1731,21 @@ const styles = StyleSheet.create({
   soldOutBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC2626',
+    backgroundColor: renewxColors.error,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   soldOutBadgeText: {
+    ...renewxTextStyle('extraBold'),
     color: '#FFFFFF',
-    fontWeight: '800',
     fontSize: 9.5,
     letterSpacing: 0.5,
   },
   soldOutCompactText: {
+    ...renewxTextStyle('semibold'),
     flex: 1,
     fontSize: 11,
-    fontWeight: '600',
     color: '#991B1B',
   },
   soldOutImageStageOverlay: {
@@ -1751,19 +1763,15 @@ const styles = StyleSheet.create({
   soldOutCenterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC2626',
+    backgroundColor: renewxColors.error,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    ...(renewxShadows.card as object),
   },
   soldOutCenterPillText: {
+    ...renewxTextStyle('black'),
     color: '#FFFFFF',
-    fontWeight: '900',
     fontSize: 13.5,
     letterSpacing: 1,
   },

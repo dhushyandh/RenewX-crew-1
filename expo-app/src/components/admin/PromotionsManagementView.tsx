@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { useToast } from '@/context/ToastContext';
 import type { Product } from '@/types';
-import { renewxFontFamily, renewxRadius } from '@/design-system';
+import { renewxColors, renewxRadius, renewxShadows, renewxTextStyle } from '@/design-system';
 
 export default function PromotionsManagementView() {
   const toast = useToast();
@@ -460,7 +460,7 @@ export default function PromotionsManagementView() {
             {/* Product List */}
             {loadingProducts ? (
               <View style={styles.modalLoading}>
-                <ActivityIndicator size="large" color="#FACC15" />
+                <ActivityIndicator size="large" color={renewxColors.yellow} />
                 <Text style={styles.modalLoadingText}>Loading verified inventory...</Text>
               </View>
             ) : filteredProducts.length === 0 ? (
@@ -517,7 +517,7 @@ export default function PromotionsManagementView() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
   },
   scrollContent: {
     padding: 16,
@@ -527,9 +527,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: renewxColors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: renewxColors.yellowDark,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -538,21 +538,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: renewxColors.yellowLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#92400E',
-    fontFamily: renewxFontFamily.bold,
+    color: '#78350F',
+    ...renewxTextStyle('extraBold'),
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#B45309',
+    color: '#92400E',
     marginTop: 2,
     lineHeight: 16,
+    ...renewxTextStyle('medium'),
   },
   statusBanner: {
     flexDirection: 'row',
@@ -563,9 +563,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statusBannerSuccess: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: renewxColors.mintBorder,
   },
   statusBannerError: {
     backgroundColor: '#FEF2F2',
@@ -575,56 +575,53 @@ const styles = StyleSheet.create({
   statusText: {
     flex: 1,
     fontSize: 13,
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
   },
   statusTextSuccess: {
-    color: '#15803D',
+    color: renewxColors.mintDark,
   },
   statusTextError: {
     color: '#B91C1C',
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    ...(renewxShadows.card as object),
   },
   sectionHeading: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontFamily: renewxFontFamily.bold,
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
     marginBottom: 10,
   },
   fieldLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('bold'),
     marginTop: 8,
     marginBottom: 4,
   },
   subFieldLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('bold'),
     marginBottom: 6,
   },
   textInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('medium'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   pickerRow: {
     flexDirection: 'row',
@@ -634,9 +631,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productSelectCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.borderStrong,
     borderStyle: 'dashed',
     borderRadius: 12,
     padding: 10,
@@ -652,25 +649,25 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
   },
   thumbPlaceholder: {
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: renewxColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedName: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   selectedPrice: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#16A34A',
+    color: renewxColors.emerald,
+    ...renewxTextStyle('extraBold'),
     marginTop: 2,
   },
   emptySelectContent: {
@@ -681,8 +678,8 @@ const styles = StyleSheet.create({
   },
   emptySelectText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#D97706',
+    color: renewxColors.warning,
+    ...renewxTextStyle('bold'),
   },
 
   /* Preview Styles */
@@ -696,7 +693,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: renewxColors.mint,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -705,24 +702,20 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#16A34A',
+    backgroundColor: renewxColors.emerald,
   },
   previewLiveText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#166534',
+    color: renewxColors.mintDark,
+    ...renewxTextStyle('bold'),
   },
   androidShade: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     borderRadius: 18,
     padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+    ...(renewxShadows.elevated as object),
   },
   notifHeaderRow: {
     flexDirection: 'row',
@@ -731,32 +724,33 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   brandBadgePill: {
-    backgroundColor: '#FEF08A',
+    backgroundColor: renewxColors.yellowLight,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FACC15',
+    borderColor: renewxColors.yellowDark,
   },
   brandBadgeText: {
     fontSize: 10,
-    fontWeight: '900',
-    color: '#000000',
+    color: renewxColors.black,
+    ...renewxTextStyle('black'),
   },
   notifMetaText: {
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
   },
   notifTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
     marginTop: 2,
   },
   notifBody: {
     fontSize: 12,
-    color: '#64748B',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('regular'),
     marginTop: 2,
     marginBottom: 10,
   },
@@ -766,15 +760,15 @@ const styles = StyleSheet.create({
   },
   notifCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     overflow: 'hidden',
   },
   notifImageWrap: {
     height: 96,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,
@@ -788,8 +782,8 @@ const styles = StyleSheet.create({
   },
   notifCardName: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   notifPriceRow: {
     flexDirection: 'row',
@@ -799,38 +793,37 @@ const styles = StyleSheet.create({
   },
   notifCardPrice: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   notifCardOldPrice: {
     fontSize: 10,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
+    ...renewxTextStyle('regular'),
   },
   notifYellowFooter: {
     height: 24,
-    backgroundColor: '#FFC400',
+    backgroundColor: renewxColors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
   },
   notifYellowFooterText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#000000',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
 
   /* Send Button */
   sendButton: {
-    backgroundColor: '#FFC400',
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 2,
+    ...(renewxShadows.elevated as object),
   },
   sendButtonDisabled: {
     opacity: 0.6,
@@ -842,9 +835,8 @@ const styles = StyleSheet.create({
   },
   sendButtonText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#000000',
-    fontFamily: renewxFontFamily.bold,
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
 
   /* Modal Styles */
@@ -854,7 +846,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
@@ -869,24 +861,24 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
   modalCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: renewxColors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSearchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: renewxColors.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: renewxColors.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,
@@ -895,8 +887,10 @@ const styles = StyleSheet.create({
   modalSearchInput: {
     flex: 1,
     fontSize: 13,
-    color: '#0F172A',
+    color: renewxColors.black,
     paddingVertical: 0,
+    ...renewxTextStyle('regular'),
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   modalLoading: {
     paddingVertical: 40,
@@ -905,7 +899,8 @@ const styles = StyleSheet.create({
   },
   modalLoadingText: {
     fontSize: 13,
-    color: '#64748B',
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('medium'),
   },
   modalEmpty: {
     paddingVertical: 40,
@@ -914,7 +909,8 @@ const styles = StyleSheet.create({
   },
   modalEmptyText: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('medium'),
   },
   productListScroll: {
     maxHeight: 380,
@@ -925,31 +921,32 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: renewxColors.surfaceMuted,
     borderRadius: 10,
   },
   productItemRowSelected: {
-    backgroundColor: '#FEF9C3',
+    backgroundColor: renewxColors.yellowLight,
   },
   itemThumb: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: renewxColors.surface,
   },
   itemName: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('bold'),
   },
   itemCategory: {
     fontSize: 11,
-    color: '#64748B',
+    color: renewxColors.textMuted,
+    ...renewxTextStyle('regular'),
     marginTop: 2,
   },
   itemPrice: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
+    color: renewxColors.black,
+    ...renewxTextStyle('extraBold'),
   },
 });

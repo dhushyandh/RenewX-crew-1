@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { renewxColors, renewxTextStyle } from '@/design-system';
 
 interface RenewXLogoProps {
   size?: 'sm' | 'md' | 'lg';
@@ -66,23 +67,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   renewText: {
-    fontWeight: '900',
+    ...renewxTextStyle('black'),
     fontStyle: 'italic',
-    color: '#0A1128',
-    letterSpacing: -0.5,
-    textShadowColor: '#ffffff',
-    textShadowOffset: { width: -1.5, height: 0 },
-    textShadowRadius: 1,
+    color: renewxColors.black,
+    letterSpacing: -0.6,
   },
   xText: {
-    fontWeight: '900',
+    ...renewxTextStyle('black'),
     fontStyle: 'italic',
-    color: '#F59E0B',
-    marginLeft: 0.5,
+    color: renewxColors.gold,
+    marginLeft: 1,
   },
   tagline: {
-    fontWeight: '700',
-    color: '#476E8E',
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
     letterSpacing: 0.2,
     marginTop: -2,
   },

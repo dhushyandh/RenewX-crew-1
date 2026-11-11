@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermission,
@@ -158,20 +159,20 @@ export default function NotificationPermissionPrompt() {
 
           <View style={styles.perksList}>
             <View style={styles.perkItem}>
-              <View style={[styles.perkDot, { backgroundColor: '#2563eb' }]}>
-                <Ionicons name="car-outline" size={13} color="#fff" />
+              <View style={[styles.perkDot, { backgroundColor: renewxColors.info }]}>
+                <Ionicons name="car-outline" size={13} color={renewxColors.white} />
               </View>
               <Text style={styles.perkText}>Real-time shipment & out-for-delivery alerts</Text>
             </View>
             <View style={styles.perkItem}>
-              <View style={[styles.perkDot, { backgroundColor: '#059669' }]}>
-                <Ionicons name="cash-outline" size={13} color="#fff" />
+              <View style={[styles.perkDot, { backgroundColor: renewxColors.emerald }]}>
+                <Ionicons name="cash-outline" size={13} color={renewxColors.white} />
               </View>
               <Text style={styles.perkText}>Instant sell-request quotes & pickup schedule</Text>
             </View>
             <View style={styles.perkItem}>
               <View style={[styles.perkDot, { backgroundColor: '#7c3aed' }]}>
-                <Ionicons name="shield-checkmark-outline" size={13} color="#fff" />
+                <Ionicons name="shield-checkmark-outline" size={13} color={renewxColors.white} />
               </View>
               <Text style={styles.perkText}>Crucial account and security notices</Text>
             </View>
@@ -213,17 +214,13 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#ffffff',
+    backgroundColor: renewxColors.surface,
     borderRadius: 24,
     paddingHorizontal: 24,
     paddingTop: 28,
     paddingBottom: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 10,
+    ...(renewxShadows.floating as object),
     position: 'relative',
   },
   closeBtn: {
@@ -233,7 +230,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: renewxColors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -242,9 +239,9 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: renewxColors.mintLight,
     borderWidth: 2,
-    borderColor: '#bbf7d0',
+    borderColor: renewxColors.mintBorder,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -258,38 +255,39 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     width: 24,
     height: 24,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#ffffff',
+    borderColor: renewxColors.white,
   },
   title: {
     fontSize: 20,
-    fontWeight: '900',
-    color: '#0f172a',
+    ...renewxTextStyle('black'),
+    color: renewxColors.black,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#64748b',
+    fontSize: 13.5,
+    lineHeight: 19,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
     textAlign: 'center',
     marginBottom: 20,
   },
   perksList: {
     width: '100%',
-    backgroundColor: '#f8fafc',
+    backgroundColor: renewxColors.background,
     borderRadius: 14,
     padding: 12,
     marginBottom: 20,
     gap: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: renewxColors.border,
   },
   perkItem: {
     flexDirection: 'row',
@@ -305,38 +303,34 @@ const styles = StyleSheet.create({
   },
   perkText: {
     flex: 1,
-    fontSize: 12,
-    color: '#334155',
-    fontWeight: '600',
-    lineHeight: 16,
+    fontSize: 12.5,
+    color: renewxColors.textSecondary,
+    ...renewxTextStyle('semibold'),
+    lineHeight: 17,
   },
   primaryBtn: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: renewxColors.emerald,
     paddingVertical: 14,
     borderRadius: 14,
     marginBottom: 10,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    ...(renewxShadows.card as object),
   },
   primaryBtnText: {
-    color: '#ffffff',
+    color: renewxColors.white,
     fontSize: 14,
-    fontWeight: '800',
+    ...renewxTextStyle('extraBold'),
   },
   secondaryBtn: {
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   secondaryBtnText: {
-    color: '#94a3b8',
+    color: renewxColors.textMuted,
     fontSize: 13,
-    fontWeight: '600',
+    ...renewxTextStyle('semibold'),
   },
 });

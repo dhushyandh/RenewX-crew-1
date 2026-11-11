@@ -106,7 +106,7 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
         display: inline-block;
       }
       .renewx-text-shimmer-light {
-        background: linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 26%, #FEF08A 46%, #FBBF24 52%, #FEF08A 58%, #FFFFFF 78%, #FFFFFF 100%) !important;
+        background: linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 26%, #FFF4C2 46%, #FFC400 52%, #FFF4C2 58%, #FFFFFF 78%, #FFFFFF 100%) !important;
         background-size: 240% 100% !important;
         -webkit-background-clip: text !important;
         -webkit-text-fill-color: transparent !important;
@@ -127,7 +127,7 @@ const WEB_GRADIENTS: Record<ShimmerVariant, string> = {
   'whatsapp-badge': 'linear-gradient(90deg, #14532D 0%, #14532D 26%, #16A34A 46%, #22C55E 52%, #16A34A 58%, #14532D 78%, #14532D 100%)',
   blue: 'linear-gradient(90deg, #0F172A 0%, #0F172A 26%, #0284C7 46%, #38BDF8 52%, #0284C7 58%, #0F172A 78%, #0F172A 100%)',
   silver: 'linear-gradient(90deg, #0F172A 0%, #0F172A 26%, #475569 46%, #94A3B8 52%, #475569 58%, #0F172A 78%, #0F172A 100%)',
-  light: 'linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 26%, #FEF08A 46%, #FBBF24 52%, #FEF08A 58%, #FFFFFF 78%, #FFFFFF 100%)',
+  light: 'linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 26%, #FFF4C2 46%, #FFC400 52%, #FFF4C2 58%, #FFFFFF 78%, #FFFFFF 100%)',
 };
 
 const NATIVE_SHIMMER_COLORS: Record<ShimmerVariant, { base: string; peak: string; mid: string }> = {
@@ -139,7 +139,7 @@ const NATIVE_SHIMMER_COLORS: Record<ShimmerVariant, { base: string; peak: string
   'whatsapp-badge': { base: '#14532D', mid: '#16A34A', peak: '#22C55E' },
   blue: { base: '#0F172A', mid: '#0284C7', peak: '#38BDF8' },
   silver: { base: '#0F172A', mid: '#475569', peak: '#94A3B8' },
-  light: { base: '#FFFFFF', mid: '#FEF08A', peak: '#FBBF24' },
+  light: { base: '#FFFFFF', mid: '#FFF4C2', peak: '#FFC400' },
 };
 
 /**

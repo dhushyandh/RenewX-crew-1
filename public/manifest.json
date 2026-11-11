@@ -38,6 +38,22 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/images/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "RenewX Marketplace"
+    },
+    {
+      "src": "/images/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "RenewX Mobile Store"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Shop Certified Devices",

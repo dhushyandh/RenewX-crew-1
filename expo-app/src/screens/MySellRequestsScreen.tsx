@@ -7,20 +7,26 @@ import { api } from '@/services/api';
 import { useSafeHeaderTop } from '@/lib/useSafeHeaderTop';
 import { useToast } from '@/context/ToastContext';
 import HomeHeader from '@/components/HomeHeader';
+import { renewxColors, renewxShadows, renewxTextStyle } from '@/design-system';
 
 const STATUS_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; color: string }> = {
-  pending: { label: 'Pending Review', icon: 'time-outline', bg: '#fff7ed', color: '#c2410c' },
-  approved: { label: 'Approved', icon: 'checkmark-circle-outline', bg: '#ecfdf5', color: '#047857' },
-  rejected: { label: 'Rejected', icon: 'close-circle-outline', bg: '#fef2f2', color: '#b91c1c' },
-  scheduled: { label: 'Pickup Scheduled', icon: 'calendar-outline', bg: '#eff6ff', color: '#1d4ed8' },
-  picked_up: { label: 'Picked Up', icon: 'cube-outline', bg: '#f5f3ff', color: '#6d28d9' },
-  inspected: { label: 'Inspection', icon: 'search-outline', bg: '#f5f3ff', color: '#6d28d9' },
-  completed: { label: 'Completed', icon: 'checkmark-done-outline', bg: '#ecfdf5', color: '#047857' },
-  cancelled: { label: 'Cancelled', icon: 'ban-outline', bg: '#f3f4f6', color: '#4b5563' },
+  pending: { label: 'Pending Review', icon: 'time-outline', bg: renewxColors.yellowSoft, color: '#9A6700' },
+  approved: { label: 'Approved', icon: 'checkmark-circle-outline', bg: renewxColors.mint, color: renewxColors.emerald },
+  rejected: { label: 'Rejected', icon: 'close-circle-outline', bg: '#FEF2F2', color: renewxColors.error },
+  scheduled: { label: 'Pickup Scheduled', icon: 'calendar-outline', bg: '#EFF6FF', color: renewxColors.info },
+  picked_up: { label: 'Picked Up', icon: 'cube-outline', bg: '#F5F3FF', color: '#6D28D9' },
+  inspected: { label: 'Inspection', icon: 'search-outline', bg: '#F5F3FF', color: '#6D28D9' },
+  completed: { label: 'Completed', icon: 'checkmark-done-outline', bg: renewxColors.mint, color: renewxColors.emerald },
+  cancelled: { label: 'Cancelled', icon: 'ban-outline', bg: renewxColors.surfaceMuted, color: renewxColors.textSecondary },
 };
 
 function formatStatus(status: string) {
-  return STATUS_META[status] || { label: status.replace(/_/g, ' '), icon: 'ellipse-outline' as const, bg: '#f3f4f6', color: '#475569' };
+  return STATUS_META[status] || {
+    label: status.replace(/_/g, ' '),
+    icon: 'ellipse-outline' as const,
+    bg: renewxColors.surfaceMuted,
+    color: renewxColors.textSecondary,
+  };
 }
 
 export default function MySellRequestsScreen() {
@@ -191,7 +197,7 @@ export default function MySellRequestsScreen() {
               style={styles.copyBadge}
               activeOpacity={0.7}
             >
-              <Ionicons name="copy-outline" size={12} color="#0284c7" />
+              <Ionicons name="copy-outline" size={12} color={renewxColors.emerald} />
               <Text style={styles.copyBadgeText}>Copy</Text>
             </TouchableOpacity>
           </View>
@@ -204,7 +210,7 @@ export default function MySellRequestsScreen() {
 
         {status === 'approved' && (
           <View style={styles.approvedBox}>
-            <Ionicons name="checkmark-circle" size={18} color="#047857" />
+            <Ionicons name="checkmark-circle" size={18} color={renewxColors.emerald} />
             <View style={{ flex: 1 }}>
               <Text style={styles.approvedTitle}>Sell request approved</Text>
               <Text style={styles.approvedSub}>Your quote has been approved! Doorstep pickup will be scheduled shortly.</Text>
@@ -219,9 +225,9 @@ export default function MySellRequestsScreen() {
             style={styles.trackBtn}
             activeOpacity={0.8}
           >
-            <Ionicons name="navigate-outline" size={14} color="#ffffff" />
+            <Ionicons name="navigate-outline" size={14} color={renewxColors.black} />
             <Text style={styles.trackBtnText}>Track Live Status</Text>
-            <Ionicons name="chevron-forward" size={13} color="#ffffff" />
+            <Ionicons name="chevron-forward" size={13} color={renewxColors.black} />
           </TouchableOpacity>
 
           {canCancel && (
@@ -232,10 +238,10 @@ export default function MySellRequestsScreen() {
               activeOpacity={0.8}
             >
               {isCancelling ? (
-                <ActivityIndicator size="small" color="#dc2626" />
+                <ActivityIndicator size="small" color={renewxColors.error} />
               ) : (
                 <>
-                  <Ionicons name="close-circle-outline" size={14} color="#dc2626" />
+                  <Ionicons name="close-circle-outline" size={14} color={renewxColors.error} />
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </>
               )}
@@ -247,7 +253,7 @@ export default function MySellRequestsScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#059669" /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={renewxColors.emerald} /></View>;
   }
 
   return (
@@ -263,17 +269,17 @@ export default function MySellRequestsScreen() {
       {items.length > 0 && (
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={16} color="#64748b" />
+            <Ionicons name="search" size={16} color={renewxColors.textMuted} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search by Sell Request ID (e.g. 104) or Device..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                <Ionicons name="close-circle" size={16} color="#94A3B8" />
               </TouchableOpacity>
             )}
           </View>
@@ -289,16 +295,16 @@ export default function MySellRequestsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); load(); }}
-            tintColor="#FFC400"
-            colors={['#FFC400', '#10B981']}
-            progressBackgroundColor="#FFFFFF"
+            tintColor={renewxColors.yellow}
+            colors={[renewxColors.yellow, renewxColors.emerald]}
+            progressBackgroundColor={renewxColors.surface}
           />
         }
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           error ? (
             <View style={styles.empty}>
-              <Ionicons name="cloud-offline-outline" size={40} color="#64748b" />
+              <Ionicons name="cloud-offline-outline" size={40} color={renewxColors.textMuted} />
               <Text style={styles.emptyTitle}>Couldn't load requests</Text>
               <Text style={styles.emptyText}>{error}</Text>
               <TouchableOpacity style={styles.retry} onPress={() => { setRefreshing(true); load(); }}>
@@ -307,7 +313,7 @@ export default function MySellRequestsScreen() {
             </View>
           ) : items.length === 0 ? (
             <View style={styles.empty}>
-              <Ionicons name="pricetag-outline" size={44} color="#94a3b8" />
+              <Ionicons name="pricetag-outline" size={44} color="#94A3B8" />
               <Text style={styles.emptyTitle}>No sell requests yet</Text>
               <Text style={styles.emptyText}>Submit a device from Sell and your request will appear here.</Text>
               <TouchableOpacity style={styles.retry} onPress={() => navigation.navigate('MainTabs', { screen: 'Sell' })}>
@@ -316,7 +322,7 @@ export default function MySellRequestsScreen() {
             </View>
           ) : (
             <View style={styles.empty}>
-              <Ionicons name="search-outline" size={40} color="#94a3b8" />
+              <Ionicons name="search-outline" size={40} color="#94A3B8" />
               <Text style={styles.emptyTitle}>No matches found</Text>
               <Text style={styles.emptyText}>No sell request matching "{searchQuery}"</Text>
               <TouchableOpacity style={styles.retry} onPress={() => setSearchQuery('')}>
@@ -330,46 +336,236 @@ export default function MySellRequestsScreen() {
   );
 }
 
-const styles=StyleSheet.create({
-  container:{flex:1,backgroundColor:'#f8f7f2'},
-  center:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:'#f8f7f2'},
-  header:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:16,paddingTop:8,paddingBottom:14,backgroundColor:'#fff',borderBottomWidth:1,borderBottomColor:'#e5e7eb'},
-  back:{width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center',backgroundColor:'#f1f5f9'},
-  refresh:{width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center',backgroundColor:'#f1f5f9'},
-  title:{fontSize:20,fontWeight:'900',color:'#0f172a'},
-  subtitle:{fontSize:11,color:'#64748b',marginTop:2},
-  list:{padding:16,gap:12},
-  card:{backgroundColor:'#fff',borderRadius:16,padding:15,borderWidth:1,borderColor:'#e5e7eb'},
-  cardTop:{flexDirection:'row',alignItems:'center',gap:10},
-  deviceIcon:{width:42,height:42,borderRadius:12,backgroundColor:'#f8fafc',alignItems:'center',justifyContent:'center'},
-  deviceName:{fontSize:15,fontWeight:'800',color:'#0f172a'},
-  deviceMeta:{fontSize:11,color:'#64748b',marginTop:3},
-  statusPill:{flexDirection:'row',alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:5,borderRadius:10,maxWidth:135},
-  statusText:{fontSize:9,fontWeight:'800'},
-  divider:{height:1,backgroundColor:'#eef2f7',marginVertical:12},
-  infoRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:7},
-  label:{fontSize:11,color:'#64748b'},
-  value:{fontSize:11,fontWeight:'700',color:'#334155'},
-  amount:{fontSize:14,fontWeight:'900',color:'#047857'},
-  approvedBox:{flexDirection:'row',gap:9,alignItems:'center',marginTop:8,padding:11,borderRadius:12,backgroundColor:'#ecfdf5',borderWidth:1,borderColor:'#a7f3d0'},
-  approvedTitle:{fontSize:12,fontWeight:'900',color:'#065f46'},
-  approvedSub:{fontSize:10,color:'#047857',marginTop:2},
-  liveTrackerBadge:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#ecfdf5',paddingHorizontal:10,paddingVertical:6,borderRadius:12,borderWidth:1,borderColor:'#a7f3d0'},
-  liveTrackerBadgeText:{fontSize:11,fontWeight:'800',color:'#047857'},
-  searchContainer:{paddingHorizontal:16,paddingTop:12,paddingBottom:4},
-  searchBar:{flexDirection:'row',alignItems:'center',backgroundColor:'#fff',paddingHorizontal:12,paddingVertical:9,borderRadius:12,borderWidth:1,borderColor:'#e2e8f0',gap:8},
-  searchInput:{flex:1,fontSize:12,fontWeight:'600',color:'#0f172a',padding:0},
-  idChipRow:{flexDirection:'row',alignItems:'center',gap:6},
-  copyBadge:{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:'#e0f2fe',paddingHorizontal:6,paddingVertical:2,borderRadius:6},
-  copyBadgeText:{fontSize:10,fontWeight:'700',color:'#0284c7'},
-  actionRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10,marginTop:12,paddingTop:12,borderTopWidth:1,borderTopColor:'#f1f5f9'},
-  trackBtn:{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:'#0f172a',paddingVertical:9,paddingHorizontal:12,borderRadius:10},
-  trackBtnText:{fontSize:12,fontWeight:'800',color:'#ffffff'},
-  cancelBtn:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#fef2f2',paddingVertical:8,paddingHorizontal:12,borderRadius:10,borderWidth:1,borderColor:'#fca5a5'},
-  cancelBtnText:{fontSize:11,fontWeight:'800',color:'#dc2626'},
-  empty:{flex:1,alignItems:'center',justifyContent:'center',padding:30},
-  emptyTitle:{fontSize:17,fontWeight:'900',color:'#0f172a',marginTop:10},
-  emptyText:{fontSize:12,color:'#64748b',textAlign:'center',lineHeight:18,marginTop:5,marginBottom:16},
-  retry:{backgroundColor:'#0f172a',paddingHorizontal:18,paddingVertical:11,borderRadius:10},
-  retryText:{color:'#ffc400',fontSize:12,fontWeight:'900'}
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: renewxColors.background,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: renewxColors.background,
+  },
+  list: {
+    padding: 16,
+    gap: 12,
+  },
+  card: {
+    backgroundColor: renewxColors.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+    ...(renewxShadows.card as object),
+  },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  deviceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: renewxColors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deviceName: {
+    fontSize: 15.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
+  },
+  deviceMeta: {
+    fontSize: 12,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textMuted,
+    marginTop: 2,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 10,
+    maxWidth: 140,
+  },
+  statusText: {
+    fontSize: 10.5,
+    ...renewxTextStyle('bold'),
+  },
+  divider: {
+    height: 1,
+    backgroundColor: renewxColors.surfaceMuted,
+    marginVertical: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 12,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.textMuted,
+  },
+  value: {
+    fontSize: 12.5,
+    ...renewxTextStyle('semibold'),
+    color: renewxColors.textSecondary,
+  },
+  amount: {
+    fontSize: 15,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.emerald,
+  },
+  approvedBox: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: renewxColors.mintLight,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
+  },
+  approvedTitle: {
+    fontSize: 13,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.mintDark,
+  },
+  approvedSub: {
+    fontSize: 11.5,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.emerald,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: renewxColors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: renewxColors.border,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    ...renewxTextStyle('medium'),
+    color: renewxColors.black,
+    padding: 0,
+    ...Platform.select({ web: { outlineStyle: 'none' } as any }),
+  },
+  idChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  copyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: renewxColors.mint,
+    borderWidth: 1,
+    borderColor: renewxColors.mintBorder,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  copyBadgeText: {
+    fontSize: 11,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.emerald,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: renewxColors.surfaceMuted,
+  },
+  trackBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  trackBtnText: {
+    fontSize: 12.5,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.black,
+  },
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  cancelBtnText: {
+    fontSize: 12,
+    ...renewxTextStyle('bold'),
+    color: renewxColors.error,
+  },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 30,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    ...renewxTextStyle('extraBold'),
+    color: renewxColors.black,
+    marginTop: 12,
+  },
+  emptyText: {
+    fontSize: 13,
+    ...renewxTextStyle('regular'),
+    color: renewxColors.textMuted,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginTop: 6,
+    marginBottom: 18,
+  },
+  retry: {
+    backgroundColor: renewxColors.yellow,
+    borderWidth: 1,
+    borderColor: renewxColors.yellowDark,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  retryText: {
+    color: renewxColors.black,
+    fontSize: 13,
+    ...renewxTextStyle('bold'),
+  },
 });

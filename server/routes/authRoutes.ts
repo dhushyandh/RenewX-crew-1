@@ -11,6 +11,8 @@ import {
   changePassword,
   sendAuthOtp,
   verifyAuthOtp,
+  sendPhoneOtp,
+  verifyPhoneOtp,
 } from '../controllers/authController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { authRateLimiter } from '../middleware/rateLimiter';
@@ -23,6 +25,8 @@ router.post('/login', authRateLimiter, login);
 router.post('/google', authRateLimiter, googleAuth);
 router.post('/send-otp', authRateLimiter, sendAuthOtp);
 router.post('/verify-otp', authRateLimiter, verifyAuthOtp);
+router.post('/send-phone-otp', authRateLimiter, sendPhoneOtp);
+router.post('/verify-phone-otp', authRateLimiter, verifyPhoneOtp);
 
 // Password Reset & Email Verification endpoints
 router.post('/forgot-password', authRateLimiter, requestPasswordReset);
